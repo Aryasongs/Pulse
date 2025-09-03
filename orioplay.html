@@ -646,57 +646,72 @@
             }
         }
 
-        async function loadReels(feedType = 'foryou') {
+        function loadFollowing() {
+            const followingList = document.getElementById('following-list');
+            followingList.innerHTML = '<div class="text-gray-400 text-sm">Start following people to see them here!</div>';
+        }
+
+        function loadChatList() {
+            const chatList = document.getElementById('chat-list');
+            chatList.innerHTML = '<div class="text-gray-400 text-sm">No conversations yet</div>';
+        }
+
+        function loadTrendingHashtags() {
+            const trendingContainer = document.getElementById('trending-hashtags');
+            const sampleHashtags = ['#viral', '#trending', '#orioplay', '#fun', '#music'];
+            
+            trendingContainer.innerHTML = '';
+            sampleHashtags.forEach(hashtag => {
+                const hashtagDiv = document.createElement('div');
+                hashtagDiv.className = 'text-pink-500 cursor-pointer hover:text-pink-400';
+                hashtagDiv.textContent = hashtag;
+                hashtagDiv.onclick = () => searchHashtag(hashtag.substring(1));
+                trendingContainer.appendChild(hashtagDiv);
+            });
+        }
+
+        function loadReels(feedType = 'foryou') {
             const reelsContainer = document.getElementById('reels-container');
             reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">Loading Orioz...</div>';
             
             try {
-                const snapshot = await database.ref('posts').orderByChild('type').equalTo('video').once('value');
-                const videosData = snapshot.val();
+                // Load videos from localStorage
+                const savedPosts = JSON.parse(localStorage.getItem('orioplay_posts')) || [];
+                let videos = savedPosts.filter(post => post.type === 'video').reverse();
                 
-                if (videosData) {
-                    let videos = Object.keys(videosData).map(key => ({
-                        id: key,
-                        ...videosData[key]
-                    })).reverse();
-                    
-                    // Filter based on feed type
-                    if (feedType === 'following' && currentUser) {
-                        const followsSnapshot = await database.ref(`follows/${currentUser.uid}`).once('value');
-                        const follows = followsSnapshot.val();
-                        if (follows) {
-                            const followingIds = Object.keys(follows);
-                            videos = videos.filter(video => followingIds.includes(video.userId));
-                        } else {
-                            videos = [];
-                        }
-                    }
-                    
-                    reelsContainer.innerHTML = '';
-                    
-                    if (videos.length > 0) {
-                        videos.forEach((video, index) => {
-                            const reelElement = createReelElement(video, index);
-                            reelsContainer.appendChild(reelElement);
-                        });
-                        
-                        // Create scroll indicator dots
-                        createScrollIndicator(videos.length);
-                        
-                        // Setup video intersection observer and scroll handling
-                        setTimeout(() => {
-                            setupReelsScrolling();
-                            handleVideoIntersection();
-                            hideSwipeHint();
-                        }, 100);
+                // Filter based on feed type
+                if (feedType === 'following' && currentUser) {
+                    const follows = JSON.parse(localStorage.getItem(`follows_${currentUser.uid}`)) || {};
+                    if (Object.keys(follows).length > 0) {
+                        const followingIds = Object.keys(follows);
+                        videos = videos.filter(video => followingIds.includes(video.userId));
                     } else {
-                        const message = feedType === 'following' ? 
-                            'No videos from people you follow yet. Try the For You tab!' : 
-                            'No Orioz yet. Upload your first video! 🎬';
-                        reelsContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400">${message}</div>`;
+                        videos = [];
                     }
+                }
+                
+                reelsContainer.innerHTML = '';
+                
+                if (videos.length > 0) {
+                    videos.forEach((video, index) => {
+                        const reelElement = createReelElement(video, index);
+                        reelsContainer.appendChild(reelElement);
+                    });
+                    
+                    // Create scroll indicator dots
+                    createScrollIndicator(videos.length);
+                    
+                    // Setup video intersection observer and scroll handling
+                    setTimeout(() => {
+                        setupReelsScrolling();
+                        handleVideoIntersection();
+                        hideSwipeHint();
+                    }, 100);
                 } else {
-                    reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No Orioz yet. Upload your first video! 🎬</div>';
+                    const message = feedType === 'following' ? 
+                        'No videos from people you follow yet. Try the For You tab!' : 
+                        'No Orioz yet. Upload your first video! 🎬';
+                    reelsContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400">${message}</div>`;
                 }
             } catch (error) {
                 console.error('Error loading Orioz:', error);
@@ -1888,5 +1903,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794619095de3f90',t:'MTc1Njg5MzQyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979463fee6ba3f90',t:'MTc1Njg5MzUyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
