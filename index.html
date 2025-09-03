@@ -1,0 +1,2671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Pulse - Social Media Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .pulse-shadow {
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        .buzz-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .avatar-letter {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .pink-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .blue-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .notification-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .verified-tick {
+            width: 16px;
+            height: 16px;
+            background-image: url('https://community.oriontec.xyz/check.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            display: inline-block;
+            margin-left: 4px;
+        }
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .message-sent {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-left: auto;
+        }
+        .message-received {
+            background: #f3f4f6;
+            color: #374151;
+        }
+        
+        .hashtag {
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .hashtag:hover {
+            text-decoration: underline;
+        }
+        
+        .mention {
+            color: #667eea;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        
+        .mention:hover {
+            text-decoration: underline;
+        }
+        
+        .hashtag {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+        
+        .mention {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.9em;
+        }
+        
+        .suggestions-dropdown {
+            position: absolute;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: 100%;
+        }
+        
+        .suggestion-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            transition: all 0.2s ease;
+        }
+        
+        .suggestion-item:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+        
+        .hashtag-suggestion {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .hashtag-icon {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .mention-suggestion {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .mention-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        
+        /* Custom notification styles */
+        .custom-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            z-index: 10000;
+            transform: translateX(400px);
+            transition: all 0.3s ease;
+            border-left: 4px solid #667eea;
+            max-width: 300px;
+        }
+        
+        .custom-notification.show {
+            transform: translateX(0);
+        }
+        
+        .custom-notification.success {
+            border-left-color: #10b981;
+        }
+        
+        .custom-notification.error {
+            border-left-color: #ef4444;
+        }
+        
+        .custom-notification.warning {
+            border-left-color: #f59e0b;
+        }
+        
+        /* Disable text selection and copy */
+        * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        input, textarea {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md pulse-shadow">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold gradient-bg bg-clip-text text-transparent mb-2">Pulse</h1>
+                <p class="text-gray-600">Connect with the world through Buzz</p>
+            </div>
+            <button id="googleSignIn" class="w-full bg-white border-2 border-gray-200 rounded-xl py-3 px-4 flex items-center justify-center gap-3 hover:bg-gray-50 transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+            </button>
+        </div>
+    </div>
+
+    <!-- Setup Screens -->
+    <div id="nameSetup" class="hidden min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md pulse-shadow">
+            <h2 class="text-2xl font-bold text-center mb-6">What's your name?</h2>
+            <input type="text" id="fullName" placeholder="Enter your full name" class="w-full p-4 border-2 border-gray-200 rounded-xl mb-4 focus:border-purple-500 outline-none">
+            <button id="nameNext" class="w-full gradient-bg text-white py-3 rounded-xl font-semibold">Next</button>
+        </div>
+    </div>
+
+    <div id="usernameSetup" class="hidden min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md pulse-shadow">
+            <h2 class="text-2xl font-bold text-center mb-6">Choose a username</h2>
+            <input type="text" id="username" placeholder="username123" class="w-full p-4 border-2 border-gray-200 rounded-xl mb-2 focus:border-purple-500 outline-none">
+            <p class="text-sm text-gray-500 mb-4">Only lowercase letters and numbers allowed</p>
+            <div id="usernameError" class="text-red-500 text-sm mb-4 hidden"></div>
+            <button id="usernameNext" class="w-full gradient-bg text-white py-3 rounded-xl font-semibold">Next</button>
+        </div>
+    </div>
+
+    <div id="dobSetup" class="hidden min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md pulse-shadow">
+            <h2 class="text-2xl font-bold text-center mb-6">When's your birthday?</h2>
+            <input type="date" id="dateOfBirth" class="w-full p-4 border-2 border-gray-200 rounded-xl mb-4 focus:border-purple-500 outline-none">
+            <button id="dobNext" class="w-full gradient-bg text-white py-3 rounded-xl font-semibold mb-3">Next</button>
+            <button id="dobSkip" class="w-full border-2 border-gray-300 text-gray-600 py-3 rounded-xl font-semibold">Skip</button>
+        </div>
+    </div>
+
+    <div id="profilePicSetup" class="hidden min-h-screen gradient-bg flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md pulse-shadow">
+            <h2 class="text-2xl font-bold text-center mb-6">Add a profile picture</h2>
+            <div class="flex justify-center mb-6">
+                <div id="previewAvatar" class="w-24 h-24 rounded-full avatar-letter flex items-center justify-center text-white text-2xl font-bold"></div>
+            </div>
+            <input type="file" id="profilePicInput" accept="image/*" class="hidden">
+            <button id="uploadPic" class="w-full gradient-bg text-white py-3 rounded-xl font-semibold mb-3">Choose Photo</button>
+            <button id="picSkip" class="w-full border-2 border-gray-300 text-gray-600 py-3 rounded-xl font-semibold">Skip</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <!-- Top Navigation -->
+        <nav class="bg-white border-b border-gray-200 sticky top-0 z-50">
+            <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+                <h1 class="text-2xl font-bold gradient-bg bg-clip-text text-transparent">Pulse</h1>
+                <div class="flex gap-2">
+                    <button id="notificationBtn" class="relative p-3 hover:bg-gray-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+                        </svg>
+                        <div id="notificationDot" class="hidden absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full notification-dot flex items-center justify-center">
+                            <span id="notificationCount" class="text-white text-xs font-bold">0</span>
+                        </div>
+                    </button>
+                    <button id="messageBtn" class="p-3 hover:bg-gray-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                    </button>
+                    <button id="settingsBtn" class="p-3 hover:bg-gray-100 rounded-full transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Create Buzz -->
+        <div class="max-w-md mx-auto p-4">
+            <div class="bg-white rounded-2xl p-4 mb-4 pulse-shadow">
+                <div class="flex gap-3">
+                    <div id="userAvatar" class="w-12 h-12 rounded-full avatar-letter flex items-center justify-center text-white font-bold flex-shrink-0"></div>
+                    <div class="flex-1 relative">
+                        <textarea id="buzzText" placeholder="What's buzzing?" class="w-full resize-none border-none outline-none text-lg" rows="3"></textarea>
+                        <div id="suggestionDropdown" class="suggestions-dropdown hidden"></div>
+                        <div class="flex items-center justify-between mt-3">
+                            <div class="flex gap-3">
+                                <button id="addImage" class="p-2 hover:bg-gray-100 rounded-full">
+                                    <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                    </svg>
+                                </button>
+                                <input type="file" id="buzzImageInput" accept="image/*" class="hidden">
+                            </div>
+                            <button id="postBuzz" class="gradient-bg text-white px-6 py-2 rounded-full font-semibold disabled:opacity-50" disabled>Buzz</button>
+                        </div>
+                        <div id="imagePreview" class="hidden mt-3">
+                            <img id="previewImg" class="w-full rounded-lg max-h-48 object-cover">
+                            <button id="removeImage" class="mt-2 text-red-500 text-sm">Remove image</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feed -->
+            <div id="feed" class="space-y-4">
+                <!-- Buzz posts will be dynamically added here -->
+            </div>
+        </div>
+
+        <!-- Search Screen -->
+        <div id="searchScreen" class="hidden max-w-md mx-auto p-4">
+            <div class="mb-4">
+                <div class="relative">
+                    <input type="text" id="searchInput" placeholder="Search users..." class="w-full p-4 pl-12 border-2 border-gray-200 rounded-xl focus:border-purple-500 outline-none">
+                    <svg class="w-5 h-5 absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+            <div id="searchResults" class="space-y-3">
+                <!-- Search results will appear here -->
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 pb-safe">
+            <div class="max-w-md mx-auto px-4 py-2 flex justify-around">
+                <button id="homeBtn" class="p-3 gradient-bg bg-clip-text text-transparent min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                    </svg>
+                </button>
+                <button id="searchBtn" class="p-3 text-gray-400 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </button>
+                <button id="profileBtn" class="p-3 text-gray-400 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                    </svg>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <!-- Modals -->
+    <!-- Notifications Modal -->
+    <div id="notificationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+        <div class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-4 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Notifications</h3>
+                <button id="closeNotifications" class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="notificationsList" class="space-y-3">
+                <!-- Notifications will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="userProfileModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Profile</h3>
+                <button id="closeUserProfile" class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="text-center mb-6">
+                <div id="userProfileAvatar" class="w-20 h-20 rounded-full mx-auto mb-3"></div>
+                <h4 id="userProfileName" class="text-lg font-semibold"></h4>
+                <p id="userProfileUsername" class="text-gray-500"></p>
+                <div class="flex justify-center gap-6 mt-4">
+                    <div class="text-center">
+                        <div id="userFollowersCount" class="font-bold">0</div>
+                        <div class="text-sm text-gray-500">Followers</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="userFollowingCount" class="font-bold">0</div>
+                        <div class="text-sm text-gray-500">Following</div>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-4">
+                    <button id="followBtn" class="flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]">
+                        Follow
+                    </button>
+                    <button id="messageUserBtn" class="px-4 py-2 border border-gray-300 rounded-full font-semibold min-h-[44px]">
+                        Message
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Comments Modal -->
+    <div id="commentModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end">
+        <div class="bg-white w-full max-w-md mx-auto rounded-t-3xl p-4 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Comments</h3>
+                <button id="closeComments" class="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="commentsList" class="space-y-3 mb-4">
+                <!-- Comments will be loaded here -->
+            </div>
+            <div class="flex gap-2 relative">
+                <div class="flex-1 relative">
+                    <input type="text" id="commentInput" placeholder="Add a comment..." class="w-full p-3 border border-gray-300 rounded-full min-h-[44px]">
+                    <div id="commentSuggestionDropdown" class="suggestions-dropdown hidden"></div>
+                </div>
+                <button id="postComment" class="gradient-bg text-white px-4 py-2 rounded-full min-h-[44px]">Post</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Settings</h3>
+                <button id="closeSettings" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-4">
+                <button id="blockUnblockBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"/>
+                    </svg>
+                    <span>Block/Unblock Users</span>
+                </button>
+                <button id="addAccountBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                    </svg>
+                    <span>Add Account</span>
+                </button>
+                <button id="privateAccountBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                    <span>Private Account</span>
+                </button>
+                <button id="verificationBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Request Verification</span>
+                </button>
+                <button id="privacyBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center gap-3">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <span>Privacy Settings</span>
+                </button>
+                <button id="logoutBtn" class="w-full text-left p-3 hover:bg-red-100 rounded-lg flex items-center gap-3 text-red-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    <span>Logout</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Verification Modal -->
+    <div id="verificationModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Request Verification</h3>
+                <button id="closeVerification" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <form id="verificationForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Full Name (as on National ID)</label>
+                    <input type="text" id="verifyFullName" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Why do you think you deserve verification?</label>
+                    <textarea id="verifyReason" class="w-full p-3 border border-gray-300 rounded-lg" rows="3" required></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Other name you're famous by (Optional)</label>
+                    <input type="text" id="verifyFamousName" class="w-full p-3 border border-gray-300 rounded-lg">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Country</label>
+                    <select id="verifyCountry" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                        <option value="">Select Country</option>
+                        <option value="US">United States</option>
+                        <option value="IN">India</option>
+                        <option value="UK">United Kingdom</option>
+                        <option value="CA">Canada</option>
+                        <option value="AU">Australia</option>
+                        <option value="DE">Germany</option>
+                        <option value="FR">France</option>
+                        <option value="JP">Japan</option>
+                        <option value="BR">Brazil</option>
+                        <option value="MX">Mexico</option>
+                    </select>
+                </div>
+                
+                <div id="documentTypeDiv" class="hidden">
+                    <label class="block text-sm font-medium mb-2">Document Type</label>
+                    <select id="verifyDocumentType" class="w-full p-3 border border-gray-300 rounded-lg">
+                        <option value="">Select Document</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Upload Document</label>
+                    <input type="file" id="verifyDocument" accept="image/*" class="w-full p-3 border border-gray-300 rounded-lg" required>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium mb-2">Social Media Links (Optional - up to 5)</label>
+                    <input type="url" id="socialLink1" placeholder="Instagram/Facebook/YouTube verified link" class="w-full p-3 border border-gray-300 rounded-lg mb-2">
+                    <input type="url" id="socialLink2" placeholder="News article link" class="w-full p-3 border border-gray-300 rounded-lg mb-2">
+                    <input type="url" id="socialLink3" placeholder="Additional link" class="w-full p-3 border border-gray-300 rounded-lg mb-2">
+                    <input type="url" id="socialLink4" placeholder="Additional link" class="w-full p-3 border border-gray-300 rounded-lg mb-2">
+                    <input type="url" id="socialLink5" placeholder="Additional link" class="w-full p-3 border border-gray-300 rounded-lg">
+                </div>
+                
+                <button type="submit" class="w-full gradient-bg text-white py-3 rounded-lg font-semibold">Submit Verification Request</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Messages Modal -->
+    <div id="messagesModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Messages</h3>
+                <button id="closeMessages" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="messagesList" class="space-y-3">
+                <!-- Messages will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chatModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-3">
+                    <div id="chatUserAvatar" class="w-10 h-10 rounded-full"></div>
+                    <h3 id="chatUserName" class="text-lg font-semibold"></h3>
+                </div>
+                <button id="closeChat" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="chatMessages" class="space-y-3 mb-4 max-h-64 overflow-y-auto">
+                <!-- Chat messages will be loaded here -->
+            </div>
+            <div class="flex gap-2">
+                <input type="text" id="messageInput" placeholder="Type a message..." class="flex-1 p-3 border border-gray-300 rounded-full">
+                <button id="sendMessage" class="gradient-bg text-white px-4 py-2 rounded-full">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hashtag Modal -->
+    <div id="hashtagModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="hashtagTitle" class="text-xl font-semibold">#hashtag</h3>
+                <button id="closeHashtag" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="text-center mb-6">
+                <div class="flex justify-center gap-6">
+                    <div class="text-center">
+                        <div id="hashtagPostCount" class="font-bold text-2xl">0</div>
+                        <div class="text-sm text-gray-500">Posts</div>
+                    </div>
+                    <div class="text-center">
+                        <div id="hashtagUserCount" class="font-bold text-2xl">0</div>
+                        <div class="text-sm text-gray-500">Users</div>
+                    </div>
+                </div>
+            </div>
+            <div id="hashtagFeed" class="space-y-4">
+                <!-- Hashtag posts will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Followers List Modal -->
+    <div id="followersModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="followersTitle" class="text-xl font-semibold">Followers</h3>
+                <button id="closeFollowers" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div id="followersList" class="space-y-3">
+                <!-- Followers will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl p-6 max-h-96 overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold">Profile</h3>
+                <button id="closeProfile" class="p-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="text-center mb-6">
+                <div id="profileAvatar" class="w-20 h-20 rounded-full mx-auto mb-3 cursor-pointer" onclick="editProfilePicture()"></div>
+                <div class="flex items-center justify-center">
+                    <h4 id="profileName" class="text-lg font-semibold cursor-pointer" onclick="editName()"></h4>
+                    <div id="profileVerifiedTick" class="verified-tick hidden"></div>
+                </div>
+                <p id="profileUsername" class="text-gray-500"></p>
+                <p id="profileBio" class="text-gray-600 text-sm mt-2 cursor-pointer hidden" onclick="editBio()"></p>
+                <button id="addBioBtn" class="text-blue-500 text-sm mt-2 cursor-pointer" onclick="editBio()">Add Bio</button>
+                <div class="flex justify-center gap-6 mt-4">
+                    <div class="text-center cursor-pointer hover:bg-gray-100 p-2 rounded-lg" onclick="showFollowersList(currentUser.uid, 'followers')">
+                        <div id="followersCount" class="font-bold">0</div>
+                        <div class="text-sm text-gray-500">Followers</div>
+                    </div>
+                    <div class="text-center cursor-pointer hover:bg-gray-100 p-2 rounded-lg" onclick="showFollowersList(currentUser.uid, 'following')">
+                        <div id="followingCount" class="font-bold">0</div>
+                        <div class="text-sm text-gray-500">Following</div>
+                    </div>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <button id="myBuzzesBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center justify-between">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                        </svg>
+                        <span>My Buzzes</span>
+                    </span>
+                    <span id="myBuzzesCount" class="text-gray-500">0</span>
+                </button>
+                <button id="rebuzzesBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center justify-between">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <span>Rebuzzes</span>
+                    </span>
+                    <span id="rebuzzesCount" class="text-gray-500">0</span>
+                </button>
+                <button id="mediaBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center justify-between">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>Media</span>
+                    </span>
+                    <span id="mediaCount" class="text-gray-500">0</span>
+                </button>
+                <button id="likedBtn" class="w-full text-left p-3 hover:bg-gray-100 rounded-lg flex items-center justify-between">
+                    <span class="flex items-center gap-3">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                        </svg>
+                        <span>Liked</span>
+                    </span>
+                    <span id="likedCount" class="text-gray-500">0</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+        // Global variables
+        let currentUser = null;
+        let currentBuzzId = null;
+        let selectedImage = null;
+
+        // Custom notification system
+        function showCustomNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = `custom-notification ${type}`;
+            notification.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="flex-shrink-0">
+                        ${type === 'success' ? 
+                            '<svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>' :
+                        type === 'error' ?
+                            '<svg class="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>' :
+                            '<svg class="w-5 h-5 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>'
+                        }
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium text-gray-900">${message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="flex-shrink-0 text-gray-400 hover:text-gray-600">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Auto remove after 4 seconds
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+
+        // Utility functions
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        }
+
+        function generateAvatar(name, imageUrl = null) {
+            if (imageUrl) {
+                return `<img src="${imageUrl}" class="w-full h-full rounded-full object-cover">`;
+            }
+            return `<div class="w-full h-full rounded-full avatar-letter flex items-center justify-center text-white font-bold">${getInitials(name)}</div>`;
+        }
+
+        function timeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (minutes < 1) return 'now';
+            if (minutes < 60) return `${minutes}m`;
+            if (hours < 24) return `${hours}h`;
+            return `${days}d`;
+        }
+
+        function processHashtagsAndMentions(text) {
+            if (!text) return '';
+            
+            // Process hashtags with colorful styling
+            text = text.replace(/#(\w+)/g, '<span class="hashtag" onclick="showHashtag(\'$1\')">#$1</span>');
+            
+            // Process mentions with colorful styling
+            text = text.replace(/@(\w+)/g, '<span class="mention" onclick="showMentionProfile(\'$1\')">@$1</span>');
+            
+            return text;
+        }
+
+        function extractHashtags(text) {
+            if (!text) return [];
+            const hashtags = text.match(/#(\w+)/g);
+            return hashtags ? hashtags.map(tag => tag.substring(1).toLowerCase()) : [];
+        }
+
+        function extractMentions(text) {
+            if (!text) return [];
+            const mentions = text.match(/@(\w+)/g);
+            return mentions ? mentions.map(mention => mention.substring(1).toLowerCase()) : [];
+        }
+
+        function validateUsername(username) {
+            const regex = /^[a-z0-9]+$/;
+            return regex.test(username) && username.length >= 3;
+        }
+
+        // Image handling
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Authentication
+        document.getElementById('googleSignIn').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).then((result) => {
+                currentUser = result.user;
+                checkUserSetup();
+            }).catch((error) => {
+                console.error('Sign in error:', error);
+            });
+        });
+
+        function checkUserSetup() {
+            database.ref(`users/${currentUser.uid}`).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    if (userData.setupComplete) {
+                        showMainApp();
+                    } else {
+                        startSetup();
+                    }
+                } else {
+                    startSetup();
+                }
+            });
+        }
+
+        function startSetup() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('nameSetup').classList.remove('hidden');
+        }
+
+        // Setup flow
+        document.getElementById('nameNext').addEventListener('click', () => {
+            const name = document.getElementById('fullName').value.trim();
+            if (name) {
+                document.getElementById('nameSetup').classList.add('hidden');
+                document.getElementById('usernameSetup').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('usernameNext').addEventListener('click', async () => {
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            const errorDiv = document.getElementById('usernameError');
+            
+            if (!validateUsername(username)) {
+                errorDiv.textContent = 'Username must be at least 3 characters and contain only lowercase letters and numbers';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            // Check if username exists
+            const snapshot = await database.ref('usernames').child(username).once('value');
+            if (snapshot.exists()) {
+                errorDiv.textContent = 'Username already taken';
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            errorDiv.classList.add('hidden');
+            document.getElementById('usernameSetup').classList.add('hidden');
+            document.getElementById('dobSetup').classList.remove('hidden');
+        });
+
+        document.getElementById('dobNext').addEventListener('click', () => {
+            document.getElementById('dobSetup').classList.add('hidden');
+            setupProfilePic();
+        });
+
+        document.getElementById('dobSkip').addEventListener('click', () => {
+            document.getElementById('dobSetup').classList.add('hidden');
+            setupProfilePic();
+        });
+
+        function setupProfilePic() {
+            const name = document.getElementById('fullName').value.trim();
+            document.getElementById('previewAvatar').textContent = getInitials(name);
+            document.getElementById('profilePicSetup').classList.remove('hidden');
+        }
+
+        document.getElementById('uploadPic').addEventListener('click', () => {
+            document.getElementById('profilePicInput').click();
+        });
+
+        document.getElementById('profilePicInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const base64 = await convertToBase64(file);
+                selectedImage = base64;
+                document.getElementById('previewAvatar').innerHTML = `<img src="${base64}" class="w-full h-full rounded-full object-cover">`;
+            }
+        });
+
+        document.getElementById('picSkip').addEventListener('click', () => {
+            completeSetup();
+        });
+
+        document.getElementById('previewAvatar').addEventListener('click', () => {
+            completeSetup();
+        });
+
+        async function completeSetup() {
+            const name = document.getElementById('fullName').value.trim();
+            const username = document.getElementById('username').value.trim().toLowerCase();
+            const dob = document.getElementById('dateOfBirth').value;
+
+            const userData = {
+                name: name,
+                username: username,
+                email: currentUser.email,
+                dateOfBirth: dob || null,
+                profilePicture: selectedImage || null,
+                setupComplete: true,
+                createdAt: Date.now(),
+                followers: 0,
+                following: 0
+            };
+
+            // Save user data
+            await database.ref(`users/${currentUser.uid}`).set(userData);
+            await database.ref(`usernames/${username}`).set(currentUser.uid);
+
+            showMainApp();
+        }
+
+        function showMainApp() {
+            document.getElementById('profilePicSetup').classList.add('hidden');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadUserData();
+            loadFeed();
+            loadNotifications(); // Load notifications on app start
+            loadSuggestionData(); // Load hashtags and users for suggestions
+        }
+
+        async function showUserProfileById(userId) {
+            const userSnapshot = await database.ref(`users/${userId}`).once('value');
+            if (userSnapshot.exists()) {
+                const userData = userSnapshot.val();
+                showUserProfile(userId, userData);
+            }
+        }
+
+        async function loadUserData() {
+            const snapshot = await database.ref(`users/${currentUser.uid}`).once('value');
+            const userData = snapshot.val();
+            
+            const avatarElement = document.getElementById('userAvatar');
+            if (userData.profilePicture) {
+                avatarElement.innerHTML = `<img src="${userData.profilePicture}" class="w-full h-full rounded-full object-cover">`;
+            } else {
+                avatarElement.textContent = getInitials(userData.name);
+            }
+            
+            // Check for auto-verification
+            await checkAutoVerification(userData);
+        }
+
+        async function checkAutoVerification(userData) {
+            // Auto-verify specific users
+            const autoVerifyUsers = ['Anmol Sunda', 'Dozeta Group', 'Gursharn Arya'];
+            const autoVerifyEmail = 'customerserviceffrj4@gmail.com';
+            
+            if (autoVerifyUsers.includes(userData.name) || userData.email === autoVerifyEmail) {
+                if (!userData.isVerified) {
+                    await database.ref(`users/${currentUser.uid}`).update({isVerified: true});
+                    await createNotification(currentUser.uid, 'verification_approved', null, 'Pulse Team');
+                }
+            }
+        }
+
+        // Verification system
+        document.getElementById('verificationBtn').addEventListener('click', () => {
+            document.getElementById('verificationModal').classList.remove('hidden');
+        });
+
+        document.getElementById('closeVerification').addEventListener('click', () => {
+            document.getElementById('verificationModal').classList.add('hidden');
+        });
+
+        document.getElementById('verifyCountry').addEventListener('change', (e) => {
+            const country = e.target.value;
+            const documentTypeDiv = document.getElementById('documentTypeDiv');
+            const documentTypeSelect = document.getElementById('verifyDocumentType');
+            
+            if (country) {
+                documentTypeDiv.classList.remove('hidden');
+                documentTypeSelect.innerHTML = '<option value="">Select Document</option>';
+                
+                switch(country) {
+                    case 'US':
+                        documentTypeSelect.innerHTML += '<option value="passport">Passport</option><option value="driving_license">Driving License</option>';
+                        break;
+                    case 'IN':
+                        documentTypeSelect.innerHTML += '<option value="pan_card">PAN Card</option><option value="voter_card">Voter Card</option><option value="national_id">National ID</option>';
+                        break;
+                    case 'UK':
+                        documentTypeSelect.innerHTML += '<option value="passport">Passport</option><option value="driving_license">Driving License</option><option value="national_id">National ID</option>';
+                        break;
+                    case 'CA':
+                        documentTypeSelect.innerHTML += '<option value="passport">Passport</option><option value="driving_license">Driving License</option><option value="health_card">Health Card</option>';
+                        break;
+                    default:
+                        documentTypeSelect.innerHTML += '<option value="passport">Passport</option><option value="national_id">National ID</option>';
+                }
+            } else {
+                documentTypeDiv.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('verificationForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = {
+                userId: currentUser.uid,
+                fullName: document.getElementById('verifyFullName').value,
+                reason: document.getElementById('verifyReason').value,
+                famousName: document.getElementById('verifyFamousName').value,
+                country: document.getElementById('verifyCountry').value,
+                documentType: document.getElementById('verifyDocumentType').value,
+                socialLinks: [
+                    document.getElementById('socialLink1').value,
+                    document.getElementById('socialLink2').value,
+                    document.getElementById('socialLink3').value,
+                    document.getElementById('socialLink4').value,
+                    document.getElementById('socialLink5').value
+                ].filter(link => link.trim()),
+                timestamp: Date.now(),
+                status: 'pending'
+            };
+            
+            // Handle document upload
+            const documentFile = document.getElementById('verifyDocument').files[0];
+            if (documentFile) {
+                formData.document = await convertToBase64(documentFile);
+            }
+            
+            await database.ref('verificationRequests').push(formData);
+            
+            showCustomNotification('Verification request submitted successfully! We will review it and get back to you.', 'success');
+            document.getElementById('verificationModal').classList.add('hidden');
+            document.getElementById('verificationForm').reset();
+        });
+
+        // Messaging system
+        function loadMessages() {
+            database.ref('conversations').orderByChild(`participants/${currentUser.uid}`).equalTo(true).on('value', (snapshot) => {
+                const conversations = [];
+                snapshot.forEach((child) => {
+                    conversations.push({id: child.key, ...child.val()});
+                });
+                renderMessagesList(conversations);
+            });
+        }
+
+        function renderMessagesList(conversations) {
+            const messagesList = document.getElementById('messagesList');
+            messagesList.innerHTML = '';
+            
+            if (conversations.length === 0) {
+                messagesList.innerHTML = '<div class="text-center py-8 text-gray-500">No messages yet</div>';
+                return;
+            }
+            
+            conversations.forEach(conversation => {
+                const otherUserId = Object.keys(conversation.participants).find(id => id !== currentUser.uid);
+                
+                database.ref(`users/${otherUserId}`).once('value', (userSnapshot) => {
+                    const otherUser = userSnapshot.val();
+                    
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center gap-3 p-3 bg-white rounded-lg pulse-shadow cursor-pointer hover:bg-gray-50 transition-colors';
+                    
+                    div.innerHTML = `
+                        <div class="w-12 h-12 rounded-full flex-shrink-0">
+                            ${generateAvatar(otherUser.name, otherUser.profilePicture)}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="font-semibold">${otherUser.name}</h4>
+                            <p class="text-gray-500 text-sm">${conversation.lastMessage || 'Start a conversation'}</p>
+                        </div>
+                        <div class="text-xs text-gray-400">
+                            ${conversation.lastMessageTime ? timeAgo(conversation.lastMessageTime) : ''}
+                        </div>
+                    `;
+                    
+                    div.addEventListener('click', () => {
+                        openChat(otherUserId, otherUser);
+                    });
+                    
+                    messagesList.appendChild(div);
+                });
+            });
+        }
+
+        function openChat(userId, userData) {
+            document.getElementById('messagesModal').classList.add('hidden');
+            document.getElementById('chatModal').classList.remove('hidden');
+            
+            document.getElementById('chatUserAvatar').innerHTML = generateAvatar(userData.name, userData.profilePicture);
+            document.getElementById('chatUserName').textContent = userData.name;
+            
+            loadChatMessages(userId);
+        }
+
+        function loadChatMessages(otherUserId) {
+            const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+            
+            database.ref(`messages/${conversationId}`).orderByChild('timestamp').on('value', (snapshot) => {
+                const messages = [];
+                snapshot.forEach((child) => {
+                    messages.push({id: child.key, ...child.val()});
+                });
+                renderChatMessages(messages);
+            });
+        }
+
+        function renderChatMessages(messages) {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = '';
+            
+            messages.forEach(message => {
+                const div = document.createElement('div');
+                div.className = `flex ${message.senderId === currentUser.uid ? 'justify-end' : 'justify-start'} mb-3`;
+                
+                div.innerHTML = `
+                    <div class="message-bubble p-3 rounded-lg ${message.senderId === currentUser.uid ? 'message-sent' : 'message-received'}">
+                        <p class="text-sm">${message.text}</p>
+                        <p class="text-xs opacity-70 mt-1">${timeAgo(message.timestamp)}</p>
+                    </div>
+                `;
+                
+                chatMessages.appendChild(div);
+            });
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        document.getElementById('sendMessage').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        async function sendMessage() {
+            const messageText = document.getElementById('messageInput').value.trim();
+            if (!messageText) return;
+            
+            const otherUserId = document.getElementById('chatUserName').textContent;
+            const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+            
+            const messageData = {
+                senderId: currentUser.uid,
+                text: messageText,
+                timestamp: Date.now()
+            };
+            
+            await database.ref(`messages/${conversationId}`).push(messageData);
+            
+            // Update conversation
+            const conversationData = {
+                participants: {
+                    [currentUser.uid]: true,
+                    [otherUserId]: true
+                },
+                lastMessage: messageText,
+                lastMessageTime: Date.now()
+            };
+            
+            await database.ref(`conversations/${conversationId}`).set(conversationData);
+            
+            document.getElementById('messageInput').value = '';
+        }
+
+        document.getElementById('closeMessages').addEventListener('click', () => {
+            document.getElementById('messagesModal').classList.add('hidden');
+        });
+
+        document.getElementById('closeChat').addEventListener('click', () => {
+            document.getElementById('chatModal').classList.add('hidden');
+        });
+
+        // Suggestion system
+        let allHashtags = new Set();
+        let allUsers = [];
+        let currentSuggestionType = null;
+        let currentSuggestionStart = 0;
+        
+        // Load hashtags and users for suggestions
+        async function loadSuggestionData() {
+            // Load existing hashtags
+            const hashtagsSnapshot = await database.ref('hashtags').once('value');
+            hashtagsSnapshot.forEach((child) => {
+                allHashtags.add(child.key);
+            });
+            
+            // Load all users
+            const usersSnapshot = await database.ref('users').once('value');
+            allUsers = [];
+            usersSnapshot.forEach((child) => {
+                const user = child.val();
+                if (user.setupComplete && child.key !== currentUser.uid) {
+                    allUsers.push({
+                        id: child.key,
+                        username: user.username,
+                        name: user.name,
+                        profilePicture: user.profilePicture
+                    });
+                }
+            });
+        }
+        
+        function showSuggestions(inputElement, dropdownElement, query, type) {
+            const suggestions = [];
+            
+            if (type === 'hashtag') {
+                // Filter hashtags
+                const filteredHashtags = Array.from(allHashtags).filter(hashtag => 
+                    hashtag.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 5);
+                
+                filteredHashtags.forEach(hashtag => {
+                    suggestions.push({
+                        type: 'hashtag',
+                        value: hashtag,
+                        display: `#${hashtag}`
+                    });
+                });
+            } else if (type === 'mention') {
+                // Filter users
+                const filteredUsers = allUsers.filter(user => 
+                    user.username.toLowerCase().includes(query.toLowerCase()) ||
+                    user.name.toLowerCase().includes(query.toLowerCase())
+                ).slice(0, 5);
+                
+                filteredUsers.forEach(user => {
+                    suggestions.push({
+                        type: 'mention',
+                        value: user.username,
+                        display: `@${user.username}`,
+                        name: user.name,
+                        avatar: user.profilePicture
+                    });
+                });
+            }
+            
+            renderSuggestions(dropdownElement, suggestions, inputElement);
+        }
+        
+        function renderSuggestions(dropdownElement, suggestions, inputElement) {
+            dropdownElement.innerHTML = '';
+            
+            if (suggestions.length === 0) {
+                dropdownElement.classList.add('hidden');
+                return;
+            }
+            
+            suggestions.forEach(suggestion => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                
+                if (suggestion.type === 'hashtag') {
+                    div.innerHTML = `
+                        <div class="hashtag-suggestion">
+                            <div class="hashtag-icon">#</div>
+                            <span>${suggestion.value}</span>
+                        </div>
+                    `;
+                } else if (suggestion.type === 'mention') {
+                    div.innerHTML = `
+                        <div class="mention-suggestion">
+                            <div class="mention-avatar">
+                                ${generateAvatar(suggestion.name, suggestion.avatar)}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-sm">${suggestion.name}</div>
+                                <div class="text-gray-500 text-xs">@${suggestion.value}</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                div.addEventListener('click', () => {
+                    insertSuggestion(inputElement, suggestion);
+                    dropdownElement.classList.add('hidden');
+                });
+                
+                dropdownElement.appendChild(div);
+            });
+            
+            dropdownElement.classList.remove('hidden');
+        }
+        
+        function insertSuggestion(inputElement, suggestion) {
+            const text = inputElement.value;
+            const cursorPos = inputElement.selectionStart;
+            
+            // Find the start of the current word
+            let start = cursorPos - 1;
+            while (start >= 0 && text[start] !== ' ' && text[start] !== '\n') {
+                start--;
+            }
+            start++;
+            
+            // Find the trigger character
+            let triggerPos = start;
+            while (triggerPos < cursorPos && text[triggerPos] !== '#' && text[triggerPos] !== '@') {
+                triggerPos++;
+            }
+            
+            if (triggerPos < cursorPos) {
+                const beforeTrigger = text.substring(0, triggerPos);
+                const afterCursor = text.substring(cursorPos);
+                const newText = beforeTrigger + suggestion.display + ' ' + afterCursor;
+                
+                inputElement.value = newText;
+                const newCursorPos = triggerPos + suggestion.display.length + 1;
+                inputElement.setSelectionRange(newCursorPos, newCursorPos);
+                inputElement.focus();
+            }
+        }
+        
+        function handleInputSuggestions(inputElement, dropdownElement) {
+            const text = inputElement.value;
+            const cursorPos = inputElement.selectionStart;
+            
+            // Find current word
+            let start = cursorPos - 1;
+            while (start >= 0 && text[start] !== ' ' && text[start] !== '\n') {
+                start--;
+            }
+            start++;
+            
+            const currentWord = text.substring(start, cursorPos);
+            
+            if (currentWord.startsWith('#') && currentWord.length > 1) {
+                const query = currentWord.substring(1);
+                showSuggestions(inputElement, dropdownElement, query, 'hashtag');
+            } else if (currentWord.startsWith('@') && currentWord.length > 1) {
+                const query = currentWord.substring(1);
+                showSuggestions(inputElement, dropdownElement, query, 'mention');
+            } else {
+                dropdownElement.classList.add('hidden');
+            }
+        }
+
+        // Buzz creation
+        document.getElementById('buzzText').addEventListener('input', (e) => {
+            const postBtn = document.getElementById('postBuzz');
+            postBtn.disabled = e.target.value.trim().length === 0 && !selectedImage;
+            
+            // Handle suggestions
+            handleInputSuggestions(e.target, document.getElementById('suggestionDropdown'));
+        });
+        
+        document.getElementById('buzzText').addEventListener('keydown', (e) => {
+            const dropdown = document.getElementById('suggestionDropdown');
+            if (e.key === 'Escape') {
+                dropdown.classList.add('hidden');
+            }
+        });
+        
+        // Comment input suggestions
+        document.getElementById('commentInput').addEventListener('input', (e) => {
+            handleInputSuggestions(e.target, document.getElementById('commentSuggestionDropdown'));
+        });
+        
+        document.getElementById('commentInput').addEventListener('keydown', (e) => {
+            const dropdown = document.getElementById('commentSuggestionDropdown');
+            if (e.key === 'Escape') {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        document.getElementById('addImage').addEventListener('click', () => {
+            document.getElementById('buzzImageInput').click();
+        });
+
+        document.getElementById('buzzImageInput').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const base64 = await convertToBase64(file);
+                selectedImage = base64;
+                document.getElementById('previewImg').src = base64;
+                document.getElementById('imagePreview').classList.remove('hidden');
+                document.getElementById('postBuzz').disabled = false;
+            }
+        });
+
+        document.getElementById('removeImage').addEventListener('click', () => {
+            selectedImage = null;
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('buzzImageInput').value = '';
+            const postBtn = document.getElementById('postBuzz');
+            postBtn.disabled = document.getElementById('buzzText').value.trim().length === 0;
+        });
+
+        document.getElementById('postBuzz').addEventListener('click', async () => {
+            const text = document.getElementById('buzzText').value.trim();
+            if (!text && !selectedImage) return;
+
+            const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+            const user = userData.val();
+
+            // Extract hashtags and mentions
+            const hashtags = extractHashtags(text);
+            const mentions = extractMentions(text);
+
+            const buzzData = {
+                userId: currentUser.uid,
+                userName: user.name,
+                username: user.username,
+                userAvatar: user.profilePicture || null,
+                isVerified: user.isVerified || false,
+                text: text || '',
+                image: selectedImage || null,
+                hashtags: hashtags,
+                mentions: mentions,
+                timestamp: Date.now(),
+                likes: 0,
+                comments: 0,
+                rebuzzes: 0,
+                saves: 0
+            };
+
+            const buzzRef = await database.ref('buzzes').push(buzzData);
+            const buzzId = buzzRef.key;
+
+            // Store hashtags for search
+            for (const hashtag of hashtags) {
+                await database.ref(`hashtags/${hashtag}/${buzzId}`).set({
+                    userId: currentUser.uid,
+                    timestamp: Date.now()
+                });
+            }
+
+            // Create notifications for mentions
+            for (const mentionUsername of mentions) {
+                const userSnapshot = await database.ref('usernames').child(mentionUsername).once('value');
+                if (userSnapshot.exists()) {
+                    const mentionedUserId = userSnapshot.val();
+                    if (mentionedUserId !== currentUser.uid) {
+                        await createNotification(mentionedUserId, 'mention', buzzId, user.name);
+                    }
+                }
+            }
+            
+            // Reset form
+            document.getElementById('buzzText').value = '';
+            selectedImage = null;
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('postBuzz').disabled = true;
+            
+            loadFeed();
+        });
+
+        // Feed loading
+        function loadFeed() {
+            database.ref('buzzes').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
+                const buzzes = [];
+                snapshot.forEach((child) => {
+                    buzzes.unshift({id: child.key, ...child.val()});
+                });
+                renderFeed(buzzes);
+            });
+        }
+
+        function renderFeed(buzzes) {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '';
+
+            buzzes.forEach(buzz => {
+                const buzzElement = createBuzzElement(buzz);
+                feed.appendChild(buzzElement);
+            });
+        }
+
+        function createBuzzElement(buzz) {
+            const div = document.createElement('div');
+            div.className = 'buzz-card rounded-2xl p-4 pulse-shadow';
+            
+            let quotedBuzzHtml = '';
+            if (buzz.isQuote && buzz.quotedBuzz) {
+                quotedBuzzHtml = `
+                    <div class="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-6 h-6 rounded-full flex-shrink-0">
+                                ${generateAvatar(buzz.quotedBuzz.userName, buzz.quotedBuzz.userAvatar)}
+                            </div>
+                            <span class="font-semibold text-sm">${buzz.quotedBuzz.userName}</span>
+                            <span class="text-gray-500 text-xs">@${buzz.quotedBuzz.username}</span>
+                        </div>
+                        ${buzz.quotedBuzz.text ? `<p class="text-sm mb-2">${processHashtagsAndMentions(buzz.quotedBuzz.text)}</p>` : ''}
+                        ${buzz.quotedBuzz.image ? `<img src="${buzz.quotedBuzz.image}" class="w-full rounded-lg max-h-48 object-cover">` : ''}
+                    </div>
+                `;
+            }
+            
+            div.innerHTML = `
+                <div class="flex gap-3">
+                    <div class="w-12 h-12 rounded-full flex-shrink-0">
+                        ${generateAvatar(buzz.userName, buzz.userAvatar)}
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="flex items-center">
+                                <span class="font-semibold cursor-pointer hover:underline" onclick="showUserProfileById('${buzz.userId}')">${buzz.userName}</span>
+                                ${buzz.isVerified ? '<div class="verified-tick ml-1"></div>' : ''}
+                            </div>
+                            <span class="text-gray-500 text-sm cursor-pointer hover:underline" onclick="showUserProfileById('${buzz.userId}')">@${buzz.username}</span>
+                            <span class="text-gray-500 text-sm">·</span>
+                            <span class="text-gray-500 text-sm">${timeAgo(buzz.timestamp)}</span>
+                            ${buzz.isQuote ? '<span class="text-blue-500 text-xs bg-blue-100 px-2 py-1 rounded-full">Quote</span>' : ''}
+                            <button class="ml-auto p-1 hover:bg-gray-100 rounded-full min-w-[44px] min-h-[44px] flex items-center justify-center" onclick="showBuzzMenu('${buzz.id}')">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        ${buzz.text ? `<p class="mb-3">${processHashtagsAndMentions(buzz.text)}</p>` : ''}
+                        ${buzz.image ? `<img src="${buzz.image}" class="w-full rounded-lg mb-3 max-h-96 object-cover">` : ''}
+                        ${quotedBuzzHtml}
+                        <div class="flex items-center justify-between text-gray-500">
+                            <button class="flex items-center gap-2 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 min-w-[44px] min-h-[44px]" onclick="toggleLike('${buzz.id}')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                                </svg>
+                                <span>${buzz.likes || 0}</span>
+                            </button>
+                            <button class="flex items-center gap-2 hover:text-blue-500 transition-colors p-2 rounded-full hover:bg-blue-50 min-w-[44px] min-h-[44px]" onclick="showComments('${buzz.id}')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                </svg>
+                                <span>${buzz.comments || 0}</span>
+                            </button>
+                            <button class="flex items-center gap-2 hover:text-green-500 transition-colors p-2 rounded-full hover:bg-green-50 min-w-[44px] min-h-[44px]" onclick="rebuzz('${buzz.id}')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                <span>${buzz.rebuzzes || 0}</span>
+                            </button>
+                            <button class="flex items-center gap-2 hover:text-purple-500 transition-colors p-2 rounded-full hover:bg-purple-50 min-w-[44px] min-h-[44px]" onclick="toggleSave('${buzz.id}')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                </svg>
+                            </button>
+                            <button class="flex items-center gap-2 hover:text-gray-700 transition-colors p-2 rounded-full hover:bg-gray-50 min-w-[44px] min-h-[44px]" onclick="shareBuzz('${buzz.id}')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // Buzz interactions
+        async function toggleLike(buzzId) {
+            try {
+                const likeRef = database.ref(`likes/${buzzId}/${currentUser.uid}`);
+                const buzzRef = database.ref(`buzzes/${buzzId}`);
+                
+                const likeSnapshot = await likeRef.once('value');
+                const buzzSnapshot = await buzzRef.once('value');
+                const buzz = buzzSnapshot.val();
+                
+                if (likeSnapshot.exists()) {
+                    // Unlike
+                    await likeRef.remove();
+                    await buzzRef.update({likes: Math.max(0, (buzz.likes || 1) - 1)});
+                } else {
+                    // Like
+                    await likeRef.set(true);
+                    await buzzRef.update({likes: (buzz.likes || 0) + 1});
+                    
+                    // Create notification
+                    if (buzz.userId !== currentUser.uid) {
+                        const currentUserData = await database.ref(`users/${currentUser.uid}`).once('value');
+                        await createNotification(buzz.userId, 'like', buzzId, currentUserData.val().name);
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling like:', error);
+            }
+        }
+
+        function showComments(buzzId) {
+            currentBuzzId = buzzId;
+            document.getElementById('commentModal').classList.remove('hidden');
+            loadComments(buzzId);
+        }
+
+        function loadComments(buzzId) {
+            database.ref(`comments/${buzzId}`).on('value', (snapshot) => {
+                const comments = [];
+                snapshot.forEach((child) => {
+                    comments.push({id: child.key, ...child.val()});
+                });
+                renderComments(comments);
+            });
+        }
+
+        function renderComments(comments) {
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = '';
+            
+            comments.forEach(comment => {
+                const div = document.createElement('div');
+                div.className = 'flex gap-3 p-3 bg-gray-50 rounded-lg';
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full flex-shrink-0">
+                        ${generateAvatar(comment.userName, comment.userAvatar)}
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="font-semibold text-sm">${comment.userName}</span>
+                            <span class="text-gray-500 text-xs">${timeAgo(comment.timestamp)}</span>
+                        </div>
+                        <p class="text-sm">${processHashtagsAndMentions(comment.text)}</p>
+                    </div>
+                `;
+                commentsList.appendChild(div);
+            });
+        }
+
+        document.getElementById('closeComments').addEventListener('click', () => {
+            document.getElementById('commentModal').classList.add('hidden');
+        });
+
+        document.getElementById('postComment').addEventListener('click', async () => {
+            const text = document.getElementById('commentInput').value.trim();
+            if (!text || !currentBuzzId) return;
+
+            const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+            const user = userData.val();
+
+            // Extract mentions from comment
+            const mentions = extractMentions(text);
+
+            const commentData = {
+                userId: currentUser.uid,
+                userName: user.name,
+                userAvatar: user.profilePicture,
+                text: text,
+                mentions: mentions,
+                timestamp: Date.now()
+            };
+
+            await database.ref(`comments/${currentBuzzId}`).push(commentData);
+            
+            // Update comment count
+            const buzzSnapshot = await database.ref(`buzzes/${currentBuzzId}`).once('value');
+            const buzz = buzzSnapshot.val();
+            await database.ref(`buzzes/${currentBuzzId}`).update({
+                comments: (buzz.comments || 0) + 1
+            });
+
+            // Create notification for buzz owner
+            if (buzz.userId !== currentUser.uid) {
+                await createNotification(buzz.userId, 'comment', currentBuzzId, user.name);
+            }
+
+            // Create notifications for mentions in comment
+            for (const mentionUsername of mentions) {
+                const userSnapshot = await database.ref('usernames').child(mentionUsername).once('value');
+                if (userSnapshot.exists()) {
+                    const mentionedUserId = userSnapshot.val();
+                    if (mentionedUserId !== currentUser.uid) {
+                        await createNotification(mentionedUserId, 'mention', currentBuzzId, user.name);
+                    }
+                }
+            }
+
+            document.getElementById('commentInput').value = '';
+            
+            // Refresh feed to show updated comment count
+            loadFeed();
+        });
+
+        async function rebuzz(buzzId) {
+            // Show rebuzz options
+            const choice = confirm('Choose rebuzz type:\nOK = Simple Rebuzz\nCancel = Quote Rebuzz');
+            
+            if (choice === null) return; // User cancelled
+            
+            try {
+                const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                const originalBuzz = buzzSnapshot.val();
+                
+                if (choice) {
+                    // Simple rebuzz
+                    const rebuzzRef = database.ref(`rebuzzes/${currentUser.uid}/${buzzId}`);
+                    const rebuzzSnapshot = await rebuzzRef.once('value');
+                    
+                    if (rebuzzSnapshot.exists()) {
+                        // Un-rebuzz
+                        await rebuzzRef.remove();
+                        await database.ref(`buzzes/${buzzId}`).update({rebuzzes: Math.max(0, (originalBuzz.rebuzzes || 1) - 1)});
+                    } else {
+                        // Rebuzz
+                        await rebuzzRef.set(true);
+                        await database.ref(`buzzes/${buzzId}`).update({rebuzzes: (originalBuzz.rebuzzes || 0) + 1});
+                        
+                        // Create notification
+                        if (originalBuzz.userId !== currentUser.uid) {
+                            const currentUserData = await database.ref(`users/${currentUser.uid}`).once('value');
+                            await createNotification(originalBuzz.userId, 'rebuzz', buzzId, currentUserData.val().name);
+                        }
+                    }
+                } else {
+                    // Quote rebuzz
+                    const quoteText = prompt('Add your comment:');
+                    if (quoteText !== null) {
+                        const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+                        const user = userData.val();
+                        
+                        const quoteBuzzData = {
+                            userId: currentUser.uid,
+                            userName: user.name,
+                            username: user.username,
+                            userAvatar: user.profilePicture || null,
+                            text: quoteText,
+                            quotedBuzz: originalBuzz,
+                            quotedBuzzId: buzzId,
+                            timestamp: Date.now(),
+                            likes: 0,
+                            comments: 0,
+                            rebuzzes: 0,
+                            saves: 0,
+                            isQuote: true
+                        };
+                        
+                        await database.ref('buzzes').push(quoteBuzzData);
+                        
+                        // Create notification
+                        if (originalBuzz.userId !== currentUser.uid) {
+                            const currentUserData = await database.ref(`users/${currentUser.uid}`).once('value');
+                            await createNotification(originalBuzz.userId, 'quote', buzzId, currentUserData.val().name);
+                        }
+                    }
+                }
+                
+                loadFeed();
+            } catch (error) {
+                console.error('Error rebuzzing:', error);
+            }
+        }
+
+        async function toggleSave(buzzId) {
+            const saveRef = database.ref(`saves/${currentUser.uid}/${buzzId}`);
+            const saveSnapshot = await saveRef.once('value');
+            
+            if (saveSnapshot.exists()) {
+                await saveRef.remove();
+                showCustomNotification('Buzz removed from saved!', 'success');
+            } else {
+                await saveRef.set(true);
+                showCustomNotification('Buzz saved successfully!', 'success');
+                
+                // Create notification
+                const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                const buzz = buzzSnapshot.val();
+                const currentUserData = await database.ref(`users/${currentUser.uid}`).once('value');
+                await createNotification(buzz.userId, 'save', buzzId, currentUserData.val().name);
+            }
+        }
+
+        function shareBuzz(buzzId) {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'Check out this Buzz on Pulse',
+                    url: `${window.location.origin}?buzz=${buzzId}`
+                }).catch(() => {
+                    // Fallback if share fails
+                    navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
+                    showCustomNotification('Link copied to clipboard!', 'success');
+                });
+            } else {
+                // Fallback - copy to clipboard
+                navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
+                showCustomNotification('Link copied to clipboard!', 'success');
+            }
+        }
+
+        async function showBuzzMenu(buzzId) {
+            const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+            const buzz = buzzSnapshot.val();
+            
+            let options = '';
+            if (buzz.userId === currentUser.uid) {
+                options = 'Choose an option:\n1. Delete Buzz\n2. Copy Link';
+            } else {
+                options = 'Choose an option:\n1. Report\n2. Block User\n3. Copy Link';
+            }
+            
+            const choice = prompt(options);
+            
+            if (buzz.userId === currentUser.uid) {
+                switch(choice) {
+                    case '1':
+                        if (confirm('Are you sure you want to delete this buzz?')) {
+                            await deleteBuzz(buzzId);
+                        }
+                        break;
+                    case '2':
+                        navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
+                        showCustomNotification('Link copied to clipboard!', 'success');
+                        break;
+                }
+            } else {
+                switch(choice) {
+                    case '1':
+                        showCustomNotification('Buzz reported. Thank you for keeping Pulse safe!', 'success');
+                        break;
+                    case '2':
+                        showCustomNotification('User blocked successfully.', 'success');
+                        break;
+                    case '3':
+                        navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
+                        showCustomNotification('Link copied to clipboard!', 'success');
+                        break;
+                }
+            }
+        }
+
+        async function deleteBuzz(buzzId) {
+            try {
+                // Delete the buzz
+                await database.ref(`buzzes/${buzzId}`).remove();
+                
+                // Delete associated data
+                await database.ref(`likes/${buzzId}`).remove();
+                await database.ref(`comments/${buzzId}`).remove();
+                
+                // Remove from rebuzzes
+                const rebuzzesSnapshot = await database.ref('rebuzzes').once('value');
+                rebuzzesSnapshot.forEach((userRebuzzes) => {
+                    if (userRebuzzes.child(buzzId).exists()) {
+                        database.ref(`rebuzzes/${userRebuzzes.key}/${buzzId}`).remove();
+                    }
+                });
+                
+                // Remove from saves
+                const savesSnapshot = await database.ref('saves').once('value');
+                savesSnapshot.forEach((userSaves) => {
+                    if (userSaves.child(buzzId).exists()) {
+                        database.ref(`saves/${userSaves.key}/${buzzId}`).remove();
+                    }
+                });
+                
+                showCustomNotification('Buzz deleted successfully!', 'success');
+                loadFeed();
+            } catch (error) {
+                console.error('Error deleting buzz:', error);
+                showCustomNotification('Error deleting buzz. Please try again.', 'error');
+            }
+        }
+
+        // Disable copy, right-click, and keyboard shortcuts
+        document.addEventListener('contextmenu', (e) => e.preventDefault());
+        document.addEventListener('keydown', (e) => {
+            // Disable F12, Ctrl+Shift+I, Ctrl+U, Ctrl+S, Ctrl+A, Ctrl+C, Ctrl+V
+            if (e.key === 'F12' || 
+                (e.ctrlKey && (e.shiftKey && e.key === 'I')) ||
+                (e.ctrlKey && e.key === 'u') ||
+                (e.ctrlKey && e.key === 's') ||
+                (e.ctrlKey && e.key === 'a') ||
+                (e.ctrlKey && e.key === 'c') ||
+                (e.ctrlKey && e.key === 'v')) {
+                e.preventDefault();
+            }
+        });
+
+        // Close suggestions when clicking outside
+        document.addEventListener('click', (e) => {
+            const suggestionDropdown = document.getElementById('suggestionDropdown');
+            const commentSuggestionDropdown = document.getElementById('commentSuggestionDropdown');
+            const buzzText = document.getElementById('buzzText');
+            const commentInput = document.getElementById('commentInput');
+            
+            if (!buzzText.contains(e.target) && !suggestionDropdown.contains(e.target)) {
+                suggestionDropdown.classList.add('hidden');
+            }
+            
+            if (!commentInput.contains(e.target) && !commentSuggestionDropdown.contains(e.target)) {
+                commentSuggestionDropdown.classList.add('hidden');
+            }
+        });
+
+        // Check authentication state
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                checkUserSetup();
+            } else {
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+            }
+        });
+
+        // Hashtag and mention functions
+        async function showHashtag(hashtag) {
+            document.getElementById('hashtagTitle').textContent = `#${hashtag}`;
+            document.getElementById('hashtagModal').classList.remove('hidden');
+            
+            // Load hashtag data
+            const hashtagSnapshot = await database.ref(`hashtags/${hashtag.toLowerCase()}`).once('value');
+            const hashtagData = hashtagSnapshot.val() || {};
+            
+            const buzzIds = Object.keys(hashtagData);
+            const uniqueUsers = new Set();
+            const buzzes = [];
+            
+            for (const buzzId of buzzIds) {
+                const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                if (buzzSnapshot.exists()) {
+                    const buzz = buzzSnapshot.val();
+                    buzzes.push({id: buzzId, ...buzz});
+                    uniqueUsers.add(buzz.userId);
+                }
+            }
+            
+            // Sort by timestamp
+            buzzes.sort((a, b) => b.timestamp - a.timestamp);
+            
+            document.getElementById('hashtagPostCount').textContent = buzzes.length;
+            document.getElementById('hashtagUserCount').textContent = uniqueUsers.size;
+            
+            // Render hashtag feed
+            const hashtagFeed = document.getElementById('hashtagFeed');
+            hashtagFeed.innerHTML = '';
+            
+            if (buzzes.length === 0) {
+                hashtagFeed.innerHTML = '<div class="text-center py-8 text-gray-500">No posts found for this hashtag</div>';
+            } else {
+                buzzes.forEach(buzz => {
+                    const buzzElement = createBuzzElement(buzz);
+                    hashtagFeed.appendChild(buzzElement);
+                });
+            }
+        }
+
+        async function showMentionProfile(username) {
+            const userSnapshot = await database.ref('usernames').child(username.toLowerCase()).once('value');
+            if (userSnapshot.exists()) {
+                const userId = userSnapshot.val();
+                const userDataSnapshot = await database.ref(`users/${userId}`).once('value');
+                if (userDataSnapshot.exists()) {
+                    const userData = userDataSnapshot.val();
+                    showUserProfile(userId, userData);
+                }
+            } else {
+                showCustomNotification('User not found', 'error');
+            }
+        }
+
+        document.getElementById('closeHashtag').addEventListener('click', () => {
+            document.getElementById('hashtagModal').classList.add('hidden');
+        });
+
+        // Notification system
+        async function createNotification(targetUserId, type, buzzId, actorName) {
+            if (targetUserId === currentUser.uid) return; // Don't notify yourself
+            
+            const notificationData = {
+                targetUserId: targetUserId,
+                actorId: currentUser.uid,
+                actorName: actorName,
+                type: type, // 'like', 'comment', 'rebuzz', 'save'
+                buzzId: buzzId,
+                timestamp: Date.now(),
+                read: false
+            };
+            
+            await database.ref('notifications').push(notificationData);
+            
+            // Update notification count
+            const notifSnapshot = await database.ref('notifications').orderByChild('targetUserId').equalTo(targetUserId).once('value');
+            let unreadCount = 0;
+            notifSnapshot.forEach((child) => {
+                if (!child.val().read) unreadCount++;
+            });
+            
+            // Update notification badge for target user (if they're online)
+            await database.ref(`users/${targetUserId}/unreadNotifications`).set(unreadCount);
+        }
+
+        function loadNotifications() {
+            database.ref('notifications').orderByChild('targetUserId').equalTo(currentUser.uid).on('value', (snapshot) => {
+                const notifications = [];
+                snapshot.forEach((child) => {
+                    notifications.unshift({id: child.key, ...child.val()});
+                });
+                renderNotifications(notifications);
+                
+                // Update notification count
+                const unreadCount = notifications.filter(n => !n.read).length;
+                const notificationDot = document.getElementById('notificationDot');
+                const notificationCount = document.getElementById('notificationCount');
+                
+                if (unreadCount > 0) {
+                    notificationDot.classList.remove('hidden');
+                    notificationCount.textContent = unreadCount > 99 ? '99+' : unreadCount;
+                } else {
+                    notificationDot.classList.add('hidden');
+                }
+            });
+        }
+
+        function renderNotifications(notifications) {
+            const notificationsList = document.getElementById('notificationsList');
+            notificationsList.innerHTML = '';
+            
+            if (notifications.length === 0) {
+                notificationsList.innerHTML = '<div class="text-center py-8 text-gray-500">No notifications yet</div>';
+                return;
+            }
+            
+            notifications.forEach(notification => {
+                const div = document.createElement('div');
+                div.className = `p-3 rounded-lg cursor-pointer hover:bg-gray-50 ${!notification.read ? 'bg-blue-50' : 'bg-white'}`;
+                
+                let message = '';
+                switch(notification.type) {
+                    case 'like':
+                        message = `${notification.actorName} liked your buzz`;
+                        break;
+                    case 'comment':
+                        message = `${notification.actorName} commented on your buzz`;
+                        break;
+                    case 'rebuzz':
+                        message = `${notification.actorName} rebuzzed your post`;
+                        break;
+                    case 'save':
+                        message = `${notification.actorName} saved your buzz`;
+                        break;
+                    case 'verification_approved':
+                        message = `🎉 Congratulations! Your account has been verified!`;
+                        break;
+                    case 'follow':
+                        message = `${notification.actorName} started following you`;
+                        break;
+                    case 'quote':
+                        message = `${notification.actorName} quoted your buzz`;
+                        break;
+                    case 'mention':
+                        message = `${notification.actorName} mentioned you in a buzz`;
+                        break;
+                }
+                
+                div.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-2 h-2 rounded-full ${!notification.read ? 'bg-blue-500' : 'bg-transparent'}"></div>
+                        <div class="flex-1">
+                            <p class="text-sm">${message}</p>
+                            <p class="text-xs text-gray-500">${timeAgo(notification.timestamp)}</p>
+                        </div>
+                    </div>
+                `;
+                
+                div.addEventListener('click', async () => {
+                    // Mark as read
+                    if (!notification.read) {
+                        await database.ref(`notifications/${notification.id}`).update({read: true});
+                    }
+                    // Close modal and show the buzz
+                    document.getElementById('notificationModal').classList.add('hidden');
+                    // You could implement navigation to specific buzz here
+                });
+                
+                notificationsList.appendChild(div);
+            });
+        }
+
+        // Search functionality
+        function searchUsers(query) {
+            database.ref('users').once('value', (snapshot) => {
+                const users = [];
+                snapshot.forEach((child) => {
+                    const user = child.val();
+                    if (user.setupComplete && child.key !== currentUser.uid) {
+                        if (!query.trim() || 
+                            user.name.toLowerCase().includes(query.toLowerCase()) || 
+                            user.username.toLowerCase().includes(query.toLowerCase())) {
+                            users.push({id: child.key, ...user});
+                        }
+                    }
+                });
+                renderSearchResults(users);
+            });
+        }
+
+        function renderSearchResults(users) {
+            const searchResults = document.getElementById('searchResults');
+            searchResults.innerHTML = '';
+            
+            if (users.length === 0) {
+                searchResults.innerHTML = '<div class="text-center py-8 text-gray-500">No users found</div>';
+                return;
+            }
+            
+            users.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center gap-3 p-3 bg-white rounded-lg pulse-shadow cursor-pointer hover:bg-gray-50 transition-colors';
+                
+                div.innerHTML = `
+                    <div class="w-12 h-12 rounded-full flex-shrink-0">
+                        ${generateAvatar(user.name, user.profilePicture)}
+                    </div>
+                    <div class="flex-1">
+                        <h4 class="font-semibold">${user.name}</h4>
+                        <p class="text-gray-500 text-sm">@${user.username}</p>
+                    </div>
+                `;
+                
+                div.addEventListener('click', () => {
+                    showUserProfile(user.id, user);
+                });
+                
+                searchResults.appendChild(div);
+            });
+        }
+
+        function showUserProfile(userId, userData) {
+            document.getElementById('userProfileAvatar').innerHTML = generateAvatar(userData.name, userData.profilePicture);
+            
+            // Add verified tick to name if verified
+            const nameElement = document.getElementById('userProfileName');
+            nameElement.innerHTML = userData.name + (userData.isVerified ? '<div class="verified-tick ml-1 inline-block"></div>' : '');
+            
+            document.getElementById('userProfileUsername').textContent = `@${userData.username}`;
+            document.getElementById('userFollowersCount').textContent = (userData.followers && typeof userData.followers === 'number') ? userData.followers : 0;
+            document.getElementById('userFollowingCount').textContent = (userData.following && typeof userData.following === 'number') ? userData.following : 0;
+            
+            const followBtn = document.getElementById('followBtn');
+            const messageBtn = document.getElementById('messageUserBtn');
+            const actionButtonsDiv = followBtn.parentElement;
+            
+            // Check if viewing own profile
+            if (userId === currentUser.uid) {
+                // Show edit button for own profile
+                actionButtonsDiv.innerHTML = `
+                    <button id="editProfileBtn" class="flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]">
+                        Edit Profile
+                    </button>
+                `;
+                document.getElementById('editProfileBtn').onclick = () => {
+                    document.getElementById('userProfileModal').classList.add('hidden');
+                    showProfile();
+                };
+            } else {
+                // Show follow and message buttons for other users
+                actionButtonsDiv.innerHTML = `
+                    <button id="followBtn" class="flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]">
+                        Follow
+                    </button>
+                    <button id="messageUserBtn" class="px-4 py-2 border border-gray-300 rounded-full font-semibold min-h-[44px]">
+                        Message
+                    </button>
+                `;
+                
+                // Check if already following
+                database.ref(`follows/${currentUser.uid}/${userId}`).once('value', (snapshot) => {
+                    const newFollowBtn = document.getElementById('followBtn');
+                    if (snapshot.exists()) {
+                        newFollowBtn.textContent = 'Unfollow';
+                        newFollowBtn.className = 'flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                    } else {
+                        newFollowBtn.textContent = 'Follow';
+                        newFollowBtn.className = 'flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                    }
+                    
+                    newFollowBtn.onclick = () => toggleFollow(userId, userData);
+                });
+                
+                // Message button handler
+                document.getElementById('messageUserBtn').onclick = () => {
+                    document.getElementById('userProfileModal').classList.add('hidden');
+                    openChat(userId, userData);
+                };
+            }
+            
+            // Add click handlers for followers/following counts
+            document.getElementById('userFollowersCount').parentElement.onclick = () => showFollowersList(userId, 'followers');
+            document.getElementById('userFollowingCount').parentElement.onclick = () => showFollowersList(userId, 'following');
+            
+            document.getElementById('userProfileModal').classList.remove('hidden');
+        }
+
+        async function toggleFollow(userId, userData) {
+            try {
+                const followRef = database.ref(`follows/${currentUser.uid}/${userId}`);
+                const followSnapshot = await followRef.once('value');
+                
+                const userRef = database.ref(`users/${userId}`);
+                const currentUserRef = database.ref(`users/${currentUser.uid}`);
+                
+                if (followSnapshot.exists()) {
+                    // Unfollow
+                    await followRef.remove();
+                    await database.ref(`followers/${userId}/${currentUser.uid}`).remove();
+                    
+                    // Update counts
+                    const userSnapshot = await userRef.once('value');
+                    const currentUserSnapshot = await currentUserRef.once('value');
+                    const user = userSnapshot.val();
+                    const currentUser_data = currentUserSnapshot.val();
+                    
+                    const newFollowerCount = Math.max(0, (user.followers || 1) - 1);
+                    const newFollowingCount = Math.max(0, (currentUser_data.following || 1) - 1);
+                    
+                    await userRef.update({followers: newFollowerCount});
+                    await currentUserRef.update({following: newFollowingCount});
+                    
+                    // Update UI
+                    document.getElementById('followBtn').textContent = 'Follow';
+                    document.getElementById('followBtn').className = 'mt-4 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                    document.getElementById('userFollowersCount').textContent = newFollowerCount;
+                } else {
+                    // Follow
+                    await followRef.set(true);
+                    await database.ref(`followers/${userId}/${currentUser.uid}`).set(true);
+                    
+                    // Update counts
+                    const userSnapshot = await userRef.once('value');
+                    const currentUserSnapshot = await currentUserRef.once('value');
+                    const user = userSnapshot.val();
+                    const currentUser_data = currentUserSnapshot.val();
+                    
+                    const newFollowerCount = (user.followers || 0) + 1;
+                    const newFollowingCount = (currentUser_data.following || 0) + 1;
+                    
+                    await userRef.update({followers: newFollowerCount});
+                    await currentUserRef.update({following: newFollowingCount});
+                    
+                    // Update UI
+                    document.getElementById('followBtn').textContent = 'Unfollow';
+                    document.getElementById('followBtn').className = 'mt-4 bg-gray-200 text-gray-700 px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                    document.getElementById('userFollowersCount').textContent = newFollowerCount;
+                    
+                    // Create notification
+                    if (userId !== currentUser.uid) {
+                        const currentUserData = await database.ref(`users/${currentUser.uid}`).once('value');
+                        await createNotification(userId, 'follow', null, currentUserData.val().name);
+                    }
+                }
+            } catch (error) {
+                console.error('Error toggling follow:', error);
+            }
+        }
+
+        // Navigation handlers
+        document.getElementById('notificationBtn').addEventListener('click', () => {
+            document.getElementById('notificationModal').classList.remove('hidden');
+            loadNotifications();
+        });
+
+        document.getElementById('closeNotifications').addEventListener('click', () => {
+            document.getElementById('notificationModal').classList.add('hidden');
+        });
+
+        document.getElementById('closeUserProfile').addEventListener('click', () => {
+            document.getElementById('userProfileModal').classList.add('hidden');
+        });
+
+        document.getElementById('messageBtn').addEventListener('click', () => {
+            document.getElementById('messagesModal').classList.remove('hidden');
+            loadMessages();
+        });
+
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.remove('hidden');
+        });
+
+        document.getElementById('profileBtn').addEventListener('click', () => {
+            showProfile();
+        });
+
+        document.getElementById('homeBtn').addEventListener('click', () => {
+            document.getElementById('searchScreen').classList.add('hidden');
+            document.getElementById('feed').parentElement.classList.remove('hidden');
+            loadFeed();
+        });
+
+        document.getElementById('searchBtn').addEventListener('click', () => {
+            document.getElementById('feed').parentElement.classList.add('hidden');
+            document.getElementById('searchScreen').classList.remove('hidden');
+            document.getElementById('searchInput').focus();
+            // Load all users initially
+            searchUsers('');
+        });
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchUsers(e.target.value);
+        });
+
+        // Settings modal handlers
+        document.getElementById('closeSettings').addEventListener('click', () => {
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            auth.signOut();
+            document.getElementById('settingsModal').classList.add('hidden');
+        });
+
+        document.getElementById('blockUnblockBtn').addEventListener('click', () => {
+            showCustomNotification('Block/Unblock feature coming soon!', 'warning');
+        });
+
+        document.getElementById('addAccountBtn').addEventListener('click', () => {
+            showCustomNotification('Add Account feature coming soon!', 'warning');
+        });
+
+        document.getElementById('privateAccountBtn').addEventListener('click', async () => {
+            const userRef = database.ref(`users/${currentUser.uid}`);
+            const snapshot = await userRef.once('value');
+            const userData = snapshot.val();
+            
+            await userRef.update({
+                isPrivate: !userData.isPrivate
+            });
+            
+            showCustomNotification(userData.isPrivate ? 'Account is now public' : 'Account is now private', 'success');
+        });
+
+        document.getElementById('privacyBtn').addEventListener('click', () => {
+            showCustomNotification('Privacy Settings feature coming soon!', 'warning');
+        });
+
+        // Profile modal handlers
+        document.getElementById('closeProfile').addEventListener('click', () => {
+            document.getElementById('profileModal').classList.add('hidden');
+        });
+
+        document.getElementById('closeFollowers').addEventListener('click', () => {
+            document.getElementById('followersModal').classList.add('hidden');
+        });
+
+        // Followers list functionality
+        async function showFollowersList(userId, type) {
+            document.getElementById('followersTitle').textContent = type === 'followers' ? 'Followers' : 'Following';
+            document.getElementById('followersModal').classList.remove('hidden');
+            
+            const followersList = document.getElementById('followersList');
+            followersList.innerHTML = '<div class="text-center py-4 text-gray-500">Loading...</div>';
+            
+            try {
+                let userIds = [];
+                
+                if (type === 'followers') {
+                    const followersSnapshot = await database.ref(`followers/${userId}`).once('value');
+                    if (followersSnapshot.exists()) {
+                        userIds = Object.keys(followersSnapshot.val());
+                    }
+                } else {
+                    const followingSnapshot = await database.ref(`follows/${userId}`).once('value');
+                    if (followingSnapshot.exists()) {
+                        userIds = Object.keys(followingSnapshot.val());
+                    }
+                }
+                
+                if (userIds.length === 0) {
+                    followersList.innerHTML = `<div class="text-center py-8 text-gray-500">No ${type} yet</div>`;
+                    return;
+                }
+                
+                followersList.innerHTML = '';
+                
+                for (const uid of userIds) {
+                    const userSnapshot = await database.ref(`users/${uid}`).once('value');
+                    if (userSnapshot.exists()) {
+                        const userData = userSnapshot.val();
+                        
+                        const div = document.createElement('div');
+                        div.className = 'flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors';
+                        
+                        div.innerHTML = `
+                            <div class="w-12 h-12 rounded-full flex-shrink-0">
+                                ${generateAvatar(userData.name, userData.profilePicture)}
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-1">
+                                    <h4 class="font-semibold">${userData.name}</h4>
+                                    ${userData.isVerified ? '<div class="verified-tick"></div>' : ''}
+                                </div>
+                                <p class="text-gray-500 text-sm">@${userData.username}</p>
+                            </div>
+                        `;
+                        
+                        div.addEventListener('click', () => {
+                            document.getElementById('followersModal').classList.add('hidden');
+                            showUserProfile(uid, userData);
+                        });
+                        
+                        followersList.appendChild(div);
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading followers:', error);
+                followersList.innerHTML = '<div class="text-center py-8 text-red-500">Error loading data</div>';
+            }
+        }
+
+        async function showProfile() {
+            const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+            const user = userData.val();
+            
+            // Update profile info
+            const profileAvatar = document.getElementById('profileAvatar');
+            if (user.profilePicture) {
+                profileAvatar.innerHTML = `<img src="${user.profilePicture}" class="w-full h-full rounded-full object-cover">`;
+            } else {
+                profileAvatar.className = 'w-20 h-20 rounded-full mx-auto mb-3 avatar-letter flex items-center justify-center text-white font-bold text-2xl';
+                profileAvatar.textContent = getInitials(user.name);
+            }
+            
+            document.getElementById('profileName').textContent = user.name;
+            document.getElementById('profileUsername').textContent = `@${user.username}`;
+            document.getElementById('followersCount').textContent = (user.followers && typeof user.followers === 'number') ? user.followers : 0;
+            document.getElementById('followingCount').textContent = (user.following && typeof user.following === 'number') ? user.following : 0;
+            
+            // Show verified tick if user is verified
+            const verifiedTick = document.getElementById('profileVerifiedTick');
+            if (user.isVerified) {
+                verifiedTick.classList.remove('hidden');
+            } else {
+                verifiedTick.classList.add('hidden');
+            }
+            
+            // Show bio if exists
+            const bioElement = document.getElementById('profileBio');
+            const addBioBtn = document.getElementById('addBioBtn');
+            if (user.bio && user.bio.trim()) {
+                bioElement.textContent = user.bio;
+                bioElement.classList.remove('hidden');
+                addBioBtn.classList.add('hidden');
+            } else {
+                bioElement.classList.add('hidden');
+                addBioBtn.classList.remove('hidden');
+            }
+            
+            // Load user stats
+            loadUserStats();
+            
+            document.getElementById('profileModal').classList.remove('hidden');
+        }
+
+        async function loadUserStats() {
+            // Count user's buzzes
+            const buzzesSnapshot = await database.ref('buzzes').orderByChild('userId').equalTo(currentUser.uid).once('value');
+            let buzzCount = 0;
+            let mediaCount = 0;
+            buzzesSnapshot.forEach(() => {
+                buzzCount++;
+                // Count media posts
+            });
+            
+            // Count rebuzzes
+            const rebuzzesSnapshot = await database.ref('rebuzzes').child(currentUser.uid).once('value');
+            let rebuzzCount = 0;
+            rebuzzesSnapshot.forEach(() => rebuzzCount++);
+            
+            // Count likes
+            const likesSnapshot = await database.ref('likes').once('value');
+            let likedCount = 0;
+            likesSnapshot.forEach((buzzLikes) => {
+                if (buzzLikes.child(currentUser.uid).exists()) {
+                    likedCount++;
+                }
+            });
+            
+            document.getElementById('myBuzzesCount').textContent = buzzCount;
+            document.getElementById('rebuzzesCount').textContent = rebuzzCount;
+            document.getElementById('mediaCount').textContent = mediaCount;
+            document.getElementById('likedCount').textContent = likedCount;
+        }
+
+        // Profile section handlers
+        document.getElementById('myBuzzesBtn').addEventListener('click', () => {
+            showUserBuzzes('myBuzzes');
+        });
+
+        document.getElementById('rebuzzesBtn').addEventListener('click', () => {
+            showUserBuzzes('rebuzzes');
+        });
+
+        document.getElementById('mediaBtn').addEventListener('click', () => {
+            showUserBuzzes('media');
+        });
+
+        document.getElementById('likedBtn').addEventListener('click', () => {
+            showUserBuzzes('liked');
+        });
+
+        async function showUserBuzzes(type) {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="text-center py-8 text-gray-500">Loading...</div>';
+            
+            let buzzes = [];
+            
+            switch(type) {
+                case 'myBuzzes':
+                    const myBuzzesSnapshot = await database.ref('buzzes').orderByChild('userId').equalTo(currentUser.uid).once('value');
+                    myBuzzesSnapshot.forEach((child) => {
+                        buzzes.unshift({id: child.key, ...child.val()});
+                    });
+                    break;
+                    
+                case 'rebuzzes':
+                    const rebuzzesSnapshot = await database.ref('rebuzzes').child(currentUser.uid).once('value');
+                    for (let buzzId of Object.keys(rebuzzesSnapshot.val() || {})) {
+                        const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                        if (buzzSnapshot.exists()) {
+                            buzzes.push({id: buzzId, ...buzzSnapshot.val(), isRebuzz: true});
+                        }
+                    }
+                    break;
+                    
+                case 'media':
+                    const mediaBuzzesSnapshot = await database.ref('buzzes').orderByChild('userId').equalTo(currentUser.uid).once('value');
+                    mediaBuzzesSnapshot.forEach((child) => {
+                        const buzz = child.val();
+                        if (buzz.image) {
+                            buzzes.unshift({id: child.key, ...buzz});
+                        }
+                    });
+                    break;
+                    
+                case 'liked':
+                    const likesSnapshot = await database.ref('likes').once('value');
+                    for (let [buzzId, likes] of Object.entries(likesSnapshot.val() || {})) {
+                        if (likes[currentUser.uid]) {
+                            const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                            if (buzzSnapshot.exists()) {
+                                buzzes.push({id: buzzId, ...buzzSnapshot.val()});
+                            }
+                        }
+                    }
+                    break;
+            }
+            
+            document.getElementById('profileModal').classList.add('hidden');
+            
+            if (buzzes.length === 0) {
+                feed.innerHTML = '<div class="text-center py-8 text-gray-500">No buzzes found</div>';
+            } else {
+                renderFeed(buzzes);
+            }
+        }
+
+        // Profile editing functions
+        async function editName() {
+            const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+            const user = userData.val();
+            
+            const newName = prompt('Enter new name:', user.name);
+            if (newName && newName.trim() && newName.trim() !== user.name) {
+                await database.ref(`users/${currentUser.uid}`).update({name: newName.trim()});
+                document.getElementById('profileName').textContent = newName.trim();
+                loadUserData(); // Refresh avatar in main app
+                showCustomNotification('Name updated successfully!', 'success');
+            }
+        }
+
+        async function editBio() {
+            const userData = await database.ref(`users/${currentUser.uid}`).once('value');
+            const user = userData.val();
+            
+            const newBio = prompt('Enter your bio:', user.bio || '');
+            if (newBio !== null) {
+                await database.ref(`users/${currentUser.uid}`).update({bio: newBio.trim()});
+                
+                const bioElement = document.getElementById('profileBio');
+                const addBioBtn = document.getElementById('addBioBtn');
+                
+                if (newBio.trim()) {
+                    bioElement.textContent = newBio.trim();
+                    bioElement.classList.remove('hidden');
+                    addBioBtn.classList.add('hidden');
+                } else {
+                    bioElement.classList.add('hidden');
+                    addBioBtn.classList.remove('hidden');
+                }
+                
+                showCustomNotification('Bio updated successfully!', 'success');
+            }
+        }
+
+        async function editProfilePicture() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const base64 = await convertToBase64(file);
+                    await database.ref(`users/${currentUser.uid}`).update({profilePicture: base64});
+                    
+                    // Update profile modal
+                    document.getElementById('profileAvatar').innerHTML = `<img src="${base64}" class="w-full h-full rounded-full object-cover">`;
+                    
+                    // Update main app avatar
+                    loadUserData();
+                    
+                    showCustomNotification('Profile picture updated successfully!', 'success');
+                }
+            };
+            
+            input.click();
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97934de023da465e',t:'MTc1Njg4MjEzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
