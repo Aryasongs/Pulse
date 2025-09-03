@@ -217,6 +217,19 @@
                         <span class="ml-2 text-sm text-gray-500">Share & Earn</span>
                     </div>
                     <div class="flex items-center space-x-4">
+                        <!-- Search Bar -->
+                        <div class="relative hidden md:block">
+                            <input 
+                                type="text" 
+                                id="searchInput" 
+                                placeholder="Search images..." 
+                                class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                                onkeyup="handleSearch(event)"
+                            >
+                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
                         <button onclick="openUploadModal()" class="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors flex items-center space-x-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
@@ -230,6 +243,11 @@
                             <span>Earnings: $<span id="totalEarnings">0.00</span></span>
                         </div>
                         <div class="flex items-center space-x-2">
+                            <button onclick="toggleMobileSearch()" class="md:hidden text-gray-600 hover:text-gray-800" title="Search">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                                </svg>
+                            </button>
                             <button onclick="openSavedImages()" class="text-gray-600 hover:text-gray-800" title="Saved Images">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
@@ -252,6 +270,24 @@
                 </div>
             </div>
         </header>
+
+        <!-- Mobile Search Bar -->
+        <div id="mobileSearchBar" class="bg-white border-b hidden md:hidden">
+            <div class="max-w-7xl mx-auto px-4 py-3">
+                <div class="relative">
+                    <input 
+                        type="text" 
+                        id="mobileSearchInput" 
+                        placeholder="Search images..." 
+                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                        onkeyup="handleSearch(event)"
+                    >
+                    <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
 
         <!-- Navigation Tabs -->
         <div class="bg-white border-b">
@@ -517,6 +553,8 @@
         let savedImages = [];
         let currentImageId = null;
         let currentTab = 'home';
+        let originalImages = [];
+        let isSearching = false;
 
         // Notification System
         function showNotification(title, message, type = 'info', duration = 4000) {
@@ -1124,8 +1162,170 @@
             }
         });
 
+        // Search functionality
+        function handleSearch(event) {
+            const searchTerm = event.target.value.toLowerCase().trim();
+            
+            // Check for inappropriate content
+            if (checkInappropriateContent(searchTerm)) {
+                return;
+            }
+            
+            if (searchTerm === '') {
+                // Reset to original images
+                if (isSearching) {
+                    images = [...originalImages];
+                    isSearching = false;
+                    loadImages();
+                }
+                return;
+            }
+            
+            // Store original images if not already searching
+            if (!isSearching) {
+                originalImages = [...images];
+                isSearching = true;
+            }
+            
+            // Filter images based on search term
+            const filteredImages = originalImages.filter(image => {
+                return image.title.toLowerCase().includes(searchTerm) ||
+                       image.description.toLowerCase().includes(searchTerm) ||
+                       (image.userName && image.userName.toLowerCase().includes(searchTerm));
+            });
+            
+            images = filteredImages;
+            loadImages();
+            
+            // Show search results info
+            if (filteredImages.length === 0) {
+                showInfo('No Results', `No images found for "${searchTerm}". Try different keywords.`);
+            }
+        }
+
+        function checkInappropriateContent(searchTerm) {
+            const suicideKeywords = [
+                'suicide', 'kill myself', 'end my life', 'want to die', 'suicidal', 
+                'self harm', 'hurt myself', 'depression help', 'मरना चाहता हूं', 
+                'आत्महत्या', 'जान देना', 'मौत', 'خودکشی', 'موت'
+            ];
+            
+            const sexualKeywords = [
+                'sex', 'porn', 'nude', 'naked', 'xxx', 'adult', 'sexual', 
+                'सेक्स', 'नग्न', 'अश्लील', 'جنسی', 'عریاں'
+            ];
+            
+            // Check for suicide-related content
+            for (let keyword of suicideKeywords) {
+                if (searchTerm.includes(keyword)) {
+                    showSuicidePreventionMessage();
+                    clearSearchInputs();
+                    return true;
+                }
+            }
+            
+            // Check for sexual content
+            for (let keyword of sexualKeywords) {
+                if (searchTerm.includes(keyword)) {
+                    showContentWarning();
+                    clearSearchInputs();
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function showSuicidePreventionMessage() {
+            const title = "आप अकेले नहीं हैं - You Are Not Alone";
+            const message = `जीवन कीमती है और आप महत्वपूर्ण हैं। कृपया मदद लें:
+            
+            🇮🇳 India: 9152987821 (AASRA)
+            🌍 International: 988 (Suicide & Crisis Lifeline)
+            
+            Life is precious and you matter. Please reach out for help. There are people who care about you.`;
+            
+            // Create special suicide prevention notification
+            const container = document.getElementById('notificationContainer');
+            const notificationId = 'suicide-prevention-' + Date.now();
+            
+            const notification = document.createElement('div');
+            notification.id = notificationId;
+            notification.className = 'notification info';
+            notification.style.minWidth = '400px';
+            notification.style.maxWidth = '500px';
+            notification.innerHTML = `
+                <div class="notification-content">
+                    <svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #10b981;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                    </svg>
+                    <div class="notification-text">
+                        <div class="notification-title">${title}</div>
+                        <div class="notification-message" style="white-space: pre-line; line-height: 1.6;">${message}</div>
+                    </div>
+                    <button class="notification-close" onclick="hideNotification('${notificationId}')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="notification-progress" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
+            `;
+
+            container.appendChild(notification);
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => hideNotification(notificationId), 10000); // Show for 10 seconds
+        }
+
+        function showContentWarning() {
+            showWarning(
+                'Content Restricted', 
+                'This type of content is not allowed on our platform. Please search for family-friendly images instead.'
+            );
+        }
+
+        function clearSearchInputs() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('mobileSearchInput').value = '';
+        }
+
+        function toggleMobileSearch() {
+            const mobileSearchBar = document.getElementById('mobileSearchBar');
+            const isHidden = mobileSearchBar.classList.contains('hidden');
+            
+            if (isHidden) {
+                mobileSearchBar.classList.remove('hidden');
+                document.getElementById('mobileSearchInput').focus();
+            } else {
+                mobileSearchBar.classList.add('hidden');
+                document.getElementById('mobileSearchInput').value = '';
+                // Reset search if mobile search was being used
+                if (isSearching) {
+                    images = [...originalImages];
+                    isSearching = false;
+                    loadImages();
+                }
+            }
+        }
+
+        // Sync search inputs
+        document.addEventListener('DOMContentLoaded', function() {
+            const searchInput = document.getElementById('searchInput');
+            const mobileSearchInput = document.getElementById('mobileSearchInput');
+            
+            if (searchInput && mobileSearchInput) {
+                searchInput.addEventListener('input', function() {
+                    mobileSearchInput.value = this.value;
+                });
+                
+                mobileSearchInput.addEventListener('input', function() {
+                    searchInput.value = this.value;
+                });
+            }
+        });
+
         // Initialize event listeners when page loads
         setupEventListeners();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794cc3f438f59b1',t:'MTc1Njg5Nzc5Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794d0da65dd69a5',t:'MTc1Njg5Nzk4Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
