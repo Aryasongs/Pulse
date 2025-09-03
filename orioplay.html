@@ -782,11 +782,16 @@
         function handleFileSelect(file) {
             currentFile = file;
             
-            // Check file size (limit to 50MB for better performance)
-            if (file.size > 50 * 1024 * 1024) {
-                showNotification('File too large! Please select a file under 50MB.');
+            // Check file size (limit to 100MB for videos, 20MB for images)
+            const maxSize = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 20 * 1024 * 1024;
+            const maxSizeText = file.type.startsWith('video/') ? '100MB' : '20MB';
+            
+            if (file.size > maxSize) {
+                showNotification(`File too large! Please select a ${file.type.startsWith('video/') ? 'video' : 'image'} under ${maxSizeText}.`);
                 return;
             }
+            
+            showNotification(`Processing ${file.name}... Please wait! ⏳`);
             
             const reader = new FileReader();
             
@@ -800,6 +805,14 @@
                 showNotification('Error reading file. Please try again.');
             };
             
+            reader.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const percentLoaded = Math.round((e.loaded / e.total) * 100);
+                    showNotification(`Loading ${file.name}... ${percentLoaded}% 📊`);
+                }
+            };
+            
+            // Use readAsDataURL for all files
             reader.readAsDataURL(file);
         }
 
@@ -1031,7 +1044,10 @@
             }
             
             try {
-                document.getElementById('upload-btn').disabled = true;
+                const uploadBtn = document.getElementById('upload-btn');
+                uploadBtn.disabled = true;
+                uploadBtn.textContent = '🚀 Uploading...';
+                showNotification('Uploading your content... Please wait! ⏳');
                 
                 // Get user data
                 const userSnapshot = await database.ref(`users/${currentUser.uid}`).once('value');
@@ -1071,7 +1087,10 @@
                 document.getElementById('file-preview').classList.add('hidden');
                 currentFile = null;
                 currentFileBase64 = null;
-                document.getElementById('upload-btn').disabled = false;
+                
+                const uploadBtn = document.getElementById('upload-btn');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '🚀 Post';
                 
                 loadFeed();
                 loadUserProfile();
@@ -1080,8 +1099,11 @@
                 
             } catch (error) {
                 console.error('Error uploading content:', error);
-                showNotification('Upload failed!');
-                document.getElementById('upload-btn').disabled = false;
+                showNotification('Upload failed! Please try again. 😞');
+                
+                const uploadBtn = document.getElementById('upload-btn');
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = '🚀 Post';
             }
         }
 
@@ -1579,33 +1601,42 @@
         });
 
         // Drag and drop functionality
-        const uploadArea = document.querySelector('.border-dashed');
-        
-        uploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            uploadArea.classList.add('border-pink-500', 'bg-pink-50');
-        });
-        
-        uploadArea.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('border-pink-500', 'bg-pink-50');
-        });
-        
-        uploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            uploadArea.classList.remove('border-pink-500', 'bg-pink-50');
+        document.addEventListener('DOMContentLoaded', function() {
+            const uploadArea = document.querySelector('.border-dashed');
             
-            const files = e.dataTransfer.files;
-            if (files.length > 0) {
-                const file = files[0];
-                if (file.type.startsWith('video/') || file.type.startsWith('image/')) {
-                    handleFileSelect(file);
-                    document.getElementById('file-input').files = files;
-                } else {
-                    showNotification('Please select a video or image file!');
-                }
+            if (uploadArea) {
+                uploadArea.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.add('border-pink-500');
+                });
+                
+                uploadArea.addEventListener('dragleave', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('border-pink-500');
+                });
+                
+                uploadArea.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    uploadArea.classList.remove('border-pink-500');
+                    
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        const file = files[0];
+                        
+                        // Validate file type and size
+                        const validVideoTypes = ['video/mp4', 'video/webm', 'video/ogg', 'video/avi', 'video/mov', 'video/wmv'];
+                        const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                        
+                        if (validVideoTypes.includes(file.type) || validImageTypes.includes(file.type)) {
+                            handleFileSelect(file);
+                            document.getElementById('file-input').files = files;
+                        } else {
+                            showNotification('Please select a valid video (MP4, WebM, MOV) or image (JPG, PNG, GIF) file!');
+                        }
+                    }
+                });
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97944e94e76d3f90',t:'MTc1Njg5MjY1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979458e3147759b1',t:'MTc1Njg5MzA3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
