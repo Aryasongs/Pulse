@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrioPlay - Share & Earn</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <style>
+        .masonry {
+            column-count: 4;
+            column-gap: 1rem;
+            column-fill: balance;
+        }
+        .masonry-item {
+            break-inside: avoid;
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 1024px) {
+            .masonry { column-count: 3; }
+        }
+        @media (max-width: 768px) {
+            .masonry { column-count: 2; }
+        }
+        @media (max-width: 640px) {
+            .masonry { column-count: 1; }
+        }
+        .upload-area {
+            border: 2px dashed #e5e7eb;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #3b82f6;
+            background-color: #f8fafc;
+        }
+        .upload-area.dragover {
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+        }
+        .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">OrioPlay</h1>
+                <p class="text-gray-600">Share Images & Earn Money</p>
+            </div>
+            
+            <button onclick="signInWithGoogle()" class="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-3">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span>Continue with Google</span>
+            </button>
+            
+            <p class="text-xs text-gray-500 text-center mt-6">
+                By continuing, you agree to our Terms of Service and Privacy Policy
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <!-- Header -->
+        <header class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-2xl font-bold text-red-600">OrioPlay</h1>
+                        <span class="ml-2 text-sm text-gray-500">Share & Earn</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="openUploadModal()" class="bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors flex items-center space-x-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+                            </svg>
+                            <span>Upload Image</span>
+                        </button>
+                        <div class="text-sm text-gray-600 flex items-center space-x-1">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                            </svg>
+                            <span>Earnings: $<span id="totalEarnings">0.00</span></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <img id="userPhoto" class="w-8 h-8 rounded-full" alt="User">
+                            <button onclick="signOut()" class="text-gray-600 hover:text-gray-800">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Stats Bar -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-blue-600" id="totalImages">0</div>
+                        <div class="text-gray-500">Total Images</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-green-600" id="totalViews">0</div>
+                        <div class="text-gray-500">Total Views</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-purple-600" id="totalComments">0</div>
+                        <div class="text-gray-500">Total Comments</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-3xl font-bold text-yellow-600" id="monetizedImages">0</div>
+                        <div class="text-gray-500">Monetized Images</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="text-center py-16">
+                <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">No images yet</h3>
+                <p class="text-gray-600 mb-6">Start sharing your amazing photos and earn money!</p>
+                <button onclick="openUploadModal()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
+                    Upload Your First Image
+                </button>
+            </div>
+
+            <!-- Image Gallery -->
+            <div class="masonry" id="imageGallery">
+                <!-- Images will be loaded here -->
+            </div>
+        </main>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Upload New Image</h3>
+                <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="upload-area p-8 text-center rounded-lg mb-4" id="uploadArea">
+                <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <p class="text-gray-600 mb-2">Drag & drop your image here</p>
+                <p class="text-sm text-gray-400">or click to browse</p>
+                <input type="file" id="imageInput" accept="image/*" class="hidden">
+            </div>
+            
+            <div class="space-y-4">
+                <input type="text" id="imageTitle" placeholder="Image title..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                <textarea id="imageDescription" placeholder="Description..." rows="3" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                <button onclick="uploadImage()" class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors" id="uploadBtn">
+                    Upload Image
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Detail Modal -->
+    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-lg max-w-4xl w-full max-h-full overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-xl font-semibold" id="modalTitle"></h3>
+                        <p class="text-gray-600" id="modalDescription"></p>
+                    </div>
+                    <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="mb-6">
+                    <img id="modalImage" class="w-full rounded-lg" alt="">
+                </div>
+                
+                <div class="flex items-center justify-between mb-6">
+                    <div class="flex items-center space-x-4">
+                        <span class="flex items-center text-gray-600">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            <span id="modalViews">0</span> views
+                        </span>
+                        <span class="flex items-center text-gray-600">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            <span id="modalCommentCount">0</span> comments
+                        </span>
+                        <span id="monetizedBadge" class="hidden bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                            </svg>
+                            Monetized
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Ad Space for Monetized Images -->
+                <div id="adSpace" class="hidden bg-gray-100 p-4 rounded-lg mb-6 text-center">
+                    <div class="text-sm text-gray-500 mb-2">Advertisement</div>
+                    <div class="bg-blue-500 text-white p-8 rounded">
+                        <h4 class="font-bold">Firebase Ad Integration</h4>
+                        <p class="text-sm">Connect your Firebase project to show real ads here</p>
+                        <p class="text-xs mt-2">Contact: customerserviceffrj4@gmail.com</p>
+                    </div>
+                </div>
+                
+                <!-- Comments Section -->
+                <div class="border-t pt-6">
+                    <h4 class="font-semibold mb-4">Comments</h4>
+                    <div class="flex space-x-3 mb-4">
+                        <input type="text" id="commentInput" placeholder="Add a comment..." class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <button onclick="addComment()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
+                            Post
+                        </button>
+                    </div>
+                    <div id="commentsList" class="space-y-3">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjfNlHwhT4xYb7vVym_SAqMlSuY_TMz0o",
+            authDomain: "orioplay.firebaseapp.com",
+            databaseURL: "https://orioplay-default-rtdb.firebaseio.com",
+            projectId: "orioplay",
+            storageBucket: "orioplay.firebasestorage.app",
+            messagingSenderId: "300811706751",
+            appId: "1:300811706751:web:bdce98b1ba7e11d34d7a4a"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        let currentUser = null;
+        let images = [];
+        let currentImageId = null;
+
+        // Auth State Observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                document.getElementById('userPhoto').src = user.photoURL || 'https://via.placeholder.com/32';
+                loadUserImages();
+            } else {
+                currentUser = null;
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainApp').classList.add('hidden');
+            }
+        });
+
+        // Google Sign In
+        function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider).catch((error) => {
+                console.error('Sign in error:', error);
+                alert('Sign in failed. Please try again.');
+            });
+        }
+
+        // Sign Out
+        function signOut() {
+            auth.signOut();
+        }
+
+        // Load User Images from Firebase
+        function loadUserImages() {
+            if (!currentUser) return;
+            
+            database.ref(`users/${currentUser.uid}/images`).on('value', (snapshot) => {
+                images = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        images.push({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+                }
+                loadImages();
+                updateStats();
+            });
+        }
+
+        // Initialize Upload Event Listeners
+        function setupEventListeners() {
+            const uploadArea = document.getElementById('uploadArea');
+            const imageInput = document.getElementById('imageInput');
+
+            uploadArea.addEventListener('click', () => imageInput.click());
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            });
+
+            imageInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            });
+        }
+
+        function handleFileSelect(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const uploadArea = document.getElementById('uploadArea');
+                    uploadArea.innerHTML = `
+                        <img src="${e.target.result}" class="max-h-32 mx-auto rounded">
+                        <p class="text-sm text-gray-600 mt-2">Image selected</p>
+                    `;
+                    uploadArea.dataset.imageFile = JSON.stringify({
+                        name: file.name,
+                        type: file.type,
+                        data: e.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function loadImages() {
+            const gallery = document.getElementById('imageGallery');
+            const emptyState = document.getElementById('emptyState');
+            
+            if (images.length === 0) {
+                gallery.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+            
+            emptyState.classList.add('hidden');
+            gallery.innerHTML = '';
+
+            images.forEach(image => {
+                const imageCard = createImageCard(image);
+                gallery.appendChild(imageCard);
+            });
+        }
+
+        function createImageCard(image) {
+            const card = document.createElement('div');
+            card.className = 'masonry-item bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-shadow cursor-pointer';
+            card.onclick = () => openImageModal(image.id);
+
+            card.innerHTML = `
+                <img src="${image.imageUrl}" alt="${image.title}" class="w-full h-auto">
+                <div class="p-4">
+                    <h3 class="font-semibold text-gray-900 mb-1">${image.title}</h3>
+                    <p class="text-gray-600 text-sm mb-3">${image.description}</p>
+                    <div class="flex items-center justify-between text-sm text-gray-500">
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            ${image.views || 0}
+                        </span>
+                        <span class="flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            ${Object.keys(image.comments || {}).length}
+                        </span>
+                        ${image.monetized ? '<span class="text-green-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg></span>' : ''}
+                    </div>
+                </div>
+            `;
+
+            return card;
+        }
+
+        function updateStats() {
+            const totalImages = images.length;
+            const totalViews = images.reduce((sum, img) => sum + (img.views || 0), 0);
+            const totalComments = images.reduce((sum, img) => sum + Object.keys(img.comments || {}).length, 0);
+            const monetizedImages = images.filter(img => img.monetized).length;
+            const totalEarnings = images.reduce((sum, img) => sum + (img.earnings || 0), 0);
+
+            document.getElementById('totalImages').textContent = totalImages;
+            document.getElementById('totalViews').textContent = totalViews.toLocaleString();
+            document.getElementById('totalComments').textContent = totalComments;
+            document.getElementById('monetizedImages').textContent = monetizedImages;
+            document.getElementById('totalEarnings').textContent = totalEarnings.toFixed(2);
+        }
+
+        function openUploadModal() {
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+            document.getElementById('imageTitle').value = '';
+            document.getElementById('imageDescription').value = '';
+            document.getElementById('uploadArea').innerHTML = `
+                <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <p class="text-gray-600 mb-2">Drag & drop your image here</p>
+                <p class="text-sm text-gray-400">or click to browse</p>
+            `;
+            delete document.getElementById('uploadArea').dataset.imageFile;
+        }
+
+        async function uploadImage() {
+            if (!currentUser) return;
+
+            const title = document.getElementById('imageTitle').value;
+            const description = document.getElementById('imageDescription').value;
+            const imageFileData = document.getElementById('uploadArea').dataset.imageFile;
+
+            if (!title || !description || !imageFileData) {
+                alert('Please fill all fields and select an image');
+                return;
+            }
+
+            const uploadBtn = document.getElementById('uploadBtn');
+            uploadBtn.textContent = 'Uploading...';
+            uploadBtn.disabled = true;
+
+            try {
+                const fileData = JSON.parse(imageFileData);
+                const imageId = Date.now().toString();
+                
+                // Convert base64 to blob
+                const response = await fetch(fileData.data);
+                const blob = await response.blob();
+                
+                // Upload to Firebase Storage
+                const storageRef = storage.ref(`images/${currentUser.uid}/${imageId}`);
+                const uploadTask = await storageRef.put(blob);
+                const imageUrl = await uploadTask.ref.getDownloadURL();
+
+                // Save to Firebase Database
+                const imageData = {
+                    title: title,
+                    description: description,
+                    imageUrl: imageUrl,
+                    views: 0,
+                    comments: {},
+                    monetized: false,
+                    earnings: 0,
+                    uploadedAt: firebase.database.ServerValue.TIMESTAMP,
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email
+                };
+
+                await database.ref(`users/${currentUser.uid}/images/${imageId}`).set(imageData);
+                
+                closeUploadModal();
+                alert('Image uploaded successfully!');
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed. Please try again.');
+            } finally {
+                uploadBtn.textContent = 'Upload Image';
+                uploadBtn.disabled = false;
+            }
+        }
+
+        function openImageModal(imageId) {
+            const image = images.find(img => img.id === imageId);
+            if (!image) return;
+
+            currentImageId = imageId;
+            
+            // Increment view count
+            const newViews = (image.views || 0) + 1;
+            database.ref(`users/${currentUser.uid}/images/${imageId}/views`).set(newViews);
+            
+            // Check monetization
+            if (newViews >= 2000 && !image.monetized) {
+                const earnings = (newViews - 2000) * 0.005;
+                database.ref(`users/${currentUser.uid}/images/${imageId}`).update({
+                    monetized: true,
+                    earnings: earnings
+                });
+                alert('Congratulations! Your image is now monetized!');
+            } else if (image.monetized) {
+                const earnings = (newViews - 2000) * 0.005;
+                database.ref(`users/${currentUser.uid}/images/${imageId}/earnings`).set(earnings);
+            }
+
+            // Update modal content
+            document.getElementById('modalTitle').textContent = image.title;
+            document.getElementById('modalDescription').textContent = image.description;
+            document.getElementById('modalImage').src = image.imageUrl;
+            document.getElementById('modalViews').textContent = newViews.toLocaleString();
+            document.getElementById('modalCommentCount').textContent = Object.keys(image.comments || {}).length;
+
+            // Show monetization elements
+            const monetizedBadge = document.getElementById('monetizedBadge');
+            const adSpace = document.getElementById('adSpace');
+            
+            if (image.monetized || newViews >= 2000) {
+                monetizedBadge.classList.remove('hidden');
+                adSpace.classList.remove('hidden');
+            } else {
+                monetizedBadge.classList.add('hidden');
+                adSpace.classList.add('hidden');
+            }
+
+            loadComments(image.comments || {});
+            document.getElementById('imageModal').classList.remove('hidden');
+        }
+
+        function closeImageModal() {
+            document.getElementById('imageModal').classList.add('hidden');
+            currentImageId = null;
+        }
+
+        function loadComments(comments) {
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = '';
+
+            Object.entries(comments).forEach(([commentId, comment]) => {
+                const commentDiv = document.createElement('div');
+                commentDiv.className = 'bg-gray-50 p-3 rounded-lg';
+                commentDiv.innerHTML = `
+                    <div class="font-medium text-gray-900">${comment.author}</div>
+                    <div class="text-gray-700">${comment.text}</div>
+                    <div class="text-xs text-gray-500 mt-1">${new Date(comment.timestamp).toLocaleString()}</div>
+                `;
+                commentsList.appendChild(commentDiv);
+            });
+        }
+
+        function addComment() {
+            if (!currentUser || !currentImageId) return;
+
+            const commentInput = document.getElementById('commentInput');
+            const commentText = commentInput.value.trim();
+            
+            if (!commentText) return;
+
+            const commentId = Date.now().toString();
+            const commentData = {
+                author: currentUser.displayName || 'Anonymous User',
+                text: commentText,
+                timestamp: Date.now(),
+                userId: currentUser.uid
+            };
+
+            database.ref(`users/${currentUser.uid}/images/${currentImageId}/comments/${commentId}`).set(commentData);
+            commentInput.value = '';
+        }
+
+        // Initialize event listeners when page loads
+        setupEventListeners();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794b2b3c2843f90',t:'MTc1Njg5Njc1MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
