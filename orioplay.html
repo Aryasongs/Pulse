@@ -20,18 +20,48 @@
             scroll-snap-type: y mandatory;
             scrollbar-width: none;
             -ms-overflow-style: none;
+            scroll-behavior: smooth;
         }
         .reels-container::-webkit-scrollbar {
             display: none;
         }
         .reel-item {
             scroll-snap-align: start;
+            scroll-snap-stop: always;
             height: 100vh;
             width: 100%;
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
+            background: black;
+        }
+        .reel-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        .scroll-indicator {
+            position: fixed;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .scroll-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.4);
+            transition: all 0.3s;
+        }
+        .scroll-dot.active {
+            background: white;
+            transform: scale(1.2);
         }
         .chat-bubble {
             animation: slideIn 0.3s ease-out;
@@ -177,18 +207,28 @@
             <!-- Orioz Section -->
             <div id="reels" class="section hidden">
                 <div class="w-full h-screen bg-black relative overflow-hidden">
-                    <div id="reels-container" class="h-full w-full snap-y snap-mandatory overflow-y-scroll">
-                        <div class="text-center text-gray-400 py-8">Loading Orioz...</div>
+                    <div id="reels-container" class="reels-container">
+                        <div class="flex items-center justify-center h-full text-gray-400">Loading Orioz...</div>
                     </div>
                     
                     <!-- TikTok-style navigation -->
                     <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
-                        <button onclick="showSection('home')" class="text-white text-2xl">←</button>
-                        <div class="flex space-x-4">
-                            <span class="text-white font-semibold">Following</span>
-                            <span class="text-gray-400">For You</span>
+                        <button onclick="showSection('home')" class="text-white text-2xl hover:text-pink-500 transition-colors">←</button>
+                        <div class="flex space-x-6">
+                            <button onclick="switchReelsFeed('following')" id="following-tab" class="text-gray-400 font-semibold transition-colors">Following</button>
+                            <button onclick="switchReelsFeed('foryou')" id="foryou-tab" class="text-white font-semibold transition-colors">For You</button>
                         </div>
-                        <button class="text-white text-xl">🔍</button>
+                        <button onclick="searchReels()" class="text-white text-xl hover:text-pink-500 transition-colors">🔍</button>
+                    </div>
+                    
+                    <!-- Scroll indicator dots -->
+                    <div id="scroll-indicator" class="scroll-indicator">
+                        <!-- Dots will be added dynamically -->
+                    </div>
+                    
+                    <!-- Swipe instructions -->
+                    <div id="swipe-hint" class="absolute bottom-20 left-1/2 transform -translate-x-1/2 text-white text-sm opacity-70 animate-bounce">
+                        Swipe up for next video ↑
                     </div>
                 </div>
             </div>
@@ -606,7 +646,7 @@
             }
         }
 
-        async function loadReels() {
+        async function loadReels(feedType = 'foryou') {
             const reelsContainer = document.getElementById('reels-container');
             reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">Loading Orioz...</div>';
             
@@ -615,21 +655,46 @@
                 const videosData = snapshot.val();
                 
                 if (videosData) {
-                    const videos = Object.keys(videosData).map(key => ({
+                    let videos = Object.keys(videosData).map(key => ({
                         id: key,
                         ...videosData[key]
                     })).reverse();
                     
-                    reelsContainer.innerHTML = '';
-                    videos.forEach(video => {
-                        const reelElement = createReelElement(video);
-                        reelsContainer.appendChild(reelElement);
-                    });
+                    // Filter based on feed type
+                    if (feedType === 'following' && currentUser) {
+                        const followsSnapshot = await database.ref(`follows/${currentUser.uid}`).once('value');
+                        const follows = followsSnapshot.val();
+                        if (follows) {
+                            const followingIds = Object.keys(follows);
+                            videos = videos.filter(video => followingIds.includes(video.userId));
+                        } else {
+                            videos = [];
+                        }
+                    }
                     
-                    // Setup video intersection observer after loading
-                    setTimeout(() => {
-                        handleVideoIntersection();
-                    }, 100);
+                    reelsContainer.innerHTML = '';
+                    
+                    if (videos.length > 0) {
+                        videos.forEach((video, index) => {
+                            const reelElement = createReelElement(video, index);
+                            reelsContainer.appendChild(reelElement);
+                        });
+                        
+                        // Create scroll indicator dots
+                        createScrollIndicator(videos.length);
+                        
+                        // Setup video intersection observer and scroll handling
+                        setTimeout(() => {
+                            setupReelsScrolling();
+                            handleVideoIntersection();
+                            hideSwipeHint();
+                        }, 100);
+                    } else {
+                        const message = feedType === 'following' ? 
+                            'No videos from people you follow yet. Try the For You tab!' : 
+                            'No Orioz yet. Upload your first video! 🎬';
+                        reelsContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400">${message}</div>`;
+                    }
                 } else {
                     reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No Orioz yet. Upload your first video! 🎬</div>';
                 }
@@ -703,13 +768,14 @@
             return postDiv;
         }
 
-        function createReelElement(video) {
+        function createReelElement(video, index) {
             const reelDiv = document.createElement('div');
-            reelDiv.className = 'reel-item bg-black relative';
+            reelDiv.className = 'reel-item';
+            reelDiv.setAttribute('data-index', index);
             
             reelDiv.innerHTML = `
                 ${video.fileUrl ? 
-                  `<video class="w-full h-full object-cover" loop muted autoplay playsinline onclick="toggleVideoPlay(this)">
+                  `<video class="reel-video" loop muted playsinline data-video-id="${video.id}" onclick="toggleVideoPlay(this)">
                      <source src="${video.fileUrl}" type="video/mp4">
                    </video>` :
                   `<div class="flex items-center justify-center h-full bg-gray-900">
@@ -1567,14 +1633,188 @@
             }
         }
 
+        // TikTok-style scrolling functions
+        let currentReelIndex = 0;
+        let isScrolling = false;
+        let currentFeedType = 'foryou';
+
+        function setupReelsScrolling() {
+            const reelsContainer = document.getElementById('reels-container');
+            let startY = 0;
+            let startTime = 0;
+            
+            // Touch events for mobile
+            reelsContainer.addEventListener('touchstart', (e) => {
+                startY = e.touches[0].clientY;
+                startTime = Date.now();
+            });
+            
+            reelsContainer.addEventListener('touchend', (e) => {
+                if (isScrolling) return;
+                
+                const endY = e.changedTouches[0].clientY;
+                const endTime = Date.now();
+                const deltaY = startY - endY;
+                const deltaTime = endTime - startTime;
+                
+                // Check if it's a swipe (minimum distance and speed)
+                if (Math.abs(deltaY) > 50 && deltaTime < 300) {
+                    if (deltaY > 0) {
+                        // Swipe up - next video
+                        scrollToNextReel();
+                    } else {
+                        // Swipe down - previous video
+                        scrollToPrevReel();
+                    }
+                }
+            });
+            
+            // Keyboard events for desktop
+            document.addEventListener('keydown', (e) => {
+                if (document.getElementById('reels').classList.contains('hidden')) return;
+                
+                if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    scrollToPrevReel();
+                } else if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    scrollToNextReel();
+                } else if (e.key === ' ') {
+                    e.preventDefault();
+                    toggleCurrentVideo();
+                }
+            });
+            
+            // Mouse wheel for desktop
+            reelsContainer.addEventListener('wheel', (e) => {
+                if (isScrolling) return;
+                
+                e.preventDefault();
+                if (e.deltaY > 0) {
+                    scrollToNextReel();
+                } else {
+                    scrollToPrevReel();
+                }
+            });
+            
+            // Handle scroll events to update indicator
+            reelsContainer.addEventListener('scroll', updateScrollIndicator);
+        }
+
+        function scrollToNextReel() {
+            const reels = document.querySelectorAll('.reel-item');
+            if (currentReelIndex < reels.length - 1) {
+                currentReelIndex++;
+                scrollToReel(currentReelIndex);
+            }
+        }
+
+        function scrollToPrevReel() {
+            if (currentReelIndex > 0) {
+                currentReelIndex--;
+                scrollToReel(currentReelIndex);
+            }
+        }
+
+        function scrollToReel(index) {
+            if (isScrolling) return;
+            
+            isScrolling = true;
+            const reelsContainer = document.getElementById('reels-container');
+            const targetReel = document.querySelector(`[data-index="${index}"]`);
+            
+            if (targetReel) {
+                targetReel.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'start' 
+                });
+                
+                setTimeout(() => {
+                    isScrolling = false;
+                    updateScrollIndicator();
+                }, 500);
+            }
+        }
+
+        function createScrollIndicator(totalVideos) {
+            const indicator = document.getElementById('scroll-indicator');
+            indicator.innerHTML = '';
+            
+            for (let i = 0; i < Math.min(totalVideos, 10); i++) {
+                const dot = document.createElement('div');
+                dot.className = `scroll-dot ${i === 0 ? 'active' : ''}`;
+                dot.onclick = () => {
+                    currentReelIndex = i;
+                    scrollToReel(i);
+                };
+                indicator.appendChild(dot);
+            }
+        }
+
+        function updateScrollIndicator() {
+            const reelsContainer = document.getElementById('reels-container');
+            const scrollTop = reelsContainer.scrollTop;
+            const windowHeight = window.innerHeight;
+            const newIndex = Math.round(scrollTop / windowHeight);
+            
+            if (newIndex !== currentReelIndex) {
+                currentReelIndex = newIndex;
+                
+                // Update dots
+                document.querySelectorAll('.scroll-dot').forEach((dot, index) => {
+                    dot.classList.toggle('active', index === currentReelIndex);
+                });
+            }
+        }
+
+        function switchReelsFeed(feedType) {
+            currentFeedType = feedType;
+            currentReelIndex = 0;
+            
+            // Update tab appearance
+            document.getElementById('following-tab').className = feedType === 'following' ? 
+                'text-white font-semibold transition-colors' : 
+                'text-gray-400 font-semibold transition-colors';
+            document.getElementById('foryou-tab').className = feedType === 'foryou' ? 
+                'text-white font-semibold transition-colors' : 
+                'text-gray-400 font-semibold transition-colors';
+            
+            loadReels(feedType);
+        }
+
+        function searchReels() {
+            showNotification('Search feature coming soon! 🔍');
+        }
+
+        function hideSwipeHint() {
+            setTimeout(() => {
+                const hint = document.getElementById('swipe-hint');
+                if (hint) {
+                    hint.style.opacity = '0';
+                    setTimeout(() => {
+                        hint.style.display = 'none';
+                    }, 500);
+                }
+            }, 3000);
+        }
+
+        function toggleCurrentVideo() {
+            const currentVideo = document.querySelector(`[data-index="${currentReelIndex}"] video`);
+            if (currentVideo) {
+                toggleVideoPlay(currentVideo);
+            }
+        }
+
         // Auto-play videos when they come into view
         function handleVideoIntersection() {
             const videos = document.querySelectorAll('#reels-container video');
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
                     const video = entry.target;
-                    if (entry.isIntersecting) {
+                    if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+                        // Play video and update view count
                         video.play();
+                        incrementVideoViews(video.dataset.videoId);
                     } else {
                         video.pause();
                     }
@@ -1582,6 +1822,16 @@
             }, { threshold: 0.5 });
 
             videos.forEach(video => observer.observe(video));
+        }
+
+        async function incrementVideoViews(videoId) {
+            if (!videoId) return;
+            
+            try {
+                await database.ref(`posts/${videoId}/views`).transaction(views => (views || 0) + 1);
+            } catch (error) {
+                console.error('Error incrementing views:', error);
+            }
         }
 
         // Enter key for sending messages
@@ -1638,5 +1888,5 @@
             }
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979458e3147759b1',t:'MTc1Njg5MzA3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794619095de3f90',t:'MTc1Njg5MzQyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
