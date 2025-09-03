@@ -2464,6 +2464,7 @@
         }
 
         function showUserProfile(userId, userData) {
+            hideAllScreens();
             document.getElementById('userProfileAvatar').innerHTML = generateAvatar(userData.name, userData.profilePicture);
             
             // Add verified tick to name if verified
@@ -2482,21 +2483,20 @@
             if (userId === currentUser.uid) {
                 // Show edit button for own profile
                 actionButtonsDiv.innerHTML = `
-                    <button id="editProfileBtn" class="flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]">
+                    <button id="editProfileBtn" class="flex-1 gradient-bg text-white py-2 px-4 rounded-lg font-semibold min-h-[44px]">
                         Edit Profile
                     </button>
                 `;
                 document.getElementById('editProfileBtn').onclick = () => {
-                    document.getElementById('userProfileModal').classList.add('hidden');
                     showProfile();
                 };
             } else {
                 // Show follow and message buttons for other users
                 actionButtonsDiv.innerHTML = `
-                    <button id="followBtn" class="flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]">
+                    <button id="followBtn" class="flex-1 gradient-bg text-white py-2 px-4 rounded-lg font-semibold min-h-[44px]">
                         Follow
                     </button>
-                    <button id="messageUserBtn" class="px-4 py-2 border border-gray-300 rounded-full font-semibold min-h-[44px]">
+                    <button id="messageUserBtn" class="py-2 px-4 border border-gray-300 rounded-lg font-semibold min-h-[44px]">
                         Message
                     </button>
                 `;
@@ -2506,10 +2506,10 @@
                     const newFollowBtn = document.getElementById('followBtn');
                     if (snapshot.exists()) {
                         newFollowBtn.textContent = 'Unfollow';
-                        newFollowBtn.className = 'flex-1 bg-gray-200 text-gray-700 px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                        newFollowBtn.className = 'flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-lg font-semibold min-h-[44px]';
                     } else {
                         newFollowBtn.textContent = 'Follow';
-                        newFollowBtn.className = 'flex-1 gradient-bg text-white px-6 py-2 rounded-full font-semibold min-h-[44px]';
+                        newFollowBtn.className = 'flex-1 gradient-bg text-white py-2 px-4 rounded-lg font-semibold min-h-[44px]';
                     }
                     
                     newFollowBtn.onclick = () => toggleFollow(userId, userData);
@@ -2517,7 +2517,7 @@
                 
                 // Message button handler
                 document.getElementById('messageUserBtn').onclick = () => {
-                    document.getElementById('userProfileModal').classList.add('hidden');
+                    document.getElementById('userProfileScreen').classList.add('hidden');
                     openChat(userId, userData);
                 };
             }
@@ -2526,7 +2526,7 @@
             document.getElementById('userFollowersCount').parentElement.onclick = () => showFollowersList(userId, 'followers');
             document.getElementById('userFollowingCount').parentElement.onclick = () => showFollowersList(userId, 'following');
             
-            document.getElementById('userProfileModal').classList.remove('hidden');
+            document.getElementById('userProfileScreen').classList.remove('hidden');
         }
 
         async function toggleFollow(userId, userData) {
@@ -2636,14 +2636,20 @@
             searchUsers(e.target.value);
         });
 
-        // Settings modal handlers
+        // Settings screen handlers
         document.getElementById('closeSettings').addEventListener('click', () => {
-            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsScreen').classList.add('hidden');
+            document.getElementById('feed').parentElement.classList.remove('hidden');
+        });
+
+        document.getElementById('closeProfile').addEventListener('click', () => {
+            document.getElementById('profileScreen').classList.add('hidden');
+            document.getElementById('feed').parentElement.classList.remove('hidden');
         });
 
         document.getElementById('logoutBtn').addEventListener('click', () => {
             auth.signOut();
-            document.getElementById('settingsModal').classList.add('hidden');
+            document.getElementById('settingsScreen').classList.add('hidden');
         });
 
         document.getElementById('blockUnblockBtn').addEventListener('click', () => {
@@ -2745,6 +2751,7 @@
         }
 
         async function showProfile() {
+            hideAllScreens();
             const userData = await database.ref(`users/${currentUser.uid}`).once('value');
             const user = userData.val();
             
@@ -2753,7 +2760,7 @@
             if (user.profilePicture) {
                 profileAvatar.innerHTML = `<img src="${user.profilePicture}" class="w-full h-full rounded-full object-cover">`;
             } else {
-                profileAvatar.className = 'w-20 h-20 rounded-full mx-auto mb-3 avatar-letter flex items-center justify-center text-white font-bold text-2xl';
+                profileAvatar.className = 'w-20 h-20 rounded-full cursor-pointer avatar-letter flex items-center justify-center text-white font-bold text-2xl';
                 profileAvatar.textContent = getInitials(user.name);
             }
             
@@ -2782,10 +2789,11 @@
                 addBioBtn.classList.remove('hidden');
             }
             
-            // Load user stats
+            // Load user stats and posts
             loadUserStats();
+            loadUserPostsGrid();
             
-            document.getElementById('profileModal').classList.remove('hidden');
+            document.getElementById('profileScreen').classList.remove('hidden');
         }
 
         async function loadUserStats() {
@@ -2818,22 +2826,151 @@
             document.getElementById('likedCount').textContent = likedCount;
         }
 
-        // Profile section handlers
-        document.getElementById('myBuzzesBtn').addEventListener('click', () => {
-            showUserBuzzes('myBuzzes');
+        // Load user posts in Instagram-style grid
+        async function loadUserPostsGrid() {
+            const postsGrid = document.getElementById('postsGrid');
+            postsGrid.innerHTML = '<div class="col-span-3 text-center py-8 text-gray-500">Loading posts...</div>';
+            
+            try {
+                const buzzesSnapshot = await database.ref('buzzes').orderByChild('userId').equalTo(currentUser.uid).once('value');
+                const posts = [];
+                
+                buzzesSnapshot.forEach((child) => {
+                    const buzz = child.val();
+                    if (buzz.image) { // Only show posts with images in grid
+                        posts.unshift({id: child.key, ...buzz});
+                    }
+                });
+                
+                if (posts.length === 0) {
+                    postsGrid.innerHTML = `
+                        <div class="col-span-3 text-center py-12">
+                            <div class="w-16 h-16 mx-auto mb-4 border-2 border-gray-300 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-2">No Posts Yet</h3>
+                            <p class="text-gray-500">When you share photos, they'll appear on your profile.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                postsGrid.innerHTML = '';
+                posts.forEach(post => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-square bg-gray-100 rounded cursor-pointer hover:opacity-75 transition-opacity';
+                    div.innerHTML = `<img src="${post.image}" class="w-full h-full object-cover rounded">`;
+                    div.addEventListener('click', () => {
+                        // Show post details - could implement a post detail view
+                        showPostDetail(post);
+                    });
+                    postsGrid.appendChild(div);
+                });
+                
+            } catch (error) {
+                console.error('Error loading posts grid:', error);
+                postsGrid.innerHTML = '<div class="col-span-3 text-center py-8 text-red-500">Error loading posts</div>';
+            }
+        }
+
+        function showPostDetail(post) {
+            // For now, just show the post in feed format
+            hideAllScreens();
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '';
+            const postElement = createBuzzElement(post);
+            feed.appendChild(postElement);
+            document.getElementById('feed').parentElement.classList.remove('hidden');
+        }
+
+        // Profile tab handlers
+        document.getElementById('postsTab').addEventListener('click', () => {
+            // Switch to posts view
+            document.getElementById('postsTab').className = 'flex-1 py-3 text-center border-b-2 border-black font-semibold';
+            document.getElementById('reelsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('savedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('taggedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            loadUserPostsGrid();
         });
 
-        document.getElementById('rebuzzesBtn').addEventListener('click', () => {
-            showUserBuzzes('rebuzzes');
+        document.getElementById('reelsTab').addEventListener('click', () => {
+            // Switch to reels view (placeholder)
+            document.getElementById('postsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('reelsTab').className = 'flex-1 py-3 text-center border-b-2 border-black font-semibold';
+            document.getElementById('savedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('taggedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('postsGrid').innerHTML = '<div class="col-span-3 text-center py-12 text-gray-500">Reels coming soon!</div>';
         });
 
-        document.getElementById('mediaBtn').addEventListener('click', () => {
-            showUserBuzzes('media');
+        document.getElementById('savedTab').addEventListener('click', () => {
+            // Switch to saved view
+            document.getElementById('postsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('reelsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('savedTab').className = 'flex-1 py-3 text-center border-b-2 border-black font-semibold';
+            document.getElementById('taggedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            loadSavedPosts();
         });
 
-        document.getElementById('likedBtn').addEventListener('click', () => {
-            showUserBuzzes('liked');
+        document.getElementById('taggedTab').addEventListener('click', () => {
+            // Switch to tagged view
+            document.getElementById('postsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('reelsTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('savedTab').className = 'flex-1 py-3 text-center border-b-2 border-transparent text-gray-400';
+            document.getElementById('taggedTab').className = 'flex-1 py-3 text-center border-b-2 border-black font-semibold';
+            document.getElementById('postsGrid').innerHTML = '<div class="col-span-3 text-center py-12 text-gray-500">Tagged posts coming soon!</div>';
         });
+
+        async function loadSavedPosts() {
+            const postsGrid = document.getElementById('postsGrid');
+            postsGrid.innerHTML = '<div class="col-span-3 text-center py-8 text-gray-500">Loading saved posts...</div>';
+            
+            try {
+                const savesSnapshot = await database.ref(`saves/${currentUser.uid}`).once('value');
+                const savedPosts = [];
+                
+                if (savesSnapshot.exists()) {
+                    for (const buzzId of Object.keys(savesSnapshot.val())) {
+                        const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
+                        if (buzzSnapshot.exists()) {
+                            const buzz = buzzSnapshot.val();
+                            if (buzz.image) {
+                                savedPosts.push({id: buzzId, ...buzz});
+                            }
+                        }
+                    }
+                }
+                
+                if (savedPosts.length === 0) {
+                    postsGrid.innerHTML = `
+                        <div class="col-span-3 text-center py-12">
+                            <div class="w-16 h-16 mx-auto mb-4 border-2 border-gray-300 rounded-full flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-xl font-semibold mb-2">No Saved Posts</h3>
+                            <p class="text-gray-500">Save posts to see them here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                postsGrid.innerHTML = '';
+                savedPosts.forEach(post => {
+                    const div = document.createElement('div');
+                    div.className = 'aspect-square bg-gray-100 rounded cursor-pointer hover:opacity-75 transition-opacity';
+                    div.innerHTML = `<img src="${post.image}" class="w-full h-full object-cover rounded">`;
+                    div.addEventListener('click', () => showPostDetail(post));
+                    postsGrid.appendChild(div);
+                });
+                
+            } catch (error) {
+                console.error('Error loading saved posts:', error);
+                postsGrid.innerHTML = '<div class="col-span-3 text-center py-8 text-red-500">Error loading saved posts</div>';
+            }
+        }
 
         async function showUserBuzzes(type) {
             const feed = document.getElementById('feed');
@@ -2953,5 +3090,5 @@
             input.click();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979357dd2393836f',t:'MTc1Njg4MjU0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97935edfd0ae69a5',t:'MTc1Njg4MjgzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
