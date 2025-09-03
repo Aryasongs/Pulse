@@ -15,14 +15,23 @@
             position: relative;
         }
         .reels-container {
-            height: 80vh;
+            height: 100vh;
             overflow-y: auto;
             scroll-snap-type: y mandatory;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .reels-container::-webkit-scrollbar {
+            display: none;
         }
         .reel-item {
             scroll-snap-align: start;
-            height: 100%;
-            min-height: 600px;
+            height: 100vh;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .chat-bubble {
             animation: slideIn 0.3s ease-out;
@@ -40,28 +49,38 @@
         }
         .video-controls {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            bottom: 100px;
+            right: 15px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 20px;
+            z-index: 10;
         }
         .control-btn {
-            background: rgba(0,0,0,0.5);
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
+            width: 48px;
+            height: 48px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
             transition: all 0.3s;
+            border: 1px solid rgba(255,255,255,0.1);
         }
         .control-btn:hover {
-            background: rgba(0,0,0,0.7);
+            background: rgba(255,255,255,0.3);
             transform: scale(1.1);
+        }
+        .control-count {
+            color: white;
+            font-size: 12px;
+            text-align: center;
+            margin-top: 4px;
+            font-weight: 600;
         }
         .auth-container {
             min-height: 100vh;
@@ -157,9 +176,19 @@
 
             <!-- Orioz Section -->
             <div id="reels" class="section hidden">
-                <div class="max-w-md mx-auto">
-                    <div id="reels-container" class="reels-container">
+                <div class="w-full h-screen bg-black relative overflow-hidden">
+                    <div id="reels-container" class="h-full w-full snap-y snap-mandatory overflow-y-scroll">
                         <div class="text-center text-gray-400 py-8">Loading Orioz...</div>
+                    </div>
+                    
+                    <!-- TikTok-style navigation -->
+                    <div class="absolute top-4 left-4 right-4 flex justify-between items-center z-10">
+                        <button onclick="showSection('home')" class="text-white text-2xl">←</button>
+                        <div class="flex space-x-4">
+                            <span class="text-white font-semibold">Following</span>
+                            <span class="text-gray-400">For You</span>
+                        </div>
+                        <button class="text-white text-xl">🔍</button>
                     </div>
                 </div>
             </div>
@@ -579,7 +608,7 @@
 
         async function loadReels() {
             const reelsContainer = document.getElementById('reels-container');
-            reelsContainer.innerHTML = '<div class="text-center text-gray-400 py-8">Loading Orioz...</div>';
+            reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">Loading Orioz...</div>';
             
             try {
                 const snapshot = await database.ref('posts').orderByChild('type').equalTo('video').once('value');
@@ -596,12 +625,17 @@
                         const reelElement = createReelElement(video);
                         reelsContainer.appendChild(reelElement);
                     });
+                    
+                    // Setup video intersection observer after loading
+                    setTimeout(() => {
+                        handleVideoIntersection();
+                    }, 100);
                 } else {
-                    reelsContainer.innerHTML = '<div class="text-center text-gray-400 py-8">No Orioz yet</div>';
+                    reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-gray-400">No Orioz yet. Upload your first video! 🎬</div>';
                 }
             } catch (error) {
                 console.error('Error loading Orioz:', error);
-                reelsContainer.innerHTML = '<div class="text-center text-red-400 py-8">Error loading Orioz</div>';
+                reelsContainer.innerHTML = '<div class="flex items-center justify-center h-full text-red-400">Error loading Orioz</div>';
             }
         }
 
@@ -671,41 +705,65 @@
 
         function createReelElement(video) {
             const reelDiv = document.createElement('div');
-            reelDiv.className = 'reel-item bg-gray-900 rounded-lg relative';
+            reelDiv.className = 'reel-item bg-black relative';
             
             reelDiv.innerHTML = `
-                <div class="video-container h-full">
-                    ${video.fileUrl ? 
-                      `<video class="w-full h-full object-cover rounded-lg" loop muted>
-                         <source src="${video.fileUrl}" type="video/mp4">
-                       </video>` :
-                      `<div class="flex items-center justify-center h-full bg-gray-800 rounded-lg">
-                         <div class="text-6xl">📹</div>
-                       </div>`
-                    }
-                    
-                    <div class="video-controls">
-                        <button onclick="toggleLike('${video.id}')" class="control-btn like-btn-${video.id} ${video.isLiked ? 'text-pink-500' : 'text-white'}">
-                            ${video.isLiked ? '❤️' : '🤍'}
+                ${video.fileUrl ? 
+                  `<video class="w-full h-full object-cover" loop muted autoplay playsinline onclick="toggleVideoPlay(this)">
+                     <source src="${video.fileUrl}" type="video/mp4">
+                   </video>` :
+                  `<div class="flex items-center justify-center h-full bg-gray-900">
+                     <div class="text-6xl">📹</div>
+                   </div>`
+                }
+                
+                <!-- Right side controls -->
+                <div class="video-controls">
+                    <div class="flex flex-col items-center">
+                        <img src="${video.userProfilePic || generateDefaultProfilePic()}" class="w-12 h-12 rounded-full object-cover border-2 border-white mb-4">
+                        <button onclick="toggleFollow('${video.userId}')" class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-white text-xs font-bold mb-6">
+                            +
                         </button>
-                        <div class="text-center text-xs">${video.likes || 0}</div>
-                        
-                        <button class="control-btn">💬</button>
-                        <div class="text-center text-xs">${video.comments || 0}</div>
-                        
-                        <button class="control-btn">📤</button>
-                        <div class="text-center text-xs">${video.shares || 0}</div>
                     </div>
                     
-                    <div class="absolute bottom-4 left-4 right-20">
-                        <div class="flex items-center space-x-3 mb-2">
-                            <img src="${video.userProfilePic || generateDefaultProfilePic()}" class="w-8 h-8 rounded-full object-cover">
-                            <span class="font-semibold">${video.username}</span>
-                            <button onclick="toggleFollow('${video.userId}')" class="bg-pink-600 hover:bg-pink-700 px-3 py-1 rounded-full text-xs">
-                                Follow
-                            </button>
-                        </div>
-                        <p class="text-sm">${formatCaption(video.caption)}</p>
+                    <div class="flex flex-col items-center">
+                        <button onclick="toggleLike('${video.id}')" class="control-btn like-btn-${video.id} ${video.isLiked ? 'text-red-500' : 'text-white'}">
+                            ${video.isLiked ? '❤️' : '🤍'}
+                        </button>
+                        <div class="control-count">${video.likes || 0}</div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <button class="control-btn">💬</button>
+                        <div class="control-count">${video.comments || 0}</div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <button class="control-btn">📤</button>
+                        <div class="control-count">${video.shares || 0}</div>
+                    </div>
+                    
+                    <div class="flex flex-col items-center">
+                        <button class="control-btn">🎵</button>
+                    </div>
+                </div>
+                
+                <!-- Bottom info -->
+                <div class="absolute bottom-4 left-4 right-20 text-white">
+                    <div class="flex items-center space-x-2 mb-2">
+                        <span class="font-semibold text-lg">${video.username}</span>
+                    </div>
+                    <p class="text-sm mb-2">${formatCaption(video.caption)}</p>
+                    <div class="flex items-center space-x-2 text-sm">
+                        <span>🎵</span>
+                        <span class="text-gray-300">Original sound - ${video.username}</span>
+                    </div>
+                </div>
+                
+                <!-- Play/Pause indicator -->
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div class="play-pause-indicator hidden bg-black bg-opacity-50 rounded-full p-4">
+                        <div class="text-white text-4xl">⏸️</div>
                     </div>
                 </div>
             `;
@@ -723,11 +781,23 @@
         // File handling functions
         function handleFileSelect(file) {
             currentFile = file;
+            
+            // Check file size (limit to 50MB for better performance)
+            if (file.size > 50 * 1024 * 1024) {
+                showNotification('File too large! Please select a file under 50MB.');
+                return;
+            }
+            
             const reader = new FileReader();
             
             reader.onload = function(e) {
                 currentFileBase64 = e.target.result;
                 showFilePreview(file, e.target.result);
+                showNotification(`${file.name} loaded successfully! 📁`);
+            };
+            
+            reader.onerror = function() {
+                showNotification('Error reading file. Please try again.');
             };
             
             reader.readAsDataURL(file);
@@ -937,7 +1007,10 @@
         }
 
         async function uploadContent() {
-            if (!currentUser) return;
+            if (!currentUser) {
+                showNotification('Please login first!');
+                return;
+            }
             
             const caption = document.getElementById('caption-input').value;
             
@@ -946,8 +1019,14 @@
                 return;
             }
             
-            if (!currentFileBase64) {
-                showNotification('Please select a file!');
+            if (!currentFileBase64 || !currentFile) {
+                showNotification('Please select a file first!');
+                return;
+            }
+            
+            // Validate file type
+            if (!currentFile.type.startsWith('video/') && !currentFile.type.startsWith('image/')) {
+                showNotification('Please select a valid video or image file!');
                 return;
             }
             
@@ -1450,6 +1529,39 @@
             }, 3000);
         }
 
+        // Video play/pause functionality
+        function toggleVideoPlay(video) {
+            const indicator = video.parentElement.querySelector('.play-pause-indicator');
+            
+            if (video.paused) {
+                video.play();
+                indicator.classList.add('hidden');
+            } else {
+                video.pause();
+                indicator.classList.remove('hidden');
+                setTimeout(() => {
+                    indicator.classList.add('hidden');
+                }, 1000);
+            }
+        }
+
+        // Auto-play videos when they come into view
+        function handleVideoIntersection() {
+            const videos = document.querySelectorAll('#reels-container video');
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target;
+                    if (entry.isIntersecting) {
+                        video.play();
+                    } else {
+                        video.pause();
+                    }
+                });
+            }, { threshold: 0.5 });
+
+            videos.forEach(video => observer.observe(video));
+        }
+
         // Enter key for sending messages
         document.getElementById('message-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -1465,6 +1577,35 @@
                 showNotification(`${file.name} selected for upload!`);
             }
         });
+
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.border-dashed');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('border-pink-500', 'bg-pink-50');
+        });
+        
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('border-pink-500', 'bg-pink-50');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('border-pink-500', 'bg-pink-50');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.type.startsWith('video/') || file.type.startsWith('image/')) {
+                    handleFileSelect(file);
+                    document.getElementById('file-input').files = files;
+                } else {
+                    showNotification('Please select a video or image file!');
+                }
+            }
+        });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979447424170836f',t:'MTc1Njg5MjM1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97944e94e76d3f90',t:'MTc1Njg5MjY1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
