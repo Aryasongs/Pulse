@@ -693,6 +693,14 @@
         let currentImageId = null;
         let currentView = 'home';
         let lastFailedAction = null;
+        let userInterests = {};
+        let personalizedFeed = [];
+        let userActivity = {
+            searches: [],
+            saves: [],
+            views: [],
+            interactions: []
+        };
 
         // Error handling
         function handleError(error, userMessage = "Something went wrong. Please try again.", retryAction = null) {
@@ -878,6 +886,14 @@
                         this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNFNUU3RUIiLz4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxMiIgcj0iNSIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNiAyNi41QzYgMjIuMzU3OSAxMC4zNTc5IDE5IDE2IDE5QzIxLjY0MjEgMTkgMjYgMjIuMzU3OSAyNiAyNi41IiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
                     };
                 }
+                
+                // Refresh feed with personalized content
+                if (currentView === 'home' && allImages.length > 0) {
+                    setTimeout(() => {
+                        personalizedFeed = generatePersonalizedFeed(allImages);
+                        renderImages(personalizedFeed, 'imageGallery', 'emptyState');
+                    }, 1000); // Small delay to allow user data to load
+                }
             } catch (error) {
                 console.error('Failed to update UI for logged in user:', error);
             }
@@ -1025,10 +1041,26 @@
                             email: currentUser.email,
                             photoURL: currentUser.photoURL,
                             bio: '',
-                            createdAt: Date.now()
+                            createdAt: Date.now(),
+                            interests: {},
+                            activity: {
+                                searches: [],
+                                saves: [],
+                                views: [],
+                                interactions: []
+                            }
                         }).catch(error => {
                             handleError(error, "Failed to create user profile.");
                         });
+                    } else {
+                        // Load user interests and activity
+                        userInterests = userData.interests || {};
+                        userActivity = userData.activity || {
+                            searches: [],
+                            saves: [],
+                            views: [],
+                            interactions: []
+                        };
                     }
                 }).catch(error => {
                     handleError(error, "Failed to load user data.");
@@ -1040,12 +1072,206 @@
                     snapshot.forEach(child => {
                         savedImages.push(child.key);
                     });
+                    // Update interests based on saved images
+                    updateInterestsFromSaves();
                 }, error => {
                     handleError(error, "Failed to load saved images.");
                 });
             } catch (error) {
                 handleError(error, "Failed to initialize user data.");
             }
+        }
+
+        // Personalization Algorithm Functions
+        function generatePersonalizedFeed(images) {
+            if (!currentUser || Object.keys(userInterests).length === 0) {
+                // New user or no interests yet - show diverse content
+                return shuffleArray([...images]).slice(0, 50);
+            }
+            
+            const scoredImages = images.map(image => ({
+                ...image,
+                score: calculateImageScore(image)
+            }));
+            
+            // Sort by score (highest first) and add some randomness
+            scoredImages.sort((a, b) => {
+                const scoreDiff = b.score - a.score;
+                // Add small random factor to prevent identical feeds
+                const randomFactor = (Math.random() - 0.5) * 0.1;
+                return scoreDiff + randomFactor;
+            });
+            
+            // Mix high-scoring content with some fresh/diverse content
+            const highScoring = scoredImages.slice(0, Math.floor(scoredImages.length * 0.7));
+            const diverse = shuffleArray(scoredImages.slice(Math.floor(scoredImages.length * 0.7)));
+            
+            return [...highScoring, ...diverse].slice(0, 100);
+        }
+        
+        function calculateImageScore(image) {
+            let score = 0;
+            
+            // Base recency score (newer content gets slight boost)
+            const daysSinceCreated = (Date.now() - (image.createdAt || 0)) / (1000 * 60 * 60 * 24);
+            score += Math.max(0, 10 - daysSinceCreated * 0.1);
+            
+            // Interest matching
+            const imageKeywords = extractImageKeywords(image);
+            imageKeywords.forEach(keyword => {
+                if (userInterests[keyword]) {
+                    score += userInterests[keyword] * 10;
+                }
+            });
+            
+            // Board preference
+            if (userInterests[image.board]) {
+                score += userInterests[image.board] * 5;
+            }
+            
+            // Author preference (if user has interacted with this author before)
+            if (userInterests[`author_${image.authorId}`]) {
+                score += userInterests[`author_${image.authorId}`] * 3;
+            }
+            
+            // Popularity boost (but not too much to avoid echo chamber)
+            score += Math.log(1 + (image.views || 0)) * 0.5;
+            
+            // Avoid showing user's own content in feed
+            if (image.authorId === currentUser?.uid) {
+                score *= 0.1;
+            }
+            
+            return score;
+        }
+        
+        function extractImageKeywords(image) {
+            const keywords = [];
+            
+            // Extract from description
+            if (image.description) {
+                const words = image.description.toLowerCase()
+                    .replace(/[^\w\s]/g, ' ')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2);
+                keywords.push(...words);
+            }
+            
+            // Extract from title
+            if (image.title) {
+                const words = image.title.toLowerCase()
+                    .replace(/[^\w\s]/g, ' ')
+                    .split(/\s+/)
+                    .filter(word => word.length > 2);
+                keywords.push(...words);
+            }
+            
+            // Add board as keyword
+            if (image.board) {
+                keywords.push(image.board);
+            }
+            
+            return [...new Set(keywords)]; // Remove duplicates
+        }
+        
+        function updateUserInterests(keywords, weight = 1) {
+            if (!currentUser) return;
+            
+            keywords.forEach(keyword => {
+                if (keyword && keyword.length > 2) {
+                    userInterests[keyword] = (userInterests[keyword] || 0) + weight;
+                    
+                    // Cap interest levels to prevent over-specialization
+                    if (userInterests[keyword] > 10) {
+                        userInterests[keyword] = 10;
+                    }
+                }
+            });
+            
+            // Decay old interests slightly to allow for changing preferences
+            Object.keys(userInterests).forEach(key => {
+                userInterests[key] *= 0.999;
+                if (userInterests[key] < 0.1) {
+                    delete userInterests[key];
+                }
+            });
+            
+            // Save to database (throttled)
+            saveUserInterests();
+        }
+        
+        function updateInterestsFromSaves() {
+            if (!currentUser || savedImages.length === 0) return;
+            
+            savedImages.forEach(imageId => {
+                const image = allImages.find(img => img.id === imageId);
+                if (image) {
+                    const keywords = extractImageKeywords(image);
+                    updateUserInterests(keywords, 2); // Higher weight for saved content
+                    updateUserInterests([image.board], 1.5);
+                    updateUserInterests([`author_${image.authorId}`], 1);
+                }
+            });
+        }
+        
+        function trackUserActivity(type, data) {
+            if (!currentUser) return;
+            
+            const activity = {
+                type,
+                data,
+                timestamp: Date.now()
+            };
+            
+            userActivity[type] = userActivity[type] || [];
+            userActivity[type].unshift(activity);
+            
+            // Keep only recent activity (last 100 items per type)
+            if (userActivity[type].length > 100) {
+                userActivity[type] = userActivity[type].slice(0, 100);
+            }
+            
+            // Update interests based on activity
+            if (type === 'searches' && data.query) {
+                const keywords = data.query.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+                updateUserInterests(keywords, 0.5);
+            }
+            
+            // Save activity (throttled)
+            saveUserActivity();
+        }
+        
+        let saveInterestsTimeout;
+        function saveUserInterests() {
+            if (!currentUser) return;
+            
+            clearTimeout(saveInterestsTimeout);
+            saveInterestsTimeout = setTimeout(() => {
+                database.ref(`users/${currentUser.uid}/interests`).set(userInterests).catch(error => {
+                    console.error('Failed to save user interests:', error);
+                });
+            }, 2000);
+        }
+        
+        let saveActivityTimeout;
+        function saveUserActivity() {
+            if (!currentUser) return;
+            
+            clearTimeout(saveActivityTimeout);
+            saveActivityTimeout = setTimeout(() => {
+                database.ref(`users/${currentUser.uid}/activity`).set(userActivity).catch(error => {
+                    console.error('Failed to save user activity:', error);
+                });
+            }, 5000);
+        }
+        
+        function shuffleArray(array) {
+            const shuffled = [...array];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
         }
 
         // Ad management
@@ -1106,7 +1332,16 @@
                         const image = { id: child.key, ...child.val() };
                         allImages.unshift(image); // Most recent first
                     });
-                    renderImages(allImages, 'imageGallery', 'emptyState');
+                    
+                    // Generate personalized feed for logged-in users
+                    if (currentUser) {
+                        personalizedFeed = generatePersonalizedFeed(allImages);
+                        renderImages(personalizedFeed, 'imageGallery', 'emptyState');
+                    } else {
+                        // Show random mix for guests
+                        const shuffledImages = shuffleArray([...allImages]);
+                        renderImages(shuffledImages, 'imageGallery', 'emptyState');
+                    }
                 }, error => {
                     handleError(error, "Failed to load images. Please refresh the page.", loadAllImages);
                 });
@@ -1572,6 +1807,17 @@
                 
                 currentImageId = imageId;
                 
+                // Track user activity
+                if (currentUser) {
+                    trackUserActivity('views', { imageId, board: image.board, authorId: image.authorId });
+                    
+                    // Update interests based on viewed content
+                    const keywords = extractImageKeywords(image);
+                    updateUserInterests(keywords, 0.3);
+                    updateUserInterests([image.board], 0.5);
+                    updateUserInterests([`author_${image.authorId}`], 0.2);
+                }
+                
                 // Increment view count
                 database.ref(`images/${imageId}/views`).transaction(views => (views || 0) + 1).catch(error => {
                     console.error('Failed to increment view count:', error);
@@ -1627,6 +1873,8 @@
             
             try {
                 const isSaved = savedImages.includes(currentImageId);
+                const image = allImages.find(img => img.id === currentImageId) || 
+                             userImages.find(img => img.id === currentImageId);
                 
                 if (isSaved) {
                     database.ref(`saved/${currentUser.uid}/${currentImageId}`).remove().then(() => {
@@ -1637,6 +1885,16 @@
                 } else {
                     database.ref(`saved/${currentUser.uid}/${currentImageId}`).set(true).then(() => {
                         showSuccess('Saved to your collection! 📸');
+                        
+                        // Track save activity and boost interests significantly
+                        if (image) {
+                            trackUserActivity('saves', { imageId: currentImageId, board: image.board, authorId: image.authorId });
+                            
+                            const keywords = extractImageKeywords(image);
+                            updateUserInterests(keywords, 2); // High weight for saved content
+                            updateUserInterests([image.board], 2.5);
+                            updateUserInterests([`author_${image.authorId}`], 1.5);
+                        }
                     }).catch(error => {
                         handleError(error, "Failed to save Pix.", toggleSaveImage);
                     });
@@ -1651,6 +1909,8 @@
             
             try {
                 const isSaved = savedImages.includes(imageId);
+                const image = allImages.find(img => img.id === imageId) || 
+                             userImages.find(img => img.id === imageId);
                 
                 if (isSaved) {
                     database.ref(`saved/${currentUser.uid}/${imageId}`).remove().then(() => {
@@ -1661,6 +1921,16 @@
                 } else {
                     database.ref(`saved/${currentUser.uid}/${imageId}`).set(true).then(() => {
                         showSuccess('Saved! 📸');
+                        
+                        // Track save activity and boost interests
+                        if (image) {
+                            trackUserActivity('saves', { imageId, board: image.board, authorId: image.authorId });
+                            
+                            const keywords = extractImageKeywords(image);
+                            updateUserInterests(keywords, 2);
+                            updateUserInterests([image.board], 2.5);
+                            updateUserInterests([`author_${image.authorId}`], 1.5);
+                        }
                     }).catch(error => {
                         handleError(error, "Failed to save Pix.");
                     });
@@ -1770,8 +2040,20 @@
         function filterImages(searchTerm) {
             try {
                 if (!searchTerm) {
-                    if (currentView === 'home') renderImages(allImages, 'imageGallery', 'emptyState');
+                    if (currentView === 'home') {
+                        // Show personalized feed or all images
+                        if (currentUser && personalizedFeed.length > 0) {
+                            renderImages(personalizedFeed, 'imageGallery', 'emptyState');
+                        } else {
+                            renderImages(allImages, 'imageGallery', 'emptyState');
+                        }
+                    }
                     return;
+                }
+                
+                // Track search activity
+                if (currentUser) {
+                    trackUserActivity('searches', { query: searchTerm });
                 }
                 
                 const filteredImages = performSearch(searchTerm);
@@ -1789,6 +2071,11 @@
                     document.getElementById('searchResults').innerHTML = '';
                     document.getElementById('noSearchResults').classList.add('hidden');
                     return;
+                }
+                
+                // Track search activity
+                if (currentUser) {
+                    trackUserActivity('searches', { query: searchTerm });
                 }
                 
                 const filteredImages = performSearch(searchTerm);
@@ -1892,5 +2179,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979596fbf1a10d14',t:'MTc1NjkwNjEwMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97959d08117291c1',t:'MTc1NjkwNjM0OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
