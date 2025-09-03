@@ -46,6 +46,139 @@
             display: inline-block;
             vertical-align: middle;
         }
+        
+        /* Custom Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            min-width: 320px;
+            max-width: 400px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transform: translateX(450px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            overflow: hidden;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            border-left: 4px solid #10b981;
+        }
+        
+        .notification.error {
+            border-left: 4px solid #ef4444;
+        }
+        
+        .notification.warning {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .notification.info {
+            border-left: 4px solid #3b82f6;
+        }
+        
+        .notification-content {
+            padding: 16px 20px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+        
+        .notification-icon {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            margin-top: 2px;
+        }
+        
+        .notification-text {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1f2937;
+            margin-bottom: 4px;
+        }
+        
+        .notification-message {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.4;
+        }
+        
+        .notification-close {
+            flex-shrink: 0;
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: none;
+            color: #9ca3af;
+            cursor: pointer;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .notification-close:hover {
+            background: rgba(0, 0, 0, 0.05);
+            color: #6b7280;
+        }
+        
+        .notification-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 0 0 12px 12px;
+            animation: progress 4s linear forwards;
+        }
+        
+        .notification.error .notification-progress {
+            background: linear-gradient(90deg, #ef4444, #dc2626);
+        }
+        
+        .notification.warning .notification-progress {
+            background: linear-gradient(90deg, #f59e0b, #d97706);
+        }
+        
+        .notification.info .notification-progress {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+        }
+        
+        @keyframes progress {
+            from { width: 100%; }
+            to { width: 0%; }
+        }
+        
+        @media (max-width: 640px) {
+            .notification {
+                top: 10px;
+                right: 10px;
+                left: 10px;
+                min-width: auto;
+                max-width: none;
+                transform: translateY(-100px);
+            }
+            
+            .notification.show {
+                transform: translateY(0);
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -357,6 +490,9 @@
         </div>
     </div>
 
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
     <script>
         // Firebase Configuration
         const firebaseConfig = {
@@ -382,6 +518,88 @@
         let currentImageId = null;
         let currentTab = 'home';
 
+        // Notification System
+        function showNotification(title, message, type = 'info', duration = 4000) {
+            const container = document.getElementById('notificationContainer');
+            const notificationId = 'notification-' + Date.now();
+            
+            const icons = {
+                success: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #10b981;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>`,
+                error: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #ef4444;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>`,
+                warning: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #f59e0b;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>`,
+                info: `<svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #3b82f6;">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>`
+            };
+
+            const notification = document.createElement('div');
+            notification.id = notificationId;
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <div class="notification-content">
+                    ${icons[type] || icons.info}
+                    <div class="notification-text">
+                        <div class="notification-title">${title}</div>
+                        <div class="notification-message">${message}</div>
+                    </div>
+                    <button class="notification-close" onclick="hideNotification('${notificationId}')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="notification-progress"></div>
+            `;
+
+            container.appendChild(notification);
+
+            // Trigger animation
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 100);
+
+            // Auto hide
+            setTimeout(() => {
+                hideNotification(notificationId);
+            }, duration);
+
+            return notificationId;
+        }
+
+        function hideNotification(notificationId) {
+            const notification = document.getElementById(notificationId);
+            if (notification) {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 400);
+            }
+        }
+
+        function showSuccess(title, message) {
+            return showNotification(title, message, 'success');
+        }
+
+        function showError(title, message) {
+            return showNotification(title, message, 'error');
+        }
+
+        function showWarning(title, message) {
+            return showNotification(title, message, 'warning');
+        }
+
+        function showInfo(title, message) {
+            return showNotification(title, message, 'info');
+        }
+
         // Auth State Observer
         auth.onAuthStateChanged((user) => {
             if (user) {
@@ -402,7 +620,7 @@
             const provider = new firebase.auth.GoogleAuthProvider();
             auth.signInWithPopup(provider).catch((error) => {
                 console.error('Sign in error:', error);
-                alert('Sign in failed. Please try again.');
+                showError('Sign In Failed', 'Unable to sign in with Google. Please check your connection and try again.');
             });
         }
 
@@ -584,7 +802,7 @@
             const imageFileData = document.getElementById('uploadArea').dataset.imageFile;
 
             if (!imageFileData) {
-                alert('Please select an image to upload');
+                showWarning('No Image Selected', 'Please select an image file before uploading.');
                 return;
             }
 
@@ -617,11 +835,11 @@
                 await database.ref(`allImages/${imageId}`).set(imageData);
                 
                 closeUploadModal();
-                alert('Image uploaded successfully!');
+                showSuccess('Upload Complete', 'Your image has been uploaded successfully and is now live!');
                 
             } catch (error) {
                 console.error('Upload error:', error);
-                alert('Upload failed. Please try again.');
+                showError('Upload Failed', 'There was an error uploading your image. Please check your connection and try again.');
             } finally {
                 uploadBtn.textContent = 'Upload Image';
                 uploadBtn.disabled = false;
@@ -645,7 +863,7 @@
                     monetized: true,
                     earnings: earnings
                 });
-                alert('Congratulations! Your image is now monetized!');
+                showSuccess('Monetization Unlocked!', 'Congratulations! Your image has reached 2,000 views and is now earning money from ads.');
             } else if (image.monetized) {
                 const earnings = (newViews - 2000) * 0.005;
                 database.ref(`users/${currentUser.uid}/images/${imageId}/earnings`).set(earnings);
@@ -764,7 +982,10 @@
                 ...image,
                 savedAt: Date.now()
             }).then(() => {
-                alert('Image saved successfully!');
+                showSuccess('Image Saved', 'The image has been added to your saved collection.');
+            }).catch((error) => {
+                console.error('Save error:', error);
+                showError('Save Failed', 'Unable to save the image. Please try again.');
             });
         }
 
@@ -804,11 +1025,11 @@
                 currentUser.updateProfile({
                     displayName: displayName
                 }).then(() => {
-                    alert('Profile updated successfully!');
+                    showSuccess('Profile Updated', 'Your display name has been updated successfully.');
                     closeSettings();
                 }).catch((error) => {
                     console.error('Profile update error:', error);
-                    alert('Failed to update profile');
+                    showError('Update Failed', 'Unable to update your profile. Please try again.');
                 });
             } else {
                 closeSettings();
@@ -895,10 +1116,10 @@
                     document.getElementById('settingsUserPhoto').src = photoURL;
                     document.getElementById('userPhoto').src = photoURL;
                     
-                    alert('Profile picture updated successfully!');
+                    showSuccess('Profile Picture Updated', 'Your new profile picture has been saved successfully.');
                 } catch (error) {
                     console.error('Profile picture update error:', error);
-                    alert('Failed to update profile picture');
+                    showError('Update Failed', 'Unable to update your profile picture. Please try again.');
                 }
             }
         });
@@ -906,5 +1127,5 @@
         // Initialize event listeners when page loads
         setupEventListeners();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794c36ff4cf59b1',t:'MTc1Njg5NzQzNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794cc3f438f59b1',t:'MTc1Njg5Nzc5Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
