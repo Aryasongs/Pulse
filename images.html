@@ -10,128 +10,245 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
     <style>
-        .masonry {
-            column-count: 4;
-            column-gap: 1rem;
-            column-fill: balance;
+        /* Pinterest-style Masonry Grid */
+        .pinterest-grid {
+            columns: 5;
+            column-gap: 16px;
+            padding: 16px;
         }
-        .masonry-item {
+        
+        @media (max-width: 1536px) {
+            .pinterest-grid { columns: 4; }
+        }
+        
+        @media (max-width: 1280px) {
+            .pinterest-grid { columns: 3; }
+        }
+        
+        @media (max-width: 768px) {
+            .pinterest-grid { 
+                columns: 2; 
+                column-gap: 12px;
+                padding: 12px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .pinterest-grid { 
+                columns: 1; 
+                column-gap: 0;
+                padding: 8px;
+            }
+        }
+        
+        .pinterest-item {
             break-inside: avoid;
-            margin-bottom: 1rem;
-        }
-        @media (max-width: 1024px) {
-            .masonry { column-count: 3; }
-        }
-        @media (max-width: 768px) {
-            .masonry { column-count: 2; column-gap: 0.75rem; }
-        }
-        @media (max-width: 640px) {
-            .masonry { column-count: 1; column-gap: 0; }
+            margin-bottom: 16px;
+            border-radius: 16px;
+            overflow: hidden;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
         
-        /* Mobile Optimizations */
-        @media (max-width: 768px) {
-            .mobile-padding { padding: 0.75rem; }
-            .mobile-text-sm { font-size: 0.875rem; }
-            .mobile-hidden { display: none; }
-            .mobile-full { width: 100%; }
-            .mobile-touch { 
-                min-height: 44px; 
-                min-width: 44px; 
-                touch-action: manipulation;
-            }
-            .mobile-scroll {
-                -webkit-overflow-scrolling: touch;
-                scroll-behavior: smooth;
-            }
+        .pinterest-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
         }
         
-        /* Bottom Navigation for Mobile */
-        .bottom-nav {
-            position: fixed;
-            bottom: 0;
+        .pinterest-image {
+            width: 100%;
+            height: auto;
+            display: block;
+            border-radius: 16px 16px 0 0;
+        }
+        
+        .pinterest-overlay {
+            position: absolute;
+            top: 0;
             left: 0;
             right: 0;
-            background: white;
-            border-top: 1px solid #e5e7eb;
-            z-index: 50;
-            display: none;
-        }
-        
-        @media (max-width: 768px) {
-            .bottom-nav { display: flex; }
-            .main-content { padding-bottom: 80px; }
-            .header-mobile { padding: 0.75rem 1rem; }
-        }
-        
-        /* Mobile Modal Optimizations */
-        @media (max-width: 640px) {
-            .modal-mobile {
-                margin: 0;
-                border-radius: 0;
-                min-height: 100vh;
-                max-height: 100vh;
-            }
-            .modal-content-mobile {
-                max-height: calc(100vh - 60px);
-                overflow-y: auto;
-            }
-        }
-        
-        /* Touch-friendly buttons */
-        .touch-button {
-            padding: 12px;
-            min-height: 44px;
-            min-width: 44px;
+            bottom: 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.7) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            border-radius: 16px;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-end;
+            padding: 16px;
         }
         
-        /* Swipe indicators */
-        .swipe-indicator {
+        .pinterest-item:hover .pinterest-overlay {
+            opacity: 1;
+        }
+        
+        .pinterest-actions {
             position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            background: rgba(0,0,0,0.5);
-            color: white;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .pinterest-item:hover .pinterest-actions {
+            opacity: 1;
+        }
+        
+        .action-btn {
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            border: none;
             border-radius: 50%;
             width: 40px;
             height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
-            opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 10;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
         
-        .image-container:hover .swipe-indicator {
-            opacity: 1;
+        .action-btn:hover {
+            background: white;
+            transform: scale(1.1);
         }
         
-        .swipe-left { left: 10px; }
-        .swipe-right { right: 10px; }
-        .upload-area {
-            border: 2px dashed #e5e7eb;
-            transition: all 0.3s ease;
-        }
-        .upload-area:hover {
-            border-color: #3b82f6;
-            background-color: #f8fafc;
-        }
-        .upload-area.dragover {
-            border-color: #3b82f6;
-            background-color: #eff6ff;
-        }
-        .icon {
-            width: 20px;
-            height: 20px;
-            display: inline-block;
-            vertical-align: middle;
+        /* Pinterest-style Header */
+        .pinterest-header {
+            background: white;
+            border-bottom: 1px solid #e1e5e9;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 12px 16px;
         }
         
-        /* Custom Notification Styles */
+        .pinterest-logo {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e60023;
+            text-decoration: none;
+        }
+        
+        .pinterest-search {
+            flex: 1;
+            max-width: 600px;
+            margin: 0 16px;
+            position: relative;
+        }
+        
+        .pinterest-search input {
+            width: 100%;
+            padding: 12px 16px 12px 48px;
+            border: none;
+            background: #f1f1f1;
+            border-radius: 24px;
+            font-size: 16px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+        
+        .pinterest-search input:focus {
+            background: white;
+            box-shadow: 0 0 0 3px rgba(230, 0, 35, 0.1);
+        }
+        
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #767676;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .pinterest-grid {
+                margin-bottom: 80px;
+            }
+            
+            .pinterest-header {
+                padding: 8px 12px;
+            }
+            
+            .pinterest-search {
+                margin: 0 8px;
+            }
+            
+            .pinterest-search input {
+                padding: 10px 12px 10px 40px;
+                font-size: 14px;
+            }
+        }
+        
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #e1e5e9;
+            z-index: 50;
+            display: none;
+            padding: 8px 0;
+        }
+        
+        @media (max-width: 768px) {
+            .bottom-nav { display: flex; }
+        }
+        
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8px;
+            text-decoration: none;
+            color: #767676;
+            transition: color 0.2s ease;
+        }
+        
+        .nav-item.active {
+            color: #e60023;
+        }
+        
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            margin-bottom: 4px;
+        }
+        
+        .nav-item span {
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        /* Login Modal */
+        .login-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 16px;
+        }
+        
+        .login-content {
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        /* Notification System */
         .notification {
             position: fixed;
             top: 20px;
@@ -141,7 +258,6 @@
             max-width: 400px;
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.2);
             border-radius: 12px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
@@ -154,21 +270,10 @@
             transform: translateX(0);
         }
         
-        .notification.success {
-            border-left: 4px solid #10b981;
-        }
-        
-        .notification.error {
-            border-left: 4px solid #ef4444;
-        }
-        
-        .notification.warning {
-            border-left: 4px solid #f59e0b;
-        }
-        
-        .notification.info {
-            border-left: 4px solid #3b82f6;
-        }
+        .notification.success { border-left: 4px solid #10b981; }
+        .notification.error { border-left: 4px solid #ef4444; }
+        .notification.warning { border-left: 4px solid #f59e0b; }
+        .notification.info { border-left: 4px solid #3b82f6; }
         
         .notification-content {
             padding: 16px 20px;
@@ -232,18 +337,6 @@
             animation: progress 4s linear forwards;
         }
         
-        .notification.error .notification-progress {
-            background: linear-gradient(90deg, #ef4444, #dc2626);
-        }
-        
-        .notification.warning .notification-progress {
-            background: linear-gradient(90deg, #f59e0b, #d97706);
-        }
-        
-        .notification.info .notification-progress {
-            background: linear-gradient(90deg, #3b82f6, #2563eb);
-        }
-        
         @keyframes progress {
             from { width: 100%; }
             to { width: 0%; }
@@ -263,429 +356,399 @@
                 transform: translateY(0);
             }
         }
+        
+        /* Upload Modal */
+        .upload-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 16px;
+        }
+        
+        .upload-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .upload-area {
+            border: 2px dashed #e1e5e9;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .upload-area:hover {
+            border-color: #e60023;
+            background: #fef7f7;
+        }
+        
+        .upload-area.dragover {
+            border-color: #e60023;
+            background: #fef7f7;
+        }
+        
+        /* Ad Card Styles */
+        .ad-card {
+            position: relative;
+        }
+        
+        .ad-card::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #e60023, #ff6b9d, #e60023);
+            border-radius: 18px;
+            z-index: -1;
+            animation: adGlow 3s ease-in-out infinite alternate;
+        }
+        
+        @keyframes adGlow {
+            0% { opacity: 0.5; }
+            100% { opacity: 0.8; }
+        }
+        
+        .ad-card:hover::before {
+            animation-play-state: paused;
+            opacity: 1;
+        }
+        
+        /* Image Detail Modal */
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+            padding: 16px;
+        }
+        
+        .image-modal-content {
+            background: white;
+            border-radius: 16px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+        }
+        
+        @media (max-width: 768px) {
+            .image-modal-content {
+                flex-direction: column;
+                max-width: 95vw;
+                max-height: 95vh;
+            }
+        }
+        
+        .image-modal-image {
+            flex: 1;
+            max-width: 60%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+        }
+        
+        @media (max-width: 768px) {
+            .image-modal-image {
+                max-width: 100%;
+                max-height: 50%;
+            }
+        }
+        
+        .image-modal-image img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .image-modal-details {
+            width: 400px;
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        @media (max-width: 768px) {
+            .image-modal-details {
+                width: 100%;
+                max-height: 50%;
+            }
+        }
     </style>
 </head>
 <body class="bg-gray-50">
-    <!-- Login Screen -->
-    <div id="loginScreen" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-500 to-pink-600">
-        <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full mx-4">
-            <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">PixPlay</h1>
-                <p class="text-gray-600">Share Images & Earn Money</p>
+    <!-- Pinterest-style Header -->
+    <header class="pinterest-header">
+        <div class="flex items-center justify-between">
+            <a href="#" class="pinterest-logo">PixPlay</a>
+            
+            <div class="pinterest-search">
+                <div class="search-icon">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <input type="text" id="searchInput" placeholder="Search for ideas..." onkeyup="handleSearch(event)">
             </div>
             
-            <button onclick="signInWithGoogle()" class="w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center space-x-3">
-                <svg class="w-5 h-5" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            <div class="flex items-center space-x-4">
+                <!-- Desktop Actions -->
+                <div class="hidden md:flex items-center space-x-3">
+                    <button onclick="showLoginModal()" id="loginBtn" class="bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-full font-medium transition-colors">
+                        Log in
+                    </button>
+                    <button onclick="showLoginModal()" id="signupBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-medium transition-colors">
+                        Sign up
+                    </button>
+                </div>
+                
+                <!-- User Menu (when logged in) -->
+                <div id="userMenu" class="hidden items-center space-x-3">
+                    <button onclick="openUploadModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-full font-medium transition-colors hidden md:flex items-center space-x-2">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        <span>Create</span>
+                    </button>
+                    <img id="userPhoto" class="w-8 h-8 rounded-full cursor-pointer" onclick="toggleUserDropdown()">
+                    
+                    <!-- User Dropdown -->
+                    <div id="userDropdown" class="hidden absolute top-12 right-0 bg-white rounded-lg shadow-lg border py-2 min-w-48 z-50">
+                        <a href="#" onclick="showTab('profile')" class="block px-4 py-2 hover:bg-gray-50">Your profile</a>
+                        <a href="#" onclick="showTab('myImages')" class="block px-4 py-2 hover:bg-gray-50">Your images</a>
+                        <a href="#" onclick="showTab('saved')" class="block px-4 py-2 hover:bg-gray-50">Saved</a>
+                        <hr class="my-2">
+                        <a href="#" onclick="signOut()" class="block px-4 py-2 hover:bg-gray-50 text-red-600">Sign out</a>
+                    </div>
+                </div>
+                
+                <!-- Mobile Menu Button -->
+                <button onclick="toggleMobileMenu()" class="md:hidden p-2">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden md:hidden bg-white border-b shadow-sm">
+        <div class="p-4 space-y-3">
+            <div id="mobileAuthButtons" class="space-y-2">
+                <button onclick="showLoginModal()" class="w-full bg-gray-100 hover:bg-gray-200 py-3 rounded-full font-medium transition-colors">
+                    Log in
+                </button>
+                <button onclick="showLoginModal()" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-full font-medium transition-colors">
+                    Sign up
+                </button>
+            </div>
+            
+            <div id="mobileUserMenu" class="hidden space-y-2">
+                <button onclick="showTab('profile')" class="w-full text-left py-2 px-3 hover:bg-gray-50 rounded">Your profile</button>
+                <button onclick="showTab('myImages')" class="w-full text-left py-2 px-3 hover:bg-gray-50 rounded">Your images</button>
+                <button onclick="showTab('saved')" class="w-full text-left py-2 px-3 hover:bg-gray-50 rounded">Saved</button>
+                <button onclick="signOut()" class="w-full text-left py-2 px-3 hover:bg-gray-50 rounded text-red-600">Sign out</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main>
+        <!-- Stats Bar (only for logged in users) -->
+        <div id="statsBar" class="hidden bg-white border-b p-4">
+            <div class="max-w-6xl mx-auto">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="totalImages">0</div>
+                        <div class="text-sm text-gray-500">Your Images</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-green-600" id="totalViews">0</div>
+                        <div class="text-sm text-gray-500">Total Views</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="totalComments">0</div>
+                        <div class="text-sm text-gray-500">Comments</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="text-2xl font-bold text-yellow-600">$<span id="totalEarnings">0.00</span></div>
+                        <div class="text-sm text-gray-500">Earnings</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pinterest Grid -->
+        <div class="pinterest-grid" id="imageGallery">
+            <!-- Images will be loaded here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-16 hidden">
+            <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+            <h3 class="text-xl font-semibold text-gray-900 mb-2">No images found</h3>
+            <p class="text-gray-600">Try searching for something else</p>
+        </div>
+    </main>
+
+    <!-- Bottom Navigation (Mobile) -->
+    <nav class="bottom-nav">
+        <a href="#" onclick="showTab('home')" class="nav-item active" id="homeNavMobile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            <span>Home</span>
+        </a>
+        <a href="#" onclick="showTab('search')" class="nav-item" id="searchNavMobile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+            <span>Search</span>
+        </a>
+        <a href="#" onclick="requireLogin(openUploadModal)" class="nav-item" id="createNavMobile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            <span>Create</span>
+        </a>
+        <a href="#" onclick="requireLogin(() => showTab('saved'))" class="nav-item" id="savedNavMobile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
+            </svg>
+            <span>Saved</span>
+        </a>
+        <a href="#" onclick="requireLogin(() => showTab('profile'))" class="nav-item" id="profileNavMobile">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            <span>Profile</span>
+        </a>
+    </nav>
+
+    <!-- Login Modal -->
+    <div id="loginModal" class="login-modal hidden">
+        <div class="login-content">
+            <div class="mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 mb-2">Welcome to PixPlay</h2>
+                <p class="text-gray-600">Find and share amazing images</p>
+            </div>
+            
+            <button onclick="signInWithGoogle()" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-full font-medium transition-colors flex items-center justify-center space-x-3 mb-4">
+                <svg width="20" height="20" viewBox="0 0 24 24">
+                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                 </svg>
                 <span>Continue with Google</span>
             </button>
             
-            <p class="text-xs text-gray-500 text-center mt-6">
+            <button onclick="hideLoginModal()" class="text-gray-500 hover:text-gray-700">
+                Continue browsing without account
+            </button>
+            
+            <p class="text-xs text-gray-500 mt-4">
                 By continuing, you agree to our Terms of Service and Privacy Policy
             </p>
         </div>
     </div>
 
-    <!-- Main App -->
-    <div id="mainApp" class="hidden">
-        <!-- Header -->
-        <header class="bg-white shadow-sm sticky top-0 z-50">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 header-mobile">
-                <div class="flex justify-between items-center h-16">
-                    <div class="flex items-center">
-                        <h1 class="text-xl md:text-2xl font-bold text-red-600">PixPlay</h1>
-                        <span class="ml-2 text-xs md:text-sm text-gray-500 mobile-hidden">Share & Earn</span>
-                    </div>
-                    <div class="flex items-center space-x-2 md:space-x-4">
-                        <!-- Search Bar - Desktop Only -->
-                        <div class="relative hidden lg:block">
-                            <input 
-                                type="text" 
-                                id="searchInput" 
-                                placeholder="Search images..." 
-                                class="w-64 pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                                onkeyup="handleSearch(event)"
-                            >
-                            <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                            </svg>
-                        </div>
-                        
-                        <!-- Mobile Upload Button -->
-                        <button onclick="openUploadModal()" class="md:hidden bg-red-600 text-white p-2 rounded-full hover:bg-red-700 transition-colors touch-button">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                        </button>
-                        
-                        <!-- Desktop Upload Button -->
-                        <button onclick="openUploadModal()" class="hidden md:flex bg-red-600 text-white px-4 py-2 rounded-full hover:bg-red-700 transition-colors items-center space-x-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-                            </svg>
-                            <span>Upload Image</span>
-                        </button>
-                        
-                        <!-- Earnings - Desktop Only -->
-                        <div class="hidden lg:flex text-sm text-gray-600 items-center space-x-1">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-                            </svg>
-                            <span>$<span id="totalEarnings">0.00</span></span>
-                        </div>
-                        
-                        <!-- Mobile Action Buttons -->
-                        <div class="flex items-center space-x-1 md:space-x-2">
-                            <button onclick="toggleMobileSearch()" class="lg:hidden text-gray-600 hover:text-gray-800 touch-button" title="Search">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                                </svg>
-                            </button>
-                            
-                            <!-- Profile Photo -->
-                            <img id="userPhoto" class="w-8 h-8 md:w-10 md:h-10 rounded-full cursor-pointer touch-button" alt="User" onclick="openSettings()">
-                            
-                            <!-- Menu Button - Mobile Only -->
-                            <button onclick="toggleMobileMenu()" class="md:hidden text-gray-600 hover:text-gray-800 touch-button" title="Menu">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                                </svg>
-                            </button>
-                            
-                            <!-- Desktop Action Buttons -->
-                            <div class="hidden md:flex items-center space-x-2">
-                                <button onclick="openSavedImages()" class="text-gray-600 hover:text-gray-800 touch-button" title="Saved Images">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                                    </svg>
-                                </button>
-                                <button onclick="openSettings()" class="text-gray-600 hover:text-gray-800 touch-button" title="Settings">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                    </svg>
-                                </button>
-                                <button onclick="signOut()" class="text-gray-600 hover:text-gray-800 touch-button" title="Sign Out">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <!-- Mobile Menu Dropdown -->
-        <div id="mobileMenu" class="md:hidden bg-white border-b shadow-sm hidden">
-            <div class="px-4 py-3 space-y-3">
-                <div class="flex items-center justify-between text-sm">
-                    <span class="text-gray-600">Earnings:</span>
-                    <span class="font-semibold text-green-600">$<span id="mobileEarnings">0.00</span></span>
-                </div>
-                <div class="grid grid-cols-3 gap-3">
-                    <button onclick="openSavedImages(); toggleMobileMenu();" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 touch-button">
-                        <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                        </svg>
-                        <span class="text-xs text-gray-600">Saved</span>
-                    </button>
-                    <button onclick="openSettings(); toggleMobileMenu();" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 touch-button">
-                        <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        <span class="text-xs text-gray-600">Settings</span>
-                    </button>
-                    <button onclick="signOut(); toggleMobileMenu();" class="flex flex-col items-center p-3 rounded-lg hover:bg-gray-50 touch-button">
-                        <svg class="w-6 h-6 text-gray-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                        </svg>
-                        <span class="text-xs text-gray-600">Sign Out</span>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mobile Search Bar -->
-        <div id="mobileSearchBar" class="bg-white border-b hidden md:hidden">
-            <div class="max-w-7xl mx-auto px-4 py-3">
-                <div class="relative">
-                    <input 
-                        type="text" 
-                        id="mobileSearchInput" 
-                        placeholder="Search images..." 
-                        class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent"
-                        onkeyup="handleSearch(event)"
-                    >
-                    <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
-                    </svg>
-                </div>
-            </div>
-        </div>
-
-        <!-- Navigation Tabs - Desktop -->
-        <div class="bg-white border-b hidden md:block">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex space-x-8">
-                    <button onclick="showTab('home')" id="homeTab" class="py-4 px-1 border-b-2 border-red-500 text-red-600 font-medium text-sm">
-                        Home
-                    </button>
-                    <button onclick="showTab('myImages')" id="myImagesTab" class="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
-                        My Images
-                    </button>
-                    <button onclick="showTab('saved')" id="savedTab" class="py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm">
-                        Saved
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom Navigation - Mobile -->
-        <div class="bottom-nav">
-            <div class="flex justify-around items-center py-2">
-                <button onclick="showTab('home')" id="homeTabMobile" class="flex flex-col items-center p-2 touch-button">
-                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
-                    </svg>
-                    <span class="text-xs">Home</span>
-                </button>
-                <button onclick="showTab('myImages')" id="myImagesTabMobile" class="flex flex-col items-center p-2 touch-button">
-                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                    </svg>
-                    <span class="text-xs">My Images</span>
-                </button>
-                <button onclick="showTab('saved')" id="savedTabMobile" class="flex flex-col items-center p-2 touch-button">
-                    <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                    </svg>
-                    <span class="text-xs">Saved</span>
-                </button>
-            </div>
-        </div>
-
-        <!-- Main Content -->
-        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8 main-content">
-            <!-- Stats Bar -->
-            <div class="bg-white rounded-lg shadow-sm p-4 md:p-6 mb-6 md:mb-8">
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-                    <div class="text-center">
-                        <div class="text-2xl md:text-3xl font-bold text-blue-600" id="totalImages">0</div>
-                        <div class="text-xs md:text-sm text-gray-500">Total Images</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl md:text-3xl font-bold text-green-600" id="totalViews">0</div>
-                        <div class="text-xs md:text-sm text-gray-500">Total Views</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl md:text-3xl font-bold text-purple-600" id="totalComments">0</div>
-                        <div class="text-xs md:text-sm text-gray-500">Total Comments</div>
-                    </div>
-                    <div class="text-center">
-                        <div class="text-2xl md:text-3xl font-bold text-yellow-600" id="monetizedImages">0</div>
-                        <div class="text-xs md:text-sm text-gray-500">Monetized Images</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Empty State -->
-            <div id="emptyState" class="text-center py-16">
-                <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                </svg>
-                <h3 class="text-xl font-semibold text-gray-900 mb-2">No images yet</h3>
-                <p class="text-gray-600 mb-6">Start sharing your amazing photos and earn money!</p>
-                <button onclick="openUploadModal()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
-                    Upload Your First Image
-                </button>
-            </div>
-
-            <!-- Image Gallery -->
-            <div class="masonry" id="imageGallery">
-                <!-- Images will be loaded here -->
-            </div>
-        </main>
-    </div>
-
     <!-- Upload Modal -->
-    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-md w-full p-4 md:p-6 modal-mobile">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold">Upload New Image</h3>
-                <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600 touch-button">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div id="uploadModal" class="upload-modal hidden">
+        <div class="upload-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold">Create Pin</h3>
+                <button onclick="closeUploadModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
                 </button>
             </div>
             
-            <div class="upload-area p-6 md:p-8 text-center rounded-lg mb-4" id="uploadArea">
-                <svg class="w-10 h-10 md:w-12 md:h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            <div class="upload-area mb-6" id="uploadArea">
+                <svg width="32" height="32" class="mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p class="text-gray-600 mb-2 text-sm md:text-base">Drag & drop your image here</p>
-                <p class="text-xs md:text-sm text-gray-400">or tap to browse</p>
+                <p class="text-gray-600 mb-2">Choose a file or drag and drop it here</p>
+                <p class="text-sm text-gray-400">We recommend using high quality .jpg files</p>
                 <input type="file" id="imageInput" accept="image/*" class="hidden">
             </div>
             
             <div class="space-y-4">
-                <input type="text" id="imageTitle" placeholder="Image title (optional)..." class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-base">
-                <textarea id="imageDescription" placeholder="Description (optional)..." rows="3" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent text-base"></textarea>
-                <button onclick="uploadImage()" class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors touch-button text-base font-medium" id="uploadBtn">
-                    Upload Image
+                <input type="text" id="imageTitle" placeholder="Add your title" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                <textarea id="imageDescription" placeholder="Tell everyone what your Pin is about" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                <button onclick="uploadImage()" class="w-full bg-red-600 text-white py-3 rounded-full hover:bg-red-700 transition-colors font-medium" id="uploadBtn">
+                    Publish
                 </button>
             </div>
         </div>
     </div>
 
     <!-- Image Detail Modal -->
-    <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-75 hidden z-50 flex items-center justify-center p-2 md:p-4">
-        <div class="bg-white rounded-lg max-w-4xl w-full max-h-full overflow-y-auto modal-mobile modal-content-mobile">
-            <div class="p-4 md:p-6">
+    <div id="imageModal" class="image-modal hidden">
+        <div class="image-modal-content">
+            <div class="image-modal-image">
+                <img id="modalImage" alt="">
+            </div>
+            <div class="image-modal-details">
                 <div class="flex justify-between items-start mb-4">
-                    <div class="flex-1 pr-4">
-                        <h3 class="text-lg md:text-xl font-semibold" id="modalTitle"></h3>
-                        <p class="text-gray-600 text-sm md:text-base" id="modalDescription"></p>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold mb-2" id="modalTitle"></h3>
+                        <p class="text-gray-600 mb-4" id="modalDescription"></p>
                     </div>
-                    <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600 touch-button flex-shrink-0">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button onclick="closeImageModal()" class="text-gray-400 hover:text-gray-600 ml-4">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
                 </div>
                 
-                <div class="mb-4 md:mb-6">
-                    <img id="modalImage" class="w-full rounded-lg" alt="">
-                </div>
-                
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center space-x-4">
-                        <span class="flex items-center text-gray-600">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                            <span id="modalViews">0</span> views
-                        </span>
-                        <span class="flex items-center text-gray-600">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                            </svg>
-                            <span id="modalCommentCount">0</span> comments
-                        </span>
-                        <span id="monetizedBadge" class="hidden bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-                            </svg>
-                            Monetized
-                        </span>
-                    </div>
-                </div>
-                
-                <!-- Ad Space for Monetized Images -->
-                <div id="adSpace" class="hidden bg-gray-100 p-4 rounded-lg mb-6 text-center">
-                    <div class="text-sm text-gray-500 mb-2">Advertisement</div>
-                    <div class="bg-blue-500 text-white p-8 rounded">
-                        <h4 class="font-bold">Firebase Ad Integration</h4>
-                        <p class="text-sm">Connect your Firebase project to show real ads here</p>
-                        <p class="text-xs mt-2">Contact: customerserviceffrj4@gmail.com</p>
-                    </div>
+                <div class="flex items-center space-x-4 mb-6 text-sm text-gray-500">
+                    <span class="flex items-center" id="viewsDisplay">
+                        <svg width="16" height="16" class="mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        <span id="modalViews">0</span> views
+                    </span>
+                    <span class="flex items-center">
+                        <svg width="16" height="16" class="mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <span id="modalCommentCount">0</span> comments
+                    </span>
                 </div>
                 
                 <!-- Comments Section -->
                 <div class="border-t pt-6">
                     <h4 class="font-semibold mb-4">Comments</h4>
-                    <div class="flex space-x-3 mb-4">
-                        <input type="text" id="commentInput" placeholder="Add a comment..." class="flex-1 p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
-                        <button onclick="addComment()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700 transition-colors">
+                    <div class="flex space-x-3 mb-4" id="commentSection">
+                        <input type="text" id="commentInput" placeholder="Add a comment..." class="flex-1 p-3 border rounded-full focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                        <button onclick="requireLogin(addComment)" class="bg-red-600 text-white px-6 py-3 rounded-full hover:bg-red-700 transition-colors">
                             Post
                         </button>
                     </div>
                     <div id="commentsList" class="space-y-3">
                         <!-- Comments will be loaded here -->
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-md w-full p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h3 class="text-lg font-semibold">Settings</h3>
-                <button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                    </svg>
-                </button>
-            </div>
-            
-            <div class="space-y-6">
-                <!-- Profile Picture -->
-                <div class="text-center">
-                    <div class="relative inline-block">
-                        <img id="settingsUserPhoto" class="w-24 h-24 rounded-full mx-auto" alt="Profile">
-                        <button onclick="changeProfilePicture()" class="absolute bottom-0 right-0 bg-red-600 text-white rounded-full p-2 hover:bg-red-700">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                        </button>
-                    </div>
-                    <input type="file" id="profilePictureInput" accept="image/*" class="hidden">
-                </div>
-
-                <!-- Profile Info -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
-                        <input type="text" id="displayNameInput" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                        <input type="email" id="emailInput" class="w-full p-3 border rounded-lg bg-gray-50" readonly>
-                    </div>
-                </div>
-
-                <!-- Save Button -->
-                <button onclick="saveProfile()" class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition-colors">
-                    Save Changes
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Saved Images Modal -->
-    <div id="savedImagesModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-6xl w-full max-h-full overflow-y-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-semibold">Saved Images</h3>
-                    <button onclick="closeSavedImages()" class="text-gray-400 hover:text-gray-600">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                
-                <div id="savedImagesGrid" class="masonry">
-                    <!-- Saved images will be loaded here -->
-                </div>
-                
-                <div id="savedImagesEmpty" class="text-center py-16 hidden">
-                    <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                    </svg>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">No saved images</h3>
-                    <p class="text-gray-600">Start saving images you love!</p>
                 </div>
             </div>
         </div>
@@ -713,13 +776,13 @@
         const storage = firebase.storage();
 
         let currentUser = null;
-        let images = [];
         let allImages = [];
-        let savedImages = [];
         let currentImageId = null;
         let currentTab = 'home';
         let originalImages = [];
         let isSearching = false;
+        let allAds = [];
+        let hiddenAds = new Set();
 
         // Notification System
         function showNotification(title, message, type = 'info', duration = 4000) {
@@ -761,17 +824,8 @@
             `;
 
             container.appendChild(notification);
-
-            // Trigger animation
-            setTimeout(() => {
-                notification.classList.add('show');
-            }, 100);
-
-            // Auto hide
-            setTimeout(() => {
-                hideNotification(notificationId);
-            }, duration);
-
+            setTimeout(() => notification.classList.add('show'), 100);
+            setTimeout(() => hideNotification(notificationId), duration);
             return notificationId;
         }
 
@@ -787,121 +841,123 @@
             }
         }
 
-        function showSuccess(title, message) {
-            return showNotification(title, message, 'success');
-        }
-
-        function showError(title, message) {
-            return showNotification(title, message, 'error');
-        }
-
-        function showWarning(title, message) {
-            return showNotification(title, message, 'warning');
-        }
-
-        function showInfo(title, message) {
-            return showNotification(title, message, 'info');
-        }
+        function showSuccess(title, message) { return showNotification(title, message, 'success'); }
+        function showError(title, message) { return showNotification(title, message, 'error'); }
+        function showWarning(title, message) { return showNotification(title, message, 'warning'); }
+        function showInfo(title, message) { return showNotification(title, message, 'info'); }
 
         // Auth State Observer
         auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            updateUIForAuthState();
             if (user) {
-                currentUser = user;
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                document.getElementById('userPhoto').src = user.photoURL || 'https://via.placeholder.com/32';
-                showTab('home'); // Start with home tab
+                loadAllImages();
+                updateStats();
             } else {
-                currentUser = null;
-                document.getElementById('loginScreen').classList.remove('hidden');
-                document.getElementById('mainApp').classList.add('hidden');
+                loadAllImages(); // Still load images for non-logged in users
             }
         });
 
-        // Google Sign In
+        function updateUIForAuthState() {
+            const loginBtn = document.getElementById('loginBtn');
+            const signupBtn = document.getElementById('signupBtn');
+            const userMenu = document.getElementById('userMenu');
+            const statsBar = document.getElementById('statsBar');
+            const mobileAuthButtons = document.getElementById('mobileAuthButtons');
+            const mobileUserMenu = document.getElementById('mobileUserMenu');
+
+            if (currentUser) {
+                // User is logged in
+                loginBtn.classList.add('hidden');
+                signupBtn.classList.add('hidden');
+                userMenu.classList.remove('hidden');
+                userMenu.classList.add('flex');
+                statsBar.classList.remove('hidden');
+                mobileAuthButtons.classList.add('hidden');
+                mobileUserMenu.classList.remove('hidden');
+                
+                document.getElementById('userPhoto').src = currentUser.photoURL || 'https://via.placeholder.com/32';
+            } else {
+                // User is not logged in
+                loginBtn.classList.remove('hidden');
+                signupBtn.classList.remove('hidden');
+                userMenu.classList.add('hidden');
+                statsBar.classList.add('hidden');
+                mobileAuthButtons.classList.remove('hidden');
+                mobileUserMenu.classList.add('hidden');
+            }
+        }
+
+        // Authentication functions
+        function showLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('loginModal').classList.add('hidden');
+        }
+
         function signInWithGoogle() {
             const provider = new firebase.auth.GoogleAuthProvider();
-            auth.signInWithPopup(provider).catch((error) => {
+            auth.signInWithPopup(provider).then(() => {
+                hideLoginModal();
+                showSuccess('Welcome!', 'You have successfully signed in.');
+            }).catch((error) => {
                 console.error('Sign in error:', error);
-                showError('Sign In Failed', 'Unable to sign in with Google. Please check your connection and try again.');
+                showError('Sign In Failed', 'Unable to sign in with Google. Please try again.');
             });
         }
 
-        // Sign Out
         function signOut() {
-            cleanupListeners();
-            auth.signOut();
+            auth.signOut().then(() => {
+                showInfo('Signed Out', 'You have been signed out successfully.');
+                toggleMobileMenu(); // Close mobile menu
+            });
         }
 
-        // Load User Images from Firebase with real-time updates
-        function loadUserImages() {
-            if (!currentUser) return;
-            
-            database.ref(`users/${currentUser.uid}/images`).on('value', (snapshot) => {
-                images = [];
+        function requireLogin(callback) {
+            if (currentUser) {
+                callback();
+            } else {
+                showLoginModal();
+            }
+        }
+
+        // Load all images from Firebase
+        function loadAllImages() {
+            database.ref('allImages').on('value', (snapshot) => {
+                allImages = [];
                 if (snapshot.exists()) {
                     snapshot.forEach((child) => {
-                        images.push({
+                        allImages.push({
                             id: child.key,
                             ...child.val()
                         });
                     });
                 }
-                loadImages();
-                updateStats();
-                setupGalleryRealTimeListeners();
+                displayImages(allImages);
             });
         }
 
-        // Initialize Upload Event Listeners
-        function setupEventListeners() {
-            const uploadArea = document.getElementById('uploadArea');
-            const imageInput = document.getElementById('imageInput');
-
-            uploadArea.addEventListener('click', () => imageInput.click());
-            uploadArea.addEventListener('dragover', (e) => {
-                e.preventDefault();
-                uploadArea.classList.add('dragover');
-            });
-            uploadArea.addEventListener('dragleave', () => {
-                uploadArea.classList.remove('dragover');
-            });
-            uploadArea.addEventListener('drop', (e) => {
-                e.preventDefault();
-                uploadArea.classList.remove('dragover');
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    handleFileSelect(files[0]);
-                }
-            });
-
-            imageInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) {
-                    handleFileSelect(e.target.files[0]);
-                }
-            });
-        }
-
-        function handleFileSelect(file) {
-            if (file && file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const uploadArea = document.getElementById('uploadArea');
-                    uploadArea.innerHTML = `
-                        <img src="${e.target.result}" class="max-h-32 mx-auto rounded">
-                        <p class="text-sm text-gray-600 mt-2">Image selected: ${file.name}</p>
-                    `;
-                    uploadArea.dataset.imageFile = JSON.stringify({
-                        name: file.name,
-                        type: file.type,
-                        data: e.target.result
+        // Load ads from Firebase
+        function loadAds() {
+            database.ref('ads').on('value', (snapshot) => {
+                allAds = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        const ad = {
+                            id: child.key,
+                            ...child.val()
+                        };
+                        if (ad.active && !hiddenAds.has(ad.id)) {
+                            allAds.push(ad);
+                        }
                     });
-                };
-                reader.readAsDataURL(file);
-            }
+                }
+            });
         }
 
-        function loadImages() {
+        function displayImages(images) {
             const gallery = document.getElementById('imageGallery');
             const emptyState = document.getElementById('emptyState');
             
@@ -914,65 +970,75 @@
             emptyState.classList.add('hidden');
             gallery.innerHTML = '';
 
-            images.forEach(image => {
-                const imageCard = createImageCard(image);
+            let itemCount = 0;
+            let adIndex = 0;
+
+            images.forEach((image, index) => {
+                const imageCard = createPinterestCard(image);
                 gallery.appendChild(imageCard);
+                itemCount++;
+
+                // Insert ad after every 5-7 posts
+                if (itemCount >= 5 && (itemCount % 6 === 0 || itemCount % 7 === 0) && allAds.length > 0) {
+                    const ad = allAds[adIndex % allAds.length];
+                    const adCard = createAdCard(ad);
+                    gallery.appendChild(adCard);
+                    adIndex++;
+                }
             });
         }
 
-        function createImageCard(image) {
-            const card = document.createElement('div');
-            card.className = 'masonry-item bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-lg transition-shadow cursor-pointer';
-            card.onclick = () => openImageModal(image.id);
-            card.dataset.imageId = image.id; // Add data attribute for easy updates
 
+
+        function createPinterestCard(image) {
+            const card = document.createElement('div');
+            card.className = 'pinterest-item';
+            card.onclick = () => openImageModal(image.id);
+
+            // Only show views if current user is the uploader
+            const showViews = currentUser && currentUser.uid === image.userId;
+            
             card.innerHTML = `
-                <div class="relative group image-container">
-                    <img src="${image.imageUrl}" alt="${image.title}" class="w-full h-auto">
-                    <div class="absolute top-2 right-2 opacity-0 md:group-hover:opacity-100 transition-opacity flex space-x-1 md:space-x-2">
-                        <button onclick="event.stopPropagation(); saveImage('${image.id}')" class="bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 touch-button" title="Save">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
-                            </svg>
-                        </button>
-                        <button onclick="event.stopPropagation(); downloadImage('${image.imageUrl}', '${image.title}')" class="bg-white rounded-full p-2 shadow-lg hover:bg-gray-50 touch-button" title="Download">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-                            </svg>
-                        </button>
+                <div class="relative">
+                    <img src="${image.imageUrl}" alt="${image.title}" class="pinterest-image">
+                    <div class="pinterest-overlay">
+                        <div class="text-white">
+                            <h3 class="font-semibold text-sm mb-1">${image.title}</h3>
+                            <p class="text-xs opacity-90">${image.description}</p>
+                        </div>
                     </div>
-                    <!-- Mobile: Always show action buttons -->
-                    <div class="md:hidden absolute top-2 right-2 flex space-x-1">
-                        <button onclick="event.stopPropagation(); saveImage('${image.id}')" class="bg-black bg-opacity-50 text-white rounded-full p-2 touch-button" title="Save">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div class="pinterest-actions">
+                        <button onclick="event.stopPropagation(); requireLogin(() => saveImage('${image.id}'))" class="action-btn" title="Save">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"/>
                             </svg>
                         </button>
-                        <button onclick="event.stopPropagation(); downloadImage('${image.imageUrl}', '${image.title}')" class="bg-black bg-opacity-50 text-white rounded-full p-2 touch-button" title="Download">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <button onclick="event.stopPropagation(); downloadImage('${image.imageUrl}', '${image.title}')" class="action-btn" title="Download">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                             </svg>
                         </button>
                     </div>
                 </div>
-                <div class="p-3 md:p-4">
-                    <h3 class="font-semibold text-gray-900 mb-1 text-sm md:text-base">${image.title}</h3>
-                    <p class="text-gray-600 text-xs md:text-sm mb-2 md:mb-3 line-clamp-2">${image.description}</p>
-                    <div class="flex items-center justify-between text-xs md:text-sm text-gray-500">
-                        <span class="flex items-center view-count" data-image-id="${image.id}">
-                            <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
-                            </svg>
-                            <span class="view-number">${(image.views || 0).toLocaleString()}</span>
-                        </span>
-                        <span class="flex items-center comment-count" data-image-id="${image.id}">
-                            <svg class="w-3 h-3 md:w-4 md:h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div class="p-3">
+                    <h3 class="font-semibold text-gray-900 mb-1 text-sm">${image.title}</h3>
+                    <p class="text-gray-600 text-xs mb-2 line-clamp-2">${image.description}</p>
+                    <div class="flex items-center justify-between text-xs text-gray-500">
+                        ${showViews ? `
+                            <span class="flex items-center">
+                                <svg width="12" height="12" class="mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                                ${(image.views || 0).toLocaleString()} views
+                            </span>
+                        ` : '<span></span>'}
+                        <span class="flex items-center">
+                            <svg width="12" height="12" class="mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                             </svg>
-                            <span class="comment-number">${Object.keys(image.comments || {}).length}</span>
+                            ${Object.keys(image.comments || {}).length}
                         </span>
-                        ${image.monetized ? '<span class="text-green-600 flex items-center monetized-badge"><svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg></span>' : ''}
                     </div>
                 </div>
             `;
@@ -980,63 +1046,198 @@
             return card;
         }
 
-        function updateStats() {
-            // Always show stats based on user's own images only
-            if (!currentUser) return;
-            
-            // Get user's images for stats calculation
-            database.ref(`users/${currentUser.uid}/images`).once('value', (snapshot) => {
-                let userImages = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach((child) => {
-                        userImages.push(child.val());
-                    });
-                }
-                
-                const totalImages = userImages.length;
-                const totalViews = userImages.reduce((sum, img) => sum + (img.views || 0), 0);
-                const totalComments = userImages.reduce((sum, img) => sum + Object.keys(img.comments || {}).length, 0);
-                const monetizedImages = userImages.filter(img => img.monetized).length;
-                const totalEarnings = userImages.reduce((sum, img) => sum + (img.earnings || 0), 0);
+        function createAdCard(ad) {
+            const card = document.createElement('div');
+            card.className = 'pinterest-item ad-card';
+            card.style.border = '2px solid #e60023';
+            card.style.background = 'linear-gradient(135deg, #fff 0%, #fef7f7 100%)';
 
-                document.getElementById('totalImages').textContent = totalImages;
-                document.getElementById('totalViews').textContent = totalViews.toLocaleString();
-                document.getElementById('totalComments').textContent = totalComments;
-                document.getElementById('monetizedImages').textContent = monetizedImages;
-                document.getElementById('totalEarnings').textContent = totalEarnings.toFixed(2);
-                
-                // Update mobile earnings display
-                const mobileEarnings = document.getElementById('mobileEarnings');
-                if (mobileEarnings) {
-                    mobileEarnings.textContent = totalEarnings.toFixed(2);
-                }
-            });
+            // Determine ad type: text-only, image-only, or both
+            const hasImage = ad.imageUrl && ad.imageUrl.trim() !== '';
+            const hasText = ad.title || ad.description;
+            const adType = ad.adType || (hasImage && hasText ? 'both' : hasImage ? 'image' : 'text');
+
+            let adContent = '';
+
+            // Image section (if has image)
+            if (hasImage && (adType === 'image' || adType === 'both')) {
+                adContent += `
+                    <div class="relative">
+                        <!-- Skip/Hide Button -->
+                        <button onclick="hideAd('${ad.id}')" class="absolute top-2 right-2 z-10 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-1.5 text-gray-500 hover:text-gray-700 transition-all shadow-sm">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                        
+                        <!-- Ad Badge -->
+                        <div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                            Sponsored
+                        </div>
+                        
+                        <!-- Ad Image -->
+                        <img src="${ad.imageUrl}" alt="${ad.title || ad.brandName}" class="pinterest-image">
+                        
+                        <!-- Ad Overlay -->
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 rounded-t-2xl flex items-end p-4">
+                            <div class="text-white">
+                                <div class="text-sm font-semibold mb-1">${ad.brandName}</div>
+                                <div class="text-xs opacity-90">${ad.tagline || ''}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Text content section
+            adContent += `
+                <div class="p-4 ${!hasImage || adType === 'text' ? 'pt-6' : ''}">
+                    ${!hasImage || adType === 'text' ? `
+                        <!-- Skip/Hide Button for text-only ads -->
+                        <button onclick="hideAd('${ad.id}')" class="absolute top-2 right-2 z-10 bg-white bg-opacity-90 hover:bg-opacity-100 rounded-full p-1.5 text-gray-500 hover:text-gray-700 transition-all shadow-sm">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                        
+                        <!-- Ad Badge for text-only ads -->
+                        <div class="absolute top-2 left-2 z-10 bg-red-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                            Sponsored
+                        </div>
+                    ` : ''}
+                    
+                    <!-- Brand Logo & Name -->
+                    <div class="flex items-center mb-3 ${!hasImage || adType === 'text' ? 'mt-8' : ''}">
+                        ${ad.logoUrl ? `<img src="${ad.logoUrl}" alt="${ad.brandName}" class="w-8 h-8 rounded-full mr-3 border-2 border-red-100">` : ''}
+                        <div class="${!ad.logoUrl ? 'ml-0' : ''}">
+                            <div class="font-bold text-red-600 text-sm">${ad.brandName}</div>
+                            ${ad.tagline ? `<div class="text-xs text-gray-500">${ad.tagline}</div>` : ''}
+                        </div>
+                    </div>
+                    
+                    ${adType === 'text' && !hasImage ? `
+                        <!-- Large text content for text-only ads -->
+                        <div class="text-center py-8 px-4 bg-gradient-to-br from-red-50 to-pink-50 rounded-xl mb-4 border border-red-100">
+                            ${ad.title ? `<h3 class="font-bold text-gray-900 mb-3 text-lg leading-tight">${ad.title}</h3>` : ''}
+                            ${ad.description ? `<p class="text-gray-700 text-sm leading-relaxed mb-4">${ad.description}</p>` : ''}
+                            ${ad.offer ? `<div class="bg-red-600 text-white px-4 py-2 rounded-full text-sm font-semibold inline-block">${ad.offer}</div>` : ''}
+                        </div>
+                    ` : `
+                        <!-- Regular content for image ads -->
+                        ${ad.title ? `<h3 class="font-semibold text-gray-900 mb-2 text-sm">${ad.title}</h3>` : ''}
+                        ${ad.description ? `<p class="text-gray-600 text-xs mb-3 line-clamp-2">${ad.description}</p>` : ''}
+                        ${ad.offer ? `<div class="bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium inline-block mb-3">${ad.offer}</div>` : ''}
+                    `}
+                    
+                    <!-- CTA Button -->
+                    <button onclick="openAdLink('${ad.ctaUrl}', '${ad.id}')" class="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 px-4 rounded-full font-medium text-sm transition-colors flex items-center justify-center space-x-2">
+                        <span>${ad.ctaText || 'Learn More'}</span>
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                        </svg>
+                    </button>
+                    
+                    <!-- Ad Footer -->
+                    <div class="flex items-center justify-between mt-3 text-xs text-gray-400">
+                        <span>Advertisement</span>
+                        <span class="flex items-center">
+                            <svg width="12" height="12" class="mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            ${(ad.views || 0).toLocaleString()}
+                        </span>
+                    </div>
+                </div>
+            `;
+
+            card.innerHTML = adContent;
+            return card;
         }
 
+        // Upload functionality
         function openUploadModal() {
             document.getElementById('uploadModal').classList.remove('hidden');
+            setupUploadListeners();
         }
 
         function closeUploadModal() {
             document.getElementById('uploadModal').classList.add('hidden');
+            resetUploadForm();
+        }
+
+        function setupUploadListeners() {
+            const uploadArea = document.getElementById('uploadArea');
+            const imageInput = document.getElementById('imageInput');
+
+            uploadArea.onclick = () => imageInput.click();
+            
+            uploadArea.ondragover = (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
+            };
+            
+            uploadArea.ondragleave = () => {
+                uploadArea.classList.remove('dragover');
+            };
+            
+            uploadArea.ondrop = (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    handleFileSelect(files[0]);
+                }
+            };
+
+            imageInput.onchange = (e) => {
+                if (e.target.files.length > 0) {
+                    handleFileSelect(e.target.files[0]);
+                }
+            };
+        }
+
+        function handleFileSelect(file) {
+            if (file && file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const uploadArea = document.getElementById('uploadArea');
+                    uploadArea.innerHTML = `
+                        <img src="${e.target.result}" class="max-h-48 mx-auto rounded-lg mb-2">
+                        <p class="text-sm text-gray-600">${file.name}</p>
+                    `;
+                    uploadArea.dataset.imageFile = JSON.stringify({
+                        name: file.name,
+                        type: file.type,
+                        data: e.target.result
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function resetUploadForm() {
             document.getElementById('imageTitle').value = '';
             document.getElementById('imageDescription').value = '';
             document.getElementById('imageInput').value = '';
             document.getElementById('uploadArea').innerHTML = `
-                <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                <svg width="32" height="32" class="mx-auto mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
                 </svg>
-                <p class="text-gray-600 mb-2">Drag & drop your image here</p>
-                <p class="text-sm text-gray-400">or click to browse</p>
+                <p class="text-gray-600 mb-2">Choose a file or drag and drop it here</p>
+                <p class="text-sm text-gray-400">We recommend using high quality .jpg files</p>
             `;
             delete document.getElementById('uploadArea').dataset.imageFile;
         }
 
         async function uploadImage() {
-            if (!currentUser) return;
+            if (!currentUser) {
+                showLoginModal();
+                return;
+            }
 
-            const title = document.getElementById('imageTitle').value || 'Untitled';
-            const description = document.getElementById('imageDescription').value || 'No description';
+            const title = document.getElementById('imageTitle').value.trim() || 'Untitled';
+            const description = document.getElementById('imageDescription').value.trim() || 'No description';
             const imageFileData = document.getElementById('uploadArea').dataset.imageFile;
 
             if (!imageFileData) {
@@ -1045,18 +1246,17 @@
             }
 
             const uploadBtn = document.getElementById('uploadBtn');
-            uploadBtn.textContent = 'Uploading...';
+            uploadBtn.textContent = 'Publishing...';
             uploadBtn.disabled = true;
 
             try {
                 const fileData = JSON.parse(imageFileData);
                 const imageId = Date.now().toString();
 
-                // Save image data directly to Firebase Database with Base64
                 const imageData = {
                     title: title,
                     description: description,
-                    imageUrl: fileData.data, // Base64 data URL
+                    imageUrl: fileData.data,
                     fileName: fileData.name,
                     fileType: fileData.type,
                     views: 0,
@@ -1069,134 +1269,63 @@
                     userName: currentUser.displayName || 'Anonymous User'
                 };
 
+                // Save to both user's images and all images
                 await database.ref(`users/${currentUser.uid}/images/${imageId}`).set(imageData);
                 await database.ref(`allImages/${imageId}`).set(imageData);
                 
                 closeUploadModal();
-                showSuccess('Upload Complete', 'Your image has been uploaded successfully and is now live!');
+                showSuccess('Pin Created!', 'Your image has been published successfully.');
                 
             } catch (error) {
                 console.error('Upload error:', error);
-                showError('Upload Failed', 'There was an error uploading your image. Please check your connection and try again.');
+                showError('Upload Failed', 'There was an error uploading your image. Please try again.');
             } finally {
-                uploadBtn.textContent = 'Upload Image';
+                uploadBtn.textContent = 'Publish';
                 uploadBtn.disabled = false;
             }
         }
 
+        // Image modal functionality
         function openImageModal(imageId) {
-            const image = images.find(img => img.id === imageId);
+            const image = allImages.find(img => img.id === imageId);
             if (!image) return;
 
             currentImageId = imageId;
             
-            // Get current view count first, then increment
+            // Increment view count
             database.ref(`allImages/${imageId}/views`).once('value', (snapshot) => {
                 const currentViews = snapshot.val() || 0;
                 const newViews = currentViews + 1;
                 
-                // Update view count in both locations with the new value
                 const updates = {};
                 updates[`users/${image.userId}/images/${imageId}/views`] = newViews;
                 updates[`allImages/${imageId}/views`] = newViews;
                 
                 database.ref().update(updates);
-                
-                // Update modal with new view count immediately
-                document.getElementById('modalViews').textContent = newViews.toLocaleString();
             });
-            
-            // Set up real-time listener for this specific image
-            setupImageRealTimeListener(imageId, image.userId);
 
             // Update modal content
             document.getElementById('modalTitle').textContent = image.title;
             document.getElementById('modalDescription').textContent = image.description;
             document.getElementById('modalImage').src = image.imageUrl;
-            document.getElementById('modalViews').textContent = (image.views || 0).toLocaleString();
             document.getElementById('modalCommentCount').textContent = Object.keys(image.comments || {}).length;
 
-            // Show monetization elements
-            const monetizedBadge = document.getElementById('monetizedBadge');
-            const adSpace = document.getElementById('adSpace');
-            
-            if (image.monetized || (image.views || 0) >= 2000) {
-                monetizedBadge.classList.remove('hidden');
-                adSpace.classList.remove('hidden');
+            // Only show views if current user is the uploader
+            const viewsDisplay = document.getElementById('viewsDisplay');
+            if (currentUser && currentUser.uid === image.userId) {
+                viewsDisplay.classList.remove('hidden');
+                document.getElementById('modalViews').textContent = (image.views || 0).toLocaleString();
             } else {
-                monetizedBadge.classList.add('hidden');
-                adSpace.classList.add('hidden');
+                viewsDisplay.classList.add('hidden');
             }
 
             loadComments(image.comments || {});
             document.getElementById('imageModal').classList.remove('hidden');
         }
 
-        // Real-time listener for individual image updates
-        function setupImageRealTimeListener(imageId, imageUserId) {
-            // Remove any existing listener
-            if (window.currentImageListener) {
-                window.currentImageListener.off();
-            }
-            
-            // Listen to the image in allImages for real-time updates
-            window.currentImageListener = database.ref(`allImages/${imageId}`);
-            window.currentImageListener.on('value', (snapshot) => {
-                if (snapshot.exists() && currentImageId === imageId) {
-                    const updatedImage = snapshot.val();
-                    const currentViews = updatedImage.views || 0;
-                    
-                    // Update modal views in real-time
-                    document.getElementById('modalViews').textContent = currentViews.toLocaleString();
-                    
-                    // Check for monetization milestone
-                    if (currentViews >= 2000 && !updatedImage.monetized && imageUserId === currentUser?.uid) {
-                        const earnings = (currentViews - 2000) * 0.005;
-                        const monetizationUpdates = {};
-                        monetizationUpdates[`users/${imageUserId}/images/${imageId}/monetized`] = true;
-                        monetizationUpdates[`users/${imageUserId}/images/${imageId}/earnings`] = earnings;
-                        monetizationUpdates[`allImages/${imageId}/monetized`] = true;
-                        monetizationUpdates[`allImages/${imageId}/earnings`] = earnings;
-                        
-                        database.ref().update(monetizationUpdates);
-                        showSuccess('🎉 Monetization Unlocked!', `Congratulations! Your image "${updatedImage.title}" has reached 2,000 views and is now earning money!`);
-                        
-                        // Show monetization elements
-                        document.getElementById('monetizedBadge').classList.remove('hidden');
-                        document.getElementById('adSpace').classList.remove('hidden');
-                    } else if (updatedImage.monetized && imageUserId === currentUser?.uid) {
-                        // Update earnings for monetized images
-                        const earnings = Math.max(0, (currentViews - 2000) * 0.005);
-                        const earningsUpdates = {};
-                        earningsUpdates[`users/${imageUserId}/images/${imageId}/earnings`] = earnings;
-                        earningsUpdates[`allImages/${imageId}/earnings`] = earnings;
-                        database.ref().update(earningsUpdates);
-                    }
-                    
-                    // Update comments count in real-time
-                    const commentCount = Object.keys(updatedImage.comments || {}).length;
-                    document.getElementById('modalCommentCount').textContent = commentCount;
-                    
-                    // Reload comments if they changed
-                    loadComments(updatedImage.comments || {});
-                    
-                    // Update stats if this is user's image
-                    if (imageUserId === currentUser?.uid) {
-                        updateStats();
-                    }
-                }
-            });
-        }
-
         function closeImageModal() {
             document.getElementById('imageModal').classList.add('hidden');
             currentImageId = null;
-            
-            // Clean up real-time listener
-            if (window.currentImageListener) {
-                window.currentImageListener.off();
-                window.currentImageListener = null;
-            }
         }
 
         function loadComments(comments) {
@@ -1207,8 +1336,8 @@
                 const commentDiv = document.createElement('div');
                 commentDiv.className = 'bg-gray-50 p-3 rounded-lg';
                 commentDiv.innerHTML = `
-                    <div class="font-medium text-gray-900">${comment.author}</div>
-                    <div class="text-gray-700">${comment.text}</div>
+                    <div class="font-medium text-gray-900 text-sm">${comment.author}</div>
+                    <div class="text-gray-700 text-sm">${comment.text}</div>
                     <div class="text-xs text-gray-500 mt-1">${new Date(comment.timestamp).toLocaleString()}</div>
                 `;
                 commentsList.appendChild(commentDiv);
@@ -1231,11 +1360,9 @@
                 userId: currentUser.uid
             };
 
-            // Find the image owner
             const currentImage = allImages.find(img => img.id === currentImageId);
             if (!currentImage) return;
 
-            // Update comments in both locations
             const updates = {};
             updates[`users/${currentImage.userId}/images/${currentImageId}/comments/${commentId}`] = commentData;
             updates[`allImages/${currentImageId}/comments/${commentId}`] = commentData;
@@ -1249,147 +1376,8 @@
             });
         }
 
-        // Mobile Menu Toggle
-        function toggleMobileMenu() {
-            const mobileMenu = document.getElementById('mobileMenu');
-            mobileMenu.classList.toggle('hidden');
-        }
-
-        // Tab Management
-        function showTab(tab) {
-            currentTab = tab;
-            
-            // Clean up existing listeners before switching tabs
-            cleanupListeners();
-            
-            // Update desktop tab styles
-            document.querySelectorAll('[id$="Tab"]:not([id$="TabMobile"])').forEach(tabBtn => {
-                tabBtn.className = 'py-4 px-1 border-b-2 border-transparent text-gray-500 hover:text-gray-700 font-medium text-sm';
-            });
-            const desktopTab = document.getElementById(tab + 'Tab');
-            if (desktopTab) {
-                desktopTab.className = 'py-4 px-1 border-b-2 border-red-500 text-red-600 font-medium text-sm';
-            }
-            
-            // Update mobile tab styles
-            document.querySelectorAll('[id$="TabMobile"]').forEach(tabBtn => {
-                tabBtn.className = 'flex flex-col items-center p-2 touch-button text-gray-500';
-            });
-            const mobileTab = document.getElementById(tab + 'TabMobile');
-            if (mobileTab) {
-                mobileTab.className = 'flex flex-col items-center p-2 touch-button text-red-600';
-            }
-            
-            // Load appropriate content
-            if (tab === 'home') {
-                loadAllImages();
-            } else if (tab === 'myImages') {
-                loadUserImages();
-            } else if (tab === 'saved') {
-                loadSavedImagesTab();
-            }
-        }
-
-        // Load all images from all users with real-time updates
-        function loadAllImages() {
-            database.ref('allImages').on('value', (snapshot) => {
-                allImages = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach((child) => {
-                        allImages.push({
-                            id: child.key,
-                            ...child.val()
-                        });
-                    });
-                }
-                images = allImages;
-                loadImages();
-                updateStats();
-                setupGalleryRealTimeListeners();
-            });
-        }
-
-        // Set up real-time listeners for gallery view counts and comments
-        function setupGalleryRealTimeListeners() {
-            // Clean up existing listeners
-            if (window.galleryListeners) {
-                window.galleryListeners.forEach(listener => listener.off());
-            }
-            window.galleryListeners = [];
-
-            // Set up listener for each image in the current view
-            images.forEach(image => {
-                const listener = database.ref(`allImages/${image.id}`);
-                listener.on('value', (snapshot) => {
-                    if (snapshot.exists()) {
-                        const updatedImage = snapshot.val();
-                        updateImageCardInGallery(image.id, updatedImage);
-                    }
-                });
-                window.galleryListeners.push(listener);
-            });
-        }
-
-        // Update specific image card in gallery without full reload
-        function updateImageCardInGallery(imageId, updatedImageData) {
-            const card = document.querySelector(`[data-image-id="${imageId}"]`);
-            if (!card) return;
-
-            // Update view count
-            const viewCountElement = card.querySelector('.view-count .view-number');
-            if (viewCountElement) {
-                const newViews = updatedImageData.views || 0;
-                viewCountElement.textContent = newViews.toLocaleString();
-                
-                // Add animation for view count increase
-                viewCountElement.style.transform = 'scale(1.1)';
-                viewCountElement.style.color = '#10b981';
-                setTimeout(() => {
-                    viewCountElement.style.transform = 'scale(1)';
-                    viewCountElement.style.color = '';
-                }, 300);
-            }
-
-            // Update comment count
-            const commentCountElement = card.querySelector('.comment-count .comment-number');
-            if (commentCountElement) {
-                const newCommentCount = Object.keys(updatedImageData.comments || {}).length;
-                commentCountElement.textContent = newCommentCount;
-            }
-
-            // Add monetized badge if newly monetized
-            if (updatedImageData.monetized && !card.querySelector('.monetized-badge')) {
-                const statsContainer = card.querySelector('.flex.items-center.justify-between');
-                if (statsContainer) {
-                    const monetizedBadge = document.createElement('span');
-                    monetizedBadge.className = 'text-green-600 flex items-center monetized-badge';
-                    monetizedBadge.innerHTML = '<svg class="w-3 h-3 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/></svg>';
-                    statsContainer.appendChild(monetizedBadge);
-                    
-                    // Add celebration animation
-                    monetizedBadge.style.animation = 'pulse 2s infinite';
-                    setTimeout(() => {
-                        monetizedBadge.style.animation = '';
-                    }, 3000);
-                }
-            }
-
-            // Update the image data in our local arrays
-            const imageIndex = images.findIndex(img => img.id === imageId);
-            if (imageIndex !== -1) {
-                images[imageIndex] = { id: imageId, ...updatedImageData };
-            }
-            
-            const allImageIndex = allImages.findIndex(img => img.id === imageId);
-            if (allImageIndex !== -1) {
-                allImages[allImageIndex] = { id: imageId, ...updatedImageData };
-            }
-        }
-
-        // Save image to user's saved collection
+        // Utility functions
         function saveImage(imageId) {
-            if (!currentUser) return;
-            
             const image = allImages.find(img => img.id === imageId);
             if (!image) return;
             
@@ -1397,14 +1385,13 @@
                 ...image,
                 savedAt: Date.now()
             }).then(() => {
-                showSuccess('Image Saved', 'The image has been added to your saved collection.');
+                showSuccess('Saved!', 'Image saved to your collection.');
             }).catch((error) => {
                 console.error('Save error:', error);
                 showError('Save Failed', 'Unable to save the image. Please try again.');
             });
         }
 
-        // Download image
         function downloadImage(imageUrl, title) {
             const link = document.createElement('a');
             link.href = imageUrl;
@@ -1415,307 +1402,248 @@
             document.body.removeChild(link);
         }
 
-        // Settings functions
-        function openSettings() {
+        function updateStats() {
             if (!currentUser) return;
             
-            document.getElementById('settingsUserPhoto').src = currentUser.photoURL || 'https://via.placeholder.com/96';
-            document.getElementById('displayNameInput').value = currentUser.displayName || '';
-            document.getElementById('emailInput').value = currentUser.email || '';
-            document.getElementById('settingsModal').classList.remove('hidden');
-        }
-
-        function closeSettings() {
-            document.getElementById('settingsModal').classList.add('hidden');
-        }
-
-        function changeProfilePicture() {
-            document.getElementById('profilePictureInput').click();
-        }
-
-        function saveProfile() {
-            const displayName = document.getElementById('displayNameInput').value;
-            
-            if (displayName !== currentUser.displayName) {
-                currentUser.updateProfile({
-                    displayName: displayName
-                }).then(() => {
-                    showSuccess('Profile Updated', 'Your display name has been updated successfully.');
-                    closeSettings();
-                }).catch((error) => {
-                    console.error('Profile update error:', error);
-                    showError('Update Failed', 'Unable to update your profile. Please try again.');
-                });
-            } else {
-                closeSettings();
-            }
-        }
-
-        // Saved images functions
-        function openSavedImages() {
-            loadSavedImages();
-            document.getElementById('savedImagesModal').classList.remove('hidden');
-        }
-
-        function closeSavedImages() {
-            document.getElementById('savedImagesModal').classList.add('hidden');
-        }
-
-        function loadSavedImages() {
-            if (!currentUser) return;
-            
-            database.ref(`users/${currentUser.uid}/savedImages`).on('value', (snapshot) => {
-                savedImages = [];
+            database.ref(`users/${currentUser.uid}/images`).once('value', (snapshot) => {
+                let userImages = [];
                 if (snapshot.exists()) {
                     snapshot.forEach((child) => {
-                        savedImages.push({
-                            id: child.key,
-                            ...child.val()
-                        });
+                        userImages.push(child.val());
                     });
                 }
-                displaySavedImages();
-            });
-        }
-
-        function loadSavedImagesTab() {
-            if (!currentUser) return;
-            
-            database.ref(`users/${currentUser.uid}/savedImages`).on('value', (snapshot) => {
-                savedImages = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach((child) => {
-                        savedImages.push({
-                            id: child.key,
-                            ...child.val()
-                        });
-                    });
-                }
-                images = savedImages;
-                loadImages();
-                updateStats();
-                setupGalleryRealTimeListeners();
-            });
-        }
-
-        // Clean up listeners when switching tabs or signing out
-        function cleanupListeners() {
-            if (window.galleryListeners) {
-                window.galleryListeners.forEach(listener => listener.off());
-                window.galleryListeners = [];
-            }
-            if (window.currentImageListener) {
-                window.currentImageListener.off();
-                window.currentImageListener = null;
-            }
-        }
-
-        function displaySavedImages() {
-            const grid = document.getElementById('savedImagesGrid');
-            const empty = document.getElementById('savedImagesEmpty');
-            
-            if (savedImages.length === 0) {
-                grid.innerHTML = '';
-                empty.classList.remove('hidden');
-                return;
-            }
-            
-            empty.classList.add('hidden');
-            grid.innerHTML = '';
-            
-            savedImages.forEach(image => {
-                const imageCard = createImageCard(image);
-                grid.appendChild(imageCard);
-            });
-        }
-
-        // Profile picture upload
-        document.getElementById('profilePictureInput').addEventListener('change', async (e) => {
-            if (e.target.files.length > 0 && currentUser) {
-                const file = e.target.files[0];
                 
-                try {
-                    const storageRef = storage.ref(`profilePictures/${currentUser.uid}`);
-                    const uploadTask = await storageRef.put(file);
-                    const photoURL = await uploadTask.ref.getDownloadURL();
-                    
-                    await currentUser.updateProfile({ photoURL: photoURL });
-                    
-                    document.getElementById('settingsUserPhoto').src = photoURL;
-                    document.getElementById('userPhoto').src = photoURL;
-                    
-                    showSuccess('Profile Picture Updated', 'Your new profile picture has been saved successfully.');
-                } catch (error) {
-                    console.error('Profile picture update error:', error);
-                    showError('Update Failed', 'Unable to update your profile picture. Please try again.');
-                }
-            }
-        });
+                const totalImages = userImages.length;
+                const totalViews = userImages.reduce((sum, img) => sum + (img.views || 0), 0);
+                const totalComments = userImages.reduce((sum, img) => sum + Object.keys(img.comments || {}).length, 0);
+                const totalEarnings = userImages.reduce((sum, img) => sum + (img.earnings || 0), 0);
+
+                document.getElementById('totalImages').textContent = totalImages;
+                document.getElementById('totalViews').textContent = totalViews.toLocaleString();
+                document.getElementById('totalComments').textContent = totalComments;
+                document.getElementById('totalEarnings').textContent = totalEarnings.toFixed(2);
+            });
+        }
 
         // Search functionality
         function handleSearch(event) {
             const searchTerm = event.target.value.toLowerCase().trim();
             
-            // Check for inappropriate content
-            if (checkInappropriateContent(searchTerm)) {
-                return;
-            }
-            
             if (searchTerm === '') {
-                // Reset to original images
-                if (isSearching) {
-                    images = [...originalImages];
-                    isSearching = false;
-                    loadImages();
-                }
+                displayImages(allImages);
                 return;
             }
             
-            // Store original images if not already searching
-            if (!isSearching) {
-                originalImages = [...images];
-                isSearching = true;
-            }
-            
-            // Filter images based on search term
-            const filteredImages = originalImages.filter(image => {
+            const filteredImages = allImages.filter(image => {
                 return image.title.toLowerCase().includes(searchTerm) ||
                        image.description.toLowerCase().includes(searchTerm) ||
                        (image.userName && image.userName.toLowerCase().includes(searchTerm));
             });
             
-            images = filteredImages;
-            loadImages();
+            displayImages(filteredImages);
             
-            // Show search results info
             if (filteredImages.length === 0) {
                 showInfo('No Results', `No images found for "${searchTerm}". Try different keywords.`);
             }
         }
 
-        function checkInappropriateContent(searchTerm) {
-            const suicideKeywords = [
-                'suicide', 'kill myself', 'end my life', 'want to die', 'suicidal', 
-                'self harm', 'hurt myself', 'depression help', 'मरना चाहता हूं', 
-                'आत्महत्या', 'जान देना', 'मौत', 'خودکشی', 'موت'
-            ];
+        // Mobile menu toggle
+        function toggleMobileMenu() {
+            const mobileMenu = document.getElementById('mobileMenu');
+            mobileMenu.classList.toggle('hidden');
+        }
+
+        function toggleUserDropdown() {
+            const dropdown = document.getElementById('userDropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Tab management
+        function showTab(tab) {
+            currentTab = tab;
             
-            const sexualKeywords = [
-                'sex', 'porn', 'nude', 'naked', 'xxx', 'adult', 'sexual', 
-                'सेक्स', 'नग्न', 'अश्लील', 'جنسی', 'عریاں'
-            ];
+            // Update mobile nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
             
-            // Check for suicide-related content
-            for (let keyword of suicideKeywords) {
-                if (searchTerm.includes(keyword)) {
-                    showSuicidePreventionMessage();
-                    clearSearchInputs();
-                    return true;
-                }
+            if (tab === 'home') {
+                document.getElementById('homeNavMobile').classList.add('active');
+                displayImages(allImages);
+            } else if (tab === 'myImages') {
+                loadUserImages();
+            } else if (tab === 'saved') {
+                loadSavedImages();
+            } else if (tab === 'profile') {
+                // Handle profile view
             }
             
-            // Check for sexual content
-            for (let keyword of sexualKeywords) {
-                if (searchTerm.includes(keyword)) {
-                    showContentWarning();
-                    clearSearchInputs();
-                    return true;
+            toggleMobileMenu(); // Close mobile menu
+        }
+
+        function loadUserImages() {
+            if (!currentUser) return;
+            
+            database.ref(`users/${currentUser.uid}/images`).once('value', (snapshot) => {
+                let userImages = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        userImages.push({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
                 }
+                displayImages(userImages);
+            });
+        }
+
+        function loadSavedImages() {
+            if (!currentUser) return;
+            
+            database.ref(`users/${currentUser.uid}/savedImages`).once('value', (snapshot) => {
+                let savedImages = [];
+                if (snapshot.exists()) {
+                    snapshot.forEach((child) => {
+                        savedImages.push({
+                            id: child.key,
+                            ...child.val()
+                        });
+                    });
+                }
+                displayImages(savedImages);
+            });
+        }
+
+        // Ad interaction functions
+        function hideAd(adId) {
+            hiddenAds.add(adId);
+            // Remove ad from DOM
+            const adElements = document.querySelectorAll('.ad-card');
+            adElements.forEach(element => {
+                if (element.innerHTML.includes(adId)) {
+                    element.remove();
+                }
+            });
+            
+            // Save hidden ads to localStorage
+            localStorage.setItem('hiddenAds', JSON.stringify([...hiddenAds]));
+            showInfo('Ad Hidden', 'This ad has been hidden from your feed.');
+        }
+
+        function openAdLink(url, adId) {
+            // Track ad click
+            database.ref(`ads/${adId}/clicks`).once('value', (snapshot) => {
+                const currentClicks = snapshot.val() || 0;
+                database.ref(`ads/${adId}/clicks`).set(currentClicks + 1);
+            });
+            
+            // Track ad view
+            database.ref(`ads/${adId}/views`).once('value', (snapshot) => {
+                const currentViews = snapshot.val() || 0;
+                database.ref(`ads/${adId}/views`).set(currentViews + 1);
+            });
+            
+            // Open link in new tab
+            window.open(url, '_blank');
+        }
+
+        // Admin functions for managing ads (only for admin users)
+        function createSampleAd() {
+            if (!currentUser || currentUser.email !== 'admin@oriontec.xyz') {
+                showError('Access Denied', 'Only admin can create ads.');
+                return;
             }
             
-            return false;
+            const sampleAd = {
+                brandName: 'Pulse by Oriontec',
+                logoUrl: 'https://pulse.oriontec.xyz/IMG_0696.png',
+                tagline: 'Buzz ka naya platform – Pulse join karo!',
+                title: 'Create your Buzz',
+                description: 'Buzz karna ab hua easy – Pulse join karo free mein aur trending posts share karo.',
+                imageUrl: 'https://pulse.oriontec.xyz/IMG_0695.jpeg',
+                adType: 'both', // 'text', 'image', or 'both'
+                ctaText: 'Join Pulse Now',
+                ctaUrl: 'https://pulse.oriontec.xyz',
+                active: true,
+                views: 0,
+                clicks: 0,
+                createdAt: Date.now()
+            };
+            
+            const adId = 'pulse_ad_' + Date.now();
+            database.ref(`ads/${adId}`).set(sampleAd).then(() => {
+                showSuccess('Ad Created', 'Sample Pulse ad has been created successfully!');
+            }).catch((error) => {
+                console.error('Ad creation error:', error);
+                showError('Ad Creation Failed', 'Unable to create ad. Please try again.');
+            });
         }
 
-        function showSuicidePreventionMessage() {
-            const title = "आप अकेले नहीं हैं - You Are Not Alone";
-            const message = `जीवन कीमती है और आप महत्वपूर्ण हैं। कृपया मदद लें:
-            
-            🇮🇳 India: 9152987821 (AASRA)
-            🌍 International: 988 (Suicide & Crisis Lifeline)
-            
-            Life is precious and you matter. Please reach out for help. There are people who care about you.`;
-            
-            // Create special suicide prevention notification
-            const container = document.getElementById('notificationContainer');
-            const notificationId = 'suicide-prevention-' + Date.now();
-            
-            const notification = document.createElement('div');
-            notification.id = notificationId;
-            notification.className = 'notification info';
-            notification.style.minWidth = '400px';
-            notification.style.maxWidth = '500px';
-            notification.innerHTML = `
-                <div class="notification-content">
-                    <svg class="notification-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color: #10b981;">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
-                    </svg>
-                    <div class="notification-text">
-                        <div class="notification-title">${title}</div>
-                        <div class="notification-message" style="white-space: pre-line; line-height: 1.6;">${message}</div>
-                    </div>
-                    <button class="notification-close" onclick="hideNotification('${notificationId}')">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="notification-progress" style="background: linear-gradient(90deg, #10b981, #059669);"></div>
-            `;
-
-            container.appendChild(notification);
-            setTimeout(() => notification.classList.add('show'), 100);
-            setTimeout(() => hideNotification(notificationId), 10000); // Show for 10 seconds
-        }
-
-        function showContentWarning() {
-            showWarning(
-                'Content Restricted', 
-                'This type of content is not allowed on our platform. Please search for family-friendly images instead.'
-            );
-        }
-
-        function clearSearchInputs() {
-            document.getElementById('searchInput').value = '';
-            document.getElementById('mobileSearchInput').value = '';
-        }
-
-        function toggleMobileSearch() {
-            const mobileSearchBar = document.getElementById('mobileSearchBar');
-            const isHidden = mobileSearchBar.classList.contains('hidden');
-            
-            if (isHidden) {
-                mobileSearchBar.classList.remove('hidden');
-                document.getElementById('mobileSearchInput').focus();
-            } else {
-                mobileSearchBar.classList.add('hidden');
-                document.getElementById('mobileSearchInput').value = '';
-                // Reset search if mobile search was being used
-                if (isSearching) {
-                    images = [...originalImages];
-                    isSearching = false;
-                    loadImages();
-                }
+        // Create text-only ad sample
+        function createTextOnlyAd() {
+            if (!currentUser || currentUser.email !== 'admin@oriontec.xyz') {
+                showError('Access Denied', 'Only admin can create ads.');
+                return;
             }
+            
+            const textAd = {
+                brandName: 'PixPlay Premium',
+                logoUrl: '', // No logo for text-only
+                tagline: 'Upgrade your experience!',
+                title: '🚀 Get Premium Features FREE for 30 Days!',
+                description: 'Unlimited uploads, priority support, advanced analytics, and exclusive filters. Join thousands of creators already using Premium.',
+                offer: '30 Days FREE Trial',
+                imageUrl: '', // No image for text-only
+                adType: 'text',
+                ctaText: 'Start Free Trial',
+                ctaUrl: 'https://pixplay.com/premium',
+                active: true,
+                views: 0,
+                clicks: 0,
+                createdAt: Date.now()
+            };
+            
+            const adId = 'text_ad_' + Date.now();
+            database.ref(`ads/${adId}`).set(textAd).then(() => {
+                showSuccess('Text Ad Created', 'Sample text-only ad has been created successfully!');
+            }).catch((error) => {
+                console.error('Text ad creation error:', error);
+                showError('Text Ad Creation Failed', 'Unable to create text ad. Please try again.');
+            });
         }
 
-        // Sync search inputs
+        // Initialize the app
         document.addEventListener('DOMContentLoaded', function() {
-            const searchInput = document.getElementById('searchInput');
-            const mobileSearchInput = document.getElementById('mobileSearchInput');
-            
-            if (searchInput && mobileSearchInput) {
-                searchInput.addEventListener('input', function() {
-                    mobileSearchInput.value = this.value;
-                });
-                
-                mobileSearchInput.addEventListener('input', function() {
-                    searchInput.value = this.value;
-                });
+            // Load hidden ads from localStorage
+            const savedHiddenAds = localStorage.getItem('hiddenAds');
+            if (savedHiddenAds) {
+                hiddenAds = new Set(JSON.parse(savedHiddenAds));
             }
+            
+            // Load ads
+            loadAds();
+            
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', function(event) {
+                const dropdown = document.getElementById('userDropdown');
+                const userPhoto = document.getElementById('userPhoto');
+                
+                if (dropdown && !dropdown.contains(event.target) && event.target !== userPhoto) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+            
+            // Admin shortcuts to create different ad types
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.shiftKey && event.key === 'A') {
+                    createSampleAd(); // Image + Text ad
+                }
+                if (event.ctrlKey && event.shiftKey && event.key === 'T') {
+                    createTextOnlyAd(); // Text-only ad
+                }
+            });
         });
-
-        // Initialize event listeners when page loads
-        setupEventListeners();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9794ea776735465e',t:'MTc1Njg5OTAzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9795274ea26d49a6',t:'MTc1NjkwMTUyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
