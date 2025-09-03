@@ -1242,6 +1242,23 @@
         let selectedLocation = null;
         let selectedPoll = null;
         
+        // Performance optimization - cache user data
+        const userCache = new Map();
+        const buzzCache = new Map();
+        
+        // Debounce function for performance
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+        
         // Content filtering
         const bannedWords = [
             'kill', 'murder', 'suicide', 'death', 'die', 'rape', 'sex', 'porn', 'nude', 'naked',
@@ -1382,6 +1399,102 @@
                     <p class="text-xs text-gray-500 mt-2">${totalVotes} votes</p>
                 </div>
             `;
+        }
+
+        // Custom dialog system
+        function showCustomDialog(title, options) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+                        <h3 class="text-lg font-bold mb-4 text-center">${title}</h3>
+                        <div class="space-y-2">
+                            ${options.map((option, index) => `
+                                <button onclick="selectOption(${index})" class="w-full p-3 text-left rounded-lg hover:bg-gray-100 transition-colors ${option.value === null ? 'text-red-500' : 'text-gray-700'}">
+                                    ${option.text}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+                
+                window.selectOption = (index) => {
+                    modal.remove();
+                    delete window.selectOption;
+                    resolve(options[index].value);
+                };
+                
+                document.body.appendChild(modal);
+            });
+        }
+
+        function showCustomInput(title, placeholder = '', defaultValue = '') {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+                        <h3 class="text-lg font-bold mb-4">${title}</h3>
+                        <input type="text" id="customInput" placeholder="${placeholder}" value="${defaultValue}" class="w-full p-3 border border-gray-300 rounded-lg mb-4 focus:border-blue-500 outline-none">
+                        <div class="flex gap-2">
+                            <button onclick="cancelInput()" class="flex-1 p-3 border border-gray-300 rounded-lg text-gray-700">Cancel</button>
+                            <button onclick="confirmInput()" class="flex-1 p-3 bg-blue-500 text-white rounded-lg">OK</button>
+                        </div>
+                    </div>
+                `;
+                
+                window.cancelInput = () => {
+                    modal.remove();
+                    delete window.cancelInput;
+                    delete window.confirmInput;
+                    resolve(null);
+                };
+                
+                window.confirmInput = () => {
+                    const value = document.getElementById('customInput').value;
+                    modal.remove();
+                    delete window.cancelInput;
+                    delete window.confirmInput;
+                    resolve(value);
+                };
+                
+                document.body.appendChild(modal);
+                document.getElementById('customInput').focus();
+            });
+        }
+
+        function showCustomConfirm(title, message) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 w-full max-w-sm">
+                        <h3 class="text-lg font-bold mb-2">${title}</h3>
+                        <p class="text-gray-600 mb-4">${message}</p>
+                        <div class="flex gap-2">
+                            <button onclick="cancelConfirm()" class="flex-1 p-3 border border-gray-300 rounded-lg text-gray-700">Cancel</button>
+                            <button onclick="confirmAction()" class="flex-1 p-3 bg-red-500 text-white rounded-lg">Confirm</button>
+                        </div>
+                    </div>
+                `;
+                
+                window.cancelConfirm = () => {
+                    modal.remove();
+                    delete window.cancelConfirm;
+                    delete window.confirmAction;
+                    resolve(false);
+                };
+                
+                window.confirmAction = () => {
+                    modal.remove();
+                    delete window.cancelConfirm;
+                    delete window.confirmAction;
+                    resolve(true);
+                };
+                
+                document.body.appendChild(modal);
+            });
         }
 
         // Custom notification system
@@ -1802,10 +1915,29 @@
         }
 
         async function showUserProfileById(userId) {
-            const userSnapshot = await database.ref(`users/${userId}`).once('value');
-            if (userSnapshot.exists()) {
-                const userData = userSnapshot.val();
-                showUserProfile(userId, userData);
+            try {
+                // Check cache first
+                if (userCache.has(userId)) {
+                    const userData = userCache.get(userId);
+                    showUserProfile(userId, userData);
+                    return;
+                }
+                
+                // Show loading for new requests only
+                showCustomNotification('Loading profile...', 'info');
+                
+                const userSnapshot = await database.ref(`users/${userId}`).once('value');
+                if (userSnapshot.exists()) {
+                    const userData = userSnapshot.val();
+                    // Cache the user data
+                    userCache.set(userId, userData);
+                    showUserProfile(userId, userData);
+                } else {
+                    showCustomNotification('User not found', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                showCustomNotification('Error loading profile', 'error');
             }
         }
 
@@ -2226,19 +2358,19 @@
             }
         });
 
-        document.getElementById('createPoll').addEventListener('click', () => {
-            const option1 = prompt('Enter first poll option:');
-            if (!option1) return;
+        document.getElementById('createPoll').addEventListener('click', async () => {
+            const option1 = await showCustomInput('Poll Option 1', 'Enter first poll option');
+            if (!option1 || !option1.trim()) return;
             
-            const option2 = prompt('Enter second poll option:');
-            if (!option2) return;
+            const option2 = await showCustomInput('Poll Option 2', 'Enter second poll option');
+            if (!option2 || !option2.trim()) return;
             
-            const option3 = prompt('Enter third poll option (optional):') || '';
-            const option4 = prompt('Enter fourth poll option (optional):') || '';
+            const option3 = await showCustomInput('Poll Option 3 (Optional)', 'Enter third poll option');
+            const option4 = await showCustomInput('Poll Option 4 (Optional)', 'Enter fourth poll option');
             
-            const options = [option1, option2];
-            if (option3) options.push(option3);
-            if (option4) options.push(option4);
+            const options = [option1.trim(), option2.trim()];
+            if (option3 && option3.trim()) options.push(option3.trim());
+            if (option4 && option4.trim()) options.push(option4.trim());
             
             sendPollMessage(options);
         });
@@ -2673,19 +2805,19 @@
             updatePostButtonState();
         });
 
-        document.getElementById('addPoll').addEventListener('click', () => {
-            const option1 = prompt('Enter first poll option:');
-            if (!option1) return;
+        document.getElementById('addPoll').addEventListener('click', async () => {
+            const option1 = await showCustomInput('Poll Option 1', 'Enter first poll option');
+            if (!option1 || !option1.trim()) return;
             
-            const option2 = prompt('Enter second poll option:');
-            if (!option2) return;
+            const option2 = await showCustomInput('Poll Option 2', 'Enter second poll option');
+            if (!option2 || !option2.trim()) return;
             
-            const option3 = prompt('Enter third poll option (optional):') || '';
-            const option4 = prompt('Enter fourth poll option (optional):') || '';
+            const option3 = await showCustomInput('Poll Option 3 (Optional)', 'Enter third poll option');
+            const option4 = await showCustomInput('Poll Option 4 (Optional)', 'Enter fourth poll option');
             
-            const options = [option1, option2];
-            if (option3) options.push(option3);
-            if (option4) options.push(option4);
+            const options = [option1.trim(), option2.trim()];
+            if (option3 && option3.trim()) options.push(option3.trim());
+            if (option4 && option4.trim()) options.push(option4.trim());
             
             selectedPoll = { options, votes: {} };
             
@@ -2831,6 +2963,35 @@
                 const buzzElement = createBuzzElement(buzz);
                 feed.appendChild(buzzElement);
             });
+            
+            // Add event delegation for all interactions
+            feed.addEventListener('click', async (e) => {
+                const userElement = e.target.closest('[data-user-id]');
+                const actionElement = e.target.closest('[data-action]');
+                
+                if (userElement) {
+                    const userId = userElement.getAttribute('data-user-id');
+                    if (userId && userId !== currentUser.uid) {
+                        showUserProfileById(userId);
+                    }
+                }
+                
+                if (actionElement) {
+                    const action = actionElement.getAttribute('data-action');
+                    const buzzId = actionElement.getAttribute('data-buzz-id');
+                    
+                    // Prevent multiple clicks
+                    if (actionElement.disabled) return;
+                    
+                    switch(action) {
+                        case 'like':
+                            actionElement.disabled = true;
+                            await toggleLike(buzzId);
+                            actionElement.disabled = false;
+                            break;
+                    }
+                }
+            });
         }
 
         function createBuzzElement(buzz) {
@@ -2862,10 +3023,10 @@
                     <div class="flex-1">
                         <div class="flex items-center gap-2 mb-2">
                             <div class="flex items-center">
-                                <span class="font-semibold cursor-pointer hover:underline" onclick="showUserProfileById('${buzz.userId}')">${buzz.userName}</span>
+                                <span class="font-semibold cursor-pointer hover:underline" data-user-id="${buzz.userId}">${buzz.userName}</span>
                                 ${buzz.isVerified ? '<div class="verified-tick ml-1"></div>' : ''}
                             </div>
-                            <span class="text-gray-500 text-sm cursor-pointer hover:underline" onclick="showUserProfileById('${buzz.userId}')">@${buzz.username}</span>
+                            <span class="text-gray-500 text-sm cursor-pointer hover:underline" data-user-id="${buzz.userId}">@${buzz.username}</span>
                             <span class="text-gray-500 text-sm">·</span>
                             <span class="text-gray-500 text-sm">${timeAgo(buzz.timestamp)}</span>
                             ${buzz.isQuote ? '<span class="text-blue-500 text-xs bg-blue-100 px-2 py-1 rounded-full">Quote</span>' : ''}
@@ -2889,7 +3050,7 @@
                         ${buzz.linkPreview ? createLinkPreviewHtml(buzz.linkPreview) : ''}
                         ${quotedBuzzHtml}
                         <div class="flex items-center justify-between text-gray-500">
-                            <button class="flex items-center gap-2 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 min-w-[44px] min-h-[44px]" onclick="toggleLike('${buzz.id}')">
+                            <button class="flex items-center gap-2 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 min-w-[44px] min-h-[44px]" data-buzz-id="${buzz.id}" data-action="like">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
                                 </svg>
@@ -3070,8 +3231,12 @@
         });
 
         async function rebuzz(buzzId) {
-            // Show rebuzz options
-            const choice = confirm('Choose rebuzz type:\nOK = Simple Rebuzz\nCancel = Quote Rebuzz');
+            // Show custom rebuzz dialog
+            const choice = await showCustomDialog('Choose Rebuzz Type', [
+                { text: 'Simple Rebuzz', value: 'simple' },
+                { text: 'Quote Rebuzz', value: 'quote' },
+                { text: 'Cancel', value: null }
+            ]);
             
             if (choice === null) return; // User cancelled
             
@@ -3079,7 +3244,7 @@
                 const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
                 const originalBuzz = buzzSnapshot.val();
                 
-                if (choice) {
+                if (choice === 'simple') {
                     // Simple rebuzz
                     const rebuzzRef = database.ref(`rebuzzes/${currentUser.uid}/${buzzId}`);
                     const rebuzzSnapshot = await rebuzzRef.once('value');
@@ -3099,10 +3264,10 @@
                             await createNotification(originalBuzz.userId, 'rebuzz', buzzId, currentUserData.val().name);
                         }
                     }
-                } else {
+                } else if (choice === 'quote') {
                     // Quote rebuzz
-                    const quoteText = prompt('Add your comment:');
-                    if (quoteText !== null) {
+                    const quoteText = await showCustomInput('Add Your Comment', 'What do you think about this?');
+                    if (quoteText !== null && quoteText.trim()) {
                         const userData = await database.ref(`users/${currentUser.uid}`).once('value');
                         const user = userData.val();
                         
@@ -3178,36 +3343,46 @@
             const buzzSnapshot = await database.ref(`buzzes/${buzzId}`).once('value');
             const buzz = buzzSnapshot.val();
             
-            let options = '';
+            let options = [];
             if (buzz.userId === currentUser.uid) {
-                options = 'Choose an option:\n1. Delete Buzz\n2. Copy Link';
+                options = [
+                    { text: 'Delete Buzz', value: 'delete' },
+                    { text: 'Copy Link', value: 'copy' },
+                    { text: 'Cancel', value: null }
+                ];
             } else {
-                options = 'Choose an option:\n1. Report\n2. Block User\n3. Copy Link';
+                options = [
+                    { text: 'Report', value: 'report' },
+                    { text: 'Block User', value: 'block' },
+                    { text: 'Copy Link', value: 'copy' },
+                    { text: 'Cancel', value: null }
+                ];
             }
             
-            const choice = prompt(options);
+            const choice = await showCustomDialog('Buzz Options', options);
             
             if (buzz.userId === currentUser.uid) {
                 switch(choice) {
-                    case '1':
-                        if (confirm('Are you sure you want to delete this buzz?')) {
+                    case 'delete':
+                        const confirmDelete = await showCustomConfirm('Delete Buzz', 'Are you sure you want to delete this buzz? This action cannot be undone.');
+                        if (confirmDelete) {
                             await deleteBuzz(buzzId);
                         }
                         break;
-                    case '2':
+                    case 'copy':
                         navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
                         showCustomNotification('Link copied to clipboard!', 'success');
                         break;
                 }
             } else {
                 switch(choice) {
-                    case '1':
+                    case 'report':
                         showCustomNotification('Buzz reported. Thank you for keeping Pulse safe!', 'success');
                         break;
-                    case '2':
+                    case 'block':
                         showCustomNotification('User blocked successfully.', 'success');
                         break;
-                    case '3':
+                    case 'copy':
                         navigator.clipboard.writeText(`${window.location.origin}?buzz=${buzzId}`);
                         showCustomNotification('Link copied to clipboard!', 'success');
                         break;
@@ -3685,71 +3860,85 @@
                 const followersCountElement = document.getElementById('userFollowersCount');
                 const currentFollowerCount = parseInt(followersCountElement.textContent) || 0;
                 
+                // Disable button to prevent multiple clicks
+                followBtn.disabled = true;
+                followBtn.textContent = 'Loading...';
+                
                 // Check current follow status
                 const followRef = database.ref(`follows/${currentUser.uid}/${userId}`);
                 const followSnapshot = await followRef.once('value');
                 const isFollowing = followSnapshot.exists();
                 
-                // Immediate UI update for better UX
+                // Perform database operations first
                 if (isFollowing) {
-                    // Unfollow - immediate UI update
+                    // Unfollow
+                    await Promise.all([
+                        followRef.remove(),
+                        database.ref(`followers/${userId}/${currentUser.uid}`).remove()
+                    ]);
+                    
+                    // Update UI after successful database operation
                     followBtn.textContent = 'Follow';
                     followBtn.className = 'flex-1 gradient-bg text-white py-3 rounded-lg font-semibold';
                     followersCountElement.textContent = Math.max(0, currentFollowerCount - 1);
+                    
+                    // Update counts in background
+                    Promise.all([
+                        database.ref(`users/${userId}`).once('value'),
+                        database.ref(`users/${currentUser.uid}`).once('value')
+                    ]).then(([userSnapshot, currentUserSnapshot]) => {
+                        const user = userSnapshot.val();
+                        const currentUser_data = currentUserSnapshot.val();
+                        
+                        database.ref(`users/${userId}`).update({followers: Math.max(0, (user.followers || 1) - 1)});
+                        database.ref(`users/${currentUser.uid}`).update({following: Math.max(0, (currentUser_data.following || 1) - 1)});
+                    });
+                    
+                    showCustomNotification('Unfollowed successfully!', 'success');
                 } else {
-                    // Follow - immediate UI update
+                    // Follow
+                    await Promise.all([
+                        followRef.set(true),
+                        database.ref(`followers/${userId}/${currentUser.uid}`).set(true)
+                    ]);
+                    
+                    // Update UI after successful database operation
                     followBtn.textContent = 'Unfollow';
                     followBtn.className = 'flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold';
                     followersCountElement.textContent = currentFollowerCount + 1;
+                    
+                    // Update counts in background
+                    Promise.all([
+                        database.ref(`users/${userId}`).once('value'),
+                        database.ref(`users/${currentUser.uid}`).once('value')
+                    ]).then(([userSnapshot, currentUserSnapshot]) => {
+                        const user = userSnapshot.val();
+                        const currentUser_data = currentUserSnapshot.val();
+                        
+                        database.ref(`users/${userId}`).update({followers: (user.followers || 0) + 1});
+                        database.ref(`users/${currentUser.uid}`).update({following: (currentUser_data.following || 0) + 1});
+                        
+                        // Create notification in background
+                        if (userId !== currentUser.uid) {
+                            createNotification(userId, 'follow', null, currentUser_data.name);
+                        }
+                    });
+                    
+                    showCustomNotification('Following now!', 'success');
                 }
                 
-                // Perform database operations
-                const userRef = database.ref(`users/${userId}`);
-                const currentUserRef = database.ref(`users/${currentUser.uid}`);
-                
-                if (isFollowing) {
-                    // Unfollow
-                    await followRef.remove();
-                    await database.ref(`followers/${userId}/${currentUser.uid}`).remove();
-                    
-                    // Update counts in database
-                    const userSnapshot = await userRef.once('value');
-                    const currentUserSnapshot = await currentUserRef.once('value');
-                    const user = userSnapshot.val();
-                    const currentUser_data = currentUserSnapshot.val();
-                    
-                    await userRef.update({followers: Math.max(0, (user.followers || 1) - 1)});
-                    await currentUserRef.update({following: Math.max(0, (currentUser_data.following || 1) - 1)});
-                } else {
-                    // Follow
-                    await followRef.set(true);
-                    await database.ref(`followers/${userId}/${currentUser.uid}`).set(true);
-                    
-                    // Update counts in database
-                    const userSnapshot = await userRef.once('value');
-                    const currentUserSnapshot = await currentUserRef.once('value');
-                    const user = userSnapshot.val();
-                    const currentUser_data = currentUserSnapshot.val();
-                    
-                    await userRef.update({followers: (user.followers || 0) + 1});
-                    await currentUserRef.update({following: (currentUser_data.following || 0) + 1});
-                    
-                    // Create notification asynchronously
-                    if (userId !== currentUser.uid) {
-                        database.ref(`users/${currentUser.uid}`).once('value').then((currentUserData) => {
-                            createNotification(userId, 'follow', null, currentUserData.val().name);
-                        });
-                    }
-                }
-                
-                showCustomNotification(isFollowing ? 'Unfollowed successfully!' : 'Following now!', 'success');
+                // Re-enable button
+                followBtn.disabled = false;
                 
             } catch (error) {
                 console.error('Error toggling follow:', error);
                 showCustomNotification('Error updating follow status. Please try again.', 'error');
                 
-                // Revert UI changes on error
-                location.reload();
+                // Re-enable button and reset
+                const followBtn = document.getElementById('followBtn');
+                followBtn.disabled = false;
+                followBtn.textContent = 'Follow';
+                followBtn.className = 'flex-1 gradient-bg text-white py-3 rounded-lg font-semibold';
             }
         }
 
@@ -4337,7 +4526,7 @@
             const userData = await database.ref(`users/${currentUser.uid}`).once('value');
             const user = userData.val();
             
-            const newName = prompt('Enter new name:', user.name);
+            const newName = await showCustomInput('Edit Name', 'Enter your full name', user.name);
             if (newName && newName.trim() && newName.trim() !== user.name) {
                 await database.ref(`users/${currentUser.uid}`).update({name: newName.trim()});
                 document.getElementById('profileName').textContent = newName.trim();
@@ -4350,7 +4539,7 @@
             const userData = await database.ref(`users/${currentUser.uid}`).once('value');
             const user = userData.val();
             
-            const newBio = prompt('Enter your bio:', user.bio || '');
+            const newBio = await showCustomInput('Edit Bio', 'Tell people about yourself', user.bio || '');
             if (newBio !== null) {
                 await database.ref(`users/${currentUser.uid}`).update({bio: newBio.trim()});
                 
@@ -4394,5 +4583,5 @@
             input.click();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97938593b08d49a6',t:'MTc1Njg4NDQxNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9793915ad1b8465e',t:'MTc1Njg4NDg5OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
