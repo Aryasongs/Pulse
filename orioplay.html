@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrioPlay - Social Video Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <style>
+        .video-container {
+            aspect-ratio: 9/16;
+            max-height: 600px;
+            position: relative;
+        }
+        .reels-container {
+            height: 80vh;
+            overflow-y: auto;
+            scroll-snap-type: y mandatory;
+        }
+        .reel-item {
+            scroll-snap-align: start;
+            height: 100%;
+            min-height: 600px;
+        }
+        .chat-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .notification {
+            animation: fadeIn 0.5s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .video-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .control-btn {
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .control-btn:hover {
+            background: rgba(0,0,0,0.7);
+            transform: scale(1.1);
+        }
+        .auth-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</head>
+<body class="bg-black text-white min-h-screen">
+    <!-- Authentication Screen -->
+    <div id="auth-screen" class="auth-container">
+        <div class="bg-gray-900 rounded-lg p-8 w-full max-w-md mx-4">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-pink-500 mb-2">OrioPlay</h1>
+                <p class="text-gray-400">Join the community</p>
+            </div>
+            
+            <div id="login-form">
+                <h2 class="text-2xl font-bold mb-6 text-center">Login to OrioPlay</h2>
+                <div class="space-y-4">
+                    <button onclick="loginWithGoogle()" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-3 rounded-lg flex items-center justify-center space-x-2">
+                        <span>🔍</span>
+                        <span>Continue with Google</span>
+                    </button>
+                </div>
+                <div class="text-center mt-4 text-gray-400 text-sm">
+                    By continuing, you agree to our Terms of Service
+                </div>
+            </div>
+            
+
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-app" class="hidden">
+        <!-- Navigation -->
+        <nav class="fixed top-0 w-full bg-black/90 backdrop-blur-sm z-50 border-b border-gray-800">
+            <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+                <h1 class="text-2xl font-bold text-pink-500">OrioPlay</h1>
+                <div class="flex items-center space-x-6">
+                    <button onclick="showSection('home')" class="nav-btn text-white hover:text-pink-500 transition-colors">🏠 Home</button>
+                    <button onclick="showSection('reels')" class="nav-btn text-white hover:text-pink-500 transition-colors">🎬 Orioz</button>
+                    <button onclick="showSection('upload')" class="nav-btn text-white hover:text-pink-500 transition-colors">➕ Upload</button>
+                    <button onclick="showSection('profile')" class="nav-btn text-white hover:text-pink-500 transition-colors">👤 Profile</button>
+                    <button onclick="showSection('chat')" class="nav-btn text-white hover:text-pink-500 transition-colors">💬 Chat</button>
+                    <button onclick="showSection('settings')" class="nav-btn text-white hover:text-pink-500 transition-colors">⚙️ Settings</button>
+                    <button onclick="logoutUser()" class="text-red-500 hover:text-red-400 transition-colors">🚪 Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="pt-20">
+            <!-- Home Section -->
+            <div id="home" class="section">
+                <div class="max-w-6xl mx-auto px-4 py-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Main Feed -->
+                        <div class="lg:col-span-2">
+                            <div class="flex space-x-4 mb-6">
+                                <button onclick="setFeedFilter('all')" id="filter-all" class="feed-filter bg-pink-600 text-white px-4 py-2 rounded-lg">All</button>
+                                <button onclick="setFeedFilter('videos')" id="filter-videos" class="feed-filter bg-gray-700 text-white px-4 py-2 rounded-lg">Videos</button>
+                                <button onclick="setFeedFilter('images')" id="filter-images" class="feed-filter bg-gray-700 text-white px-4 py-2 rounded-lg">Images</button>
+                            </div>
+                            <div id="feed" class="space-y-6">
+                                <div class="text-center text-gray-400 py-8">Loading posts...</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Sidebar -->
+                        <div class="space-y-6">
+                            <!-- Following -->
+                            <div class="bg-gray-900 rounded-lg p-4">
+                                <h3 class="text-lg font-semibold mb-4">Following</h3>
+                                <div id="following-list" class="space-y-3">
+                                    <div class="text-gray-400 text-sm">No following yet</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Trending Hashtags -->
+                            <div class="bg-gray-900 rounded-lg p-4">
+                                <h3 class="text-lg font-semibold mb-4">Trending</h3>
+                                <div id="trending-hashtags" class="space-y-2">
+                                    <div class="text-gray-400 text-sm">Loading trends...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orioz Section -->
+            <div id="reels" class="section hidden">
+                <div class="max-w-md mx-auto">
+                    <div id="reels-container" class="reels-container">
+                        <div class="text-center text-gray-400 py-8">Loading Orioz...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Section -->
+            <div id="upload" class="section hidden">
+                <div class="max-w-2xl mx-auto px-4 py-6">
+                    <h2 class="text-2xl font-bold mb-6">Upload Content</h2>
+                    
+                    <div class="bg-gray-900 rounded-lg p-6">
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2">Content Type</label>
+                            <div class="flex space-x-4">
+                                <button onclick="setUploadType('video')" id="video-btn" class="upload-type-btn bg-pink-600 text-white px-4 py-2 rounded-lg">📹 Video</button>
+                                <button onclick="setUploadType('image')" id="image-btn" class="upload-type-btn bg-gray-700 text-white px-4 py-2 rounded-lg">🖼️ Image</button>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2">Upload File</label>
+                            <div class="border-2 border-dashed border-gray-600 rounded-lg p-8 text-center">
+                                <input type="file" id="file-input" class="hidden" accept="video/*,image/*">
+                                <button onclick="document.getElementById('file-input').click()" class="text-pink-500 hover:text-pink-400">
+                                    📁 Choose File
+                                </button>
+                                <p class="text-gray-400 mt-2">Or drag and drop here</p>
+                                <div id="file-preview" class="hidden mt-4">
+                                    <div id="preview-container" class="max-w-sm mx-auto"></div>
+                                    <div class="flex space-x-2 mt-4">
+                                        <button onclick="editFile()" id="edit-btn" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm">✂️ Edit</button>
+                                        <button onclick="downloadFile()" id="download-btn" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-sm">⬇️ Download</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2">Caption</label>
+                            <textarea id="caption-input" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3 text-white" rows="3" placeholder="Write a caption... Use #hashtags and @mentions"></textarea>
+                        </div>
+                        
+                        <button onclick="uploadContent()" id="upload-btn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-semibold py-3 rounded-lg transition-colors">
+                            🚀 Post
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Section -->
+            <div id="profile" class="section hidden">
+                <div class="max-w-4xl mx-auto px-4 py-6">
+                    <div class="bg-gray-900 rounded-lg p-6 mb-6">
+                        <div class="flex items-center space-x-6 mb-6">
+                            <div class="relative">
+                                <img id="profile-pic" src="" class="w-24 h-24 rounded-full object-cover">
+                                <button onclick="changeProfilePic()" class="absolute bottom-0 right-0 bg-pink-600 rounded-full p-2 text-xs">📷</button>
+                            </div>
+                            <div class="flex-1">
+                                <h2 id="profile-username" class="text-2xl font-bold">@username</h2>
+                                <p id="profile-bio" class="text-gray-400 mt-1">Your bio goes here...</p>
+                                <div class="flex space-x-6 mt-3">
+                                    <span><strong id="followers-count">0</strong> Followers</span>
+                                    <span><strong id="following-count">0</strong> Following</span>
+                                    <span><strong id="posts-count">0</strong> Posts</span>
+                                </div>
+                            </div>
+                            <button onclick="editProfile()" class="bg-gray-700 hover:bg-gray-600 px-4 py-2 rounded-lg">✏️ Edit</button>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="user-posts">
+                        <div class="text-center text-gray-400 py-8 col-span-full">No posts yet</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div id="chat" class="section hidden">
+                <div class="max-w-6xl mx-auto px-4 py-6">
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-96">
+                        <!-- Chat List -->
+                        <div class="bg-gray-900 rounded-lg p-4">
+                            <h3 class="text-lg font-semibold mb-4">Messages</h3>
+                            <div id="chat-list" class="space-y-3">
+                                <div class="text-gray-400 text-sm">No conversations yet</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Chat Window -->
+                        <div class="lg:col-span-2 bg-gray-900 rounded-lg flex flex-col">
+                            <div class="p-4 border-b border-gray-700">
+                                <h3 id="chat-header" class="font-semibold">Select a chat</h3>
+                            </div>
+                            <div id="chat-messages" class="flex-1 p-4 overflow-y-auto">
+                                <p class="text-gray-400 text-center">Select a conversation to start chatting</p>
+                            </div>
+                            <div class="p-4 border-t border-gray-700">
+                                <div class="flex space-x-2">
+                                    <input id="message-input" type="text" class="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-3 py-2" placeholder="Type a message..." disabled>
+                                    <button onclick="sendMessage()" class="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-lg" disabled id="send-btn">📤</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Section -->
+            <div id="settings" class="section hidden">
+                <div class="max-w-2xl mx-auto px-4 py-6">
+                    <h2 class="text-2xl font-bold mb-6">Settings</h2>
+                    
+                    <div class="space-y-6">
+                        <div class="bg-gray-900 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4">Account Settings</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span>Private Account</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" id="private-account">
+                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Push Notifications</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked id="notifications">
+                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-gray-900 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold mb-4">Privacy Settings</h3>
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between">
+                                    <span>Allow Comments</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked id="allow-comments">
+                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span>Allow Messages</span>
+                                    <label class="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" class="sr-only peer" checked id="allow-messages">
+                                        <div class="w-11 h-6 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Edit Profile Modal -->
+    <div id="edit-profile-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-900 rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-lg font-semibold mb-4">Edit Profile</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Username</label>
+                    <input id="edit-username" type="text" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3" placeholder="@username">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-2">Bio</label>
+                    <textarea id="edit-bio" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-3" rows="3" placeholder="Tell us about yourself..."></textarea>
+                </div>
+                <div class="flex space-x-3">
+                    <button onclick="saveProfile()" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg">Save</button>
+                    <button onclick="closeEditProfile()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Image Crop Modal -->
+    <div id="crop-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-900 rounded-lg p-6 w-full max-w-2xl mx-4">
+            <h3 class="text-lg font-semibold mb-4">Crop Image</h3>
+            <div class="mb-4">
+                <canvas id="crop-canvas" class="max-w-full border border-gray-600 rounded-lg"></canvas>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="applyCrop()" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg">Apply Crop</button>
+                <button onclick="closeCropModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Trim Modal -->
+    <div id="trim-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50">
+        <div class="bg-gray-900 rounded-lg p-6 w-full max-w-2xl mx-4">
+            <h3 class="text-lg font-semibold mb-4">Trim Video</h3>
+            <div class="mb-4">
+                <video id="trim-video" class="w-full max-h-64 bg-black rounded-lg" controls></video>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">Start Time (seconds)</label>
+                <input id="start-time" type="number" min="0" step="0.1" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-2" value="0">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium mb-2">End Time (seconds)</label>
+                <input id="end-time" type="number" min="0" step="0.1" class="w-full bg-gray-800 border border-gray-600 rounded-lg p-2" value="10">
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="applyTrim()" class="flex-1 bg-pink-600 hover:bg-pink-700 text-white py-2 rounded-lg">Apply Trim</button>
+                <button onclick="closeTrimModal()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded-lg">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="fixed top-20 right-4 bg-green-600 text-white px-4 py-2 rounded-lg hidden notification z-50">
+        <span id="notification-text"></span>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjfNlHwhT4xYb7vVym_SAqMlSuY_TMz0o",
+            authDomain: "orioplay.firebaseapp.com",
+            databaseURL: "https://orioplay-default-rtdb.firebaseio.com",
+            projectId: "orioplay",
+            storageBucket: "orioplay.firebasestorage.app",
+            messagingSenderId: "300811706751",
+            appId: "1:300811706751:web:bdce98b1ba7e11d34d7a4a"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        
+        // Configure Google Auth Provider
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
+        googleProvider.addScope('profile');
+        googleProvider.addScope('email');
+
+        // Global state
+        let currentUser = null;
+        let posts = [];
+        let uploadType = 'video';
+        let currentChatUser = null;
+        let feedFilter = 'all';
+        let currentFile = null;
+        let currentFileBase64 = null;
+        let cropSelection = null;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            auth.onAuthStateChanged(user => {
+                if (user) {
+                    currentUser = user;
+                    showMainApp();
+                    loadUserProfile();
+                    loadFeed();
+                    loadFollowing();
+                    loadChatList();
+                    loadTrendingHashtags();
+                } else {
+                    showAuthScreen();
+                }
+            });
+        });
+
+        // Authentication functions
+        function showAuthScreen() {
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+        }
+
+        async function loginWithGoogle() {
+            try {
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                
+                // Check if user exists in database
+                const userSnapshot = await database.ref(`users/${user.uid}`).once('value');
+                
+                if (!userSnapshot.exists()) {
+                    // Create new user profile
+                    const username = '@' + (user.displayName?.replace(/\s+/g, '').toLowerCase() || user.email.split('@')[0]);
+                    
+                    await database.ref(`users/${user.uid}`).set({
+                        username: username,
+                        email: user.email,
+                        bio: 'New to OrioPlay! 🎬',
+                        profilePic: user.photoURL || generateDefaultProfilePic(),
+                        followers: 0,
+                        following: 0,
+                        posts: 0,
+                        createdAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }
+                
+                showNotification('Welcome to OrioPlay! 🎉');
+            } catch (error) {
+                console.error('Login error:', error);
+                showNotification('Login failed: ' + error.message);
+            }
+        }
+
+        function logoutUser() {
+            auth.signOut();
+        }
+
+        // User profile functions
+        async function loadUserProfile() {
+            if (!currentUser) return;
+            
+            const snapshot = await database.ref(`users/${currentUser.uid}`).once('value');
+            const userData = snapshot.val();
+            
+            if (userData) {
+                document.getElementById('profile-username').textContent = userData.username;
+                document.getElementById('profile-bio').textContent = userData.bio;
+                document.getElementById('profile-pic').src = userData.profilePic;
+                document.getElementById('followers-count').textContent = userData.followers || 0;
+                document.getElementById('following-count').textContent = userData.following || 0;
+                document.getElementById('posts-count').textContent = userData.posts || 0;
+            }
+        }
+
+        function generateDefaultProfilePic() {
+            const colors = ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const emoji = ['👤', '😊', '🎭', '🎨', '🌟', '🚀'][Math.floor(Math.random() * 6)];
+            
+            return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='${randomColor.replace('#', '%23')}'/%3E%3Ctext x='50' y='60' text-anchor='middle' fill='white' font-size='40'%3E${emoji}%3C/text%3E%3C/svg%3E`;
+        }
+
+        // Navigation
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionName).classList.remove('hidden');
+            
+            // Update nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-pink-500');
+                btn.classList.add('text-white');
+            });
+            event.target.classList.remove('text-white');
+            event.target.classList.add('text-pink-500');
+
+            // Load section-specific data
+            if (sectionName === 'reels') {
+                loadReels();
+            } else if (sectionName === 'profile') {
+                loadUserPosts();
+            }
+        }
+
+        // Feed functions
+        function setFeedFilter(filter) {
+            feedFilter = filter;
+            
+            // Update filter buttons
+            document.querySelectorAll('.feed-filter').forEach(btn => {
+                btn.className = 'feed-filter bg-gray-700 text-white px-4 py-2 rounded-lg';
+            });
+            document.getElementById(`filter-${filter}`).className = 'feed-filter bg-pink-600 text-white px-4 py-2 rounded-lg';
+            
+            loadFeed();
+        }
+
+        async function loadFeed() {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="text-center text-gray-400 py-8">Loading posts...</div>';
+            
+            try {
+                const snapshot = await database.ref('posts').orderByChild('timestamp').once('value');
+                const postsData = snapshot.val();
+                
+                if (postsData) {
+                    posts = Object.keys(postsData).map(key => ({
+                        id: key,
+                        ...postsData[key]
+                    })).reverse(); // Show newest first
+                    
+                    // Filter posts based on current filter
+                    let filteredPosts = posts;
+                    if (feedFilter === 'videos') {
+                        filteredPosts = posts.filter(post => post.type === 'video');
+                    } else if (feedFilter === 'images') {
+                        filteredPosts = posts.filter(post => post.type === 'image');
+                    }
+                    
+                    feed.innerHTML = '';
+                    filteredPosts.forEach(post => {
+                        const postElement = createPostElement(post);
+                        feed.appendChild(postElement);
+                    });
+                    
+                    if (filteredPosts.length === 0) {
+                        feed.innerHTML = '<div class="text-center text-gray-400 py-8">No posts found</div>';
+                    }
+                } else {
+                    feed.innerHTML = '<div class="text-center text-gray-400 py-8">No posts yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading feed:', error);
+                feed.innerHTML = '<div class="text-center text-red-400 py-8">Error loading posts</div>';
+            }
+        }
+
+        async function loadReels() {
+            const reelsContainer = document.getElementById('reels-container');
+            reelsContainer.innerHTML = '<div class="text-center text-gray-400 py-8">Loading Orioz...</div>';
+            
+            try {
+                const snapshot = await database.ref('posts').orderByChild('type').equalTo('video').once('value');
+                const videosData = snapshot.val();
+                
+                if (videosData) {
+                    const videos = Object.keys(videosData).map(key => ({
+                        id: key,
+                        ...videosData[key]
+                    })).reverse();
+                    
+                    reelsContainer.innerHTML = '';
+                    videos.forEach(video => {
+                        const reelElement = createReelElement(video);
+                        reelsContainer.appendChild(reelElement);
+                    });
+                } else {
+                    reelsContainer.innerHTML = '<div class="text-center text-gray-400 py-8">No Orioz yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading Orioz:', error);
+                reelsContainer.innerHTML = '<div class="text-center text-red-400 py-8">Error loading Orioz</div>';
+            }
+        }
+
+        function createPostElement(post) {
+            const postDiv = document.createElement('div');
+            postDiv.className = 'bg-gray-900 rounded-lg p-4';
+            
+            const mediaContent = post.type === 'video' 
+                ? `<div class="video-container bg-gray-800 rounded-lg mb-4 relative">
+                     ${post.fileUrl ? 
+                       `<video class="w-full h-full object-cover rounded-lg" controls>
+                          <source src="${post.fileUrl}" type="video/mp4">
+                        </video>` :
+                       `<div class="flex items-center justify-center h-full">
+                          <div class="text-6xl">📹</div>
+                        </div>`
+                     }
+                   </div>`
+                : `<div class="aspect-square bg-gray-800 rounded-lg mb-4 relative">
+                     ${post.fileUrl ? 
+                       `<img src="${post.fileUrl}" class="w-full h-full object-cover rounded-lg" alt="Post image">` :
+                       `<div class="flex items-center justify-center h-full">
+                          <div class="text-6xl">🖼️</div>
+                        </div>`
+                     }
+                   </div>`;
+            
+            postDiv.innerHTML = `
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center space-x-3">
+                        <img src="${post.userProfilePic || generateDefaultProfilePic()}" class="w-10 h-10 rounded-full object-cover">
+                        <div>
+                            <h3 class="font-semibold">${post.username}</h3>
+                            <p class="text-xs text-gray-400">${formatTimestamp(post.timestamp)}</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleFollow('${post.userId}')" class="follow-btn-${post.userId} ${post.isFollowing ? 'bg-gray-700' : 'bg-pink-600'} hover:opacity-80 px-4 py-1 rounded-full text-sm transition-colors">
+                        ${post.isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                </div>
+                
+                ${mediaContent}
+                
+                <p class="mb-4">${formatCaption(post.caption)}</p>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-6">
+                        <button onclick="toggleLike('${post.id}')" class="like-btn-${post.id} flex items-center space-x-2 ${post.isLiked ? 'text-pink-500' : 'text-gray-400'} hover:text-pink-500 transition-colors">
+                            <span>${post.isLiked ? '❤️' : '🤍'}</span>
+                            <span class="like-count-${post.id}">${post.likes || 0}</span>
+                        </button>
+                        <button class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                            <span>💬</span>
+                            <span>${post.comments || 0}</span>
+                        </button>
+                        <button class="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
+                            <span>👁️</span>
+                            <span>${post.views || 0}</span>
+                        </button>
+                    </div>
+                    <button onclick="startChat('${post.userId}', '${post.username}')" class="text-gray-400 hover:text-white transition-colors">💬</button>
+                </div>
+            `;
+            
+            return postDiv;
+        }
+
+        function createReelElement(video) {
+            const reelDiv = document.createElement('div');
+            reelDiv.className = 'reel-item bg-gray-900 rounded-lg relative';
+            
+            reelDiv.innerHTML = `
+                <div class="video-container h-full">
+                    ${video.fileUrl ? 
+                      `<video class="w-full h-full object-cover rounded-lg" loop muted>
+                         <source src="${video.fileUrl}" type="video/mp4">
+                       </video>` :
+                      `<div class="flex items-center justify-center h-full bg-gray-800 rounded-lg">
+                         <div class="text-6xl">📹</div>
+                       </div>`
+                    }
+                    
+                    <div class="video-controls">
+                        <button onclick="toggleLike('${video.id}')" class="control-btn like-btn-${video.id} ${video.isLiked ? 'text-pink-500' : 'text-white'}">
+                            ${video.isLiked ? '❤️' : '🤍'}
+                        </button>
+                        <div class="text-center text-xs">${video.likes || 0}</div>
+                        
+                        <button class="control-btn">💬</button>
+                        <div class="text-center text-xs">${video.comments || 0}</div>
+                        
+                        <button class="control-btn">📤</button>
+                        <div class="text-center text-xs">${video.shares || 0}</div>
+                    </div>
+                    
+                    <div class="absolute bottom-4 left-4 right-20">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <img src="${video.userProfilePic || generateDefaultProfilePic()}" class="w-8 h-8 rounded-full object-cover">
+                            <span class="font-semibold">${video.username}</span>
+                            <button onclick="toggleFollow('${video.userId}')" class="bg-pink-600 hover:bg-pink-700 px-3 py-1 rounded-full text-xs">
+                                Follow
+                            </button>
+                        </div>
+                        <p class="text-sm">${formatCaption(video.caption)}</p>
+                    </div>
+                </div>
+            `;
+            
+            return reelDiv;
+        }
+
+        // Upload functions
+        function setUploadType(type) {
+            uploadType = type;
+            document.getElementById('video-btn').className = type === 'video' ? 'upload-type-btn bg-pink-600 text-white px-4 py-2 rounded-lg' : 'upload-type-btn bg-gray-700 text-white px-4 py-2 rounded-lg';
+            document.getElementById('image-btn').className = type === 'image' ? 'upload-type-btn bg-pink-600 text-white px-4 py-2 rounded-lg' : 'upload-type-btn bg-gray-700 text-white px-4 py-2 rounded-lg';
+        }
+
+        // File handling functions
+        function handleFileSelect(file) {
+            currentFile = file;
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                currentFileBase64 = e.target.result;
+                showFilePreview(file, e.target.result);
+            };
+            
+            reader.readAsDataURL(file);
+        }
+
+        function showFilePreview(file, base64) {
+            const previewContainer = document.getElementById('preview-container');
+            const filePreview = document.getElementById('file-preview');
+            
+            if (file.type.startsWith('video/')) {
+                previewContainer.innerHTML = `
+                    <video class="w-full max-h-64 bg-black rounded-lg" controls>
+                        <source src="${base64}" type="${file.type}">
+                    </video>
+                `;
+                uploadType = 'video';
+                setUploadType('video');
+            } else if (file.type.startsWith('image/')) {
+                previewContainer.innerHTML = `
+                    <img src="${base64}" class="w-full max-h-64 object-contain rounded-lg" alt="Preview">
+                `;
+                uploadType = 'image';
+                setUploadType('image');
+            }
+            
+            filePreview.classList.remove('hidden');
+        }
+
+        function editFile() {
+            if (!currentFile) return;
+            
+            if (currentFile.type.startsWith('image/')) {
+                openCropModal();
+            } else if (currentFile.type.startsWith('video/')) {
+                openTrimModal();
+            }
+        }
+
+        function downloadFile() {
+            if (!currentFileBase64) return;
+            
+            const link = document.createElement('a');
+            link.href = currentFileBase64;
+            link.download = currentFile.name;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showNotification('File downloaded! 📥');
+        }
+
+        // Image cropping functions
+        function openCropModal() {
+            if (!currentFileBase64) return;
+            
+            const modal = document.getElementById('crop-modal');
+            const canvas = document.getElementById('crop-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            const img = new Image();
+            img.onload = function() {
+                canvas.width = Math.min(img.width, 500);
+                canvas.height = Math.min(img.height, 500);
+                
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const x = (canvas.width - img.width * scale) / 2;
+                const y = (canvas.height - img.height * scale) / 2;
+                
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                
+                // Add crop selection overlay
+                addCropSelection(canvas);
+            };
+            img.src = currentFileBase64;
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function addCropSelection(canvas) {
+            let isDrawing = false;
+            let startX, startY;
+            
+            canvas.addEventListener('mousedown', (e) => {
+                isDrawing = true;
+                const rect = canvas.getBoundingClientRect();
+                startX = e.clientX - rect.left;
+                startY = e.clientY - rect.top;
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDrawing) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const currentX = e.clientX - rect.left;
+                const currentY = e.clientY - rect.top;
+                
+                cropSelection = {
+                    x: Math.min(startX, currentX),
+                    y: Math.min(startY, currentY),
+                    width: Math.abs(currentX - startX),
+                    height: Math.abs(currentY - startY)
+                };
+                
+                // Redraw with selection
+                redrawCanvasWithSelection(canvas);
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                isDrawing = false;
+            });
+        }
+
+        function redrawCanvasWithSelection(canvas) {
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+                const x = (canvas.width - img.width * scale) / 2;
+                const y = (canvas.height - img.height * scale) / 2;
+                
+                ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+                
+                if (cropSelection) {
+                    // Draw selection overlay
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.clearRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+                    
+                    // Draw selection border
+                    ctx.strokeStyle = '#ec4899';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+                }
+            };
+            img.src = currentFileBase64;
+        }
+
+        function applyCrop() {
+            if (!cropSelection || !currentFileBase64) return;
+            
+            const canvas = document.getElementById('crop-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Create new canvas for cropped image
+            const croppedCanvas = document.createElement('canvas');
+            const croppedCtx = croppedCanvas.getContext('2d');
+            
+            croppedCanvas.width = cropSelection.width;
+            croppedCanvas.height = cropSelection.height;
+            
+            // Get image data from selection area
+            const imageData = ctx.getImageData(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+            croppedCtx.putImageData(imageData, 0, 0);
+            
+            // Update current file with cropped version
+            currentFileBase64 = croppedCanvas.toDataURL(currentFile.type);
+            showFilePreview(currentFile, currentFileBase64);
+            
+            closeCropModal();
+            showNotification('Image cropped successfully! ✂️');
+        }
+
+        function closeCropModal() {
+            document.getElementById('crop-modal').classList.add('hidden');
+            document.getElementById('crop-modal').classList.remove('flex');
+            cropSelection = null;
+        }
+
+        // Video trimming functions
+        function openTrimModal() {
+            if (!currentFileBase64) return;
+            
+            const modal = document.getElementById('trim-modal');
+            const video = document.getElementById('trim-video');
+            
+            video.src = currentFileBase64;
+            video.addEventListener('loadedmetadata', () => {
+                document.getElementById('end-time').value = video.duration;
+            });
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function applyTrim() {
+            const startTime = parseFloat(document.getElementById('start-time').value);
+            const endTime = parseFloat(document.getElementById('end-time').value);
+            
+            if (startTime >= endTime) {
+                showNotification('Start time must be less than end time!');
+                return;
+            }
+            
+            // Note: Actual video trimming would require more complex processing
+            // For demo purposes, we'll just update the metadata
+            showNotification(`Video trimmed from ${startTime}s to ${endTime}s! ✂️`);
+            closeTrimModal();
+        }
+
+        function closeTrimModal() {
+            document.getElementById('trim-modal').classList.add('hidden');
+            document.getElementById('trim-modal').classList.remove('flex');
+        }
+
+        async function uploadContent() {
+            if (!currentUser) return;
+            
+            const caption = document.getElementById('caption-input').value;
+            
+            if (!caption.trim()) {
+                showNotification('Please add a caption!');
+                return;
+            }
+            
+            if (!currentFileBase64) {
+                showNotification('Please select a file!');
+                return;
+            }
+            
+            try {
+                document.getElementById('upload-btn').disabled = true;
+                
+                // Get user data
+                const userSnapshot = await database.ref(`users/${currentUser.uid}`).once('value');
+                const userData = userSnapshot.val();
+                
+                // Create post in database with base64 data
+                const postRef = database.ref('posts').push();
+                await postRef.set({
+                    userId: currentUser.uid,
+                    username: userData.username,
+                    userProfilePic: userData.profilePic,
+                    caption: caption,
+                    type: uploadType,
+                    fileUrl: currentFileBase64, // Store base64 directly
+                    likes: 0,
+                    comments: 0,
+                    shares: 0,
+                    views: 0,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                // Update user post count
+                await database.ref(`users/${currentUser.uid}/posts`).set((userData.posts || 0) + 1);
+                
+                // Extract and save hashtags
+                const hashtags = extractHashtags(caption);
+                for (const hashtag of hashtags) {
+                    const hashtagRef = database.ref(`hashtags/${hashtag.substring(1)}`);
+                    const hashtagSnapshot = await hashtagRef.once('value');
+                    const count = hashtagSnapshot.val() || 0;
+                    await hashtagRef.set(count + 1);
+                }
+                
+                // Clear form
+                document.getElementById('caption-input').value = '';
+                document.getElementById('file-input').value = '';
+                document.getElementById('file-preview').classList.add('hidden');
+                currentFile = null;
+                currentFileBase64 = null;
+                document.getElementById('upload-btn').disabled = false;
+                
+                loadFeed();
+                loadUserProfile();
+                showNotification('Content uploaded successfully! 🎉');
+                showSection('home');
+                
+            } catch (error) {
+                console.error('Error uploading content:', error);
+                showNotification('Upload failed!');
+                document.getElementById('upload-btn').disabled = false;
+            }
+        }
+
+        // Like and follow functions
+        async function toggleLike(postId) {
+            if (!currentUser) return;
+            
+            try {
+                const likeRef = database.ref(`likes/${postId}/${currentUser.uid}`);
+                const likeSnapshot = await likeRef.once('value');
+                const isLiked = likeSnapshot.exists();
+                
+                if (isLiked) {
+                    // Unlike
+                    await likeRef.remove();
+                    await database.ref(`posts/${postId}/likes`).transaction(likes => (likes || 1) - 1);
+                } else {
+                    // Like
+                    await likeRef.set(true);
+                    await database.ref(`posts/${postId}/likes`).transaction(likes => (likes || 0) + 1);
+                }
+                
+                // Update UI
+                const likeBtn = document.querySelector(`.like-btn-${postId} span:first-child`);
+                const likeCount = document.querySelector(`.like-count-${postId}`);
+                const likeBtnContainer = document.querySelector(`.like-btn-${postId}`);
+                
+                if (likeBtn && likeCount && likeBtnContainer) {
+                    likeBtn.textContent = !isLiked ? '❤️' : '🤍';
+                    likeCount.textContent = parseInt(likeCount.textContent) + (!isLiked ? 1 : -1);
+                    likeBtnContainer.className = `like-btn-${postId} flex items-center space-x-2 ${!isLiked ? 'text-pink-500' : 'text-gray-400'} hover:text-pink-500 transition-colors`;
+                }
+                
+            } catch (error) {
+                console.error('Error toggling like:', error);
+            }
+        }
+
+        async function toggleFollow(userId) {
+            if (!currentUser || userId === currentUser.uid) return;
+            
+            try {
+                const followRef = database.ref(`follows/${currentUser.uid}/${userId}`);
+                const followSnapshot = await followRef.once('value');
+                const isFollowing = followSnapshot.exists();
+                
+                if (isFollowing) {
+                    // Unfollow
+                    await followRef.remove();
+                    await database.ref(`followers/${userId}/${currentUser.uid}`).remove();
+                    await database.ref(`users/${currentUser.uid}/following`).transaction(count => (count || 1) - 1);
+                    await database.ref(`users/${userId}/followers`).transaction(count => (count || 1) - 1);
+                } else {
+                    // Follow
+                    await followRef.set(true);
+                    await database.ref(`followers/${userId}/${currentUser.uid}`).set(true);
+                    await database.ref(`users/${currentUser.uid}/following`).transaction(count => (count || 0) + 1);
+                    await database.ref(`users/${userId}/followers`).transaction(count => (count || 0) + 1);
+                }
+                
+                loadUserProfile();
+                loadFollowing();
+                showNotification(!isFollowing ? 'Now following user!' : 'Unfollowed user');
+                
+            } catch (error) {
+                console.error('Error toggling follow:', error);
+            }
+        }
+
+        // Profile functions
+        async function loadUserPosts() {
+            if (!currentUser) return;
+            
+            const userPostsContainer = document.getElementById('user-posts');
+            userPostsContainer.innerHTML = '<div class="text-center text-gray-400 py-8 col-span-full">Loading posts...</div>';
+            
+            try {
+                const snapshot = await database.ref('posts').orderByChild('userId').equalTo(currentUser.uid).once('value');
+                const postsData = snapshot.val();
+                
+                if (postsData) {
+                    const userPosts = Object.keys(postsData).map(key => ({
+                        id: key,
+                        ...postsData[key]
+                    })).reverse();
+                    
+                    userPostsContainer.innerHTML = '';
+                    userPosts.forEach(post => {
+                        const postElement = document.createElement('div');
+                        postElement.className = 'aspect-square bg-gray-800 rounded-lg relative cursor-pointer hover:opacity-80 transition-opacity';
+                        
+                        postElement.innerHTML = `
+                            ${post.fileUrl ? 
+                              (post.type === 'video' ? 
+                                `<video class="w-full h-full object-cover rounded-lg">
+                                   <source src="${post.fileUrl}" type="video/mp4">
+                                 </video>
+                                 <div class="absolute top-2 right-2 bg-black/50 rounded px-2 py-1 text-xs">📹</div>` :
+                                `<img src="${post.fileUrl}" class="w-full h-full object-cover rounded-lg" alt="Post">`) :
+                              `<div class="flex items-center justify-center h-full">
+                                 <div class="text-4xl">${post.type === 'video' ? '📹' : '🖼️'}</div>
+                               </div>`
+                            }
+                            <div class="absolute bottom-2 left-2 right-2">
+                                <div class="flex items-center justify-between text-white text-xs">
+                                    <span>❤️ ${post.likes || 0}</span>
+                                    <span>👁️ ${post.views || 0}</span>
+                                </div>
+                            </div>
+                        `;
+                        
+                        userPostsContainer.appendChild(postElement);
+                    });
+                } else {
+                    userPostsContainer.innerHTML = '<div class="text-center text-gray-400 py-8 col-span-full">No posts yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading user posts:', error);
+                userPostsContainer.innerHTML = '<div class="text-center text-red-400 py-8 col-span-full">Error loading posts</div>';
+            }
+        }
+
+        function editProfile() {
+            const username = document.getElementById('profile-username').textContent;
+            const bio = document.getElementById('profile-bio').textContent;
+            
+            document.getElementById('edit-username').value = username;
+            document.getElementById('edit-bio').value = bio;
+            document.getElementById('edit-profile-modal').classList.remove('hidden');
+            document.getElementById('edit-profile-modal').classList.add('flex');
+        }
+
+        function closeEditProfile() {
+            document.getElementById('edit-profile-modal').classList.add('hidden');
+            document.getElementById('edit-profile-modal').classList.remove('flex');
+        }
+
+        async function saveProfile() {
+            if (!currentUser) return;
+            
+            const newUsername = document.getElementById('edit-username').value;
+            const newBio = document.getElementById('edit-bio').value;
+            
+            try {
+                const updates = {};
+                if (newUsername.trim()) {
+                    updates.username = newUsername.startsWith('@') ? newUsername : '@' + newUsername;
+                }
+                if (newBio.trim()) {
+                    updates.bio = newBio;
+                }
+                
+                await database.ref(`users/${currentUser.uid}`).update(updates);
+                
+                loadUserProfile();
+                closeEditProfile();
+                showNotification('Profile updated successfully! ✨');
+            } catch (error) {
+                console.error('Error updating profile:', error);
+                showNotification('Error updating profile');
+            }
+        }
+
+        async function changeProfilePic() {
+            if (!currentUser) return;
+            
+            const newProfilePic = generateDefaultProfilePic();
+            
+            try {
+                await database.ref(`users/${currentUser.uid}/profilePic`).set(newProfilePic);
+                loadUserProfile();
+                showNotification('Profile picture updated! 📸');
+            } catch (error) {
+                console.error('Error updating profile picture:', error);
+                showNotification('Error updating profile picture');
+            }
+        }
+
+        // Chat functions
+        async function loadFollowing() {
+            if (!currentUser) return;
+            
+            const followingList = document.getElementById('following-list');
+            followingList.innerHTML = '<div class="text-gray-400 text-sm">Loading...</div>';
+            
+            try {
+                const followsSnapshot = await database.ref(`follows/${currentUser.uid}`).once('value');
+                const follows = followsSnapshot.val();
+                
+                if (follows) {
+                    followingList.innerHTML = '';
+                    const followingUserIds = Object.keys(follows);
+                    
+                    for (const userId of followingUserIds) {
+                        const userSnapshot = await database.ref(`users/${userId}`).once('value');
+                        const userData = userSnapshot.val();
+                        
+                        if (userData) {
+                            const userDiv = document.createElement('div');
+                            userDiv.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-800 p-2 rounded-lg';
+                            userDiv.onclick = () => startChat(userId, userData.username);
+                            
+                            userDiv.innerHTML = `
+                                <img src="${userData.profilePic}" class="w-8 h-8 rounded-full object-cover">
+                                <span class="text-sm">${userData.username}</span>
+                            `;
+                            
+                            followingList.appendChild(userDiv);
+                        }
+                    }
+                } else {
+                    followingList.innerHTML = '<div class="text-gray-400 text-sm">No following yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading following:', error);
+                followingList.innerHTML = '<div class="text-red-400 text-sm">Error loading</div>';
+            }
+        }
+
+        async function loadChatList() {
+            if (!currentUser) return;
+            
+            const chatList = document.getElementById('chat-list');
+            chatList.innerHTML = '<div class="text-gray-400 text-sm">Loading...</div>';
+            
+            try {
+                const chatsSnapshot = await database.ref(`chats/${currentUser.uid}`).once('value');
+                const chats = chatsSnapshot.val();
+                
+                if (chats) {
+                    chatList.innerHTML = '';
+                    const chatUserIds = Object.keys(chats);
+                    
+                    for (const userId of chatUserIds) {
+                        const userSnapshot = await database.ref(`users/${userId}`).once('value');
+                        const userData = userSnapshot.val();
+                        
+                        if (userData) {
+                            const lastMessage = chats[userId].lastMessage || 'No messages yet';
+                            const timestamp = chats[userId].lastTimestamp || Date.now();
+                            
+                            const chatDiv = document.createElement('div');
+                            chatDiv.className = 'flex items-center space-x-3 cursor-pointer hover:bg-gray-800 p-3 rounded-lg';
+                            chatDiv.onclick = () => openChat(userId, userData.username);
+                            
+                            chatDiv.innerHTML = `
+                                <img src="${userData.profilePic}" class="w-10 h-10 rounded-full object-cover">
+                                <div class="flex-1">
+                                    <div class="font-semibold text-sm">${userData.username}</div>
+                                    <div class="text-gray-400 text-xs truncate">${lastMessage}</div>
+                                </div>
+                                <div class="text-gray-400 text-xs">${formatTimestamp(timestamp)}</div>
+                            `;
+                            
+                            chatList.appendChild(chatDiv);
+                        }
+                    }
+                } else {
+                    chatList.innerHTML = '<div class="text-gray-400 text-sm">No conversations yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading chat list:', error);
+                chatList.innerHTML = '<div class="text-red-400 text-sm">Error loading</div>';
+            }
+        }
+
+        function startChat(userId, username) {
+            showSection('chat');
+            openChat(userId, username);
+        }
+
+        function openChat(userId, username) {
+            currentChatUser = userId;
+            document.getElementById('chat-header').textContent = username;
+            document.getElementById('message-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+            
+            loadChatMessages(userId);
+        }
+
+        async function loadChatMessages(userId) {
+            if (!currentUser) return;
+            
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.innerHTML = '<div class="text-center text-gray-400">Loading messages...</div>';
+            
+            try {
+                const messagesSnapshot = await database.ref(`messages/${currentUser.uid}_${userId}`).orderByChild('timestamp').once('value');
+                const messages = messagesSnapshot.val();
+                
+                messagesContainer.innerHTML = '';
+                
+                if (messages) {
+                    Object.values(messages).forEach(msg => {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = `chat-bubble mb-3 ${msg.senderId === currentUser.uid ? 'text-right' : 'text-left'}`;
+                        
+                        messageDiv.innerHTML = `
+                            <div class="inline-block max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${msg.senderId === currentUser.uid ? 'bg-pink-600 text-white' : 'bg-gray-700 text-white'}">
+                                <p>${msg.message}</p>
+                                <p class="text-xs opacity-70 mt-1">${formatTimestamp(msg.timestamp)}</p>
+                            </div>
+                        `;
+                        
+                        messagesContainer.appendChild(messageDiv);
+                    });
+                } else {
+                    messagesContainer.innerHTML = '<div class="text-center text-gray-400">No messages yet</div>';
+                }
+                
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                messagesContainer.innerHTML = '<div class="text-center text-red-400">Error loading messages</div>';
+            }
+        }
+
+        async function sendMessage() {
+            if (!currentUser || !currentChatUser) return;
+            
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            try {
+                const messageData = {
+                    senderId: currentUser.uid,
+                    receiverId: currentChatUser,
+                    message: message,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+                
+                // Save message
+                await database.ref(`messages/${currentUser.uid}_${currentChatUser}`).push(messageData);
+                await database.ref(`messages/${currentChatUser}_${currentUser.uid}`).push(messageData);
+                
+                // Update chat list
+                await database.ref(`chats/${currentUser.uid}/${currentChatUser}`).update({
+                    lastMessage: message,
+                    lastTimestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                await database.ref(`chats/${currentChatUser}/${currentUser.uid}`).update({
+                    lastMessage: message,
+                    lastTimestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                messageInput.value = '';
+                loadChatMessages(currentChatUser);
+                loadChatList();
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showNotification('Error sending message');
+            }
+        }
+
+        // Trending hashtags
+        async function loadTrendingHashtags() {
+            const trendingContainer = document.getElementById('trending-hashtags');
+            trendingContainer.innerHTML = '<div class="text-gray-400 text-sm">Loading trends...</div>';
+            
+            try {
+                const hashtagsSnapshot = await database.ref('hashtags').orderByValue().limitToLast(10).once('value');
+                const hashtags = hashtagsSnapshot.val();
+                
+                if (hashtags) {
+                    trendingContainer.innerHTML = '';
+                    Object.keys(hashtags).reverse().forEach(hashtag => {
+                        const hashtagDiv = document.createElement('div');
+                        hashtagDiv.className = 'text-pink-500 cursor-pointer hover:text-pink-400';
+                        hashtagDiv.textContent = `#${hashtag}`;
+                        hashtagDiv.onclick = () => searchHashtag(hashtag);
+                        trendingContainer.appendChild(hashtagDiv);
+                    });
+                } else {
+                    trendingContainer.innerHTML = '<div class="text-gray-400 text-sm">No trends yet</div>';
+                }
+            } catch (error) {
+                console.error('Error loading trending hashtags:', error);
+                trendingContainer.innerHTML = '<div class="text-red-400 text-sm">Error loading</div>';
+            }
+        }
+
+        function searchHashtag(hashtag) {
+            // Filter feed by hashtag
+            const filteredPosts = posts.filter(post => 
+                post.caption && post.caption.toLowerCase().includes(`#${hashtag.toLowerCase()}`)
+            );
+            
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '';
+            
+            if (filteredPosts.length > 0) {
+                filteredPosts.forEach(post => {
+                    const postElement = createPostElement(post);
+                    feed.appendChild(postElement);
+                });
+            } else {
+                feed.innerHTML = `<div class="text-center text-gray-400 py-8">No posts found for #${hashtag}</div>`;
+            }
+            
+            showSection('home');
+        }
+
+        // Utility functions
+        function formatTimestamp(timestamp) {
+            if (!timestamp) return 'now';
+            
+            const now = Date.now();
+            const diff = now - timestamp;
+            
+            if (diff < 60000) return 'now';
+            if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+            if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+            return Math.floor(diff / 86400000) + 'd ago';
+        }
+
+        function formatCaption(caption) {
+            if (!caption) return '';
+            
+            // Format hashtags
+            caption = caption.replace(/#(\w+)/g, '<span class="text-pink-500">#$1</span>');
+            
+            // Format mentions
+            caption = caption.replace(/@(\w+)/g, '<span class="text-blue-400">@$1</span>');
+            
+            return caption;
+        }
+
+        function extractHashtags(text) {
+            const hashtagRegex = /#\w+/g;
+            return text.match(hashtagRegex) || [];
+        }
+
+        function showNotification(message) {
+            const notification = document.getElementById('notification');
+            const notificationText = document.getElementById('notification-text');
+            
+            notificationText.textContent = message;
+            notification.classList.remove('hidden');
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Enter key for sending messages
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // File input handling
+        document.getElementById('file-input').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFileSelect(file);
+                showNotification(`${file.name} selected for upload!`);
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979447424170836f',t:'MTc1Njg5MjM1MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
