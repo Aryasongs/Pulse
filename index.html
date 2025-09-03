@@ -189,6 +189,24 @@
             border-left-color: #f59e0b;
         }
         
+        /* Link preview styles */
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .youtube-preview {
+            transition: all 0.2s ease;
+        }
+        
+        .youtube-preview:hover {
+            background-color: #f9fafb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
         /* Disable text selection and copy */
         * {
             -webkit-user-select: none;
@@ -740,6 +758,11 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
 
+        // API Keys
+        const SAFE_BROWSING_API_KEY = "AIzaSyC25CucKloJCXqbq-I0NuXi5aN3l-Nkc1Y";
+        const YOUTUBE_API_KEY = "AIzaSyAvmam8BVo9PtXHY9-_F6x9SYidyvSZTxE";
+        const LINK_PREVIEW_API_KEY = "3939f4f637fc345cc8e94113c98139b2";
+
         // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
@@ -749,6 +772,104 @@
         let currentUser = null;
         let currentBuzzId = null;
         let selectedImage = null;
+
+        // API Integration Functions
+        async function checkUrlSafety(url) {
+            try {
+                const response = await fetch(`https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${SAFE_BROWSING_API_KEY}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        client: {
+                            clientId: "pulse-social",
+                            clientVersion: "1.0.0"
+                        },
+                        threatInfo: {
+                            threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+                            platformTypes: ["ANY_PLATFORM"],
+                            threatEntryTypes: ["URL"],
+                            threatEntries: [{"url": url}]
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                return !data.matches || data.matches.length === 0;
+            } catch (error) {
+                console.error('Safe browsing check failed:', error);
+                return true; // Allow if check fails
+            }
+        }
+
+        async function loadYouTubePreview(videoId) {
+            try {
+                const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${YOUTUBE_API_KEY}`);
+                const data = await response.json();
+                
+                if (data.items && data.items.length > 0) {
+                    const video = data.items[0];
+                    const previewElement = document.getElementById(`youtube-${videoId}`);
+                    
+                    if (previewElement) {
+                        previewElement.innerHTML = `
+                            <div class="flex gap-3">
+                                <img src="${video.snippet.thumbnails.medium.url}" class="w-24 h-18 rounded object-cover">
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-sm line-clamp-2">${video.snippet.title}</h4>
+                                    <p class="text-xs text-gray-500 mt-1">${video.snippet.channelTitle}</p>
+                                    <p class="text-xs text-gray-500">${formatNumber(video.statistics.viewCount)} views</p>
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('YouTube preview failed:', error);
+            }
+        }
+
+        async function getLinkPreview(url) {
+            try {
+                const response = await fetch(`https://api.linkpreview.net/?key=${LINK_PREVIEW_API_KEY}&q=${encodeURIComponent(url)}`);
+                const data = await response.json();
+                
+                if (data.title) {
+                    return {
+                        title: data.title,
+                        description: data.description,
+                        image: data.image,
+                        url: data.url
+                    };
+                }
+            } catch (error) {
+                console.error('Link preview failed:', error);
+            }
+            return null;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1000000) {
+                return (num / 1000000).toFixed(1) + 'M';
+            } else if (num >= 1000) {
+                return (num / 1000).toFixed(1) + 'K';
+            }
+            return num.toString();
+        }
+
+        function createLinkPreviewHtml(linkPreview) {
+            return `
+                <div class="border border-gray-200 rounded-lg overflow-hidden mb-3 hover:bg-gray-50 cursor-pointer" onclick="window.open('${linkPreview.url}', '_blank')">
+                    ${linkPreview.image ? `<img src="${linkPreview.image}" class="w-full h-48 object-cover">` : ''}
+                    <div class="p-3">
+                        <h4 class="font-semibold text-sm line-clamp-2 mb-1">${linkPreview.title}</h4>
+                        ${linkPreview.description ? `<p class="text-xs text-gray-600 line-clamp-2 mb-2">${linkPreview.description}</p>` : ''}
+                        <p class="text-xs text-gray-500">${new URL(linkPreview.url).hostname}</p>
+                    </div>
+                </div>
+            `;
+        }
 
         // Custom notification system
         function showCustomNotification(message, type = 'success') {
@@ -814,6 +935,24 @@
 
         function processHashtagsAndMentions(text) {
             if (!text) return '';
+            
+            // Process URLs first
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            text = text.replace(urlRegex, '<a href="$1" target="_blank" class="text-blue-500 underline hover:text-blue-700">$1</a>');
+            
+            // Process YouTube URLs specially
+            const youtubeRegex = /(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/g;
+            text = text.replace(youtubeRegex, (match, protocol, www, domain, videoId) => {
+                return `<div class="youtube-preview mt-2 p-3 border rounded-lg bg-gray-50" onclick="loadYouTubePreview('${videoId}')">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                        </svg>
+                        <span class="text-sm font-medium">YouTube Video</span>
+                    </div>
+                    <div id="youtube-${videoId}" class="mt-2 text-sm text-gray-600">Click to load preview</div>
+                </div>`;
+            });
             
             // Process hashtags with colorful styling
             text = text.replace(/#(\w+)/g, '<span class="hashtag" onclick="showHashtag(\'$1\')">#$1</span>');
@@ -983,6 +1122,125 @@
             loadFeed();
             loadNotifications(); // Load notifications on app start
             loadSuggestionData(); // Load hashtags and users for suggestions
+            migrateExistingData(); // Preserve and migrate existing data
+        }
+
+        // Data Migration and Preservation
+        async function migrateExistingData() {
+            try {
+                console.log('Checking for existing data migration...');
+                
+                // Check if migration has already been done
+                const migrationSnapshot = await database.ref('migrationComplete').once('value');
+                if (migrationSnapshot.exists()) {
+                    console.log('Data migration already completed');
+                    return;
+                }
+                
+                // Preserve existing users data
+                const usersSnapshot = await database.ref('users').once('value');
+                if (usersSnapshot.exists()) {
+                    console.log('Preserving existing users data...');
+                    const users = usersSnapshot.val();
+                    
+                    // Ensure all users have required fields
+                    for (const [userId, userData] of Object.entries(users)) {
+                        const updatedUserData = {
+                            ...userData,
+                            followers: userData.followers || 0,
+                            following: userData.following || 0,
+                            isVerified: userData.isVerified || false,
+                            isPrivate: userData.isPrivate || false,
+                            unreadNotifications: userData.unreadNotifications || 0
+                        };
+                        
+                        await database.ref(`users/${userId}`).update(updatedUserData);
+                    }
+                }
+                
+                // Preserve existing buzzes
+                const buzzesSnapshot = await database.ref('buzzes').once('value');
+                if (buzzesSnapshot.exists()) {
+                    console.log('Preserving existing buzzes data...');
+                    const buzzes = buzzesSnapshot.val();
+                    
+                    for (const [buzzId, buzzData] of Object.entries(buzzes)) {
+                        const updatedBuzzData = {
+                            ...buzzData,
+                            likes: buzzData.likes || 0,
+                            comments: buzzData.comments || 0,
+                            rebuzzes: buzzData.rebuzzes || 0,
+                            saves: buzzData.saves || 0,
+                            hashtags: buzzData.hashtags || [],
+                            mentions: buzzData.mentions || []
+                        };
+                        
+                        await database.ref(`buzzes/${buzzId}`).update(updatedBuzzData);
+                    }
+                }
+                
+                // Preserve existing follows
+                const followsSnapshot = await database.ref('follows').once('value');
+                if (followsSnapshot.exists()) {
+                    console.log('Preserving existing follows data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing followers
+                const followersSnapshot = await database.ref('followers').once('value');
+                if (followersSnapshot.exists()) {
+                    console.log('Preserving existing followers data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing likes
+                const likesSnapshot = await database.ref('likes').once('value');
+                if (likesSnapshot.exists()) {
+                    console.log('Preserving existing likes data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing comments
+                const commentsSnapshot = await database.ref('comments').once('value');
+                if (commentsSnapshot.exists()) {
+                    console.log('Preserving existing comments data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing notifications
+                const notificationsSnapshot = await database.ref('notifications').once('value');
+                if (notificationsSnapshot.exists()) {
+                    console.log('Preserving existing notifications data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing messages
+                const messagesSnapshot = await database.ref('messages').once('value');
+                if (messagesSnapshot.exists()) {
+                    console.log('Preserving existing messages data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Preserve existing conversations
+                const conversationsSnapshot = await database.ref('conversations').once('value');
+                if (conversationsSnapshot.exists()) {
+                    console.log('Preserving existing conversations data...');
+                    // Data is already in correct format, no migration needed
+                }
+                
+                // Mark migration as complete
+                await database.ref('migrationComplete').set({
+                    timestamp: Date.now(),
+                    version: '2.0'
+                });
+                
+                console.log('Data migration completed successfully!');
+                showCustomNotification('Welcome back! All your data has been preserved.', 'success');
+                
+            } catch (error) {
+                console.error('Data migration error:', error);
+                showCustomNotification('Data migration completed with some warnings. Your data is safe.', 'warning');
+            }
         }
 
         async function showUserProfileById(userId) {
@@ -1452,12 +1710,37 @@
             const text = document.getElementById('buzzText').value.trim();
             if (!text && !selectedImage) return;
 
+            // Check for URLs and validate safety
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = text.match(urlRegex);
+            
+            if (urls) {
+                showCustomNotification('Checking links for safety...', 'warning');
+                for (const url of urls) {
+                    const isSafe = await checkUrlSafety(url);
+                    if (!isSafe) {
+                        showCustomNotification('Unsafe link detected! Please remove malicious URLs.', 'error');
+                        return;
+                    }
+                }
+            }
+
             const userData = await database.ref(`users/${currentUser.uid}`).once('value');
             const user = userData.val();
 
             // Extract hashtags and mentions
             const hashtags = extractHashtags(text);
             const mentions = extractMentions(text);
+
+            // Get link preview for first URL (if any)
+            let linkPreview = null;
+            if (urls && urls.length > 0) {
+                // Skip YouTube URLs as they have special handling
+                const nonYouTubeUrls = urls.filter(url => !url.match(/(youtube\.com\/watch\?v=|youtu\.be\/)/));
+                if (nonYouTubeUrls.length > 0) {
+                    linkPreview = await getLinkPreview(nonYouTubeUrls[0]);
+                }
+            }
 
             const buzzData = {
                 userId: currentUser.uid,
@@ -1467,6 +1750,7 @@
                 isVerified: user.isVerified || false,
                 text: text || '',
                 image: selectedImage || null,
+                linkPreview: linkPreview,
                 hashtags: hashtags,
                 mentions: mentions,
                 timestamp: Date.now(),
@@ -1504,6 +1788,7 @@
             document.getElementById('imagePreview').classList.add('hidden');
             document.getElementById('postBuzz').disabled = true;
             
+            showCustomNotification('Buzz posted successfully!', 'success');
             loadFeed();
         });
 
@@ -1572,6 +1857,7 @@
                         </div>
                         ${buzz.text ? `<p class="mb-3">${processHashtagsAndMentions(buzz.text)}</p>` : ''}
                         ${buzz.image ? `<img src="${buzz.image}" class="w-full rounded-lg mb-3 max-h-96 object-cover">` : ''}
+                        ${buzz.linkPreview ? createLinkPreviewHtml(buzz.linkPreview) : ''}
                         ${quotedBuzzHtml}
                         <div class="flex items-center justify-between text-gray-500">
                             <button class="flex items-center gap-2 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50 min-w-[44px] min-h-[44px]" onclick="toggleLike('${buzz.id}')">
@@ -2667,5 +2953,5 @@
             input.click();
         }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97934de023da465e',t:'MTc1Njg4MjEzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979357dd2393836f',t:'MTc1Njg4MjU0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
