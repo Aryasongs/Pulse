@@ -1106,10 +1106,110 @@
         }
 
         // Ad interaction functions
-        function hideAd(adId) {
+        function hideAd(adId, event) {
+            event.stopPropagation();
+            // Show close options modal
+            showAdCloseOptions(adId);
+        }
+
+        function showAdCloseOptions(adId) {
+            const modal = document.createElement('div');
+            modal.id = 'adCloseModal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-[70] flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg max-w-sm w-full p-6 shadow-2xl">
+                    <div class="text-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Close Ad</h3>
+                        <p class="text-sm text-gray-600">Choose an option:</p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="closeAdModal()" class="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-4 rounded-lg transition-colors font-medium">
+                            ← Back
+                        </button>
+                        <button onclick="showAdReasons('${adId}')" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition-colors font-medium">
+                            Why am I seeing this ad?
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function showAdReasons(adId) {
+            const modal = document.getElementById('adCloseModal');
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg max-w-sm w-full p-6 shadow-2xl">
+                    <div class="text-center mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Why this ad?</h3>
+                        <p class="text-sm text-gray-600">Select a reason to close this ad:</p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <button onclick="closeAdWithReason('${adId}', 'not-interested')" class="w-full text-left bg-gray-50 hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg transition-colors">
+                            <div class="font-medium">Not interested</div>
+                            <div class="text-xs text-gray-600">This ad doesn't interest me</div>
+                        </button>
+                        
+                        <button onclick="closeAdWithReason('${adId}', 'irrelevant')" class="w-full text-left bg-gray-50 hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg transition-colors">
+                            <div class="font-medium">Irrelevant</div>
+                            <div class="text-xs text-gray-600">This ad is not relevant to me</div>
+                        </button>
+                        
+                        <button onclick="closeAdWithReason('${adId}', 'repetitive')" class="w-full text-left bg-gray-50 hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg transition-colors">
+                            <div class="font-medium">Repetitive</div>
+                            <div class="text-xs text-gray-600">I've seen this ad too many times</div>
+                        </button>
+                        
+                        <button onclick="closeAdWithReason('${adId}', 'inappropriate')" class="w-full text-left bg-gray-50 hover:bg-gray-100 text-gray-800 py-3 px-4 rounded-lg transition-colors">
+                            <div class="font-medium">Inappropriate</div>
+                            <div class="text-xs text-gray-600">This ad is inappropriate</div>
+                        </button>
+                        
+                        <button onclick="closeAdModal()" class="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg transition-colors text-sm">
+                            ← Back
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function closeAdWithReason(adId, reason) {
             // Hide the ad element
-            event.target.closest('.pix-card').parentElement.style.display = 'none';
-            showSuccess('Ad hidden');
+            const adElements = document.querySelectorAll(`[data-ad-id="${adId}"]`);
+            adElements.forEach(element => {
+                element.style.display = 'none';
+            });
+            
+            // Close modal
+            closeAdModal();
+            
+            // Show success message based on reason
+            const messages = {
+                'not-interested': 'Ad hidden. We\'ll show you fewer ads like this.',
+                'irrelevant': 'Ad hidden. We\'ll improve your ad experience.',
+                'repetitive': 'Ad hidden. We\'ll reduce similar ads.',
+                'inappropriate': 'Ad reported and hidden. Thank you for your feedback.'
+            };
+            
+            showSuccess(messages[reason] || 'Ad hidden');
+            
+            // Track ad feedback (optional)
+            if (currentUser) {
+                database.ref(`adFeedback/${currentUser.uid}/${adId}`).set({
+                    reason: reason,
+                    timestamp: Date.now()
+                }).catch(error => {
+                    console.error('Failed to save ad feedback:', error);
+                });
+            }
+        }
+
+        function closeAdModal() {
+            const modal = document.getElementById('adCloseModal');
+            if (modal) {
+                modal.remove();
+            }
         }
 
         function openAdLink(link) {
@@ -2446,11 +2546,12 @@
         function createAdElement(ad) {
             const div = document.createElement('div');
             div.className = 'fade-in';
+            div.setAttribute('data-ad-id', ad.id);
             
             div.innerHTML = `
                 <div class="pix-card bg-gradient-to-br from-blue-50 to-purple-50 shadow-sm hover:shadow-lg relative group border-2 border-blue-200">
                     <div class="absolute top-2 right-2 z-10">
-                        <button onclick="hideAd('${ad.id}')" class="bg-white bg-opacity-80 hover:bg-opacity-100 p-1 rounded-full text-gray-600 hover:text-gray-800 transition-all shadow-sm">
+                        <button onclick="hideAd('${ad.id}', event)" class="bg-white bg-opacity-80 hover:bg-opacity-100 p-1 rounded-full text-gray-600 hover:text-gray-800 transition-all shadow-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                             </svg>
@@ -3328,6 +3429,7 @@
                 if (e.target.id === 'warningDialog') closeWarningDialog();
                 if (e.target.id === 'supportDialog') closeSupportDialog();
                 if (e.target.id === 'searchModal') closeSearchModal();
+                if (e.target.id === 'adCloseModal') closeAdModal();
                 if (!e.target.closest('#profileMenu') && !e.target.closest('button[onclick="toggleProfileMenu()"]')) {
                     document.getElementById('profileMenu').classList.add('hidden');
                 }
@@ -3350,5 +3452,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e28bea5af45af',t:'MTc1Njk5NTk1OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e2f80d1fb6470',t:'MTc1Njk5NjIzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
