@@ -1975,6 +1975,49 @@
             }
         }
 
+        // Content filtering functions
+        function shouldBlurContent(image) {
+            const sensitiveTerms = ['sex', 'naked', 'nude', 'porn', 'adult', 'xxx', 'nsfw', 'erotic', 'sexual'];
+            
+            const title = (image.title || '').toLowerCase();
+            const description = (image.description || '').toLowerCase();
+            
+            return sensitiveTerms.some(term => 
+                title.includes(term) || description.includes(term)
+            );
+        }
+        
+        function unblurImage(imageId) {
+            try {
+                // Remove blur from image
+                const imgElement = document.getElementById(`img-${imageId}`);
+                if (imgElement) {
+                    imgElement.classList.remove('blur-lg');
+                }
+                
+                // Remove blur from title and description
+                const titleElement = document.getElementById(`title-${imageId}`);
+                if (titleElement) {
+                    titleElement.classList.remove('blur-sm');
+                }
+                
+                const descElement = document.getElementById(`desc-${imageId}`);
+                if (descElement) {
+                    descElement.classList.remove('blur-sm');
+                }
+                
+                // Hide the unblur button overlay
+                const unblurOverlay = imgElement?.parentElement.querySelector('.absolute.inset-0.flex.items-center');
+                if (unblurOverlay) {
+                    unblurOverlay.style.display = 'none';
+                }
+                
+                showSuccess('Content revealed');
+            } catch (error) {
+                console.error('Failed to unblur content:', error);
+            }
+        }
+
         // Hashtag formatting function
         function formatHashtags(text) {
             if (!text) return '';
@@ -2036,11 +2079,25 @@
             const isMonetized = (image.views || 0) >= 1000;
             const isSaved = currentUser && savedImages.includes(image.id);
             const isOwner = currentUser && image.authorId === currentUser.uid;
+            const isBlurred = shouldBlurContent(image);
             
             div.innerHTML = `
                 <div class="pix-card bg-white shadow-sm hover:shadow-lg cursor-pointer relative group" onclick="openImageModal('${image.id}')">
                     <div class="relative">
-                        <img src="${image.url}" alt="Pix" loading="lazy" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOUM5Q0EzIiBmb250LXNpemU9IjE0Ij5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K';">
+                        <img src="${image.url}" alt="Pix" loading="lazy" class="${isBlurred ? 'blur-lg' : ''}" id="img-${image.id}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOUM5Q0EzIiBmb250LXNpemU9IjE0Ij5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K';">
+                        
+                        ${isBlurred ? `
+                        <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20 backdrop-blur-sm">
+                            <button onclick="event.stopPropagation(); unblurImage('${image.id}')" class="bg-white bg-opacity-90 hover:bg-opacity-100 px-4 py-2 rounded-full text-sm font-medium text-gray-800 shadow-lg transition-all">
+                                <svg class="w-4 h-4 inline mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+                                </svg>
+                                Show Content
+                            </button>
+                        </div>
+                        ` : ''}
+                        
                         <div class="hover-overlay absolute inset-0 flex items-end p-3">
                             <div class="flex justify-between items-end w-full">
                                 <div class="flex space-x-2">
@@ -2058,10 +2115,11 @@
                         </div>
                     </div>
                     <div class="p-3">
-                        ${image.description ? `<p class="text-sm text-gray-700 mb-2 line-clamp-2">${formatHashtags(image.description)}</p>` : ''}
+                        ${image.description ? `<p class="text-sm text-gray-700 mb-2 line-clamp-2 ${isBlurred ? 'blur-sm' : ''}" id="desc-${image.id}">${formatHashtags(image.description)}</p>` : ''}
+                        ${image.title ? `<p class="text-sm font-medium text-gray-800 mb-1 ${isBlurred ? 'blur-sm' : ''}" id="title-${image.id}">${image.title}</p>` : ''}
                         <div class="flex items-center justify-between">
                             <div class="flex-1">
-                                <!-- Author info removed for privacy -->
+                                <!-- Author info completely removed for privacy -->
                             </div>
                             ${isOwner ? `<div class="text-xs text-gray-500">
                                 <span>👁️ ${(image.views || 0).toLocaleString()}</span>
@@ -2366,13 +2424,12 @@
                 // Update modal content
                 document.getElementById('modalImage').src = image.url;
                 document.getElementById('modalViews').textContent = `👁️ ${((image.views || 0) + 1).toLocaleString()} views`;
-                document.getElementById('modalAuthor').textContent = image.authorName || 'Anonymous';
+                
+                // Hide author information for privacy
+                document.getElementById('modalAuthor').textContent = 'PixPlay User';
                 
                 const authorPic = document.getElementById('modalAuthorPic');
-                authorPic.src = image.authorPhoto || '';
-                authorPic.onerror = function() {
-                    this.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNFNUU3RUIiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIxNSIgcj0iNiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNyAzM0M3IDI3Ljk1IDEyLjk1IDI0IDIwIDI0QzI3LjA1IDI0IDMzIDI3Ljk1IDMzIDMzIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
-                };
+                authorPic.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9IiNFNUU3RUIiLz4KPGNpcmNsZSBjeD0iMjAiIGN5PSIxNSIgcj0iNiIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNyAzM0M3IDI3Ljk1IDEyLjk1IDI0IDIwIDI0QzI3LjA1IDI0IDMzIDI3Ljk1IDMzIDMzIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
                 
                 // Update save button
                 const saveBtn = document.getElementById('saveBtn');
@@ -2719,5 +2776,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979df53365bf3be0',t:'MTc1Njk5Mzg0Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979dfe3b32cb549c',t:'MTc1Njk5NDIxNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
