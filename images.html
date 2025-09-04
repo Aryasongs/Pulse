@@ -144,73 +144,7 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Double-tap tutorial animation */
-        .double-tap-tutorial {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 30;
-            pointer-events: none;
-        }
-        
-        .tap-animation {
-            width: 60px;
-            height: 60px;
-            border: 3px solid #3b82f6;
-            border-radius: 50%;
-            animation: doubleTapPulse 2s ease-in-out;
-        }
-        
-        @keyframes doubleTapPulse {
-            0% { transform: scale(0.8); opacity: 0; }
-            15% { transform: scale(1.2); opacity: 1; }
-            30% { transform: scale(0.9); opacity: 0.7; }
-            45% { transform: scale(1.3); opacity: 1; }
-            60% { transform: scale(1); opacity: 0.8; }
-            100% { transform: scale(1.5); opacity: 0; }
-        }
-        
-        .tutorial-text {
-            background: rgba(59, 130, 246, 0.95);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            margin-top: 10px;
-            text-align: center;
-            animation: fadeInUp 2s ease-in-out;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
-        }
-        
-        @keyframes fadeInUp {
-            0% { opacity: 0; transform: translateY(10px); }
-            20% { opacity: 1; transform: translateY(0); }
-            80% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-10px); }
-        }
-        
-        .link-redirect-animation {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: 600;
-            animation: linkBounce 0.6s ease-out;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
-            z-index: 25;
-        }
-        
-        @keyframes linkBounce {
-            0% { transform: scale(0) rotate(-10deg); opacity: 0; }
-            50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
-            100% { transform: scale(1) rotate(0deg); opacity: 1; }
-        }
+
 
         .error-dialog {
             backdrop-filter: blur(4px);
@@ -712,8 +646,9 @@
             <div class="p-6 space-y-6">
                 <!-- Image Upload -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Image</label>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Select Image (Optional)</label>
                     <input type="file" id="imageInput" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg">
+                    <p class="text-xs text-gray-500 mt-1">You can also create a Pix using just a product link below</p>
                 </div>
 
                 <!-- Title -->
@@ -1234,8 +1169,7 @@
             views: [],
             interactions: []
         };
-        let hasSeenDoubleTapTutorial = false;
-        let doubleTapTimeout = null;
+
         let linkPreviewData = null;
 
         // Error handling
@@ -2046,8 +1980,7 @@
                                 saves: [],
                                 views: [],
                                 interactions: []
-                            },
-                            hasSeenDoubleTapTutorial: false
+                            }
                         }).catch(error => {
                             handleError(error, "Failed to create user profile.");
                         });
@@ -2060,7 +1993,6 @@
                             views: [],
                             interactions: []
                         };
-                        hasSeenDoubleTapTutorial = userData.hasSeenDoubleTapTutorial || false;
                     }
                 }).catch(error => {
                     handleError(error, "Failed to load user data.");
@@ -2082,87 +2014,12 @@
             }
         }
 
-        // Double-tap functionality
-        function setupDoubleTapForImage(imageElement, imageData) {
-            let tapCount = 0;
-            let tapTimer = null;
-            
+        // Simple click functionality for images
+        function setupImageClick(imageElement, imageData) {
             imageElement.addEventListener('click', function(e) {
-                tapCount++;
-                
-                if (tapCount === 1) {
-                    tapTimer = setTimeout(() => {
-                        // Single tap - open modal
-                        tapCount = 0;
-                        openImageModal(imageData.id);
-                    }, 300);
-                } else if (tapCount === 2) {
-                    // Double tap - redirect to link if exists
-                    clearTimeout(tapTimer);
-                    tapCount = 0;
-                    
-                    if (imageData.link && imageData.link.trim()) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        // Show tutorial animation if first time
-                        if (!hasSeenDoubleTapTutorial) {
-                            showDoubleTapTutorial(imageElement, imageData.link);
-                        } else {
-                            // Show quick redirect animation and redirect
-                            showLinkRedirectAnimation(imageElement);
-                            setTimeout(() => {
-                                window.open(imageData.link, '_blank');
-                            }, 600);
-                        }
-                    } else {
-                        // No link - just open modal
-                        openImageModal(imageData.id);
-                    }
-                }
+                // Single click - open modal
+                openImageModal(imageData.id);
             });
-        }
-        
-        function showDoubleTapTutorial(imageElement, link) {
-            // Create tutorial overlay
-            const tutorial = document.createElement('div');
-            tutorial.className = 'double-tap-tutorial';
-            tutorial.innerHTML = `
-                <div class="tap-animation"></div>
-                <div class="tutorial-text">
-                    🔗 Double-tap to visit link!
-                </div>
-            `;
-            
-            imageElement.style.position = 'relative';
-            imageElement.appendChild(tutorial);
-            
-            // Remove tutorial after animation and redirect
-            setTimeout(() => {
-                tutorial.remove();
-                window.open(link, '_blank');
-                
-                // Mark tutorial as seen
-                hasSeenDoubleTapTutorial = true;
-                if (currentUser) {
-                    database.ref(`users/${currentUser.uid}/hasSeenDoubleTapTutorial`).set(true).catch(error => {
-                        console.error('Failed to save tutorial state:', error);
-                    });
-                }
-            }, 2000);
-        }
-        
-        function showLinkRedirectAnimation(imageElement) {
-            const animation = document.createElement('div');
-            animation.className = 'link-redirect-animation';
-            animation.innerHTML = '🔗 Opening link...';
-            
-            imageElement.style.position = 'relative';
-            imageElement.appendChild(animation);
-            
-            setTimeout(() => {
-                animation.remove();
-            }, 1000);
         }
 
         // Personalization Algorithm Functions
@@ -2405,6 +2262,9 @@
                 // Auto-select appropriate board
                 autoSelectBoard();
                 
+                // Show option to create post from link only
+                showCreateFromLinkOption();
+                
             } catch (error) {
                 console.error('Link preview error:', error);
                 
@@ -2414,11 +2274,109 @@
                     linkPreviewData = fallbackData;
                     displayLinkPreview(linkPreviewData);
                     autoFillFromPreview();
+                    showCreateFromLinkOption();
                 } else {
                     showLinkPreviewError('Could not fetch link preview. You can still use the link.');
                 }
             } finally {
                 document.getElementById('linkPreviewLoading').classList.add('hidden');
+            }
+        }
+        
+        function showCreateFromLinkOption() {
+            if (!linkPreviewData || !linkPreviewData.image) return;
+            
+            // Add create from link button to preview
+            const previewContainer = document.getElementById('linkPreview');
+            let createButton = previewContainer.querySelector('.create-from-link-btn');
+            
+            if (!createButton) {
+                createButton = document.createElement('button');
+                createButton.className = 'create-from-link-btn w-full mt-3 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium';
+                createButton.innerHTML = '🚀 Create Pix from Link (No image upload needed)';
+                createButton.onclick = createPixFromLinkOnly;
+                previewContainer.appendChild(createButton);
+            }
+        }
+        
+        async function createPixFromLinkOnly() {
+            if (!currentUser) {
+                signInWithGoogle();
+                return;
+            }
+            
+            if (!linkPreviewData || !linkPreviewData.image) {
+                showSuccess('No image found in link preview');
+                return;
+            }
+            
+            try {
+                // Show loading state
+                const createButton = document.querySelector('.create-from-link-btn');
+                if (createButton) {
+                    createButton.innerHTML = '🔄 Creating Pix...';
+                    createButton.disabled = true;
+                }
+                
+                // Get form data
+                const title = document.getElementById('titleInput').value.trim() || linkPreviewData.title || 'Product Link';
+                const description = document.getElementById('descriptionInput').value.trim() || linkPreviewData.description || '';
+                const link = document.getElementById('linkInput').value.trim();
+                const board = document.getElementById('boardSelect').value;
+                const allowComments = document.getElementById('allowComments').checked;
+                const brandedContent = document.getElementById('brandedContent').checked;
+                const shoppingRecommendations = document.getElementById('shoppingRecommendations').checked;
+                const scheduleDate = document.getElementById('scheduleDate').value;
+                
+                // Auto-detect board category
+                let detectedBoard = board || 'general';
+                const category = detectProductCategory(linkPreviewData);
+                if (category !== 'general') {
+                    detectedBoard = category;
+                }
+                
+                const imageData = {
+                    url: linkPreviewData.image, // Use image from link preview
+                    title: title,
+                    description: description,
+                    link: link,
+                    board: detectedBoard,
+                    authorId: currentUser.uid,
+                    authorName: currentUser.displayName || 'Anonymous',
+                    authorPhoto: currentUser.photoURL || '',
+                    views: 0,
+                    createdAt: scheduleDate ? new Date(scheduleDate).getTime() : Date.now(),
+                    isFromLink: true, // Mark as created from link
+                    settings: {
+                        allowComments: allowComments,
+                        brandedContent: brandedContent,
+                        shoppingRecommendations: shoppingRecommendations && !brandedContent
+                    },
+                    linkPreview: {
+                        title: linkPreviewData.title,
+                        description: linkPreviewData.description,
+                        image: linkPreviewData.image,
+                        hostname: linkPreviewData.url ? new URL(linkPreviewData.url).hostname : ''
+                    }
+                };
+                
+                // Save to database
+                await database.ref('images').push(imageData);
+                
+                showSuccess('Pix created from link successfully! 🎉');
+                closeUploadModal();
+                resetUploadForm();
+                
+            } catch (error) {
+                console.error('Error creating pix from link:', error);
+                handleError(error, "Failed to create Pix from link. Please try again.");
+                
+                // Reset button state
+                const createButton = document.querySelector('.create-from-link-btn');
+                if (createButton) {
+                    createButton.innerHTML = '🚀 Create Pix from Link (No image upload needed)';
+                    createButton.disabled = false;
+                }
             }
         }
         
@@ -2507,6 +2465,13 @@
         function clearLinkPreview() {
             document.getElementById('linkPreview').classList.add('hidden');
             document.getElementById('linkPreviewLoading').classList.add('hidden');
+            
+            // Remove create from link button if it exists
+            const createButton = document.querySelector('.create-from-link-btn');
+            if (createButton) {
+                createButton.remove();
+            }
+            
             linkPreviewData = null;
         }
         
@@ -3064,13 +3029,13 @@
                 </div>
             `;
             
-            // Setup double-tap functionality after creating the element
+            // Setup simple click functionality after creating the element
             setTimeout(() => {
                 const cardElement = document.getElementById(`card-${image.id}`);
                 if (cardElement) {
-                    // Remove the onclick attribute and setup custom double-tap
+                    // Remove the onclick attribute and setup simple click
                     cardElement.removeAttribute('onclick');
-                    setupDoubleTapForImage(cardElement, image);
+                    setupImageClick(cardElement, image);
                 }
             }, 100);
             
@@ -3212,9 +3177,17 @@
             }
             
             const fileInput = document.getElementById('imageInput');
+            const linkInput = document.getElementById('linkInput');
             
-            if (!fileInput.files[0]) {
-                handleError(new Error('No file selected'), "Please select an image to upload.");
+            // Check if we have either a file or a link with preview data
+            if (!fileInput.files[0] && (!linkInput.value.trim() || !linkPreviewData || !linkPreviewData.image)) {
+                handleError(new Error('No content to upload'), "Please select an image or add a product link with an image.");
+                return;
+            }
+            
+            // If we have link preview data but no file, create from link
+            if (!fileInput.files[0] && linkPreviewData && linkPreviewData.image) {
+                createPixFromLinkOnly();
                 return;
             }
             
@@ -4026,5 +3999,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e5786d4db549c',t:'MTc1Njk5Nzg3NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e626cd2053fb4',t:'MTc1Njk5ODMyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
