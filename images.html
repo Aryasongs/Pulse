@@ -632,7 +632,7 @@
 
     <!-- Image Detail Modal -->
     <div id="imageModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center p-4">
-        <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex justify-between items-start mb-4">
                     <div class="flex items-center space-x-4">
@@ -662,14 +662,48 @@
                             </div>
                         </div>
                     </div>
-                    <div>
-                        <div class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                            <span id="modalViews">👁️ 0 views</span>
-                            <span id="modalEarnings" class="text-green-600 font-semibold hidden"></span>
+                    <div class="flex flex-col h-full">
+                        <div class="mb-4">
+                            <h2 id="modalTitle" class="text-xl font-bold text-gray-900 mb-2">Untitled</h2>
+                            <p id="modalDescription" class="text-gray-700 mb-4"></p>
+                            <div class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                                <span id="modalViews">0 views</span>
+                                <span id="modalEarnings" class="text-green-600 font-semibold hidden"></span>
+                            </div>
+                            <div class="flex items-center space-x-3 mb-6">
+                                <img id="modalAuthorPic" src="" alt="" class="w-10 h-10 rounded-full">
+                                <span id="modalAuthor" class="font-medium"></span>
+                            </div>
                         </div>
-                        <div class="flex items-center space-x-3 mb-6">
-                            <img id="modalAuthorPic" src="" alt="" class="w-10 h-10 rounded-full">
-                            <span id="modalAuthor" class="font-medium"></span>
+                        
+                        <!-- Comments Section -->
+                        <div class="flex-1 border-t pt-4">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Comments</h3>
+                            
+                            <!-- Add Comment -->
+                            <div class="mb-4" id="commentForm">
+                                <div class="flex space-x-3">
+                                    <img id="commentUserPic" src="" alt="Your profile" class="w-8 h-8 rounded-full">
+                                    <div class="flex-1">
+                                        <textarea id="commentInput" placeholder="Add a comment..." rows="2" class="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                                        <div class="flex justify-end mt-2">
+                                            <button onclick="addComment()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">
+                                                Post Comment
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Comments List -->
+                            <div id="commentsList" class="space-y-4 max-h-64 overflow-y-auto">
+                                <!-- Comments will be loaded here -->
+                            </div>
+                            
+                            <div id="noComments" class="text-center py-8 text-gray-500 hidden">
+                                <div class="text-4xl mb-2">💬</div>
+                                <p>No comments yet. Be the first to comment!</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1955,6 +1989,9 @@
                         allImages.unshift(image); // Most recent first
                     });
                     
+                    // Set up real-time view count listeners for all images
+                    setupRealTimeViewUpdates();
+                    
                     // Generate personalized feed for logged-in users
                     if (currentUser) {
                         personalizedFeed = generatePersonalizedFeed(allImages);
@@ -1970,6 +2007,41 @@
             } catch (error) {
                 handleError(error, "Failed to load images.", loadAllImages);
             }
+        }
+        
+        function setupRealTimeViewUpdates() {
+            // Listen for view count changes on all images
+            allImages.forEach(image => {
+                database.ref(`images/${image.id}/views`).on('value', snapshot => {
+                    const newViews = snapshot.val() || 0;
+                    
+                    // Update the image object in memory
+                    const imageIndex = allImages.findIndex(img => img.id === image.id);
+                    if (imageIndex !== -1) {
+                        allImages[imageIndex].views = newViews;
+                    }
+                    
+                    // Update view count in DOM if element exists
+                    const viewElements = document.querySelectorAll(`[data-image-id="${image.id}"] .view-count`);
+                    viewElements.forEach(element => {
+                        element.textContent = `${newViews.toLocaleString()} views`;
+                    });
+                    
+                    // Update monetization status in real-time
+                    const monetizationElements = document.querySelectorAll(`[data-image-id="${image.id}"] .monetization-badge`);
+                    const isMonetized = newViews >= 1000;
+                    
+                    monetizationElements.forEach(element => {
+                        if (isMonetized && element.dataset.isOwner === 'true') {
+                            element.classList.remove('hidden');
+                            const earnings = (newViews - 1000) * 0.002;
+                            element.textContent = `💰 $${earnings.toFixed(2)}`;
+                        } else {
+                            element.classList.add('hidden');
+                        }
+                    });
+                });
+            });
         }
 
         function loadSavedImages() {
@@ -2086,16 +2158,69 @@
             }
         }
 
-        // Content filtering functions
+        // Enhanced content filtering functions
         function shouldBlurContent(image) {
-            const sensitiveTerms = ['sex', 'naked', 'nude', 'porn', 'adult', 'xxx', 'nsfw', 'erotic', 'sexual'];
+            // Text-based detection
+            const sensitiveTerms = ['sex', 'naked', 'nude', 'porn', 'adult', 'xxx', 'nsfw', 'erotic', 'sexual', 'bikini', 'underwear', 'lingerie', 'topless', 'bare', 'exposed'];
             
             const title = (image.title || '').toLowerCase();
             const description = (image.description || '').toLowerCase();
+            const url = (image.url || '').toLowerCase();
             
-            return sensitiveTerms.some(term => 
+            // Check text content
+            const hasTextualContent = sensitiveTerms.some(term => 
                 title.includes(term) || description.includes(term)
             );
+            
+            // URL-based detection (common patterns in inappropriate image URLs)
+            const suspiciousUrlPatterns = ['sexy', 'hot', 'nude', 'adult', 'nsfw', 'porn', 'xxx', 'bikini', 'lingerie'];
+            const hasSuspiciousUrl = suspiciousUrlPatterns.some(pattern => url.includes(pattern));
+            
+            // Advanced heuristics for image content detection
+            const advancedDetection = detectInappropriateContent(image);
+            
+            return hasTextualContent || hasSuspiciousUrl || advancedDetection;
+        }
+        
+        function detectInappropriateContent(image) {
+            // Simulate AI-based content detection using various signals
+            const url = image.url || '';
+            const title = (image.title || '').toLowerCase();
+            const description = (image.description || '').toLowerCase();
+            
+            // Check for skin-tone related URLs (common in stock photo sites for inappropriate content)
+            const skinTonePatterns = ['skin', 'body', 'figure', 'model', 'beauty', 'fashion'];
+            const bodyPartTerms = ['chest', 'breast', 'leg', 'thigh', 'back', 'shoulder'];
+            
+            // Fashion/beauty content that might be inappropriate
+            const fashionRisk = skinTonePatterns.some(pattern => 
+                title.includes(pattern) || description.includes(pattern)
+            ) && bodyPartTerms.some(term => 
+                title.includes(term) || description.includes(term)
+            );
+            
+            // Check for suggestive language patterns
+            const suggestiveTerms = ['hot', 'sexy', 'gorgeous', 'stunning', 'beautiful woman', 'attractive', 'seductive'];
+            const hasSuggestiveLanguage = suggestiveTerms.some(term => 
+                title.includes(term) || description.includes(term)
+            );
+            
+            // URL analysis for image hosting patterns
+            const riskyDomains = ['imgur.com/a/', 'reddit.com', 'tumblr.com'];
+            const hasRiskyDomain = riskyDomains.some(domain => url.includes(domain));
+            
+            // Combine factors for risk assessment
+            let riskScore = 0;
+            if (fashionRisk) riskScore += 0.3;
+            if (hasSuggestiveLanguage) riskScore += 0.4;
+            if (hasRiskyDomain) riskScore += 0.2;
+            
+            // Random factor to simulate AI uncertainty (blur some content proactively)
+            if (Math.random() < 0.05 && (fashionRisk || hasSuggestiveLanguage)) {
+                riskScore += 0.5;
+            }
+            
+            return riskScore > 0.5;
         }
         
         function unblurImage(imageId) {
@@ -2186,6 +2311,7 @@
         function createImageElement(image) {
             const div = document.createElement('div');
             div.className = 'fade-in';
+            div.setAttribute('data-image-id', image.id);
             
             const isMonetized = (image.views || 0) >= 1000;
             const isSaved = currentUser && savedImages.includes(image.id);
@@ -2221,7 +2347,7 @@
                                         ${isSaved ? 'Saved' : 'Save'}
                                     </button>` : ''}
                                 </div>
-                                ${isMonetized && isOwner ? '<div class="monetized-badge text-black px-2 py-1 rounded-full text-xs font-bold">💰 EARNING</div>' : ''}
+                                <div class="monetization-badge ${isMonetized && isOwner ? '' : 'hidden'} text-black px-2 py-1 rounded-full text-xs font-bold" data-is-owner="${isOwner}">💰 EARNING</div>
                             </div>
                         </div>
                     </div>
@@ -2233,9 +2359,11 @@
                                 <!-- Author info completely removed for privacy -->
                             </div>
                             ${isOwner ? `<div class="text-xs text-gray-500">
-                                <span>${(image.views || 0).toLocaleString()} views</span>
-                                ${isMonetized ? `<span class="text-green-600 font-semibold ml-2">$${(((image.views || 0) - 1000) * 0.002).toFixed(2)}</span>` : ''}
-                            </div>` : ''}
+                                <span class="view-count">${(image.views || 0).toLocaleString()} views</span>
+                                <span class="monetization-badge ${isMonetized ? '' : 'hidden'} text-green-600 font-semibold ml-2" data-is-owner="${isOwner}">$${isMonetized ? (((image.views || 0) - 1000) * 0.002).toFixed(2) : '0.00'}</span>
+                            </div>` : `<div class="text-xs text-gray-500">
+                                <span class="view-count">${(image.views || 0).toLocaleString()} views</span>
+                            </div>`}
                         </div>
                     </div>
                 </div>
@@ -2527,14 +2655,36 @@
                     updateUserInterests([`author_${image.authorId}`], 0.2);
                 }
                 
-                // Increment view count
+                // Increment view count with real-time update
                 database.ref(`images/${imageId}/views`).transaction(views => (views || 0) + 1).catch(error => {
                     console.error('Failed to increment view count:', error);
                 });
                 
+                // Listen for real-time view count updates
+                database.ref(`images/${imageId}/views`).on('value', snapshot => {
+                    const currentViews = snapshot.val() || 0;
+                    document.getElementById('modalViews').textContent = `${currentViews.toLocaleString()} views`;
+                    
+                    // Update monetization info in real-time
+                    const isMonetized = currentViews >= 1000;
+                    const earningsSpan = document.getElementById('modalEarnings');
+                    const adSpace = document.getElementById('adSpace');
+                    
+                    if (isMonetized) {
+                        const earnings = (currentViews - 1000) * 0.002;
+                        earningsSpan.textContent = `💰 $${earnings.toFixed(2)} earned`;
+                        earningsSpan.classList.remove('hidden');
+                        adSpace.classList.remove('hidden');
+                    } else {
+                        earningsSpan.classList.add('hidden');
+                        adSpace.classList.add('hidden');
+                    }
+                });
+                
                 // Update modal content
                 document.getElementById('modalImage').src = image.url;
-                document.getElementById('modalViews').textContent = `${((image.views || 0) + 1).toLocaleString()} views`;
+                document.getElementById('modalTitle').textContent = image.title || 'Untitled';
+                document.getElementById('modalDescription').innerHTML = formatHashtags(image.description || '');
                 
                 // Hide author information for privacy
                 document.getElementById('modalAuthor').textContent = 'PixPlay User';
@@ -2550,20 +2700,8 @@
                     'bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors' :
                     'bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors';
                 
-                // Show monetization info
-                const isMonetized = ((image.views || 0) + 1) >= 1000;
-                const earningsSpan = document.getElementById('modalEarnings');
-                const adSpace = document.getElementById('adSpace');
-                
-                if (isMonetized) {
-                    const earnings = (((image.views || 0) + 1) - 1000) * 0.002;
-                    earningsSpan.textContent = `💰 $${earnings.toFixed(2)} earned`;
-                    earningsSpan.classList.remove('hidden');
-                    adSpace.classList.remove('hidden');
-                } else {
-                    earningsSpan.classList.add('hidden');
-                    adSpace.classList.add('hidden');
-                }
+                // Load comments
+                loadComments(imageId);
                 
                 document.getElementById('imageModal').classList.remove('hidden');
             } catch (error) {
@@ -2573,6 +2711,13 @@
 
         function closeImageModal() {
             document.getElementById('imageModal').classList.add('hidden');
+            
+            // Clean up real-time listeners
+            if (currentImageId) {
+                database.ref(`images/${currentImageId}/views`).off();
+                database.ref(`comments/${currentImageId}`).off();
+            }
+            
             currentImageId = null;
         }
 
@@ -2924,6 +3069,158 @@
             document.getElementById('supportDialog').classList.add('hidden');
         }
 
+        // Comment system functions
+        function loadComments(imageId) {
+            if (!imageId) return;
+            
+            // Show/hide comment form based on login status
+            const commentForm = document.getElementById('commentForm');
+            if (currentUser) {
+                commentForm.classList.remove('hidden');
+                const userPic = document.getElementById('commentUserPic');
+                userPic.src = currentUser.photoURL || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNFNUU3RUIiLz4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxMiIgcj0iNSIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNiAyNi41QzYgMjIuMzU3OSAxMC4zNTc5IDE5IDE2IDE5QzIxLjY0MjEgMTkgMjYgMjIuMzU3OSAyNiAyNi41IiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo=';
+            } else {
+                commentForm.classList.add('hidden');
+            }
+            
+            // Load comments in real-time
+            database.ref(`comments/${imageId}`).orderByChild('createdAt').on('value', snapshot => {
+                const comments = [];
+                snapshot.forEach(child => {
+                    comments.unshift({ id: child.key, ...child.val() }); // Most recent first
+                });
+                
+                renderComments(comments);
+            });
+        }
+        
+        function renderComments(comments) {
+            const container = document.getElementById('commentsList');
+            const noComments = document.getElementById('noComments');
+            
+            if (comments.length === 0) {
+                container.innerHTML = '';
+                noComments.classList.remove('hidden');
+                return;
+            }
+            
+            noComments.classList.add('hidden');
+            container.innerHTML = comments.map(comment => `
+                <div class="flex space-x-3 p-3 bg-gray-50 rounded-lg">
+                    <img src="${comment.userPhoto || 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxNiIgcj0iMTYiIGZpbGw9IiNFNUU3RUIiLz4KPGNpcmNsZSBjeD0iMTYiIGN5PSIxMiIgcj0iNSIgZmlsbD0iIzlDQTNBRiIvPgo8cGF0aCBkPSJNNiAyNi41QzYgMjIuMzU3OSAxMC4zNTc5IDE5IDE2IDE5QzIxLjY0MjEgMTkgMjYgMjIuMzU3OSAyNiAyNi41IiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo='}" alt="User" class="w-8 h-8 rounded-full object-cover">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-1">
+                            <span class="font-medium text-gray-900 text-sm">PixPlay User</span>
+                            <span class="text-xs text-gray-500">${formatTimeAgo(comment.createdAt)}</span>
+                        </div>
+                        <p class="text-gray-700 text-sm">${escapeHtml(comment.text)}</p>
+                        <div class="flex items-center space-x-4 mt-2">
+                            <button onclick="likeComment('${comment.id}')" class="text-xs text-gray-500 hover:text-red-600 transition-colors flex items-center space-x-1">
+                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path>
+                                </svg>
+                                <span>${comment.likes || 0}</span>
+                            </button>
+                            ${currentUser && currentUser.uid === comment.userId ? `
+                                <button onclick="deleteComment('${comment.id}')" class="text-xs text-red-500 hover:text-red-700 transition-colors">
+                                    Delete
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function addComment() {
+            if (!currentUser || !currentImageId) return;
+            
+            const commentInput = document.getElementById('commentInput');
+            const text = commentInput.value.trim();
+            
+            if (!text) {
+                handleError(new Error('Empty comment'), "Please enter a comment.");
+                return;
+            }
+            
+            if (text.length > 500) {
+                handleError(new Error('Comment too long'), "Comments must be 500 characters or less.");
+                return;
+            }
+            
+            // Check for inappropriate content in comments
+            if (containsInappropriateContent(text)) {
+                handleError(new Error('Inappropriate content'), "Your comment contains inappropriate content. Please keep comments family-friendly.");
+                return;
+            }
+            
+            const commentData = {
+                text: text,
+                userId: currentUser.uid,
+                userName: currentUser.displayName || 'Anonymous',
+                userPhoto: currentUser.photoURL || '',
+                createdAt: Date.now(),
+                likes: 0
+            };
+            
+            database.ref(`comments/${currentImageId}`).push(commentData).then(() => {
+                commentInput.value = '';
+                showSuccess('Comment added! 💬');
+            }).catch(error => {
+                handleError(error, "Failed to add comment. Please try again.");
+            });
+        }
+        
+        function likeComment(commentId) {
+            if (!currentUser || !currentImageId) return;
+            
+            database.ref(`comments/${currentImageId}/${commentId}/likes`).transaction(likes => (likes || 0) + 1).catch(error => {
+                console.error('Failed to like comment:', error);
+            });
+        }
+        
+        function deleteComment(commentId) {
+            if (!currentUser || !currentImageId) return;
+            
+            database.ref(`comments/${currentImageId}/${commentId}`).remove().then(() => {
+                showSuccess('Comment deleted');
+            }).catch(error => {
+                handleError(error, "Failed to delete comment.");
+            });
+        }
+        
+        function containsInappropriateContent(text) {
+            const inappropriateTerms = [
+                'sex', 'porn', 'nude', 'naked', 'fuck', 'shit', 'bitch', 'ass', 'damn', 'hell',
+                'stupid', 'idiot', 'hate', 'kill', 'die', 'suicide', 'drug', 'alcohol', 'beer',
+                'wine', 'drunk', 'high', 'weed', 'marijuana', 'cocaine', 'heroin'
+            ];
+            
+            const lowerText = text.toLowerCase();
+            return inappropriateTerms.some(term => lowerText.includes(term));
+        }
+        
+        function formatTimeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            
+            const seconds = Math.floor(diff / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+            
+            if (days > 0) return `${days}d ago`;
+            if (hours > 0) return `${hours}h ago`;
+            if (minutes > 0) return `${minutes}m ago`;
+            return 'Just now';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Handle clicks outside modals
         document.addEventListener('click', function(e) {
             try {
@@ -2955,5 +3252,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e0a83307f3fb4',t:'MTc1Njk5NDcyMC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e1a0cd63747e3',t:'MTc1Njk5NTM1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
