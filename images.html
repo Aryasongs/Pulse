@@ -144,6 +144,74 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Double-tap tutorial animation */
+        .double-tap-tutorial {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 30;
+            pointer-events: none;
+        }
+        
+        .tap-animation {
+            width: 60px;
+            height: 60px;
+            border: 3px solid #3b82f6;
+            border-radius: 50%;
+            animation: doubleTapPulse 2s ease-in-out;
+        }
+        
+        @keyframes doubleTapPulse {
+            0% { transform: scale(0.8); opacity: 0; }
+            15% { transform: scale(1.2); opacity: 1; }
+            30% { transform: scale(0.9); opacity: 0.7; }
+            45% { transform: scale(1.3); opacity: 1; }
+            60% { transform: scale(1); opacity: 0.8; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+        
+        .tutorial-text {
+            background: rgba(59, 130, 246, 0.95);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 10px;
+            text-align: center;
+            animation: fadeInUp 2s ease-in-out;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        @keyframes fadeInUp {
+            0% { opacity: 0; transform: translateY(10px); }
+            20% { opacity: 1; transform: translateY(0); }
+            80% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-10px); }
+        }
+        
+        .link-redirect-animation {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(45deg, #3b82f6, #1d4ed8);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: 600;
+            animation: linkBounce 0.6s ease-out;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+            z-index: 25;
+        }
+        
+        @keyframes linkBounce {
+            0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+            50% { transform: scale(1.2) rotate(5deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
         .error-dialog {
             backdrop-filter: blur(4px);
         }
@@ -668,7 +736,37 @@
                 <!-- Link -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Link</label>
-                    <input type="url" id="linkInput" placeholder="Add a destination link" class="w-full p-3 border border-gray-300 rounded-lg">
+                    <input type="url" id="linkInput" placeholder="Add a destination link (e.g., product URL)" class="w-full p-3 border border-gray-300 rounded-lg" onblur="fetchLinkPreview()">
+                    <p class="text-xs text-gray-500 mt-1">Add a product or website link to auto-generate preview</p>
+                    
+                    <!-- Link Preview -->
+                    <div id="linkPreview" class="hidden mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <div class="flex items-start space-x-3">
+                            <img id="previewImage" src="" alt="Preview" class="w-16 h-16 rounded object-cover hidden">
+                            <div class="flex-1">
+                                <h4 id="previewTitle" class="font-semibold text-gray-900 text-sm mb-1"></h4>
+                                <p id="previewDescription" class="text-xs text-gray-600 line-clamp-2 mb-2"></p>
+                                <p id="previewUrl" class="text-xs text-blue-600"></p>
+                            </div>
+                            <button type="button" onclick="clearLinkPreview()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="mt-3 flex items-center space-x-2">
+                            <input type="checkbox" id="usePreviewData" checked class="rounded border-gray-300 text-red-600 focus:ring-red-500">
+                            <label for="usePreviewData" class="text-xs text-gray-700">Use preview data to auto-fill title and description</label>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div id="linkPreviewLoading" class="hidden mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                        <div class="flex items-center space-x-3">
+                            <div class="loading-spinner"></div>
+                            <span class="text-sm text-gray-600">Fetching link preview...</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Board Selection -->
@@ -683,7 +781,10 @@
                         <option value="nature">Nature</option>
                         <option value="photography">Photography</option>
                         <option value="lifestyle">Lifestyle</option>
+                        <option value="shopping">Shopping & Products</option>
+                        <option value="technology">Technology</option>
                     </select>
+                    <p class="text-xs text-gray-500 mt-1" id="boardHint">Board will be auto-detected based on your link</p>
                 </div>
 
                 <!-- Profile & Topics -->
@@ -1133,6 +1234,9 @@
             views: [],
             interactions: []
         };
+        let hasSeenDoubleTapTutorial = false;
+        let doubleTapTimeout = null;
+        let linkPreviewData = null;
 
         // Error handling
         function handleError(error, userMessage = "Something went wrong. Please try again.", retryAction = null) {
@@ -1942,7 +2046,8 @@
                                 saves: [],
                                 views: [],
                                 interactions: []
-                            }
+                            },
+                            hasSeenDoubleTapTutorial: false
                         }).catch(error => {
                             handleError(error, "Failed to create user profile.");
                         });
@@ -1955,6 +2060,7 @@
                             views: [],
                             interactions: []
                         };
+                        hasSeenDoubleTapTutorial = userData.hasSeenDoubleTapTutorial || false;
                     }
                 }).catch(error => {
                     handleError(error, "Failed to load user data.");
@@ -1974,6 +2080,89 @@
             } catch (error) {
                 handleError(error, "Failed to initialize user data.");
             }
+        }
+
+        // Double-tap functionality
+        function setupDoubleTapForImage(imageElement, imageData) {
+            let tapCount = 0;
+            let tapTimer = null;
+            
+            imageElement.addEventListener('click', function(e) {
+                tapCount++;
+                
+                if (tapCount === 1) {
+                    tapTimer = setTimeout(() => {
+                        // Single tap - open modal
+                        tapCount = 0;
+                        openImageModal(imageData.id);
+                    }, 300);
+                } else if (tapCount === 2) {
+                    // Double tap - redirect to link if exists
+                    clearTimeout(tapTimer);
+                    tapCount = 0;
+                    
+                    if (imageData.link && imageData.link.trim()) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        // Show tutorial animation if first time
+                        if (!hasSeenDoubleTapTutorial) {
+                            showDoubleTapTutorial(imageElement, imageData.link);
+                        } else {
+                            // Show quick redirect animation and redirect
+                            showLinkRedirectAnimation(imageElement);
+                            setTimeout(() => {
+                                window.open(imageData.link, '_blank');
+                            }, 600);
+                        }
+                    } else {
+                        // No link - just open modal
+                        openImageModal(imageData.id);
+                    }
+                }
+            });
+        }
+        
+        function showDoubleTapTutorial(imageElement, link) {
+            // Create tutorial overlay
+            const tutorial = document.createElement('div');
+            tutorial.className = 'double-tap-tutorial';
+            tutorial.innerHTML = `
+                <div class="tap-animation"></div>
+                <div class="tutorial-text">
+                    🔗 Double-tap to visit link!
+                </div>
+            `;
+            
+            imageElement.style.position = 'relative';
+            imageElement.appendChild(tutorial);
+            
+            // Remove tutorial after animation and redirect
+            setTimeout(() => {
+                tutorial.remove();
+                window.open(link, '_blank');
+                
+                // Mark tutorial as seen
+                hasSeenDoubleTapTutorial = true;
+                if (currentUser) {
+                    database.ref(`users/${currentUser.uid}/hasSeenDoubleTapTutorial`).set(true).catch(error => {
+                        console.error('Failed to save tutorial state:', error);
+                    });
+                }
+            }, 2000);
+        }
+        
+        function showLinkRedirectAnimation(imageElement) {
+            const animation = document.createElement('div');
+            animation.className = 'link-redirect-animation';
+            animation.innerHTML = '🔗 Opening link...';
+            
+            imageElement.style.position = 'relative';
+            imageElement.appendChild(animation);
+            
+            setTimeout(() => {
+                animation.remove();
+            }, 1000);
         }
 
         // Personalization Algorithm Functions
@@ -2166,6 +2355,232 @@
                 [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
             }
             return shuffled;
+        }
+
+        // Link Preview Functions
+        async function fetchLinkPreview() {
+            const linkInput = document.getElementById('linkInput');
+            const url = linkInput.value.trim();
+            
+            if (!url || !isValidUrl(url)) {
+                clearLinkPreview();
+                return;
+            }
+            
+            // Show loading state
+            document.getElementById('linkPreviewLoading').classList.remove('hidden');
+            document.getElementById('linkPreview').classList.add('hidden');
+            
+            try {
+                // Using LinkPreview API with your key
+                const apiKey = '3939f4f637fc345cc8e94113c98139b2';
+                const apiUrl = `https://api.linkpreview.net/?key=${apiKey}&q=${encodeURIComponent(url)}`;
+                
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Store preview data
+                linkPreviewData = {
+                    title: data.title || '',
+                    description: data.description || '',
+                    image: data.image || '',
+                    url: data.url || url
+                };
+                
+                // Display preview
+                displayLinkPreview(linkPreviewData);
+                
+                // Auto-fill title and description if enabled and fields are empty
+                autoFillFromPreview();
+                
+                // Auto-select appropriate board
+                autoSelectBoard();
+                
+            } catch (error) {
+                console.error('Link preview error:', error);
+                
+                // Fallback: Try to extract basic info from URL
+                const fallbackData = extractBasicInfoFromUrl(url);
+                if (fallbackData) {
+                    linkPreviewData = fallbackData;
+                    displayLinkPreview(linkPreviewData);
+                    autoFillFromPreview();
+                } else {
+                    showLinkPreviewError('Could not fetch link preview. You can still use the link.');
+                }
+            } finally {
+                document.getElementById('linkPreviewLoading').classList.add('hidden');
+            }
+        }
+        
+        function isValidUrl(string) {
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                return false;
+            }
+        }
+        
+        function displayLinkPreview(data) {
+            const previewContainer = document.getElementById('linkPreview');
+            const previewImage = document.getElementById('previewImage');
+            const previewTitle = document.getElementById('previewTitle');
+            const previewDescription = document.getElementById('previewDescription');
+            const previewUrl = document.getElementById('previewUrl');
+            
+            // Set preview data
+            previewTitle.textContent = data.title || 'No title available';
+            previewDescription.textContent = data.description || 'No description available';
+            previewUrl.textContent = new URL(data.url).hostname;
+            
+            // Handle image
+            if (data.image && data.image.trim()) {
+                previewImage.src = data.image;
+                previewImage.classList.remove('hidden');
+                previewImage.onerror = function() {
+                    this.classList.add('hidden');
+                };
+            } else {
+                previewImage.classList.add('hidden');
+            }
+            
+            // Show preview
+            previewContainer.classList.remove('hidden');
+        }
+        
+        function autoFillFromPreview() {
+            const usePreviewData = document.getElementById('usePreviewData').checked;
+            if (!usePreviewData || !linkPreviewData) return;
+            
+            const titleInput = document.getElementById('titleInput');
+            const descriptionInput = document.getElementById('descriptionInput');
+            
+            // Auto-fill title if empty
+            if (!titleInput.value.trim() && linkPreviewData.title) {
+                titleInput.value = linkPreviewData.title.substring(0, 100); // Respect character limit
+                updateCharacterCount();
+            }
+            
+            // Auto-fill description if empty
+            if (!descriptionInput.value.trim() && linkPreviewData.description) {
+                const description = linkPreviewData.description.substring(0, 300); // Reasonable limit
+                descriptionInput.value = description + (linkPreviewData.url ? `\n\n🔗 ${linkPreviewData.url}` : '');
+            }
+        }
+        
+        function autoSelectBoard() {
+            if (!linkPreviewData) return;
+            
+            const boardSelect = document.getElementById('boardSelect');
+            const boardHint = document.getElementById('boardHint');
+            const category = detectProductCategory(linkPreviewData);
+            
+            if (category !== 'general') {
+                // Map categories to board options
+                const categoryMap = {
+                    'shopping': 'shopping',
+                    'fashion': 'fashion',
+                    'food': 'food',
+                    'technology': 'technology'
+                };
+                
+                const boardValue = categoryMap[category] || 'general';
+                if (boardSelect.querySelector(`option[value="${boardValue}"]`)) {
+                    boardSelect.value = boardValue;
+                    boardHint.textContent = `Auto-detected: ${boardValue.charAt(0).toUpperCase() + boardValue.slice(1)}`;
+                    boardHint.classList.add('text-green-600');
+                    boardHint.classList.remove('text-gray-500');
+                }
+            }
+        }
+        
+        function clearLinkPreview() {
+            document.getElementById('linkPreview').classList.add('hidden');
+            document.getElementById('linkPreviewLoading').classList.add('hidden');
+            linkPreviewData = null;
+        }
+        
+        function showLinkPreviewError(message) {
+            const previewContainer = document.getElementById('linkPreview');
+            previewContainer.innerHTML = `
+                <div class="flex items-center space-x-3 text-yellow-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                    </svg>
+                    <span class="text-sm">${message}</span>
+                </div>
+            `;
+            previewContainer.classList.remove('hidden');
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                previewContainer.classList.add('hidden');
+            }, 5000);
+        }
+        
+        function extractBasicInfoFromUrl(url) {
+            try {
+                const urlObj = new URL(url);
+                const hostname = urlObj.hostname.replace('www.', '');
+                
+                // Extract potential title from URL path
+                const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+                const lastPart = pathParts[pathParts.length - 1];
+                const title = lastPart ? 
+                    lastPart.replace(/[-_]/g, ' ').replace(/\.[^/.]+$/, '') : 
+                    hostname;
+                
+                return {
+                    title: title.charAt(0).toUpperCase() + title.slice(1),
+                    description: `Visit ${hostname} for more details`,
+                    image: '',
+                    url: url
+                };
+            } catch (error) {
+                return null;
+            }
+        }
+        
+        // Enhanced product detection for better categorization
+        function detectProductCategory(data) {
+            const text = `${data.title} ${data.description}`.toLowerCase();
+            
+            // E-commerce platforms
+            if (data.url.includes('amazon.') || data.url.includes('flipkart.') || 
+                data.url.includes('myntra.') || data.url.includes('ajio.') ||
+                data.url.includes('nykaa.') || data.url.includes('shopify.')) {
+                return 'shopping';
+            }
+            
+            // Fashion keywords
+            if (text.includes('dress') || text.includes('shirt') || text.includes('shoes') ||
+                text.includes('fashion') || text.includes('clothing') || text.includes('wear')) {
+                return 'fashion';
+            }
+            
+            // Food keywords
+            if (text.includes('recipe') || text.includes('food') || text.includes('restaurant') ||
+                text.includes('cooking') || text.includes('meal') || text.includes('dish')) {
+                return 'food';
+            }
+            
+            // Tech keywords
+            if (text.includes('phone') || text.includes('laptop') || text.includes('gadget') ||
+                text.includes('tech') || text.includes('software') || text.includes('app')) {
+                return 'technology';
+            }
+            
+            return 'general';
         }
 
         // Upload sample images function
@@ -2572,9 +2987,16 @@
             const isSaved = currentUser && savedImages.includes(image.id);
             const isOwner = currentUser && image.authorId === currentUser.uid;
             const isBlurred = shouldBlurContent(image);
+            const hasLink = image.link && image.link.trim();
             
             div.innerHTML = `
-                <div class="pix-card bg-white shadow-sm hover:shadow-lg cursor-pointer relative group" onclick="openImageModal('${image.id}')">
+                <div class="pix-card bg-white shadow-sm hover:shadow-lg cursor-pointer relative group" id="card-${image.id}">
+                    ${hasLink ? `
+                    <div class="absolute top-2 left-2 z-20 bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-semibold shadow-lg">
+                        🔗 Link
+                    </div>
+                    ` : ''}
+                    
                     <div class="relative">
                         <img src="${image.url}" alt="Pix" loading="lazy" class="${isBlurred ? 'blur-lg' : ''}" id="img-${image.id}" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjIwMCIgdmlld0JveD0iMCAwIDMwMCAyMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIzMDAiIGhlaWdodD0iMjAwIiBmaWxsPSIjRjNGNEY2Ii8+Cjx0ZXh0IHg9IjE1MCIgeT0iMTAwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOUM5Q0EzIiBmb250LXNpemU9IjE0Ij5JbWFnZSBub3QgYXZhaWxhYmxlPC90ZXh0Pgo8L3N2Zz4K';">
                         
@@ -2609,7 +3031,25 @@
                     <div class="p-3">
                         ${image.description ? `<p class="text-sm text-gray-700 mb-2 line-clamp-2 ${isBlurred ? 'blur-sm' : ''}" id="desc-${image.id}">${formatHashtags(image.description)}</p>` : ''}
                         ${image.title ? `<p class="text-sm font-medium text-gray-800 mb-1 ${isBlurred ? 'blur-sm' : ''}" id="title-${image.id}">${image.title}</p>` : ''}
-                        <div class="flex items-center justify-between">
+                        
+                        ${image.linkPreview && image.link ? `
+                        <div class="mt-2 p-2 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex items-start space-x-2">
+                                ${image.linkPreview.image ? `<img src="${image.linkPreview.image}" alt="Link preview" class="w-8 h-8 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-900 truncate">${image.linkPreview.title || 'Product Link'}</p>
+                                    <p class="text-xs text-gray-600 truncate">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
+                                </div>
+                                <div class="flex-shrink-0">
+                                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        🛒 Shop
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="flex items-center justify-between mt-2">
                             <div class="flex-1">
                                 <!-- Author info completely removed for privacy -->
                             </div>
@@ -2623,6 +3063,16 @@
                     </div>
                 </div>
             `;
+            
+            // Setup double-tap functionality after creating the element
+            setTimeout(() => {
+                const cardElement = document.getElementById(`card-${image.id}`);
+                if (cardElement) {
+                    // Remove the onclick attribute and setup custom double-tap
+                    cardElement.removeAttribute('onclick');
+                    setupDoubleTapForImage(cardElement, image);
+                }
+            }, 100);
             
             return div;
         }
@@ -2803,12 +3253,21 @@
                     const shoppingRecommendations = document.getElementById('shoppingRecommendations').checked;
                     const scheduleDate = document.getElementById('scheduleDate').value;
                     
+                    // Auto-detect board category based on link preview data
+                    let detectedBoard = board || 'general';
+                    if (linkPreviewData) {
+                        const category = detectProductCategory(linkPreviewData);
+                        if (category !== 'general') {
+                            detectedBoard = category;
+                        }
+                    }
+                    
                     const imageData = {
                         url: base64Data,
                         title: title || '',
                         description: description || '',
                         link: link || '',
-                        board: board || 'general',
+                        board: detectedBoard,
                         authorId: currentUser.uid,
                         authorName: currentUser.displayName || 'Anonymous',
                         authorPhoto: currentUser.photoURL || '',
@@ -2818,7 +3277,14 @@
                             allowComments: allowComments,
                             brandedContent: brandedContent,
                             shoppingRecommendations: shoppingRecommendations && !brandedContent
-                        }
+                        },
+                        // Store link preview data for enhanced display
+                        linkPreview: linkPreviewData ? {
+                            title: linkPreviewData.title,
+                            description: linkPreviewData.description,
+                            image: linkPreviewData.image,
+                            hostname: linkPreviewData.url ? new URL(linkPreviewData.url).hostname : ''
+                        } : null
                     };
                     
                     database.ref('images').push(imageData).then(() => {
@@ -2883,6 +3349,10 @@
             document.getElementById('shoppingRecommendations').checked = true;
             document.getElementById('scheduleDate').value = '';
             
+            // Clear link preview
+            clearLinkPreview();
+            linkPreviewData = null;
+            
             // Hide advanced settings
             document.getElementById('advancedSettings').classList.add('hidden');
             document.getElementById('advancedToggle').textContent = 'Show Advanced Settings';
@@ -2940,7 +3410,27 @@
                 // Update modal content
                 document.getElementById('modalImage').src = image.url;
                 document.getElementById('modalTitle').textContent = image.title || 'Untitled';
-                document.getElementById('modalDescription').innerHTML = formatHashtags(image.description || '');
+                
+                // Enhanced description with link preview
+                let descriptionHtml = formatHashtags(image.description || '');
+                if (image.linkPreview && image.link) {
+                    descriptionHtml += `
+                        <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex items-start space-x-3">
+                                ${image.linkPreview.image ? `<img src="${image.linkPreview.image}" alt="Link preview" class="w-16 h-16 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                <div class="flex-1">
+                                    <h4 class="font-semibold text-gray-900 text-sm mb-1">${image.linkPreview.title || 'Product Link'}</h4>
+                                    <p class="text-xs text-gray-600 mb-2">${image.linkPreview.description || 'Click to visit the link'}</p>
+                                    <p class="text-xs text-blue-600">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
+                                </div>
+                            </div>
+                            <button onclick="window.open('${image.link}', '_blank')" class="mt-3 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                🛒 Visit Link
+                            </button>
+                        </div>
+                    `;
+                }
+                document.getElementById('modalDescription').innerHTML = descriptionHtml;
                 
                 // Hide author information for privacy
                 document.getElementById('modalAuthor').textContent = 'PixPlay User';
@@ -3536,5 +4026,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e3e8a852d6470',t:'MTc1Njk5Njg1MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e5786d4db549c',t:'MTc1Njk5Nzg3NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
