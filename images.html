@@ -2,13 +2,62 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
     <title>PixPlay - Discover & Share</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
     <style>
+        /* Disable text selection and zoom */
+        * {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* Allow text selection only in input fields */
+        input, textarea {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
+        
+        /* Disable zoom on double tap */
+        body {
+            touch-action: pan-x pan-y;
+            -ms-touch-action: pan-x pan-y;
+        }
+        
+        /* Disable image dragging */
+        img {
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -o-user-drag: none;
+            user-drag: none;
+            pointer-events: none;
+        }
+        
+        /* Re-enable pointer events for clickable images */
+        .pix-card img {
+            pointer-events: auto;
+        }
+        
+        /* Disable context menu */
+        body {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
         /* Pinterest-style grid */
         .pinterest-grid {
             display: grid;
@@ -1123,6 +1172,60 @@
             { title: "Road Trip", description: "Open road through desert landscape #roadtrip #desert #adventure", board: "travel", url: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400" }
         ];
 
+        // Disable right-click context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // Disable common keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U, Ctrl+S, Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X
+            if (e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || // Ctrl+Shift+I/J
+                (e.ctrlKey && (e.keyCode === 85 || e.keyCode === 83 || e.keyCode === 65 || e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 88)) || // Ctrl+U/S/A/C/V/X
+                (e.ctrlKey && e.keyCode === 80) || // Ctrl+P
+                (e.metaKey && (e.keyCode === 65 || e.keyCode === 67 || e.keyCode === 86 || e.keyCode === 88))) { // Cmd+A/C/V/X on Mac
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Disable text selection with mouse
+        document.addEventListener('selectstart', function(e) {
+            if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // Disable drag and drop
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // Disable zoom gestures on mobile
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+
+        // Prevent zoom on double tap
+        let lastTap = 0;
+        document.addEventListener('touchstart', function(event) {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+            if (tapLength < 500 && tapLength > 0) {
+                event.preventDefault();
+            }
+            lastTap = currentTime;
+        });
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             // Override console.error to catch any unhandled errors
@@ -1935,48 +2038,58 @@
         
         function loadAds() {
             try {
+                // Always ensure Pulse ad is available
+                const defaultPulseAd = {
+                    id: 'pulse-default',
+                    type: 'image',
+                    brand: 'Pulse by Oriontec',
+                    logo: 'https://pulse.oriontec.xyz/IMG_0696.png',
+                    tagline: 'Buzz ka naya platform – Pulse join karo!',
+                    description: 'Create your Buzz – Upload & explore trending posts.',
+                    previewImage: 'https://pulse.oriontec.xyz/IMG_0695.jpeg',
+                    ctaText: 'Join Pulse Now',
+                    ctaLink: 'https://pulse.oriontec.xyz',
+                    active: true
+                };
+                
+                // Start with default Pulse ad
+                adsData = [defaultPulseAd];
+                
+                // Try to load additional ads from database
                 database.ref('ads').on('value', snapshot => {
-                    adsData = [];
+                    const dbAds = [];
                     if (snapshot.exists()) {
                         snapshot.forEach(child => {
                             const ad = { id: child.key, ...child.val() };
-                            if (ad.active !== false) { // Show ad if active is not explicitly false
-                                adsData.push(ad);
+                            if (ad.active !== false && ad.id !== 'pulse-default') {
+                                dbAds.push(ad);
                             }
                         });
-                    } else {
-                        // Default Pulse ad if no ads in database
-                        adsData = [{
-                            id: 'pulse-default',
-                            type: 'image',
-                            brand: 'Pulse by Oriontec',
-                            logo: 'https://pulse.oriontec.xyz/IMG_0696.png',
-                            tagline: 'Buzz ka naya platform – Pulse join karo!',
-                            description: 'Create your Buzz – Upload & explore trending posts.',
-                            previewImage: 'https://pulse.oriontec.xyz/IMG_0695.jpeg',
-                            ctaText: 'Join Pulse Now',
-                            ctaLink: 'https://pulse.oriontec.xyz',
-                            active: true
-                        }];
                     }
+                    
+                    // Combine default Pulse ad with database ads
+                    adsData = [defaultPulseAd, ...dbAds];
+                    console.log('Ads loaded:', adsData.length);
                 }, error => {
-                    console.error('Failed to load ads:', error);
-                    // Use default ad on error
-                    adsData = [{
-                        id: 'pulse-default',
-                        type: 'image',
-                        brand: 'Pulse by Oriontec',
-                        logo: 'https://pulse.oriontec.xyz/IMG_0696.png',
-                        tagline: 'Buzz ka naya platform – Pulse join karo!',
-                        description: 'Create your Buzz – Upload & explore trending posts.',
-                        previewImage: 'https://pulse.oriontec.xyz/IMG_0695.jpeg',
-                        ctaText: 'Join Pulse Now',
-                        ctaLink: 'https://pulse.oriontec.xyz',
-                        active: true
-                    }];
+                    console.error('Failed to load ads from database:', error);
+                    // Keep default Pulse ad even if database fails
+                    adsData = [defaultPulseAd];
                 });
             } catch (error) {
                 console.error('Failed to initialize ads:', error);
+                // Fallback to default Pulse ad
+                adsData = [{
+                    id: 'pulse-default',
+                    type: 'image',
+                    brand: 'Pulse by Oriontec',
+                    logo: 'https://pulse.oriontec.xyz/IMG_0696.png',
+                    tagline: 'Buzz ka naya platform – Pulse join karo!',
+                    description: 'Create your Buzz – Upload & explore trending posts.',
+                    previewImage: 'https://pulse.oriontec.xyz/IMG_0695.jpeg',
+                    ctaText: 'Join Pulse Now',
+                    ctaLink: 'https://pulse.oriontec.xyz',
+                    active: true
+                }];
             }
         }
 
@@ -2253,11 +2366,12 @@
                     const imageElement = createImageElement(image);
                     container.appendChild(imageElement);
                     
-                    // Insert ad after every 7-8 images (only in home view)
-                    if (containerId === 'imageGallery' && (index + 1) % 7 === 0 && adsData.length > 0) {
+                    // Insert ad after every 5-6 images (only in home view)
+                    if (containerId === 'imageGallery' && (index + 1) % 5 === 0 && adsData.length > 0) {
                         const randomAd = adsData[Math.floor(Math.random() * adsData.length)];
                         const adElement = createAdElement(randomAd);
                         container.appendChild(adElement);
+                        console.log('Ad inserted at position:', index + 1);
                     }
                 });
             } catch (error) {
@@ -3236,5 +3350,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e211540e0549c',t:'MTc1Njk5NTY0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e28bea5af45af',t:'MTc1Njk5NTk1OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
