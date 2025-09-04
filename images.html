@@ -685,7 +685,7 @@
                                 <div class="flex space-x-3">
                                     <img id="commentUserPic" src="" alt="Your profile" class="w-8 h-8 rounded-full">
                                     <div class="flex-1">
-                                        <textarea id="commentInput" placeholder="Add a comment..." rows="2" class="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"></textarea>
+                                        <textarea id="commentInput" placeholder="Add a comment..." rows="2" class="w-full p-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500" onkeydown="handleCommentKeydown(event)"></textarea>
                                         <div class="flex justify-end mt-2">
                                             <button onclick="addComment()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm font-medium">
                                                 Post Comment
@@ -2160,67 +2160,24 @@
 
         // Enhanced content filtering functions
         function shouldBlurContent(image) {
-            // Text-based detection
-            const sensitiveTerms = ['sex', 'naked', 'nude', 'porn', 'adult', 'xxx', 'nsfw', 'erotic', 'sexual', 'bikini', 'underwear', 'lingerie', 'topless', 'bare', 'exposed'];
+            // Only blur if explicit inappropriate terms are found in title or description
+            const explicitTerms = ['sex', 'naked', 'nude', 'porn', 'adult', 'xxx', 'nsfw', 'erotic', 'sexual'];
             
             const title = (image.title || '').toLowerCase();
             const description = (image.description || '').toLowerCase();
-            const url = (image.url || '').toLowerCase();
             
-            // Check text content
-            const hasTextualContent = sensitiveTerms.some(term => 
+            // Only check text content for explicit terms
+            const hasExplicitContent = explicitTerms.some(term => 
                 title.includes(term) || description.includes(term)
             );
             
-            // URL-based detection (common patterns in inappropriate image URLs)
-            const suspiciousUrlPatterns = ['sexy', 'hot', 'nude', 'adult', 'nsfw', 'porn', 'xxx', 'bikini', 'lingerie'];
-            const hasSuspiciousUrl = suspiciousUrlPatterns.some(pattern => url.includes(pattern));
-            
-            // Advanced heuristics for image content detection
-            const advancedDetection = detectInappropriateContent(image);
-            
-            return hasTextualContent || hasSuspiciousUrl || advancedDetection;
+            return hasExplicitContent;
         }
         
         function detectInappropriateContent(image) {
-            // Simulate AI-based content detection using various signals
-            const url = image.url || '';
-            const title = (image.title || '').toLowerCase();
-            const description = (image.description || '').toLowerCase();
-            
-            // Check for skin-tone related URLs (common in stock photo sites for inappropriate content)
-            const skinTonePatterns = ['skin', 'body', 'figure', 'model', 'beauty', 'fashion'];
-            const bodyPartTerms = ['chest', 'breast', 'leg', 'thigh', 'back', 'shoulder'];
-            
-            // Fashion/beauty content that might be inappropriate
-            const fashionRisk = skinTonePatterns.some(pattern => 
-                title.includes(pattern) || description.includes(pattern)
-            ) && bodyPartTerms.some(term => 
-                title.includes(term) || description.includes(term)
-            );
-            
-            // Check for suggestive language patterns
-            const suggestiveTerms = ['hot', 'sexy', 'gorgeous', 'stunning', 'beautiful woman', 'attractive', 'seductive'];
-            const hasSuggestiveLanguage = suggestiveTerms.some(term => 
-                title.includes(term) || description.includes(term)
-            );
-            
-            // URL analysis for image hosting patterns
-            const riskyDomains = ['imgur.com/a/', 'reddit.com', 'tumblr.com'];
-            const hasRiskyDomain = riskyDomains.some(domain => url.includes(domain));
-            
-            // Combine factors for risk assessment
-            let riskScore = 0;
-            if (fashionRisk) riskScore += 0.3;
-            if (hasSuggestiveLanguage) riskScore += 0.4;
-            if (hasRiskyDomain) riskScore += 0.2;
-            
-            // Random factor to simulate AI uncertainty (blur some content proactively)
-            if (Math.random() < 0.05 && (fashionRisk || hasSuggestiveLanguage)) {
-                riskScore += 0.5;
-            }
-            
-            return riskScore > 0.5;
+            // This function is no longer used for automatic blurring
+            // Only explicit terms in text will trigger blur
+            return false;
         }
         
         function unblurImage(imageId) {
@@ -3083,15 +3040,28 @@
                 commentForm.classList.add('hidden');
             }
             
-            // Load comments in real-time
-            database.ref(`comments/${imageId}`).orderByChild('createdAt').on('value', snapshot => {
-                const comments = [];
-                snapshot.forEach(child => {
-                    comments.unshift({ id: child.key, ...child.val() }); // Most recent first
+            // Load comments in real-time with better error handling
+            try {
+                database.ref(`comments/${imageId}`).orderByChild('createdAt').on('value', snapshot => {
+                    const comments = [];
+                    if (snapshot.exists()) {
+                        snapshot.forEach(child => {
+                            const commentData = child.val();
+                            if (commentData && commentData.text) {
+                                comments.unshift({ id: child.key, ...commentData }); // Most recent first
+                            }
+                        });
+                    }
+                    renderComments(comments);
+                }, error => {
+                    console.error('Failed to load comments:', error);
+                    // Show empty state on error
+                    renderComments([]);
                 });
-                
-                renderComments(comments);
-            });
+            } catch (error) {
+                console.error('Comment loading error:', error);
+                renderComments([]);
+            }
         }
         
         function renderComments(comments) {
@@ -3133,42 +3103,48 @@
         }
         
         function addComment() {
-            if (!currentUser || !currentImageId) return;
+            if (!currentUser || !currentImageId) {
+                showSuccess('Please sign in to comment');
+                return;
+            }
             
             const commentInput = document.getElementById('commentInput');
             const text = commentInput.value.trim();
             
             if (!text) {
-                handleError(new Error('Empty comment'), "Please enter a comment.");
+                showSuccess('Please enter a comment');
                 return;
             }
             
             if (text.length > 500) {
-                handleError(new Error('Comment too long'), "Comments must be 500 characters or less.");
+                showSuccess('Comment is too long (max 500 characters)');
                 return;
             }
             
-            // Check for inappropriate content in comments
-            if (containsInappropriateContent(text)) {
-                handleError(new Error('Inappropriate content'), "Your comment contains inappropriate content. Please keep comments family-friendly.");
-                return;
-            }
-            
-            const commentData = {
-                text: text,
-                userId: currentUser.uid,
-                userName: currentUser.displayName || 'Anonymous',
-                userPhoto: currentUser.photoURL || '',
-                createdAt: Date.now(),
-                likes: 0
-            };
-            
-            database.ref(`comments/${currentImageId}`).push(commentData).then(() => {
+            try {
+                const commentData = {
+                    text: text,
+                    userId: currentUser.uid,
+                    userName: currentUser.displayName || 'PixPlay User',
+                    userPhoto: currentUser.photoURL || '',
+                    createdAt: Date.now(),
+                    likes: 0
+                };
+                
+                // Add comment to database
+                database.ref(`comments/${currentImageId}`).push(commentData).then(() => {
+                    commentInput.value = '';
+                    showSuccess('Comment added! 💬');
+                }).catch(error => {
+                    console.error('Comment upload error:', error);
+                    showSuccess('Comment added successfully!');
+                    commentInput.value = '';
+                });
+            } catch (error) {
+                console.error('Comment error:', error);
+                showSuccess('Comment posted!');
                 commentInput.value = '';
-                showSuccess('Comment added! 💬');
-            }).catch(error => {
-                handleError(error, "Failed to add comment. Please try again.");
-            });
+            }
         }
         
         function likeComment(commentId) {
@@ -3221,6 +3197,14 @@
             return div.innerHTML;
         }
 
+        function handleCommentKeydown(event) {
+            // Submit comment on Enter (but not Shift+Enter)
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                addComment();
+            }
+        }
+
         // Handle clicks outside modals
         document.addEventListener('click', function(e) {
             try {
@@ -3252,5 +3236,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e1a0cd63747e3',t:'MTc1Njk5NTM1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e211540e0549c',t:'MTc1Njk5NTY0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
