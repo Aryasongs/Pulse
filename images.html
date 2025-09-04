@@ -696,35 +696,36 @@
                 <!-- Link -->
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-2">Link</label>
-                    <input type="url" id="linkInput" placeholder="Add a destination link (e.g., product URL)" class="w-full p-3 border border-gray-300 rounded-lg" onblur="fetchLinkPreview()">
-                    <p class="text-xs text-gray-500 mt-1">Add a product or website link to auto-generate preview</p>
+                    <input type="url" id="linkInput" placeholder="Add a destination link" class="w-full p-3 border border-gray-300 rounded-lg" onblur="handleLinkPreview()">
+                    <p class="text-xs text-gray-500 mt-1">Add a link to your website or product</p>
                     
                     <!-- Link Preview -->
-                    <div id="linkPreview" class="hidden mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                        <div class="flex items-start space-x-3">
-                            <img id="previewImage" src="" alt="Preview" class="w-16 h-16 rounded object-cover hidden">
-                            <div class="flex-1">
-                                <h4 id="previewTitle" class="font-semibold text-gray-900 text-sm mb-1"></h4>
-                                <p id="previewDescription" class="text-xs text-gray-600 line-clamp-2 mb-2"></p>
-                                <p id="previewUrl" class="text-xs text-blue-600"></p>
+                    <div id="linkPreview" class="hidden mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <div id="linkPreviewImage" class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center text-2xl relative">
+                                🔗
+                                <div id="videoPlayIcon" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded hidden">
+                                    <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                        <path d="M8 5v14l11-7z"/>
+                                    </svg>
+                                </div>
                             </div>
-                            <button type="button" onclick="clearLinkPreview()" class="text-gray-400 hover:text-gray-600">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                                </svg>
+                            <div class="flex-1 min-w-0">
+                                <h4 id="linkPreviewTitle" class="font-medium text-gray-900 text-sm truncate">Link Preview</h4>
+                                <p id="linkPreviewDescription" class="text-xs text-gray-600 truncate">Loading preview...</p>
+                                <p id="linkPreviewHostname" class="text-xs text-gray-500 truncate"></p>
+                                <div id="linkPreviewPrice" class="hidden">
+                                    <span class="text-sm font-bold text-green-600"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div id="linkPreviewBadge" class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium hidden">
+                                🛍️ Shopping
+                            </div>
+                            <button type="button" onclick="clearLinkPreview()" class="text-xs text-red-600 hover:text-red-800">
+                                Remove Preview
                             </button>
-                        </div>
-                        <div class="mt-3 flex items-center space-x-2">
-                            <input type="checkbox" id="usePreviewData" checked class="rounded border-gray-300 text-red-600 focus:ring-red-500">
-                            <label for="usePreviewData" class="text-xs text-gray-700">Use preview data to auto-fill title and description</label>
-                        </div>
-                    </div>
-                    
-                    <!-- Loading State -->
-                    <div id="linkPreviewLoading" class="hidden mt-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-                        <div class="flex items-center space-x-3">
-                            <div class="loading-spinner"></div>
-                            <span class="text-sm text-gray-600">Fetching link preview...</span>
                         </div>
                     </div>
                 </div>
@@ -744,7 +745,7 @@
                         <option value="shopping">Shopping & Products</option>
                         <option value="technology">Technology</option>
                     </select>
-                    <p class="text-xs text-gray-500 mt-1" id="boardHint">Board will be auto-detected based on your link</p>
+                    <p class="text-xs text-gray-500 mt-1">Choose the most relevant category</p>
                 </div>
 
                 <!-- Profile & Topics -->
@@ -1194,8 +1195,6 @@
             views: [],
             interactions: []
         };
-
-        let linkPreviewData = null;
 
         // Error handling
         function handleError(error, userMessage = "Something went wrong. Please try again.", retryAction = null) {
@@ -2248,525 +2247,7 @@
             return shuffled;
         }
 
-        // Link Preview Functions
-        async function fetchLinkPreview() {
-            const linkInput = document.getElementById('linkInput');
-            const url = linkInput.value.trim();
-            
-            if (!url || !isValidUrl(url)) {
-                clearLinkPreview();
-                return;
-            }
-            
-            // Show loading state
-            document.getElementById('linkPreviewLoading').classList.remove('hidden');
-            document.getElementById('linkPreview').classList.add('hidden');
-            
-            try {
-                // Using LinkPreview API with your key
-                const apiKey = '3939f4f637fc345cc8e94113c98139b2';
-                const apiUrl = `https://api.linkpreview.net/?key=${apiKey}&q=${encodeURIComponent(url)}`;
-                
-                const response = await fetch(apiUrl);
-                
-                if (!response.ok) {
-                    throw new Error(`API Error: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                if (data.error) {
-                    throw new Error(data.error);
-                }
-                
-                // Store preview data
-                linkPreviewData = {
-                    title: data.title || '',
-                    description: data.description || '',
-                    image: data.image || '',
-                    url: data.url || url
-                };
-                
-                // Display preview
-                displayLinkPreview(linkPreviewData);
-                
-                // Auto-fill title and description if enabled and fields are empty
-                autoFillFromPreview();
-                
-                // Auto-select appropriate board
-                autoSelectBoard();
-                
-                // Show option to create post from link only
-                showCreateFromLinkOption();
-                
-            } catch (error) {
-                console.error('Link preview error:', error);
-                
-                // Fallback: Try to extract basic info from URL
-                const fallbackData = extractBasicInfoFromUrl(url);
-                if (fallbackData) {
-                    linkPreviewData = fallbackData;
-                    displayLinkPreview(linkPreviewData);
-                    autoFillFromPreview();
-                    showCreateFromLinkOption();
-                } else {
-                    showLinkPreviewError('Could not fetch link preview. You can still use the link.');
-                }
-            } finally {
-                document.getElementById('linkPreviewLoading').classList.add('hidden');
-            }
-        }
-        
-        function showCreateFromLinkOption() {
-            if (!linkPreviewData || !linkPreviewData.image) return;
-            
-            // Add create from link button to preview
-            const previewContainer = document.getElementById('linkPreview');
-            let createButton = previewContainer.querySelector('.create-from-link-btn');
-            
-            if (!createButton) {
-                createButton = document.createElement('button');
-                createButton.className = 'create-from-link-btn w-full mt-3 bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors text-sm font-medium';
-                createButton.innerHTML = '🚀 Create Pix from Link (No image upload needed)';
-                createButton.onclick = createPixFromLinkOnly;
-                previewContainer.appendChild(createButton);
-            }
-        }
-        
-        async function createPixFromLinkOnly() {
-            if (!currentUser) {
-                signInWithGoogle();
-                return;
-            }
-            
-            if (!linkPreviewData || !linkPreviewData.image) {
-                showSuccess('No image found in link preview');
-                return;
-            }
-            
-            try {
-                // Show loading state
-                const createButton = document.querySelector('.create-from-link-btn');
-                if (createButton) {
-                    createButton.innerHTML = '🔄 Creating Pix...';
-                    createButton.disabled = true;
-                }
-                
-                // Get form data
-                const title = document.getElementById('titleInput').value.trim() || linkPreviewData.title || 'Product Link';
-                const description = document.getElementById('descriptionInput').value.trim() || linkPreviewData.description || '';
-                const link = document.getElementById('linkInput').value.trim();
-                const board = document.getElementById('boardSelect').value;
-                const allowComments = document.getElementById('allowComments').checked;
-                const brandedContent = document.getElementById('brandedContent').checked;
-                const shoppingRecommendations = document.getElementById('shoppingRecommendations').checked;
-                const scheduleDate = document.getElementById('scheduleDate').value;
-                
-                // Auto-detect board category
-                let detectedBoard = board || 'general';
-                const category = detectProductCategory(linkPreviewData);
-                if (category !== 'general') {
-                    detectedBoard = category;
-                }
-                
-                const imageData = {
-                    url: linkPreviewData.image, // Use image from link preview
-                    title: title,
-                    description: description,
-                    link: link,
-                    board: detectedBoard,
-                    authorId: currentUser.uid,
-                    authorName: currentUser.displayName || 'Anonymous',
-                    authorPhoto: currentUser.photoURL || '',
-                    views: 0,
-                    createdAt: scheduleDate ? new Date(scheduleDate).getTime() : Date.now(),
-                    isFromLink: true, // Mark as created from link
-                    settings: {
-                        allowComments: allowComments,
-                        brandedContent: brandedContent,
-                        shoppingRecommendations: shoppingRecommendations && !brandedContent
-                    },
-                    linkPreview: {
-                        title: linkPreviewData.title,
-                        description: linkPreviewData.description,
-                        image: linkPreviewData.image,
-                        hostname: linkPreviewData.url ? new URL(linkPreviewData.url).hostname : ''
-                    }
-                };
-                
-                // Save to database
-                await database.ref('images').push(imageData);
-                
-                showSuccess('Pix created from link successfully! 🎉');
-                closeUploadModal();
-                resetUploadForm();
-                
-            } catch (error) {
-                console.error('Error creating pix from link:', error);
-                handleError(error, "Failed to create Pix from link. Please try again.");
-                
-                // Reset button state
-                const createButton = document.querySelector('.create-from-link-btn');
-                if (createButton) {
-                    createButton.innerHTML = '🚀 Create Pix from Link (No image upload needed)';
-                    createButton.disabled = false;
-                }
-            }
-        }
-        
-        function isValidUrl(string) {
-            try {
-                const url = new URL(string);
-                return url.protocol === 'http:' || url.protocol === 'https:';
-            } catch (_) {
-                return false;
-            }
-        }
-        
-        function displayLinkPreview(data) {
-            const previewContainer = document.getElementById('linkPreview');
-            const previewImage = document.getElementById('previewImage');
-            const previewTitle = document.getElementById('previewTitle');
-            const previewDescription = document.getElementById('previewDescription');
-            const previewUrl = document.getElementById('previewUrl');
-            
-            // Detect content type
-            const category = detectProductCategory(data);
-            const isVideo = isVideoUrl(data.url);
-            const price = extractPriceFromContent(data);
-            
-            // Set preview data
-            previewTitle.textContent = data.title || 'No title available';
-            previewDescription.textContent = data.description || 'No description available';
-            previewUrl.textContent = new URL(data.url).hostname;
-            
-            // Handle image with video overlay or price badge
-            let imageToShow = data.image;
-            
-            // For videos, try to get thumbnail
-            if (isVideo && !imageToShow) {
-                imageToShow = getVideoThumbnail(data.url);
-            }
-            
-            if (imageToShow && imageToShow.trim()) {
-                previewImage.src = imageToShow;
-                previewImage.classList.remove('hidden');
-                previewImage.onerror = function() {
-                    this.classList.add('hidden');
-                };
-                
-                // Add video play icon overlay
-                if (isVideo) {
-                    const existingOverlay = previewImage.parentElement.querySelector('.video-overlay');
-                    if (!existingOverlay) {
-                        const videoOverlay = document.createElement('div');
-                        videoOverlay.className = 'video-overlay absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded';
-                        videoOverlay.innerHTML = `
-                            <div class="bg-red-600 text-white p-3 rounded-full shadow-lg">
-                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
-                                </svg>
-                            </div>
-                        `;
-                        previewImage.parentElement.style.position = 'relative';
-                        previewImage.parentElement.appendChild(videoOverlay);
-                    }
-                }
-                
-                // Add price badge for shopping links
-                if (category === 'shopping' && price) {
-                    const existingBadge = previewImage.parentElement.querySelector('.price-badge');
-                    if (!existingBadge) {
-                        const priceBadge = document.createElement('div');
-                        priceBadge.className = 'price-badge absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg';
-                        priceBadge.textContent = price.formatted;
-                        previewImage.parentElement.style.position = 'relative';
-                        previewImage.parentElement.appendChild(priceBadge);
-                    }
-                }
-            } else {
-                previewImage.classList.add('hidden');
-            }
-            
-            // Add category-specific styling
-            const categoryBadges = {
-                'video': { icon: '🎥', text: 'Video', color: 'bg-red-100 text-red-800' },
-                'shopping': { icon: '🛒', text: 'Shopping', color: 'bg-green-100 text-green-800' },
-                'news': { icon: '📰', text: 'News', color: 'bg-blue-100 text-blue-800' },
-                'general': { icon: '🔗', text: 'Link', color: 'bg-gray-100 text-gray-800' }
-            };
-            
-            const badge = categoryBadges[category] || categoryBadges['general'];
-            
-            // Add category badge to description
-            const existingBadge = previewContainer.querySelector('.category-badge');
-            if (!existingBadge) {
-                const categoryBadge = document.createElement('div');
-                categoryBadge.className = `category-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color} mb-2`;
-                categoryBadge.innerHTML = `${badge.icon} ${badge.text}`;
-                previewDescription.parentElement.insertBefore(categoryBadge, previewDescription);
-            }
-            
-            // Show preview
-            previewContainer.classList.remove('hidden');
-        }
-        
-        function autoFillFromPreview() {
-            const usePreviewData = document.getElementById('usePreviewData').checked;
-            if (!usePreviewData || !linkPreviewData) return;
-            
-            const titleInput = document.getElementById('titleInput');
-            const descriptionInput = document.getElementById('descriptionInput');
-            
-            // Auto-fill title if empty
-            if (!titleInput.value.trim() && linkPreviewData.title) {
-                titleInput.value = linkPreviewData.title.substring(0, 100); // Respect character limit
-                updateCharacterCount();
-            }
-            
-            // Auto-fill description if empty
-            if (!descriptionInput.value.trim() && linkPreviewData.description) {
-                const description = linkPreviewData.description.substring(0, 300); // Reasonable limit
-                descriptionInput.value = description + (linkPreviewData.url ? `\n\n🔗 ${linkPreviewData.url}` : '');
-            }
-        }
-        
-        function autoSelectBoard() {
-            if (!linkPreviewData) return;
-            
-            const boardSelect = document.getElementById('boardSelect');
-            const boardHint = document.getElementById('boardHint');
-            const category = detectProductCategory(linkPreviewData);
-            
-            if (category !== 'general') {
-                // Map categories to board options
-                const categoryMap = {
-                    'shopping': 'shopping',
-                    'fashion': 'fashion',
-                    'food': 'food',
-                    'technology': 'technology'
-                };
-                
-                const boardValue = categoryMap[category] || 'general';
-                if (boardSelect.querySelector(`option[value="${boardValue}"]`)) {
-                    boardSelect.value = boardValue;
-                    boardHint.textContent = `Auto-detected: ${boardValue.charAt(0).toUpperCase() + boardValue.slice(1)}`;
-                    boardHint.classList.add('text-green-600');
-                    boardHint.classList.remove('text-gray-500');
-                }
-            }
-        }
-        
-        function clearLinkPreview() {
-            const previewContainer = document.getElementById('linkPreview');
-            previewContainer.classList.add('hidden');
-            document.getElementById('linkPreviewLoading').classList.add('hidden');
-            
-            // Remove all dynamic elements
-            const createButton = document.querySelector('.create-from-link-btn');
-            if (createButton) {
-                createButton.remove();
-            }
-            
-            // Remove video overlay and price badges
-            const videoOverlay = previewContainer.querySelector('.video-overlay');
-            if (videoOverlay) {
-                videoOverlay.remove();
-            }
-            
-            const priceBadge = previewContainer.querySelector('.price-badge');
-            if (priceBadge) {
-                priceBadge.remove();
-            }
-            
-            const categoryBadge = previewContainer.querySelector('.category-badge');
-            if (categoryBadge) {
-                categoryBadge.remove();
-            }
-            
-            // Reset board hint
-            const boardHint = document.getElementById('boardHint');
-            boardHint.textContent = 'Board will be auto-detected based on your link';
-            boardHint.classList.remove('text-green-600');
-            boardHint.classList.add('text-gray-500');
-            
-            linkPreviewData = null;
-        }
-        
-        function showLinkPreviewError(message) {
-            const previewContainer = document.getElementById('linkPreview');
-            previewContainer.innerHTML = `
-                <div class="flex items-center space-x-3 text-yellow-700">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                    <span class="text-sm">${message}</span>
-                </div>
-            `;
-            previewContainer.classList.remove('hidden');
-            
-            // Hide after 5 seconds
-            setTimeout(() => {
-                previewContainer.classList.add('hidden');
-            }, 5000);
-        }
-        
-        function extractBasicInfoFromUrl(url) {
-            try {
-                const urlObj = new URL(url);
-                const hostname = urlObj.hostname.replace('www.', '');
-                
-                // Extract potential title from URL path
-                const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
-                const lastPart = pathParts[pathParts.length - 1];
-                const title = lastPart ? 
-                    lastPart.replace(/[-_]/g, ' ').replace(/\.[^/.]+$/, '') : 
-                    hostname;
-                
-                return {
-                    title: title.charAt(0).toUpperCase() + title.slice(1),
-                    description: `Visit ${hostname} for more details`,
-                    image: '',
-                    url: url
-                };
-            } catch (error) {
-                return null;
-            }
-        }
-        
-        // Enhanced product detection for better categorization
-        function detectProductCategory(data) {
-            const text = `${data.title} ${data.description}`.toLowerCase();
-            const url = data.url.toLowerCase();
-            
-            // Video platforms
-            if (url.includes('youtube.') || url.includes('youtu.be') || 
-                url.includes('vimeo.') || url.includes('dailymotion.') ||
-                url.includes('twitch.') || url.includes('instagram.com/reel') ||
-                url.includes('tiktok.') || url.includes('facebook.com/watch')) {
-                return 'video';
-            }
-            
-            // E-commerce platforms
-            if (url.includes('amazon.') || url.includes('flipkart.') || 
-                url.includes('myntra.') || url.includes('ajio.') ||
-                url.includes('nykaa.') || url.includes('shopify.') ||
-                url.includes('meesho.') || url.includes('snapdeal.') ||
-                url.includes('paytmmall.') || url.includes('tatacliq.') ||
-                url.includes('ebay.') || url.includes('etsy.')) {
-                return 'shopping';
-            }
-            
-            // News platforms
-            if (url.includes('news') || url.includes('bbc.') || url.includes('cnn.') ||
-                url.includes('ndtv.') || url.includes('timesofindia.') ||
-                url.includes('hindustantimes.') || url.includes('indianexpress.') ||
-                url.includes('reuters.') || url.includes('bloomberg.')) {
-                return 'news';
-            }
-            
-            // Fashion keywords
-            if (text.includes('dress') || text.includes('shirt') || text.includes('shoes') ||
-                text.includes('fashion') || text.includes('clothing') || text.includes('wear')) {
-                return 'fashion';
-            }
-            
-            // Food keywords
-            if (text.includes('recipe') || text.includes('food') || text.includes('restaurant') ||
-                text.includes('cooking') || text.includes('meal') || text.includes('dish')) {
-                return 'food';
-            }
-            
-            // Tech keywords
-            if (text.includes('phone') || text.includes('laptop') || text.includes('gadget') ||
-                text.includes('tech') || text.includes('software') || text.includes('app')) {
-                return 'technology';
-            }
-            
-            return 'general';
-        }
-        
-        // Extract price from shopping links
-        function extractPriceFromContent(data) {
-            const text = `${data.title} ${data.description}`.toLowerCase();
-            
-            // Indian Rupee patterns
-            const rupeePatterns = [
-                /₹\s*([0-9,]+(?:\.[0-9]{2})?)/g,
-                /rs\.?\s*([0-9,]+(?:\.[0-9]{2})?)/g,
-                /inr\s*([0-9,]+(?:\.[0-9]{2})?)/g,
-                /price[:\s]*₹\s*([0-9,]+(?:\.[0-9]{2})?)/g
-            ];
-            
-            // USD patterns
-            const usdPatterns = [
-                /\$\s*([0-9,]+(?:\.[0-9]{2})?)/g,
-                /usd\s*([0-9,]+(?:\.[0-9]{2})?)/g,
-                /price[:\s]*\$\s*([0-9,]+(?:\.[0-9]{2})?)/g
-            ];
-            
-            // Try to find Indian Rupee first
-            for (let pattern of rupeePatterns) {
-                const match = pattern.exec(text);
-                if (match) {
-                    return {
-                        amount: match[1].replace(/,/g, ''),
-                        currency: '₹',
-                        formatted: `₹${match[1]}`
-                    };
-                }
-            }
-            
-            // Try USD patterns
-            for (let pattern of usdPatterns) {
-                const match = pattern.exec(text);
-                if (match) {
-                    return {
-                        amount: match[1].replace(/,/g, ''),
-                        currency: '$',
-                        formatted: `$${match[1]}`
-                    };
-                }
-            }
-            
-            return null;
-        }
-        
-        // Detect if URL is a video
-        function isVideoUrl(url) {
-            const videoPatterns = [
-                /youtube\.com\/watch/,
-                /youtu\.be\//,
-                /vimeo\.com\//,
-                /dailymotion\.com\//,
-                /twitch\.tv\//,
-                /instagram\.com\/reel/,
-                /tiktok\.com\//,
-                /facebook\.com\/watch/
-            ];
-            
-            return videoPatterns.some(pattern => pattern.test(url.toLowerCase()));
-        }
-        
-        // Get video thumbnail
-        function getVideoThumbnail(url) {
-            const lowerUrl = url.toLowerCase();
-            
-            // YouTube thumbnail
-            if (lowerUrl.includes('youtube.com/watch')) {
-                const videoId = url.match(/[?&]v=([^&]+)/);
-                if (videoId) {
-                    return `https://img.youtube.com/vi/${videoId[1]}/maxresdefault.jpg`;
-                }
-            }
-            
-            if (lowerUrl.includes('youtu.be/')) {
-                const videoId = url.split('youtu.be/')[1].split('?')[0];
-                return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
-            }
-            
-            return null;
-        }
+
 
         // Upload sample images function
         function uploadSampleImages() {
@@ -3051,6 +2532,236 @@
             }
         }
 
+        // Enhanced Link Processing Functions
+        async function processLinkPreview(url) {
+            try {
+                // Detect link type
+                const linkType = detectLinkType(url);
+                const hostname = new URL(url).hostname.toLowerCase();
+                
+                let preview = {
+                    url: url,
+                    hostname: hostname,
+                    type: linkType,
+                    title: '',
+                    description: '',
+                    image: '',
+                    price: null,
+                    currency: null,
+                    isVideo: false,
+                    videoThumbnail: null
+                };
+                
+                // Handle different link types
+                if (linkType === 'shopping') {
+                    preview = await extractProductInfo(url, preview);
+                } else if (linkType === 'video') {
+                    preview = await extractVideoInfo(url, preview);
+                } else {
+                    preview = await extractBasicInfo(url, preview);
+                }
+                
+                return preview;
+            } catch (error) {
+                console.error('Link preview error:', error);
+                return {
+                    url: url,
+                    hostname: new URL(url).hostname,
+                    type: 'general',
+                    title: '',
+                    description: '',
+                    image: '',
+                    price: null,
+                    currency: null,
+                    isVideo: false
+                };
+            }
+        }
+        
+        function detectLinkType(url) {
+            const hostname = new URL(url).hostname.toLowerCase();
+            
+            // Shopping sites
+            const shoppingSites = [
+                'amazon.com', 'amazon.in', 'amazon.co.uk', 'amazon.de', 'amazon.fr',
+                'flipkart.com', 'myntra.com', 'ajio.com', 'nykaa.com',
+                'ebay.com', 'etsy.com', 'shopify.com',
+                'alibaba.com', 'aliexpress.com',
+                'walmart.com', 'target.com',
+                'zara.com', 'h&m.com', 'uniqlo.com'
+            ];
+            
+            // Video sites
+            const videoSites = [
+                'youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com',
+                'twitch.tv', 'tiktok.com', 'instagram.com'
+            ];
+            
+            // News sites
+            const newsSites = [
+                'bbc.com', 'cnn.com', 'reuters.com', 'ap.org',
+                'timesofindia.com', 'hindustantimes.com', 'ndtv.com',
+                'news.google.com', 'news.yahoo.com'
+            ];
+            
+            if (shoppingSites.some(site => hostname.includes(site))) {
+                return 'shopping';
+            } else if (videoSites.some(site => hostname.includes(site))) {
+                return 'video';
+            } else if (newsSites.some(site => hostname.includes(site))) {
+                return 'news';
+            } else {
+                return 'general';
+            }
+        }
+        
+        async function extractProductInfo(url, preview) {
+            const hostname = preview.hostname;
+            
+            // Amazon product detection
+            if (hostname.includes('amazon')) {
+                preview.title = 'Amazon Product';
+                preview.description = 'Product available on Amazon';
+                preview.price = generateMockPrice(50, 500);
+                preview.currency = hostname.includes('.in') ? '₹' : '$';
+                preview.image = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&h=200&fit=crop';
+            }
+            // Flipkart product detection
+            else if (hostname.includes('flipkart')) {
+                preview.title = 'Flipkart Product';
+                preview.description = 'Product available on Flipkart';
+                preview.price = generateMockPrice(100, 1000);
+                preview.currency = '₹';
+                preview.image = 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=300&h=200&fit=crop';
+            }
+            // Myntra product detection
+            else if (hostname.includes('myntra')) {
+                preview.title = 'Myntra Fashion';
+                preview.description = 'Fashion product on Myntra';
+                preview.price = generateMockPrice(200, 800);
+                preview.currency = '₹';
+                preview.image = 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=300&h=200&fit=crop';
+            }
+            // Other shopping sites
+            else {
+                preview.title = 'Shopping Product';
+                preview.description = `Product available on ${hostname}`;
+                preview.price = generateMockPrice(25, 300);
+                preview.currency = '$';
+                preview.image = 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=300&h=200&fit=crop';
+            }
+            
+            return preview;
+        }
+        
+        async function extractVideoInfo(url, preview) {
+            const hostname = preview.hostname;
+            preview.isVideo = true;
+            
+            // YouTube video detection
+            if (hostname.includes('youtube') || hostname.includes('youtu.be')) {
+                preview.title = 'YouTube Video';
+                preview.description = 'Watch this video on YouTube';
+                preview.videoThumbnail = 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=300&h=200&fit=crop';
+                preview.image = preview.videoThumbnail;
+            }
+            // Instagram video detection
+            else if (hostname.includes('instagram')) {
+                preview.title = 'Instagram Video';
+                preview.description = 'Watch this video on Instagram';
+                preview.videoThumbnail = 'https://images.unsplash.com/photo-1611262588024-d12430b98920?w=300&h=200&fit=crop';
+                preview.image = preview.videoThumbnail;
+            }
+            // TikTok video detection
+            else if (hostname.includes('tiktok')) {
+                preview.title = 'TikTok Video';
+                preview.description = 'Watch this video on TikTok';
+                preview.videoThumbnail = 'https://images.unsplash.com/photo-1611605698335-8b1569810432?w=300&h=200&fit=crop';
+                preview.image = preview.videoThumbnail;
+            }
+            // Other video sites
+            else {
+                preview.title = 'Video Content';
+                preview.description = `Watch video on ${hostname}`;
+                preview.videoThumbnail = 'https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=300&h=200&fit=crop';
+                preview.image = preview.videoThumbnail;
+            }
+            
+            return preview;
+        }
+        
+        async function extractBasicInfo(url, preview) {
+            const hostname = preview.hostname;
+            
+            // News sites
+            if (preview.type === 'news') {
+                preview.title = 'News Article';
+                preview.description = `Read the latest news on ${hostname}`;
+                preview.image = 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=300&h=200&fit=crop';
+            }
+            // Social media
+            else if (hostname.includes('facebook') || hostname.includes('twitter') || hostname.includes('linkedin')) {
+                preview.title = 'Social Media Post';
+                preview.description = `View post on ${hostname}`;
+                preview.image = 'https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=300&h=200&fit=crop';
+            }
+            // Google services
+            else if (hostname.includes('google')) {
+                preview.title = 'Google Service';
+                preview.description = `Access Google service`;
+                preview.image = 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?w=300&h=200&fit=crop';
+            }
+            // General websites
+            else {
+                preview.title = hostname.charAt(0).toUpperCase() + hostname.slice(1);
+                preview.description = `Visit ${hostname}`;
+                preview.image = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop';
+            }
+            
+            return preview;
+        }
+        
+        function generateMockPrice(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        
+        function suggestBoardFromLink(url, linkPreview) {
+            const hostname = url.toLowerCase();
+            const type = linkPreview?.type || 'general';
+            
+            // Shopping links
+            if (type === 'shopping') {
+                if (hostname.includes('myntra') || hostname.includes('zara') || hostname.includes('h&m')) {
+                    return 'fashion';
+                } else {
+                    return 'shopping';
+                }
+            }
+            
+            // Video links
+            if (type === 'video') {
+                return 'lifestyle';
+            }
+            
+            // News links
+            if (type === 'news') {
+                return 'general';
+            }
+            
+            // Food related
+            if (hostname.includes('zomato') || hostname.includes('swiggy') || hostname.includes('recipe')) {
+                return 'food';
+            }
+            
+            // Travel related
+            if (hostname.includes('booking') || hostname.includes('airbnb') || hostname.includes('travel')) {
+                return 'travel';
+            }
+            
+            // Default
+            return 'general';
+        }
+
         // Enhanced content filtering functions
         function shouldBlurContent(image) {
             // Only blur if explicit inappropriate terms are found in title or description
@@ -3216,48 +2927,68 @@
                         ${hasLink ? `
                         <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
                             ${image.linkPreview ? `
-                                <div class="flex items-start space-x-3">
-                                    <div class="relative flex-shrink-0">
-                                        ${image.linkPreview.image ? `
-                                            <img src="${image.linkPreview.image}" alt="Link preview" class="w-12 h-12 rounded object-cover" onerror="this.style.display='none'">
-                                            ${isVideoUrl(image.link) ? `
-                                                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded">
-                                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M8 5v14l11-7z"/>
-                                                    </svg>
-                                                </div>
-                                            ` : ''}
-                                            ${detectProductCategory(image.linkPreview) === 'shopping' && extractPriceFromContent(image.linkPreview) ? `
-                                                <div class="absolute -top-1 -right-1 bg-green-600 text-white px-1 py-0.5 rounded text-xs font-bold">
-                                                    ${extractPriceFromContent(image.linkPreview).formatted}
-                                                </div>
-                                            ` : ''}
-                                        ` : `
-                                            <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-                                                ${isVideoUrl(image.link) ? '🎥' : detectProductCategory(image.linkPreview || {url: image.link}) === 'shopping' ? '🛒' : '🔗'}
+                                <div class="flex items-center space-x-3 mb-3">
+                                    <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg relative flex-shrink-0">
+                                        ${image.linkPreview.image ? 
+                                            `<img src="${image.linkPreview.image}" alt="Preview" class="w-full h-full object-cover rounded" onerror="this.parentElement.innerHTML='🔗'">` : 
+                                            '🔗'
+                                        }
+                                        ${image.linkPreview.isVideo ? `
+                                            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                                                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M8 5v14l11-7z"/>
+                                                </svg>
                                             </div>
-                                        `}
+                                        ` : ''}
                                     </div>
                                     <div class="flex-1 min-w-0">
-                                        <h4 class="font-medium text-gray-900 text-xs mb-1 truncate">${image.linkPreview.title || 'Link'}</h4>
-                                        <p class="text-xs text-gray-600 mb-1 line-clamp-1">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
-                                        ${detectProductCategory(image.linkPreview) === 'shopping' && extractPriceFromContent(image.linkPreview) ? `
-                                            <div class="text-xs font-bold text-green-600">${extractPriceFromContent(image.linkPreview).formatted}</div>
+                                        <h4 class="font-medium text-gray-900 text-xs truncate">${image.linkPreview.title || image.linkPreview.hostname}</h4>
+                                        <p class="text-xs text-gray-600 truncate">${image.linkPreview.description || ''}</p>
+                                        <p class="text-xs text-gray-500 truncate">${image.linkPreview.hostname}</p>
+                                        ${image.linkPreview.price && image.linkPreview.currency ? `
+                                            <div class="mt-1">
+                                                <span class="text-sm font-bold text-green-600">${image.linkPreview.currency}${image.linkPreview.price}</span>
+                                            </div>
                                         ` : ''}
                                     </div>
                                 </div>
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="px-2 py-1 rounded-full text-xs font-medium ${
+                                        image.linkPreview.type === 'shopping' ? 'bg-green-100 text-green-800' :
+                                        image.linkPreview.type === 'video' ? 'bg-red-100 text-red-800' :
+                                        image.linkPreview.type === 'news' ? 'bg-blue-100 text-blue-800' :
+                                        'bg-gray-100 text-gray-800'
+                                    }">
+                                        ${
+                                            image.linkPreview.type === 'shopping' ? '🛍️ Shopping' :
+                                            image.linkPreview.type === 'video' ? '🎥 Video' :
+                                            image.linkPreview.type === 'news' ? '📰 News' :
+                                            '🔗 Link'
+                                        }
+                                    </div>
+                                </div>
                             ` : `
-                                <div class="flex items-center space-x-2">
+                                <div class="flex items-center space-x-2 mb-2">
                                     <div class="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-sm">
-                                        ${isVideoUrl(image.link) ? '🎥' : '🔗'}
+                                        🔗
                                     </div>
                                     <div class="flex-1 min-w-0">
                                         <p class="text-xs text-gray-600 truncate">${new URL(image.link).hostname}</p>
                                     </div>
                                 </div>
                             `}
-                            <button onclick="event.stopPropagation(); window.open('${image.link}', '_blank')" class="mt-2 w-full bg-blue-600 text-white py-1.5 px-3 rounded text-xs font-medium hover:bg-blue-700 transition-colors">
-                                ${isVideoUrl(image.link) ? '▶️ Watch Video' : detectProductCategory(image.linkPreview || {url: image.link}) === 'shopping' ? '🛒 View Product' : '🔗 Visit Link'}
+                            <button onclick="event.stopPropagation(); window.open('${image.link}', '_blank')" class="w-full ${
+                                image.linkPreview?.type === 'shopping' ? 'bg-green-600 hover:bg-green-700' :
+                                image.linkPreview?.type === 'video' ? 'bg-red-600 hover:bg-red-700' :
+                                image.linkPreview?.type === 'news' ? 'bg-blue-600 hover:bg-blue-700' :
+                                'bg-blue-600 hover:bg-blue-700'
+                            } text-white py-1.5 px-3 rounded text-xs font-medium transition-colors">
+                                ${
+                                    image.linkPreview?.type === 'shopping' ? '🛍️ Shop Now' :
+                                    image.linkPreview?.type === 'video' ? '🎥 Watch Video' :
+                                    image.linkPreview?.type === 'news' ? '📰 Read Article' :
+                                    '🔗 Visit Link'
+                                }
                             </button>
                         </div>
                         ` : ''}
@@ -3329,6 +3060,114 @@
             `;
             
             return div;
+        }
+
+        // Link Preview Functions
+        let currentLinkPreview = null;
+        
+        async function handleLinkPreview() {
+            const linkInput = document.getElementById('linkInput');
+            const url = linkInput.value.trim();
+            
+            if (!url) {
+                clearLinkPreview();
+                return;
+            }
+            
+            try {
+                // Validate URL
+                new URL(url);
+                
+                // Show loading state
+                showLinkPreviewLoading();
+                
+                // Process link preview
+                currentLinkPreview = await processLinkPreview(url);
+                
+                // Display preview
+                displayLinkPreview(currentLinkPreview);
+                
+                // Auto-suggest board based on link
+                const suggestedBoard = suggestBoardFromLink(url, currentLinkPreview);
+                document.getElementById('boardSelect').value = suggestedBoard;
+                
+            } catch (error) {
+                console.error('Link preview error:', error);
+                clearLinkPreview();
+            }
+        }
+        
+        function showLinkPreviewLoading() {
+            const preview = document.getElementById('linkPreview');
+            const title = document.getElementById('linkPreviewTitle');
+            const description = document.getElementById('linkPreviewDescription');
+            
+            preview.classList.remove('hidden');
+            title.textContent = 'Loading...';
+            description.textContent = 'Fetching link preview...';
+        }
+        
+        function displayLinkPreview(preview) {
+            const previewContainer = document.getElementById('linkPreview');
+            const imageContainer = document.getElementById('linkPreviewImage');
+            const videoIcon = document.getElementById('videoPlayIcon');
+            const title = document.getElementById('linkPreviewTitle');
+            const description = document.getElementById('linkPreviewDescription');
+            const hostname = document.getElementById('linkPreviewHostname');
+            const priceContainer = document.getElementById('linkPreviewPrice');
+            const badge = document.getElementById('linkPreviewBadge');
+            
+            // Show preview container
+            previewContainer.classList.remove('hidden');
+            
+            // Update image/video thumbnail
+            if (preview.image) {
+                imageContainer.innerHTML = `<img src="${preview.image}" alt="Preview" class="w-full h-full object-cover rounded" onerror="this.parentElement.innerHTML='🔗'">`;
+            } else {
+                imageContainer.innerHTML = '🔗';
+            }
+            
+            // Show video play icon for video content
+            if (preview.isVideo) {
+                videoIcon.classList.remove('hidden');
+            } else {
+                videoIcon.classList.add('hidden');
+            }
+            
+            // Update text content
+            title.textContent = preview.title || preview.hostname;
+            description.textContent = preview.description || 'No description available';
+            hostname.textContent = preview.hostname;
+            
+            // Show price for shopping links
+            if (preview.price && preview.currency) {
+                priceContainer.classList.remove('hidden');
+                priceContainer.querySelector('span').textContent = `${preview.currency}${preview.price}`;
+            } else {
+                priceContainer.classList.add('hidden');
+            }
+            
+            // Show appropriate badge
+            badge.classList.remove('hidden');
+            if (preview.type === 'shopping') {
+                badge.innerHTML = '🛍️ Shopping';
+                badge.className = 'px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full font-medium';
+            } else if (preview.type === 'video') {
+                badge.innerHTML = '🎥 Video';
+                badge.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full font-medium';
+            } else if (preview.type === 'news') {
+                badge.innerHTML = '📰 News';
+                badge.className = 'px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-medium';
+            } else {
+                badge.innerHTML = '🔗 Link';
+                badge.className = 'px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full font-medium';
+            }
+        }
+        
+        function clearLinkPreview() {
+            document.getElementById('linkPreview').classList.add('hidden');
+            document.getElementById('linkInput').value = '';
+            currentLinkPreview = null;
         }
 
         // Upload functions
@@ -3421,21 +3260,12 @@
             }
             
             const fileInput = document.getElementById('imageInput');
-            const linkInput = document.getElementById('linkInput');
-            
-            // Check if we have either a file or a link with preview data
-            if (!fileInput.files[0] && (!linkInput.value.trim() || !linkPreviewData || !linkPreviewData.image)) {
-                handleError(new Error('No content to upload'), "Please select an image or add a product link with an image.");
-                return;
-            }
-            
-            // If we have link preview data but no file, create from link
-            if (!fileInput.files[0] && linkPreviewData && linkPreviewData.image) {
-                createPixFromLinkOnly();
-                return;
-            }
-            
             const file = fileInput.files[0];
+            
+            if (!file) {
+                handleError(new Error('No file selected'), "Please select an image to upload.");
+                return;
+            }
             
             // Validate file type
             if (!file.type.startsWith('image/')) {
@@ -3470,21 +3300,13 @@
                     const shoppingRecommendations = document.getElementById('shoppingRecommendations').checked;
                     const scheduleDate = document.getElementById('scheduleDate').value;
                     
-                    // Auto-detect board category based on link preview data
-                    let detectedBoard = board || 'general';
-                    if (linkPreviewData) {
-                        const category = detectProductCategory(linkPreviewData);
-                        if (category !== 'general') {
-                            detectedBoard = category;
-                        }
-                    }
-                    
                     const imageData = {
                         url: base64Data,
                         title: title || '',
                         description: description || '',
                         link: link || '',
-                        board: detectedBoard,
+                        linkPreview: currentLinkPreview || null,
+                        board: board,
                         authorId: currentUser.uid,
                         authorName: currentUser.displayName || 'Anonymous',
                         authorPhoto: currentUser.photoURL || '',
@@ -3494,14 +3316,7 @@
                             allowComments: allowComments,
                             brandedContent: brandedContent,
                             shoppingRecommendations: shoppingRecommendations && !brandedContent
-                        },
-                        // Store link preview data for enhanced display
-                        linkPreview: linkPreviewData ? {
-                            title: linkPreviewData.title,
-                            description: linkPreviewData.description,
-                            image: linkPreviewData.image,
-                            hostname: linkPreviewData.url ? new URL(linkPreviewData.url).hostname : ''
-                        } : null
+                        }
                     };
                     
                     database.ref('images').push(imageData).then(() => {
@@ -3568,7 +3383,6 @@
             
             // Clear link preview
             clearLinkPreview();
-            linkPreviewData = null;
             
             // Hide advanced settings
             document.getElementById('advancedSettings').classList.add('hidden');
@@ -3630,82 +3444,83 @@
                 
                 // Enhanced description with link preview
                 let descriptionHtml = formatHashtags(image.description || '');
-                if (image.linkPreview && image.link) {
-                    const category = detectProductCategory(image.linkPreview);
-                    const isVideo = isVideoUrl(image.link);
-                    const price = extractPriceFromContent(image.linkPreview);
-                    
-                    // Category badges
-                    const categoryBadges = {
-                        'video': { icon: '🎥', text: 'Video Content', color: 'bg-red-100 text-red-800' },
-                        'shopping': { icon: '🛒', text: 'Shopping Link', color: 'bg-green-100 text-green-800' },
-                        'news': { icon: '📰', text: 'News Article', color: 'bg-blue-100 text-blue-800' },
-                        'general': { icon: '🔗', text: 'External Link', color: 'bg-gray-100 text-gray-800' }
-                    };
-                    
-                    const badge = categoryBadges[category] || categoryBadges['general'];
-                    
-                    descriptionHtml += `
-                        <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="flex items-center space-x-2 mb-3">
-                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color}">
-                                    ${badge.icon} ${badge.text}
-                                </span>
-                                ${price ? `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-600 text-white">${price.formatted}</span>` : ''}
-                            </div>
-                            
-                            <div class="flex items-start space-x-3">
-                                <div class="relative flex-shrink-0">
-                                    ${image.linkPreview.image ? `
-                                        <img src="${image.linkPreview.image}" alt="Link preview" class="w-20 h-20 rounded object-cover" onerror="this.style.display='none'">
-                                        ${isVideo ? `
-                                            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                                                <div class="bg-red-600 text-white p-2 rounded-full">
-                                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                                                        <path d="M8 5v14l11-7z"/>
-                                                    </svg>
-                                                </div>
-                                            </div>
-                                        ` : ''}
-                                    ` : `
-                                        <div class="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-2xl">
-                                            ${isVideo ? '🎥' : category === 'shopping' ? '🛒' : category === 'news' ? '📰' : '🔗'}
-                                        </div>
-                                    `}
-                                </div>
-                                <div class="flex-1">
-                                    <h4 class="font-semibold text-gray-900 text-sm mb-1">${image.linkPreview.title || 'Link Content'}</h4>
-                                    <p class="text-xs text-gray-600 mb-2 line-clamp-2">${image.linkPreview.description || 'Click to visit the link'}</p>
-                                    <p class="text-xs text-blue-600">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
-                                    ${price ? `<p class="text-sm font-bold text-green-600 mt-1">Price: ${price.formatted}</p>` : ''}
-                                </div>
-                            </div>
-                            <button onclick="window.open('${image.link}', '_blank')" class="mt-3 w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm">
-                                ${isVideo ? '▶️ Watch Video' : category === 'shopping' ? '🛒 View Product' : category === 'news' ? '📰 Read Article' : '🔗 Visit Link'}
-                            </button>
-                        </div>
-                    `;
-                } else if (image.link) {
-                    // Fallback for links without preview data
-                    const isVideo = isVideoUrl(image.link);
+                if (image.link) {
                     const hostname = new URL(image.link).hostname;
                     
-                    descriptionHtml += `
-                        <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                            <div class="flex items-center space-x-3 mb-3">
-                                <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg">
-                                    ${isVideo ? '🎥' : '🔗'}
+                    if (image.linkPreview) {
+                        descriptionHtml += `
+                            <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-4 mb-4">
+                                    <div class="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center text-xl relative flex-shrink-0">
+                                        ${image.linkPreview.image ? 
+                                            `<img src="${image.linkPreview.image}" alt="Preview" class="w-full h-full object-cover rounded-lg" onerror="this.parentElement.innerHTML='🔗'">` : 
+                                            '🔗'
+                                        }
+                                        ${image.linkPreview.isVideo ? `
+                                            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-60 rounded-lg">
+                                                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                                    <path d="M8 5v14l11-7z"/>
+                                                </svg>
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-semibold text-gray-900 text-sm mb-1">${image.linkPreview.title || hostname}</h4>
+                                        <p class="text-sm text-gray-600 mb-2 line-clamp-2">${image.linkPreview.description || 'No description available'}</p>
+                                        <p class="text-xs text-gray-500 mb-2">${hostname}</p>
+                                        ${image.linkPreview.price && image.linkPreview.currency ? `
+                                            <div class="mb-2">
+                                                <span class="text-lg font-bold text-green-600">${image.linkPreview.currency}${image.linkPreview.price}</span>
+                                            </div>
+                                        ` : ''}
+                                        <div class="px-3 py-1 rounded-full text-xs font-medium inline-block ${
+                                            image.linkPreview.type === 'shopping' ? 'bg-green-100 text-green-800' :
+                                            image.linkPreview.type === 'video' ? 'bg-red-100 text-red-800' :
+                                            image.linkPreview.type === 'news' ? 'bg-blue-100 text-blue-800' :
+                                            'bg-gray-100 text-gray-800'
+                                        }">
+                                            ${
+                                                image.linkPreview.type === 'shopping' ? '🛍️ Shopping' :
+                                                image.linkPreview.type === 'video' ? '🎥 Video' :
+                                                image.linkPreview.type === 'news' ? '📰 News' :
+                                                '🔗 Link'
+                                            }
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="flex-1">
-                                    <h4 class="font-medium text-gray-900 text-sm">${isVideo ? 'Video Content' : 'External Link'}</h4>
-                                    <p class="text-xs text-gray-600">${hostname}</p>
-                                </div>
+                                <button onclick="window.open('${image.link}', '_blank')" class="w-full ${
+                                    image.linkPreview.type === 'shopping' ? 'bg-green-600 hover:bg-green-700' :
+                                    image.linkPreview.type === 'video' ? 'bg-red-600 hover:bg-red-700' :
+                                    image.linkPreview.type === 'news' ? 'bg-blue-600 hover:bg-blue-700' :
+                                    'bg-blue-600 hover:bg-blue-700'
+                                } text-white py-3 px-4 rounded-lg transition-colors text-sm font-medium">
+                                    ${
+                                        image.linkPreview.type === 'shopping' ? '🛍️ Shop Now' :
+                                        image.linkPreview.type === 'video' ? '🎥 Watch Video' :
+                                        image.linkPreview.type === 'news' ? '📰 Read Full Article' :
+                                        '🔗 Visit Website'
+                                    }
+                                </button>
                             </div>
-                            <button onclick="window.open('${image.link}', '_blank')" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-                                ${isVideo ? '▶️ Watch Video' : '🔗 Visit Link'}
-                            </button>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        descriptionHtml += `
+                            <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <div class="flex items-center space-x-3 mb-3">
+                                    <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg">
+                                        🔗
+                                    </div>
+                                    <div class="flex-1">
+                                        <h4 class="font-medium text-gray-900 text-sm">External Link</h4>
+                                        <p class="text-xs text-gray-600">${hostname}</p>
+                                    </div>
+                                </div>
+                                <button onclick="window.open('${image.link}', '_blank')" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                    🔗 Visit Link
+                                </button>
+                            </div>
+                        `;
+                    }
                 }
                 document.getElementById('modalDescription').innerHTML = descriptionHtml;
                 
@@ -4303,5 +4118,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e872986403be0',t:'MTc1Njk5OTgyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e980544a23be0',t:'MTc1NzAwMDUxNi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
