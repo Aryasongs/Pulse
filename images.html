@@ -2430,20 +2430,81 @@
             const previewDescription = document.getElementById('previewDescription');
             const previewUrl = document.getElementById('previewUrl');
             
+            // Detect content type
+            const category = detectProductCategory(data);
+            const isVideo = isVideoUrl(data.url);
+            const price = extractPriceFromContent(data);
+            
             // Set preview data
             previewTitle.textContent = data.title || 'No title available';
             previewDescription.textContent = data.description || 'No description available';
             previewUrl.textContent = new URL(data.url).hostname;
             
-            // Handle image
-            if (data.image && data.image.trim()) {
-                previewImage.src = data.image;
+            // Handle image with video overlay or price badge
+            let imageToShow = data.image;
+            
+            // For videos, try to get thumbnail
+            if (isVideo && !imageToShow) {
+                imageToShow = getVideoThumbnail(data.url);
+            }
+            
+            if (imageToShow && imageToShow.trim()) {
+                previewImage.src = imageToShow;
                 previewImage.classList.remove('hidden');
                 previewImage.onerror = function() {
                     this.classList.add('hidden');
                 };
+                
+                // Add video play icon overlay
+                if (isVideo) {
+                    const existingOverlay = previewImage.parentElement.querySelector('.video-overlay');
+                    if (!existingOverlay) {
+                        const videoOverlay = document.createElement('div');
+                        videoOverlay.className = 'video-overlay absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 rounded';
+                        videoOverlay.innerHTML = `
+                            <div class="bg-red-600 text-white p-3 rounded-full shadow-lg">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                            </div>
+                        `;
+                        previewImage.parentElement.style.position = 'relative';
+                        previewImage.parentElement.appendChild(videoOverlay);
+                    }
+                }
+                
+                // Add price badge for shopping links
+                if (category === 'shopping' && price) {
+                    const existingBadge = previewImage.parentElement.querySelector('.price-badge');
+                    if (!existingBadge) {
+                        const priceBadge = document.createElement('div');
+                        priceBadge.className = 'price-badge absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs font-bold shadow-lg';
+                        priceBadge.textContent = price.formatted;
+                        previewImage.parentElement.style.position = 'relative';
+                        previewImage.parentElement.appendChild(priceBadge);
+                    }
+                }
             } else {
                 previewImage.classList.add('hidden');
+            }
+            
+            // Add category-specific styling
+            const categoryBadges = {
+                'video': { icon: '🎥', text: 'Video', color: 'bg-red-100 text-red-800' },
+                'shopping': { icon: '🛒', text: 'Shopping', color: 'bg-green-100 text-green-800' },
+                'news': { icon: '📰', text: 'News', color: 'bg-blue-100 text-blue-800' },
+                'general': { icon: '🔗', text: 'Link', color: 'bg-gray-100 text-gray-800' }
+            };
+            
+            const badge = categoryBadges[category] || categoryBadges['general'];
+            
+            // Add category badge to description
+            const existingBadge = previewContainer.querySelector('.category-badge');
+            if (!existingBadge) {
+                const categoryBadge = document.createElement('div');
+                categoryBadge.className = `category-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color} mb-2`;
+                categoryBadge.innerHTML = `${badge.icon} ${badge.text}`;
+                previewDescription.parentElement.insertBefore(categoryBadge, previewDescription);
             }
             
             // Show preview
@@ -2497,14 +2558,37 @@
         }
         
         function clearLinkPreview() {
-            document.getElementById('linkPreview').classList.add('hidden');
+            const previewContainer = document.getElementById('linkPreview');
+            previewContainer.classList.add('hidden');
             document.getElementById('linkPreviewLoading').classList.add('hidden');
             
-            // Remove create from link button if it exists
+            // Remove all dynamic elements
             const createButton = document.querySelector('.create-from-link-btn');
             if (createButton) {
                 createButton.remove();
             }
+            
+            // Remove video overlay and price badges
+            const videoOverlay = previewContainer.querySelector('.video-overlay');
+            if (videoOverlay) {
+                videoOverlay.remove();
+            }
+            
+            const priceBadge = previewContainer.querySelector('.price-badge');
+            if (priceBadge) {
+                priceBadge.remove();
+            }
+            
+            const categoryBadge = previewContainer.querySelector('.category-badge');
+            if (categoryBadge) {
+                categoryBadge.remove();
+            }
+            
+            // Reset board hint
+            const boardHint = document.getElementById('boardHint');
+            boardHint.textContent = 'Board will be auto-detected based on your link';
+            boardHint.classList.remove('text-green-600');
+            boardHint.classList.add('text-gray-500');
             
             linkPreviewData = null;
         }
@@ -2553,12 +2637,32 @@
         // Enhanced product detection for better categorization
         function detectProductCategory(data) {
             const text = `${data.title} ${data.description}`.toLowerCase();
+            const url = data.url.toLowerCase();
+            
+            // Video platforms
+            if (url.includes('youtube.') || url.includes('youtu.be') || 
+                url.includes('vimeo.') || url.includes('dailymotion.') ||
+                url.includes('twitch.') || url.includes('instagram.com/reel') ||
+                url.includes('tiktok.') || url.includes('facebook.com/watch')) {
+                return 'video';
+            }
             
             // E-commerce platforms
-            if (data.url.includes('amazon.') || data.url.includes('flipkart.') || 
-                data.url.includes('myntra.') || data.url.includes('ajio.') ||
-                data.url.includes('nykaa.') || data.url.includes('shopify.')) {
+            if (url.includes('amazon.') || url.includes('flipkart.') || 
+                url.includes('myntra.') || url.includes('ajio.') ||
+                url.includes('nykaa.') || url.includes('shopify.') ||
+                url.includes('meesho.') || url.includes('snapdeal.') ||
+                url.includes('paytmmall.') || url.includes('tatacliq.') ||
+                url.includes('ebay.') || url.includes('etsy.')) {
                 return 'shopping';
+            }
+            
+            // News platforms
+            if (url.includes('news') || url.includes('bbc.') || url.includes('cnn.') ||
+                url.includes('ndtv.') || url.includes('timesofindia.') ||
+                url.includes('hindustantimes.') || url.includes('indianexpress.') ||
+                url.includes('reuters.') || url.includes('bloomberg.')) {
+                return 'news';
             }
             
             // Fashion keywords
@@ -2580,6 +2684,88 @@
             }
             
             return 'general';
+        }
+        
+        // Extract price from shopping links
+        function extractPriceFromContent(data) {
+            const text = `${data.title} ${data.description}`.toLowerCase();
+            
+            // Indian Rupee patterns
+            const rupeePatterns = [
+                /₹\s*([0-9,]+(?:\.[0-9]{2})?)/g,
+                /rs\.?\s*([0-9,]+(?:\.[0-9]{2})?)/g,
+                /inr\s*([0-9,]+(?:\.[0-9]{2})?)/g,
+                /price[:\s]*₹\s*([0-9,]+(?:\.[0-9]{2})?)/g
+            ];
+            
+            // USD patterns
+            const usdPatterns = [
+                /\$\s*([0-9,]+(?:\.[0-9]{2})?)/g,
+                /usd\s*([0-9,]+(?:\.[0-9]{2})?)/g,
+                /price[:\s]*\$\s*([0-9,]+(?:\.[0-9]{2})?)/g
+            ];
+            
+            // Try to find Indian Rupee first
+            for (let pattern of rupeePatterns) {
+                const match = pattern.exec(text);
+                if (match) {
+                    return {
+                        amount: match[1].replace(/,/g, ''),
+                        currency: '₹',
+                        formatted: `₹${match[1]}`
+                    };
+                }
+            }
+            
+            // Try USD patterns
+            for (let pattern of usdPatterns) {
+                const match = pattern.exec(text);
+                if (match) {
+                    return {
+                        amount: match[1].replace(/,/g, ''),
+                        currency: '$',
+                        formatted: `$${match[1]}`
+                    };
+                }
+            }
+            
+            return null;
+        }
+        
+        // Detect if URL is a video
+        function isVideoUrl(url) {
+            const videoPatterns = [
+                /youtube\.com\/watch/,
+                /youtu\.be\//,
+                /vimeo\.com\//,
+                /dailymotion\.com\//,
+                /twitch\.tv\//,
+                /instagram\.com\/reel/,
+                /tiktok\.com\//,
+                /facebook\.com\/watch/
+            ];
+            
+            return videoPatterns.some(pattern => pattern.test(url.toLowerCase()));
+        }
+        
+        // Get video thumbnail
+        function getVideoThumbnail(url) {
+            const lowerUrl = url.toLowerCase();
+            
+            // YouTube thumbnail
+            if (lowerUrl.includes('youtube.com/watch')) {
+                const videoId = url.match(/[?&]v=([^&]+)/);
+                if (videoId) {
+                    return `https://img.youtube.com/vi/${videoId[1]}/maxresdefault.jpg`;
+                }
+            }
+            
+            if (lowerUrl.includes('youtu.be/')) {
+                const videoId = url.split('youtu.be/')[1].split('?')[0];
+                return `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+            }
+            
+            return null;
         }
 
         // Upload sample images function
@@ -3027,6 +3213,55 @@
                         
 
                         
+                        ${hasLink ? `
+                        <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            ${image.linkPreview ? `
+                                <div class="flex items-start space-x-3">
+                                    <div class="relative flex-shrink-0">
+                                        ${image.linkPreview.image ? `
+                                            <img src="${image.linkPreview.image}" alt="Link preview" class="w-12 h-12 rounded object-cover" onerror="this.style.display='none'">
+                                            ${isVideoUrl(image.link) ? `
+                                                <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-40 rounded">
+                                                    <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z"/>
+                                                    </svg>
+                                                </div>
+                                            ` : ''}
+                                            ${detectProductCategory(image.linkPreview) === 'shopping' && extractPriceFromContent(image.linkPreview) ? `
+                                                <div class="absolute -top-1 -right-1 bg-green-600 text-white px-1 py-0.5 rounded text-xs font-bold">
+                                                    ${extractPriceFromContent(image.linkPreview).formatted}
+                                                </div>
+                                            ` : ''}
+                                        ` : `
+                                            <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                                                ${isVideoUrl(image.link) ? '🎥' : detectProductCategory(image.linkPreview || {url: image.link}) === 'shopping' ? '🛒' : '🔗'}
+                                            </div>
+                                        `}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <h4 class="font-medium text-gray-900 text-xs mb-1 truncate">${image.linkPreview.title || 'Link'}</h4>
+                                        <p class="text-xs text-gray-600 mb-1 line-clamp-1">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
+                                        ${detectProductCategory(image.linkPreview) === 'shopping' && extractPriceFromContent(image.linkPreview) ? `
+                                            <div class="text-xs font-bold text-green-600">${extractPriceFromContent(image.linkPreview).formatted}</div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-sm">
+                                        ${isVideoUrl(image.link) ? '🎥' : '🔗'}
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-xs text-gray-600 truncate">${new URL(image.link).hostname}</p>
+                                    </div>
+                                </div>
+                            `}
+                            <button onclick="event.stopPropagation(); window.open('${image.link}', '_blank')" class="mt-2 w-full bg-blue-600 text-white py-1.5 px-3 rounded text-xs font-medium hover:bg-blue-700 transition-colors">
+                                ${isVideoUrl(image.link) ? '▶️ Watch Video' : detectProductCategory(image.linkPreview || {url: image.link}) === 'shopping' ? '🛒 View Product' : '🔗 Visit Link'}
+                            </button>
+                        </div>
+                        ` : ''}
+                        
                         <div class="flex items-center justify-between mt-2">
                             <div class="flex-1">
                                 <!-- Author info completely removed for privacy -->
@@ -3396,18 +3631,78 @@
                 // Enhanced description with link preview
                 let descriptionHtml = formatHashtags(image.description || '');
                 if (image.linkPreview && image.link) {
+                    const category = detectProductCategory(image.linkPreview);
+                    const isVideo = isVideoUrl(image.link);
+                    const price = extractPriceFromContent(image.linkPreview);
+                    
+                    // Category badges
+                    const categoryBadges = {
+                        'video': { icon: '🎥', text: 'Video Content', color: 'bg-red-100 text-red-800' },
+                        'shopping': { icon: '🛒', text: 'Shopping Link', color: 'bg-green-100 text-green-800' },
+                        'news': { icon: '📰', text: 'News Article', color: 'bg-blue-100 text-blue-800' },
+                        'general': { icon: '🔗', text: 'External Link', color: 'bg-gray-100 text-gray-800' }
+                    };
+                    
+                    const badge = categoryBadges[category] || categoryBadges['general'];
+                    
                     descriptionHtml += `
                         <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex items-center space-x-2 mb-3">
+                                <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${badge.color}">
+                                    ${badge.icon} ${badge.text}
+                                </span>
+                                ${price ? `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-bold bg-green-600 text-white">${price.formatted}</span>` : ''}
+                            </div>
+                            
                             <div class="flex items-start space-x-3">
-                                ${image.linkPreview.image ? `<img src="${image.linkPreview.image}" alt="Link preview" class="w-16 h-16 rounded object-cover flex-shrink-0" onerror="this.style.display='none'">` : ''}
+                                <div class="relative flex-shrink-0">
+                                    ${image.linkPreview.image ? `
+                                        <img src="${image.linkPreview.image}" alt="Link preview" class="w-20 h-20 rounded object-cover" onerror="this.style.display='none'">
+                                        ${isVideo ? `
+                                            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                                                <div class="bg-red-600 text-white p-2 rounded-full">
+                                                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                                        <path d="M8 5v14l11-7z"/>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        ` : ''}
+                                    ` : `
+                                        <div class="w-20 h-20 bg-gray-200 rounded flex items-center justify-center text-2xl">
+                                            ${isVideo ? '🎥' : category === 'shopping' ? '🛒' : category === 'news' ? '📰' : '🔗'}
+                                        </div>
+                                    `}
+                                </div>
                                 <div class="flex-1">
-                                    <h4 class="font-semibold text-gray-900 text-sm mb-1">${image.linkPreview.title || 'Product Link'}</h4>
-                                    <p class="text-xs text-gray-600 mb-2">${image.linkPreview.description || 'Click to visit the link'}</p>
+                                    <h4 class="font-semibold text-gray-900 text-sm mb-1">${image.linkPreview.title || 'Link Content'}</h4>
+                                    <p class="text-xs text-gray-600 mb-2 line-clamp-2">${image.linkPreview.description || 'Click to visit the link'}</p>
                                     <p class="text-xs text-blue-600">${image.linkPreview.hostname || new URL(image.link).hostname}</p>
+                                    ${price ? `<p class="text-sm font-bold text-green-600 mt-1">Price: ${price.formatted}</p>` : ''}
                                 </div>
                             </div>
-                            <button onclick="window.open('${image.link}', '_blank')" class="mt-3 w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-                                🛒 Visit Link
+                            <button onclick="window.open('${image.link}', '_blank')" class="mt-3 w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium shadow-sm">
+                                ${isVideo ? '▶️ Watch Video' : category === 'shopping' ? '🛒 View Product' : category === 'news' ? '📰 Read Article' : '🔗 Visit Link'}
+                            </button>
+                        </div>
+                    `;
+                } else if (image.link) {
+                    // Fallback for links without preview data
+                    const isVideo = isVideoUrl(image.link);
+                    const hostname = new URL(image.link).hostname;
+                    
+                    descriptionHtml += `
+                        <div class="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div class="flex items-center space-x-3 mb-3">
+                                <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg">
+                                    ${isVideo ? '🎥' : '🔗'}
+                                </div>
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-gray-900 text-sm">${isVideo ? 'Video Content' : 'External Link'}</h4>
+                                    <p class="text-xs text-gray-600">${hostname}</p>
+                                </div>
+                            </div>
+                            <button onclick="window.open('${image.link}', '_blank')" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
+                                ${isVideo ? '▶️ Watch Video' : '🔗 Visit Link'}
                             </button>
                         </div>
                     `;
@@ -4008,5 +4303,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e74c9f595549c',t:'MTc1Njk5OTA3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'979e872986403be0',t:'MTc1Njk5OTgyNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
