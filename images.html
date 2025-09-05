@@ -853,12 +853,12 @@
             <div class="p-6">
                 <div class="flex justify-between items-start mb-4">
                     <div class="flex items-center space-x-4">
-                        <button onclick="downloadImage()" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-lg transition-colors">
+                        <button onclick="downloadImage()" class="bg-gray-100 hover:bg-gray-200 p-2 rounded-lg transition-colors" title="Download Image">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                             </svg>
                         </button>
-                        <button onclick="toggleSaveImage()" id="saveBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
+                        <button onclick="currentUser ? toggleSaveImage() : requireLogin(toggleSaveImage)" id="saveBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors">
                             Save
                         </button>
                     </div>
@@ -3033,19 +3033,25 @@
                         <div class="hover-overlay absolute inset-0 flex items-end p-3">
                             <div class="flex justify-between items-end w-full">
                                 <div class="flex space-x-2">
-                                    <button onclick="event.stopPropagation(); downloadImageDirect('${image.url}')" class="bg-white bg-opacity-90 p-2 rounded-full hover:bg-opacity-100 transition-all shadow-sm">
+                                    <button onclick="event.stopPropagation(); downloadImageDirect('${image.url}')" class="bg-white bg-opacity-90 p-2 rounded-full hover:bg-opacity-100 transition-all shadow-sm" title="Download Image">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                                         </svg>
                                     </button>
-                                    ${currentUser && !image.isRepix ? `<button onclick="event.stopPropagation(); openRepixModal('${image.id}')" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2 rounded-full hover:from-purple-700 hover:to-pink-700 transition-all shadow-sm repix-btn">
+                                    ${currentUser && !image.isRepix ? `<button onclick="event.stopPropagation(); openRepixModal('${image.id}')" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2 rounded-full hover:from-purple-700 hover:to-pink-700 transition-all shadow-sm repix-btn" title="Repix this content">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                                        </svg>
+                                    </button>` : !currentUser && !image.isRepix ? `<button onclick="event.stopPropagation(); requireLogin(() => openRepixModal('${image.id}'))" class="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-2 rounded-full hover:from-purple-700 hover:to-pink-700 transition-all shadow-sm repix-btn" title="Sign in to Repix">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
                                         </svg>
                                     </button>` : ''}
-                                    ${currentUser ? `<button onclick="event.stopPropagation(); toggleSaveImageDirect('${image.id}')" class="bg-red-600 text-white px-3 py-2 rounded-full hover:bg-red-700 transition-all shadow-sm text-sm font-medium">
+                                    ${currentUser ? `<button onclick="event.stopPropagation(); toggleSaveImageDirect('${image.id}')" class="bg-red-600 text-white px-3 py-2 rounded-full hover:bg-red-700 transition-all shadow-sm text-sm font-medium" title="${isSaved ? 'Remove from saved' : 'Save to collection'}">
                                         ${isSaved ? 'Saved' : 'Save'}
-                                    </button>` : ''}
+                                    </button>` : `<button onclick="event.stopPropagation(); requireLogin(() => toggleSaveImageDirect('${image.id}'))" class="bg-red-600 text-white px-3 py-2 rounded-full hover:bg-red-700 transition-all shadow-sm text-sm font-medium" title="Sign in to save">
+                                        Save
+                                    </button>`}
                                 </div>
                                 <div class="monetization-badge ${isMonetized && isOwner ? '' : 'hidden'} text-black px-2 py-1 rounded-full text-xs font-bold" data-is-owner="${isOwner}">💰 EARNING</div>
                             </div>
@@ -3069,71 +3075,19 @@
 
                         
                         ${hasLink ? `
-                        <div class="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                            ${image.linkPreview ? `
-                                <div class="flex items-center space-x-3 mb-3">
-                                    <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg relative flex-shrink-0">
-                                        ${image.linkPreview.image ? 
-                                            `<img src="${image.linkPreview.image}" alt="Preview" class="w-full h-full object-cover rounded" onerror="this.parentElement.innerHTML='🔗'">` : 
-                                            '🔗'
-                                        }
-                                        ${image.linkPreview.isVideo ? `
-                                            <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
-                                                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
-                                                    <path d="M8 5v14l11-7z"/>
-                                                </svg>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <h4 class="font-medium text-gray-900 text-xs truncate">${image.linkPreview.title || image.linkPreview.hostname}</h4>
-                                        <p class="text-xs text-gray-600 truncate">${image.linkPreview.description || ''}</p>
-                                        <p class="text-xs text-gray-500 truncate">${image.linkPreview.hostname}</p>
-                                        ${image.linkPreview.price && image.linkPreview.currency ? `
-                                            <div class="mt-1">
-                                                <span class="text-sm font-bold text-green-600">${image.linkPreview.currency}${image.linkPreview.price}</span>
-                                            </div>
-                                        ` : ''}
-                                    </div>
+                        <div class="mt-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border-2 border-dashed border-blue-300" id="link-preview-${image.id}">
+                            <div class="text-center">
+                                <div class="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mx-auto mb-3 flex items-center justify-center">
+                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                    </svg>
                                 </div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <div class="px-2 py-1 rounded-full text-xs font-medium ${
-                                        image.linkPreview.type === 'shopping' ? 'bg-green-100 text-green-800' :
-                                        image.linkPreview.type === 'video' ? 'bg-red-100 text-red-800' :
-                                        image.linkPreview.type === 'news' ? 'bg-blue-100 text-blue-800' :
-                                        'bg-gray-100 text-gray-800'
-                                    }">
-                                        ${
-                                            image.linkPreview.type === 'shopping' ? '🛍️ Shopping' :
-                                            image.linkPreview.type === 'video' ? '🎥 Video' :
-                                            image.linkPreview.type === 'news' ? '📰 News' :
-                                            '🔗 Link'
-                                        }
-                                    </div>
-                                </div>
-                            ` : `
-                                <div class="flex items-center space-x-2 mb-2">
-                                    <div class="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-sm">
-                                        🔗
-                                    </div>
-                                    <div class="flex-1 min-w-0">
-                                        <p class="text-xs text-gray-600 truncate">${new URL(image.link).hostname}</p>
-                                    </div>
-                                </div>
-                            `}
-                            <button onclick="event.stopPropagation(); window.open('${image.link}', '_blank')" class="w-full ${
-                                image.linkPreview?.type === 'shopping' ? 'bg-green-600 hover:bg-green-700' :
-                                image.linkPreview?.type === 'video' ? 'bg-red-600 hover:bg-red-700' :
-                                image.linkPreview?.type === 'news' ? 'bg-blue-600 hover:bg-blue-700' :
-                                'bg-blue-600 hover:bg-blue-700'
-                            } text-white py-1.5 px-3 rounded text-xs font-medium transition-colors">
-                                ${
-                                    image.linkPreview?.type === 'shopping' ? '🛍️ Shop Now' :
-                                    image.linkPreview?.type === 'video' ? '🎥 Watch Video' :
-                                    image.linkPreview?.type === 'news' ? '📰 Read Article' :
-                                    '🔗 Visit Link'
-                                }
-                            </button>
+                                <h4 class="font-semibold text-gray-900 text-sm mb-2">🔗 Link Available</h4>
+                                <p class="text-xs text-gray-600 mb-3">Download this Pix to unlock the link preview and access the content!</p>
+                                <button onclick="event.stopPropagation(); downloadAndUnlockLink('${image.id}', '${image.url}', '${image.link}')" class="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 px-4 rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all text-xs font-medium shadow-sm">
+                                    📥 Download to Unlock Link
+                                </button>
+                            </div>
                         </div>
                         ` : ''}
                         
@@ -3791,16 +3745,171 @@
 
         function downloadImageDirect(url) {
             try {
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `pixplay-image-${Date.now()}.jpg`;
-                link.target = '_blank';
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                showSuccess('Download started! 📥');
+                // Check if it's a base64 image (user uploaded)
+                if (url.startsWith('data:image/')) {
+                    // For base64 images, create download link directly
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `pixplay-image-${Date.now()}.jpg`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    showSuccess('Download started! 📥');
+                } else {
+                    // For external URLs, try to download or open in new tab
+                    try {
+                        // First try direct download
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.download = `pixplay-image-${Date.now()}.jpg`;
+                        link.target = '_blank';
+                        link.rel = 'noopener noreferrer';
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        showSuccess('Download started! 📥');
+                    } catch (downloadError) {
+                        // If direct download fails, open in new tab
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                        showSuccess('Image opened in new tab. Right-click to save! 📥');
+                    }
+                }
+                
+                // Track download activity for logged-in users
+                if (currentUser) {
+                    trackUserActivity('interactions', { type: 'download', imageUrl: url });
+                }
             } catch (error) {
-                handleError(error, "Failed to download image. Please try right-clicking and selecting 'Save image as'.");
+                console.error('Download error:', error);
+                // Fallback: open in new tab
+                try {
+                    window.open(url, '_blank', 'noopener,noreferrer');
+                    showSuccess('Image opened in new tab. Right-click to save! 📥');
+                } catch (fallbackError) {
+                    showSuccess('Please right-click on the image and select "Save image as" to download.');
+                }
+            }
+        }
+
+        function downloadAndUnlockLink(imageId, imageUrl, linkUrl) {
+            try {
+                // First download the image
+                downloadImageDirect(imageUrl);
+                
+                // Then unlock and show the link preview
+                setTimeout(() => {
+                    unlockLinkPreview(imageId, linkUrl);
+                }, 1000); // Small delay to ensure download starts
+                
+            } catch (error) {
+                console.error('Download and unlock error:', error);
+                showSuccess('Download started! Link unlocked! 🔓');
+                unlockLinkPreview(imageId, linkUrl);
+            }
+        }
+
+        function unlockLinkPreview(imageId, linkUrl) {
+            try {
+                const image = allImages.find(img => img.id === imageId) || 
+                             userImages.find(img => img.id === imageId);
+                if (!image) return;
+
+                const linkPreviewElement = document.getElementById(`link-preview-${imageId}`);
+                if (!linkPreviewElement) return;
+
+                // Create the full link preview content
+                let linkPreviewHtml = '';
+                
+                if (image.linkPreview) {
+                    linkPreviewHtml = `
+                        <div class="flex items-center space-x-3 mb-3">
+                            <div class="w-12 h-12 bg-gray-200 rounded flex items-center justify-center text-lg relative flex-shrink-0">
+                                ${image.linkPreview.image ? 
+                                    `<img src="${image.linkPreview.image}" alt="Preview" class="w-full h-full object-cover rounded" onerror="this.parentElement.innerHTML='🔗'">` : 
+                                    '🔗'
+                                }
+                                ${image.linkPreview.isVideo ? `
+                                    <div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded">
+                                        <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                            <path d="M8 5v14l11-7z"/>
+                                        </svg>
+                                    </div>
+                                ` : ''}
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h4 class="font-medium text-gray-900 text-xs truncate">${image.linkPreview.title || image.linkPreview.hostname}</h4>
+                                <p class="text-xs text-gray-600 truncate">${image.linkPreview.description || ''}</p>
+                                <p class="text-xs text-gray-500 truncate">${image.linkPreview.hostname}</p>
+                                ${image.linkPreview.price && image.linkPreview.currency ? `
+                                    <div class="mt-1">
+                                        <span class="text-sm font-bold text-green-600">${image.linkPreview.currency}${image.linkPreview.price}</span>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="px-2 py-1 rounded-full text-xs font-medium ${
+                                image.linkPreview.type === 'shopping' ? 'bg-green-100 text-green-800' :
+                                image.linkPreview.type === 'video' ? 'bg-red-100 text-red-800' :
+                                image.linkPreview.type === 'news' ? 'bg-blue-100 text-blue-800' :
+                                'bg-gray-100 text-gray-800'
+                            }">
+                                ${
+                                    image.linkPreview.type === 'shopping' ? '🛍️ Shopping' :
+                                    image.linkPreview.type === 'video' ? '🎥 Video' :
+                                    image.linkPreview.type === 'news' ? '📰 News' :
+                                    '🔗 Link'
+                                }
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); window.open('${linkUrl}', '_blank')" class="w-full ${
+                            image.linkPreview.type === 'shopping' ? 'bg-green-600 hover:bg-green-700' :
+                            image.linkPreview.type === 'video' ? 'bg-red-600 hover:bg-red-700' :
+                            image.linkPreview.type === 'news' ? 'bg-blue-600 hover:bg-blue-700' :
+                            'bg-blue-600 hover:bg-blue-700'
+                        } text-white py-1.5 px-3 rounded text-xs font-medium transition-colors">
+                            ${
+                                image.linkPreview.type === 'shopping' ? '🛍️ Shop Now' :
+                                image.linkPreview.type === 'video' ? '🎥 Watch Video' :
+                                image.linkPreview.type === 'news' ? '📰 Read Article' :
+                                '🔗 Visit Link'
+                            }
+                        </button>
+                    `;
+                } else {
+                    const hostname = new URL(linkUrl).hostname;
+                    linkPreviewHtml = `
+                        <div class="flex items-center space-x-2 mb-2">
+                            <div class="w-8 h-8 bg-gray-200 rounded flex items-center justify-center text-sm">
+                                🔗
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs text-gray-600 truncate">${hostname}</p>
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); window.open('${linkUrl}', '_blank')" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-1.5 px-3 rounded text-xs font-medium transition-colors">
+                            🔗 Visit Link
+                        </button>
+                    `;
+                }
+
+                // Update the preview element with animation
+                linkPreviewElement.style.transform = 'scale(0.95)';
+                linkPreviewElement.style.opacity = '0.7';
+                
+                setTimeout(() => {
+                    linkPreviewElement.className = 'mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200';
+                    linkPreviewElement.innerHTML = linkPreviewHtml;
+                    linkPreviewElement.style.transform = 'scale(1)';
+                    linkPreviewElement.style.opacity = '1';
+                    linkPreviewElement.style.transition = 'all 0.3s ease';
+                }, 300);
+
+                showSuccess('Link unlocked! 🔓 You can now access the content.');
+                
+            } catch (error) {
+                console.error('Unlock link preview error:', error);
+                showSuccess('Link access granted! 🔓');
             }
         }
 
@@ -4458,5 +4567,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a6d5d4b32959cf',t:'MTc1NzA4NjkzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a6e3f1e76f3e27',t:'MTc1NzA4NzUxMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
