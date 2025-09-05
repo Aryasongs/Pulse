@@ -1011,7 +1011,6 @@
                             <h2 id="modalTitle" class="text-xl font-bold text-gray-900 mb-2">Untitled</h2>
                             <p id="modalDescription" class="text-gray-700 mb-4"></p>
                             <div class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
-                                <span id="modalViews">0 views</span>
                                 <span id="modalEarnings" class="text-green-600 font-semibold hidden"></span>
                             </div>
                             <div class="flex items-center space-x-3 mb-6">
@@ -2958,11 +2957,7 @@
                         allImages[imageIndex].views = newViews;
                     }
                     
-                    // Update view count in DOM if element exists
-                    const viewElements = document.querySelectorAll(`[data-image-id="${image.id}"] .view-count`);
-                    viewElements.forEach(element => {
-                        element.textContent = `${newViews.toLocaleString()} views`;
-                    });
+                    // View count is now hidden from users
                     
                     // Update monetization status in real-time
                     const monetizationElements = document.querySelectorAll(`[data-image-id="${image.id}"] .monetization-badge`);
@@ -3516,11 +3511,8 @@
                                 <!-- Author info completely removed for privacy -->
                             </div>
                             ${isOwner ? `<div class="text-xs text-gray-500">
-                                <span class="view-count">${(image.views || 0).toLocaleString()} views</span>
-                                <span class="monetization-badge ${isMonetized ? '' : 'hidden'} text-green-600 font-semibold ml-2" data-is-owner="${isOwner}">$${isMonetized ? (((image.views || 0) - 1000) * 0.002).toFixed(2) : '0.00'}</span>
-                            </div>` : `<div class="text-xs text-gray-500">
-                                <span class="view-count">${(image.views || 0).toLocaleString()} views</span>
-                            </div>`}
+                                <span class="monetization-badge ${isMonetized ? '' : 'hidden'} text-green-600 font-semibold" data-is-owner="${isOwner}">$${isMonetized ? (((image.views || 0) - 1000) * 0.002).toFixed(2) : '0.00'}</span>
+                            </div>` : ''}
                         </div>
                     </div>
                 </div>
@@ -3935,24 +3927,25 @@
                     console.error('Failed to increment view count:', error);
                 });
                 
-                // Listen for real-time view count updates
+                // Listen for real-time view count updates for monetization
                 database.ref(`images/${imageId}/views`).on('value', snapshot => {
                     const currentViews = snapshot.val() || 0;
-                    document.getElementById('modalViews').textContent = `${currentViews.toLocaleString()} views`;
                     
-                    // Update monetization info in real-time
-                    const isMonetized = currentViews >= 1000;
-                    const earningsSpan = document.getElementById('modalEarnings');
-                    const adSpace = document.getElementById('adSpace');
-                    
-                    if (isMonetized) {
-                        const earnings = (currentViews - 1000) * 0.002;
-                        earningsSpan.textContent = `💰 $${earnings.toFixed(2)} earned`;
-                        earningsSpan.classList.remove('hidden');
-                        adSpace.classList.remove('hidden');
-                    } else {
-                        earningsSpan.classList.add('hidden');
-                        adSpace.classList.add('hidden');
+                    // Update monetization info in real-time (only for owner)
+                    if (currentUser && image.authorId === currentUser.uid) {
+                        const isMonetized = currentViews >= 1000;
+                        const earningsSpan = document.getElementById('modalEarnings');
+                        const adSpace = document.getElementById('adSpace');
+                        
+                        if (isMonetized) {
+                            const earnings = (currentViews - 1000) * 0.002;
+                            earningsSpan.textContent = `💰 $${earnings.toFixed(2)} earned`;
+                            earningsSpan.classList.remove('hidden');
+                            adSpace.classList.remove('hidden');
+                        } else {
+                            earningsSpan.classList.add('hidden');
+                            adSpace.classList.add('hidden');
+                        }
                     }
                 });
                 
@@ -4987,5 +4980,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a6f4d5f2d49cd9',t:'MTc1NzA4ODIwMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97a6fba474115524',t:'MTc1NzA4ODQ4Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
