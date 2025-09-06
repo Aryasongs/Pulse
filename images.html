@@ -3117,10 +3117,16 @@
             }
         }
 
-        // Enhanced Link Processing Functions
+        // Enhanced Link Processing Functions with Real API
         async function processLinkPreview(url) {
             try {
-                // Detect link type
+                // First try to get real preview data from API
+                const realPreview = await fetchRealLinkPreview(url);
+                if (realPreview) {
+                    return realPreview;
+                }
+                
+                // Fallback to mock data if API fails
                 const linkType = detectLinkType(url);
                 const hostname = new URL(url).hostname.toLowerCase();
                 
@@ -3137,7 +3143,7 @@
                     videoThumbnail: null
                 };
                 
-                // Handle different link types
+                // Handle different link types as fallback
                 if (linkType === 'shopping') {
                     preview = await extractProductInfo(url, preview);
                 } else if (linkType === 'video') {
@@ -3161,6 +3167,216 @@
                     isVideo: false
                 };
             }
+        }
+
+        // Real Link Preview API Function
+        async function fetchRealLinkPreview(url) {
+            try {
+                // Using the provided API key
+                const apiKey = '3939f4f637fc345cc8e94113c98139b2';
+                
+                // Try multiple API services for better reliability
+                const apiServices = [
+                    // Primary: LinkPreview.net
+                    {
+                        url: `https://api.linkpreview.net/?key=${apiKey}&q=${encodeURIComponent(url)}`,
+                        parser: (data) => ({
+                            url: url,
+                            hostname: new URL(url).hostname,
+                            type: detectLinkType(url),
+                            title: data.title || '',
+                            description: data.description || '',
+                            image: data.image || '',
+                            price: extractPriceFromText(data.description || data.title || ''),
+                            currency: detectCurrency(url, data.description || data.title || ''),
+                            isVideo: isVideoContent(data.title, data.description, url),
+                            videoThumbnail: isVideoContent(data.title, data.description, url) ? data.image : null
+                        })
+                    },
+                    // Fallback: OpenGraph.io (free tier)
+                    {
+                        url: `https://opengraph.io/api/1.1/site/${encodeURIComponent(url)}?app_id=your_opengraph_app_id`,
+                        parser: (data) => ({
+                            url: url,
+                            hostname: new URL(url).hostname,
+                            type: detectLinkType(url),
+                            title: data.hybridGraph?.title || data.openGraph?.title || '',
+                            description: data.hybridGraph?.description || data.openGraph?.description || '',
+                            image: data.hybridGraph?.image || data.openGraph?.image || '',
+                            price: extractPriceFromText(data.hybridGraph?.description || data.openGraph?.description || ''),
+                            currency: detectCurrency(url, data.hybridGraph?.description || ''),
+                            isVideo: data.openGraph?.type === 'video' || isVideoContent(data.hybridGraph?.title, data.hybridGraph?.description, url),
+                            videoThumbnail: data.openGraph?.type === 'video' ? data.hybridGraph?.image : null
+                        })
+                    },
+                    // Free alternative: JSONLink
+                    {
+                        url: `https://jsonlink.io/api/extract?url=${encodeURIComponent(url)}`,
+                        parser: (data) => ({
+                            url: url,
+                            hostname: new URL(url).hostname,
+                            type: detectLinkType(url),
+                            title: data.title || '',
+                            description: data.description || '',
+                            image: data.images && data.images.length > 0 ? data.images[0] : '',
+                            price: extractPriceFromText(data.description || data.title || ''),
+                            currency: detectCurrency(url, data.description || ''),
+                            isVideo: data.videos && data.videos.length > 0,
+                            videoThumbnail: data.videos && data.videos.length > 0 ? data.images?.[0] : null
+                        })
+                    }
+                ];
+
+                // Try each API service
+                for (const service of apiServices) {
+                    try {
+                        const response = await fetch(service.url, {
+                            method: 'GET',
+                            headers: {
+                                'Accept': 'application/json',
+                                'User-Agent': 'PixPlay/1.0'
+                            }
+                        });
+
+                        if (response.ok) {
+                            const data = await response.json();
+                            const preview = service.parser(data);
+                            
+                            // Validate that we got useful data
+                            if (preview.title || preview.description || preview.image) {
+                                console.log('Real link preview fetched successfully:', preview);
+                                return preview;
+                            }
+                        }
+                    } catch (serviceError) {
+                        console.log(`API service failed, trying next:`, serviceError.message);
+                        continue;
+                    }
+                }
+
+                // If all API services fail, try CORS-free method
+                return await fetchLinkPreviewCORSFree(url);
+
+            } catch (error) {
+                console.error('Real link preview failed:', error);
+                return null; // Will fallback to mock data
+            }
+        }
+
+        // CORS-free link preview method
+        async function fetchLinkPreviewCORSFree(url) {
+            try {
+                // Use AllOrigins or similar CORS proxy service
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+                
+                const response = await fetch(proxyUrl);
+                if (!response.ok) throw new Error('Proxy request failed');
+                
+                const data = await response.json();
+                const htmlContent = data.contents;
+                
+                // Parse HTML content for meta tags
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+                
+                // Extract Open Graph and meta tags
+                const getMetaContent = (property) => {
+                    const meta = doc.querySelector(`meta[property="${property}"]`) || 
+                                doc.querySelector(`meta[name="${property}"]`);
+                    return meta ? meta.getAttribute('content') : '';
+                };
+                
+                const title = getMetaContent('og:title') || 
+                            getMetaContent('twitter:title') || 
+                            doc.querySelector('title')?.textContent || '';
+                
+                const description = getMetaContent('og:description') || 
+                                  getMetaContent('twitter:description') || 
+                                  getMetaContent('description') || '';
+                
+                const image = getMetaContent('og:image') || 
+                            getMetaContent('twitter:image') || '';
+                
+                const type = getMetaContent('og:type') || '';
+                
+                return {
+                    url: url,
+                    hostname: new URL(url).hostname,
+                    type: detectLinkType(url),
+                    title: title.trim(),
+                    description: description.trim(),
+                    image: image,
+                    price: extractPriceFromText(description + ' ' + title),
+                    currency: detectCurrency(url, description + ' ' + title),
+                    isVideo: type.includes('video') || isVideoContent(title, description, url),
+                    videoThumbnail: type.includes('video') ? image : null
+                };
+                
+            } catch (error) {
+                console.error('CORS-free preview failed:', error);
+                return null;
+            }
+        }
+
+        // Helper functions for real preview data
+        function extractPriceFromText(text) {
+            if (!text) return null;
+            
+            // Look for price patterns
+            const pricePatterns = [
+                /\$(\d+(?:,\d{3})*(?:\.\d{2})?)/g,  // $123.45, $1,234.56
+                /₹(\d+(?:,\d{3})*(?:\.\d{2})?)/g,   // ₹123.45
+                /€(\d+(?:,\d{3})*(?:\.\d{2})?)/g,   // €123.45
+                /£(\d+(?:,\d{3})*(?:\.\d{2})?)/g,   // £123.45
+                /(\d+(?:,\d{3})*(?:\.\d{2})?)\s*(?:USD|INR|EUR|GBP)/gi
+            ];
+            
+            for (const pattern of pricePatterns) {
+                const match = text.match(pattern);
+                if (match) {
+                    const priceStr = match[0].replace(/[^\d.,]/g, '');
+                    const price = parseFloat(priceStr.replace(/,/g, ''));
+                    if (!isNaN(price)) {
+                        return price;
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function detectCurrency(url, text) {
+            const hostname = url.toLowerCase();
+            
+            // Detect by domain
+            if (hostname.includes('.in') || hostname.includes('flipkart') || hostname.includes('myntra')) {
+                return '₹';
+            }
+            if (hostname.includes('.uk') || hostname.includes('.co.uk')) {
+                return '£';
+            }
+            if (hostname.includes('.de') || hostname.includes('.fr') || hostname.includes('.eu')) {
+                return '€';
+            }
+            
+            // Detect by text content
+            if (text.includes('₹') || text.includes('INR') || text.includes('rupee')) return '₹';
+            if (text.includes('€') || text.includes('EUR') || text.includes('euro')) return '€';
+            if (text.includes('£') || text.includes('GBP') || text.includes('pound')) return '£';
+            if (text.includes('$') || text.includes('USD') || text.includes('dollar')) return '$';
+            
+            return '$'; // Default
+        }
+
+        function isVideoContent(title, description, url) {
+            const videoKeywords = ['video', 'watch', 'play', 'stream', 'movie', 'film', 'episode', 'trailer'];
+            const videoSites = ['youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com', 'twitch.tv', 'tiktok.com'];
+            
+            const text = (title + ' ' + description).toLowerCase();
+            const hostname = new URL(url).hostname.toLowerCase();
+            
+            return videoKeywords.some(keyword => text.includes(keyword)) ||
+                   videoSites.some(site => hostname.includes(site));
         }
         
         function detectLinkType(url) {
@@ -5014,5 +5230,5 @@
             showHome();
         });
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ac4db2c6324850',t:'MTc1NzE0NDI3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ac58b0b1a64850',t:'MTc1NzE0NDcyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
