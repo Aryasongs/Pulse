@@ -1758,6 +1758,13 @@
         const auth = firebase.auth();
         const database = firebase.database();
         const storage = firebase.storage();
+        
+        // Enable Firebase Auth persistence
+        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).then(() => {
+            console.log('Firebase Auth persistence enabled');
+        }).catch((error) => {
+            console.error('Error enabling Firebase Auth persistence:', error);
+        });
 
         let currentUser = null;
         let currentBuzzId = null;
@@ -1936,6 +1943,36 @@
             }
         }
 
+        async function getCityName(lat, lng) {
+            try {
+                // Using OpenStreetMap Nominatim API for reverse geocoding (free)
+                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=10&addressdetails=1`);
+                const data = await response.json();
+                
+                if (data && data.address) {
+                    const address = data.address;
+                    // Try to get city name in order of preference
+                    const cityName = address.city || 
+                                   address.town || 
+                                   address.village || 
+                                   address.municipality || 
+                                   address.county || 
+                                   address.state || 
+                                   address.country;
+                    
+                    if (cityName) {
+                        return `📍 ${cityName}`;
+                    }
+                }
+                
+                // Fallback to coordinates if no city name found
+                return `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            } catch (error) {
+                console.error('Geocoding error:', error);
+                return `📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+            }
+        }
+
         async function getYouTubeVideoInfo(videoId) {
             try {
                 const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics&id=${videoId}&key=${API_KEYS.youtube}`);
@@ -2083,9 +2120,42 @@
         }
 
         function logout() {
+            if (currentUser) {
+                // Set user offline before logout
+                database.ref('users/' + currentUser.uid + '/isOnline').set(false);
+                database.ref('users/' + currentUser.uid + '/lastSeen').set(Date.now());
+            }
+            
             auth.signOut().then(() => {
-                showScreen('loginScreen');
+                // Clear all user data
                 currentUser = null;
+                currentUserData = null;
+                currentChatUser = null;
+                currentBuzzId = null;
+                selectedImage = null;
+                activeProfileTab = 'buzzes';
+                userBuzzes = [];
+                userRebuzzes = [];
+                userLikes = [];
+                blockedUsers = [];
+                allUsers = [];
+                currentShareBuzzId = null;
+                allHashtags = [];
+                currentAutocompleteInput = null;
+                onlineUsers.clear();
+                
+                // Clear any intervals or listeners
+                if (typingTimeout) {
+                    clearTimeout(typingTimeout);
+                }
+                
+                // Show login screen
+                showScreen('loginScreen');
+                
+                showToast('Success!', 'Logged out successfully!', 'success');
+            }).catch((error) => {
+                console.error('Logout error:', error);
+                showToast('Error!', 'Error logging out. Please try again.', 'error');
             });
         }
 
@@ -3760,29 +3830,53 @@
         // Location functionality
         document.getElementById('addLocationBtn').addEventListener('click', () => {
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
+                navigator.geolocation.getCurrentPosition(async (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
                     
-                    // Show location preview
-                    document.getElementById('locationPreview').classList.remove('hidden');
-                    document.getElementById('selectedLocation').textContent = `Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
-                    
-                    // Create simple map preview
-                    const mapPreview = document.getElementById('mapPreview');
-                    mapPreview.innerHTML = `
-                        <div class="w-full h-full bg-green-100 rounded-lg flex items-center justify-center">
-                            <div class="text-center">
-                                <svg class="w-8 h-8 text-green-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
-                                </svg>
-                                <p class="text-xs text-green-700">Current Location</p>
+                    try {
+                        // Get city name using reverse geocoding
+                        const cityName = await getCityName(lat, lng);
+                        
+                        // Show location preview
+                        document.getElementById('locationPreview').classList.remove('hidden');
+                        document.getElementById('selectedLocation').textContent = cityName || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        
+                        // Create simple map preview
+                        const mapPreview = document.getElementById('mapPreview');
+                        mapPreview.innerHTML = `
+                            <div class="w-full h-full bg-green-100 rounded-lg flex items-center justify-center cursor-pointer" onclick="openMap(${lat}, ${lng})">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 text-green-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <p class="text-xs text-green-700">View on Map</p>
+                                </div>
                             </div>
-                        </div>
-                    `;
-                    
-                    // Store location data
-                    window.currentLocation = { lat, lng };
+                        `;
+                        
+                        // Store location data with city name
+                        window.currentLocation = { lat, lng, cityName };
+                    } catch (error) {
+                        console.error('Error getting city name:', error);
+                        // Fallback to coordinates
+                        document.getElementById('locationPreview').classList.remove('hidden');
+                        document.getElementById('selectedLocation').textContent = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        
+                        const mapPreview = document.getElementById('mapPreview');
+                        mapPreview.innerHTML = `
+                            <div class="w-full h-full bg-green-100 rounded-lg flex items-center justify-center cursor-pointer" onclick="openMap(${lat}, ${lng})">
+                                <div class="text-center">
+                                    <svg class="w-8 h-8 text-green-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <p class="text-xs text-green-700">View on Map</p>
+                                </div>
+                            </div>
+                        `;
+                        
+                        window.currentLocation = { lat, lng };
+                    }
                 }, (error) => {
                     showToast('Error!', 'Unable to get your location. Please enable location services.', 'error');
                 });
@@ -4079,16 +4173,19 @@
             // Create location HTML if exists
             let locationHTML = '';
             if (buzz.location) {
+                const locationText = buzz.location.cityName || `${buzz.location.lat.toFixed(4)}, ${buzz.location.lng.toFixed(4)}`;
                 locationHTML = `
-                    <div class="border border-gray-200 rounded-xl p-3 mb-4 flex items-center space-x-3">
+                    <div class="border border-gray-200 rounded-xl p-3 mb-4 flex items-center space-x-3 cursor-pointer hover:bg-gray-50" onclick="openMap(${buzz.location.lat}, ${buzz.location.lng})">
                         <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
                         </svg>
-                        <div>
-                            <div class="text-sm font-medium">Location</div>
-                            <div class="text-xs text-gray-500">${buzz.location.lat.toFixed(4)}, ${buzz.location.lng.toFixed(4)}</div>
+                        <div class="flex-1">
+                            <div class="text-sm font-medium">${locationText}</div>
+                            <div class="text-xs text-gray-500">Tap to view on Google Maps</div>
                         </div>
-                        <button onclick="openMap(${buzz.location.lat}, ${buzz.location.lng})" class="text-blue-500 text-xs hover:underline">View Map</button>
+                        <svg class="w-4 h-4 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+                        </svg>
                     </div>
                 `;
             }
@@ -4575,6 +4672,10 @@
         auth.onAuthStateChanged((user) => {
             if (user) {
                 currentUser = user;
+                // Set user as online
+                database.ref('users/' + user.uid + '/isOnline').set(true);
+                database.ref('users/' + user.uid + '/lastSeen').set(Date.now());
+                
                 // Check if user is already logged in and has setup complete
                 database.ref('users/' + user.uid).once('value').then((snapshot) => {
                     if (snapshot.exists()) {
@@ -4589,6 +4690,18 @@
                     } else {
                         // New user, start setup
                         showScreen('nameSetup');
+                    }
+                });
+                
+                // Set up disconnect handler for persistent login
+                database.ref('.info/connected').on('value', (snapshot) => {
+                    if (snapshot.val() === true) {
+                        // We're connected (or reconnected)
+                        database.ref('users/' + user.uid + '/isOnline').set(true);
+                        
+                        // When we disconnect, set offline
+                        database.ref('users/' + user.uid + '/isOnline').onDisconnect().set(false);
+                        database.ref('users/' + user.uid + '/lastSeen').onDisconnect().set(Date.now());
                     }
                 });
             } else {
@@ -5715,7 +5828,7 @@
 
         // Map function
         function openMap(lat, lng) {
-            const mapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            const mapUrl = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
             window.open(mapUrl, '_blank');
         }
 
@@ -5744,5 +5857,5 @@
         // Initialize
         showScreen('loginScreen');
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ac094e431d5524',t:'MTc1NzE0MTQ3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ac10e3a7864850',t:'MTc1NzE0MTc4MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
