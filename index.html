@@ -107,6 +107,11 @@
             user-select: text;
         }
         @media (max-width: 768px) {
+            body {
+                background: #000;
+                overflow-x: hidden;
+            }
+            
             .mobile-padding {
                 padding: 1rem;
             }
@@ -141,6 +146,56 @@
                 right: 0;
                 bottom: 0;
                 left: 0;
+            }
+            
+            /* Mobile app styling */
+            #mainApp {
+                background: #000;
+                min-height: 100vh;
+            }
+            
+            nav {
+                background: rgba(0, 0, 0, 0.9);
+                backdrop-filter: blur(10px);
+                border-bottom: 1px solid #333;
+            }
+            
+            .bg-white {
+                background: #1a1a1a !important;
+                color: white !important;
+            }
+            
+            .text-gray-900, .text-gray-800, .text-gray-700 {
+                color: #e5e5e5 !important;
+            }
+            
+            .text-gray-600, .text-gray-500 {
+                color: #a0a0a0 !important;
+            }
+            
+            .border-gray-200, .border-gray-300 {
+                border-color: #333 !important;
+            }
+            
+            .buzz-card {
+                background: #1a1a1a !important;
+                border: 1px solid #333 !important;
+                margin-bottom: 0 !important;
+                border-radius: 0 !important;
+            }
+            
+            .hover\:bg-gray-50:hover {
+                background: #2a2a2a !important;
+            }
+            
+            input, textarea {
+                background: #2a2a2a !important;
+                color: white !important;
+                border-color: #444 !important;
+            }
+            
+            input::placeholder, textarea::placeholder {
+                color: #888 !important;
             }
         }
         
@@ -2483,32 +2538,7 @@
             setupAutocomplete(document.getElementById('commentInput'), document.getElementById('commentAutocomplete'));
         }
 
-        // Profile Functions
-        function openProfile() {
-            showModal('profileModal');
-            loadProfileData();
-        }
 
-        function loadProfileData() {
-            if (!currentUserData) return;
-            
-            const initials = getInitials(currentUserData.name);
-            document.getElementById('profileModalAvatar').textContent = initials;
-            document.getElementById('profilePageUsername').textContent = '@' + currentUserData.username;
-            
-            if (currentUserData.profilePicture) {
-                document.getElementById('profileModalAvatar').style.backgroundImage = `url(${currentUserData.profilePicture})`;
-                document.getElementById('profileModalAvatar').style.backgroundSize = 'cover';
-                document.getElementById('profileModalAvatar').textContent = '';
-            }
-            
-            document.getElementById('profileModalName').textContent = currentUserData.name;
-            document.getElementById('profileBio').textContent = currentUserData.bio || '';
-            
-            // Load user stats
-            loadUserStats();
-            loadProfileContent('buzzes');
-        }
 
         function openEditProfile() {
             hideModal('profileModal');
@@ -3119,6 +3149,121 @@
             document.getElementById('buzzImageInput').value = '';
         });
 
+        // Poll functionality
+        document.getElementById('addPollBtn').addEventListener('click', () => {
+            document.getElementById('pollPreview').classList.remove('hidden');
+            document.getElementById('imagePreview').classList.add('hidden');
+            document.getElementById('locationPreview').classList.add('hidden');
+        });
+
+        document.getElementById('removePoll').addEventListener('click', () => {
+            document.getElementById('pollPreview').classList.add('hidden');
+            clearPollInputs();
+        });
+
+        // Location functionality
+        document.getElementById('addLocationBtn').addEventListener('click', () => {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition((position) => {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    
+                    // Show location preview
+                    document.getElementById('locationPreview').classList.remove('hidden');
+                    document.getElementById('selectedLocation').textContent = `Location: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+                    
+                    // Create simple map preview
+                    const mapPreview = document.getElementById('mapPreview');
+                    mapPreview.innerHTML = `
+                        <div class="w-full h-full bg-green-100 rounded-lg flex items-center justify-center">
+                            <div class="text-center">
+                                <svg class="w-8 h-8 text-green-600 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                </svg>
+                                <p class="text-xs text-green-700">Current Location</p>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Store location data
+                    window.currentLocation = { lat, lng };
+                }, (error) => {
+                    showToast('Error!', 'Unable to get your location. Please enable location services.', 'error');
+                });
+            } else {
+                showToast('Error!', 'Geolocation is not supported by this browser.', 'error');
+            }
+        });
+
+        document.getElementById('removeLocation').addEventListener('click', () => {
+            document.getElementById('locationPreview').classList.add('hidden');
+            window.currentLocation = null;
+        });
+
+        // Link preview functionality
+        document.getElementById('buzzText').addEventListener('input', debounce(detectLinks, 500));
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function detectLinks() {
+            const text = document.getElementById('buzzText').value;
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = text.match(urlRegex);
+            
+            if (urls && urls.length > 0) {
+                const url = urls[0]; // Take first URL
+                try {
+                    const preview = await getLinkPreview(url);
+                    if (preview && preview.title) {
+                        showLinkPreview(preview);
+                    }
+                } catch (error) {
+                    console.error('Link preview error:', error);
+                }
+            } else {
+                document.getElementById('linkPreview').classList.add('hidden');
+            }
+        }
+
+        function showLinkPreview(preview) {
+            document.getElementById('linkPreviewTitle').textContent = preview.title || '';
+            document.getElementById('linkPreviewDescription').textContent = preview.description || '';
+            document.getElementById('linkPreviewUrl').textContent = preview.url || '';
+            
+            const img = document.getElementById('linkPreviewImage');
+            if (preview.image) {
+                img.src = preview.image;
+                img.style.display = 'block';
+            } else {
+                img.style.display = 'none';
+            }
+            
+            document.getElementById('linkPreview').classList.remove('hidden');
+            window.currentLinkPreview = preview;
+        }
+
+        document.getElementById('removeLinkPreview').addEventListener('click', () => {
+            document.getElementById('linkPreview').classList.add('hidden');
+            window.currentLinkPreview = null;
+        });
+
+        function clearPollInputs() {
+            document.getElementById('pollOption1').value = '';
+            document.getElementById('pollOption2').value = '';
+            document.getElementById('pollOption3').value = '';
+            document.getElementById('pollOption4').value = '';
+        }
+
         document.getElementById('postBuzzBtn').addEventListener('click', () => {
             const text = document.getElementById('buzzText').value.trim();
             const imageFile = document.getElementById('buzzImageInput').files[0];
@@ -3155,6 +3300,44 @@
             const hashtags = extractHashtags(buzzData.text);
             const mentions = extractMentions(buzzData.text);
             
+            // Add poll data if exists
+            if (!document.getElementById('pollPreview').classList.contains('hidden')) {
+                const pollOptions = [];
+                const option1 = document.getElementById('pollOption1').value.trim();
+                const option2 = document.getElementById('pollOption2').value.trim();
+                const option3 = document.getElementById('pollOption3').value.trim();
+                const option4 = document.getElementById('pollOption4').value.trim();
+                
+                if (option1) pollOptions.push({ text: option1, votes: 0 });
+                if (option2) pollOptions.push({ text: option2, votes: 0 });
+                if (option3) pollOptions.push({ text: option3, votes: 0 });
+                if (option4) pollOptions.push({ text: option4, votes: 0 });
+                
+                if (pollOptions.length >= 2) {
+                    const duration = parseInt(document.getElementById('pollDuration').value);
+                    buzzData.poll = {
+                        options: pollOptions,
+                        totalVotes: 0,
+                        expiresAt: Date.now() + (duration * 24 * 60 * 60 * 1000),
+                        voters: {}
+                    };
+                }
+            }
+            
+            // Add location data if exists
+            if (window.currentLocation) {
+                buzzData.location = {
+                    lat: window.currentLocation.lat,
+                    lng: window.currentLocation.lng,
+                    timestamp: Date.now()
+                };
+            }
+            
+            // Add link preview if exists
+            if (window.currentLinkPreview) {
+                buzzData.linkPreview = window.currentLinkPreview;
+            }
+            
             const buzzRef = database.ref('buzzes').push();
             buzzRef.set(buzzData).then(() => {
                 // Save hashtags
@@ -3168,10 +3351,18 @@
                     sendMentionNotifications(mentions, buzzRef.key);
                 }
                 
+                // Clear all inputs
                 document.getElementById('buzzText').value = '';
                 document.getElementById('imagePreview').classList.add('hidden');
+                document.getElementById('pollPreview').classList.add('hidden');
+                document.getElementById('locationPreview').classList.add('hidden');
+                document.getElementById('linkPreview').classList.add('hidden');
                 document.getElementById('buzzImageInput').value = '';
                 document.getElementById('buzzAutocomplete').classList.add('hidden');
+                clearPollInputs();
+                window.currentLocation = null;
+                window.currentLinkPreview = null;
+                
                 loadBuzzes();
                 loadUserStats(); // Update buzz count
                 
@@ -3206,25 +3397,14 @@
                     return;
                 }
                 
-                // Use stored author data or fetch from database
-                if (buzz.authorName && buzz.authorUsername) {
-                    const user = {
-                        name: buzz.authorName,
-                        username: buzz.authorUsername,
-                        profilePicture: buzz.authorImage
-                    };
-                    const buzzElement = createBuzzElement(buzz, user);
-                    feed.appendChild(buzzElement);
-                } else {
-                    // Fallback to database fetch
-                    database.ref('users/' + buzz.userId).once('value').then((userSnapshot) => {
-                        const user = userSnapshot.val();
-                        if (user) {
-                            const buzzElement = createBuzzElement(buzz, user);
-                            feed.appendChild(buzzElement);
-                        }
-                    });
-                }
+                // Always fetch fresh user data from database for verified status
+                database.ref('users/' + buzz.userId).once('value').then((userSnapshot) => {
+                    const user = userSnapshot.val();
+                    if (user) {
+                        const buzzElement = createBuzzElement(buzz, user);
+                        feed.appendChild(buzzElement);
+                    }
+                });
             });
         }
 
@@ -3236,6 +3416,73 @@
             const avatarStyle = user.profilePicture ? 
                 `background-image: url(${user.profilePicture}); background-size: cover;` : 
                 '';
+            
+            // Create poll HTML if exists
+            let pollHTML = '';
+            if (buzz.poll) {
+                const isExpired = Date.now() > buzz.poll.expiresAt;
+                const hasVoted = buzz.poll.voters && buzz.poll.voters[currentUser.uid];
+                
+                pollHTML = `
+                    <div class="border border-gray-200 rounded-xl p-4 mb-4">
+                        <div class="space-y-2">
+                            ${buzz.poll.options.map((option, index) => {
+                                const percentage = buzz.poll.totalVotes > 0 ? Math.round((option.votes / buzz.poll.totalVotes) * 100) : 0;
+                                return `
+                                    <div class="relative">
+                                        <button onclick="votePoll('${buzz.id}', ${index})" 
+                                                class="w-full text-left p-3 border border-gray-300 rounded-lg hover:bg-gray-50 ${hasVoted || isExpired ? 'cursor-not-allowed opacity-75' : ''}" 
+                                                ${hasVoted || isExpired ? 'disabled' : ''}>
+                                            <div class="flex justify-between items-center">
+                                                <span>${option.text}</span>
+                                                ${hasVoted || isExpired ? `<span class="text-sm text-gray-500">${percentage}%</span>` : ''}
+                                            </div>
+                                            ${hasVoted || isExpired ? `
+                                                <div class="absolute bottom-0 left-0 h-1 bg-blue-500 rounded-full" style="width: ${percentage}%"></div>
+                                            ` : ''}
+                                        </button>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div class="text-xs text-gray-500 mt-2">
+                            ${buzz.poll.totalVotes} votes • ${isExpired ? 'Ended' : 'Ends'} ${formatDate(buzz.poll.expiresAt)}
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // Create location HTML if exists
+            let locationHTML = '';
+            if (buzz.location) {
+                locationHTML = `
+                    <div class="border border-gray-200 rounded-xl p-3 mb-4 flex items-center space-x-3">
+                        <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                        </svg>
+                        <div>
+                            <div class="text-sm font-medium">Location</div>
+                            <div class="text-xs text-gray-500">${buzz.location.lat.toFixed(4)}, ${buzz.location.lng.toFixed(4)}</div>
+                        </div>
+                        <button onclick="openMap(${buzz.location.lat}, ${buzz.location.lng})" class="text-blue-500 text-xs hover:underline">View Map</button>
+                    </div>
+                `;
+            }
+            
+            // Create link preview HTML if exists
+            let linkPreviewHTML = '';
+            if (buzz.linkPreview) {
+                linkPreviewHTML = `
+                    <div class="border border-gray-200 rounded-xl overflow-hidden mb-4">
+                        ${buzz.linkPreview.image ? `<img src="${buzz.linkPreview.image}" class="w-full h-48 object-cover">` : ''}
+                        <div class="p-3">
+                            <h4 class="font-semibold text-sm line-clamp-2">${buzz.linkPreview.title || ''}</h4>
+                            <p class="text-xs text-gray-600 line-clamp-2 mt-1">${buzz.linkPreview.description || ''}</p>
+                            <a href="${buzz.linkPreview.url}" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 block">${buzz.linkPreview.url}</a>
+                        </div>
+                    </div>
+                `;
+            }
             
             div.innerHTML = `
                 <div class="flex space-x-3 md:space-x-4">
@@ -3254,6 +3501,9 @@
                         </div>
                         <p class="mb-4 mobile-text">${processTextWithHashtagsAndMentions(buzz.text)}</p>
                         ${buzz.image ? `<img src="${buzz.image}" class="w-full max-h-96 object-cover rounded-xl mb-4">` : ''}
+                        ${pollHTML}
+                        ${locationHTML}
+                        ${linkPreviewHTML}
                         <div class="flex items-center justify-between text-gray-500">
                             <button class="flex items-center space-x-2 hover:text-blue-500 p-2 rounded-full hover:bg-blue-50 touch-target" onclick="openComments('${buzz.id}')">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -4183,8 +4433,64 @@
             loadConversations();
         });
 
+        // Poll voting function
+        function votePoll(buzzId, optionIndex) {
+            database.ref('buzzes/' + buzzId + '/poll').once('value').then((snapshot) => {
+                const poll = snapshot.val();
+                if (!poll || Date.now() > poll.expiresAt || poll.voters[currentUser.uid]) {
+                    return; // Poll expired or already voted
+                }
+                
+                // Update vote count
+                database.ref('buzzes/' + buzzId + '/poll/options/' + optionIndex + '/votes').transaction((votes) => {
+                    return (votes || 0) + 1;
+                });
+                
+                // Update total votes
+                database.ref('buzzes/' + buzzId + '/poll/totalVotes').transaction((total) => {
+                    return (total || 0) + 1;
+                });
+                
+                // Mark user as voted
+                database.ref('buzzes/' + buzzId + '/poll/voters/' + currentUser.uid).set(optionIndex);
+                
+                // Refresh feed
+                loadBuzzes();
+                
+                showToast('Success!', 'Vote recorded successfully!', 'success');
+            });
+        }
+
+        // Map function
+        function openMap(lat, lng) {
+            const mapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+            window.open(mapUrl, '_blank');
+        }
+
+        // Quote rebuzz function
+        function quoteRebuzz(buzzId) {
+            database.ref('buzzes/' + buzzId).once('value').then((snapshot) => {
+                const originalBuzz = snapshot.val();
+                if (originalBuzz) {
+                    // Get original author data
+                    database.ref('users/' + originalBuzz.userId).once('value').then((userSnapshot) => {
+                        const originalUser = userSnapshot.val();
+                        if (originalUser) {
+                            // Pre-fill buzz text with quote
+                            const quoteText = `"${originalBuzz.text}" - @${originalUser.username}`;
+                            document.getElementById('buzzText').value = quoteText;
+                            document.getElementById('buzzText').focus();
+                            
+                            // Scroll to top
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    });
+                }
+            });
+        }
+
         // Initialize
         showScreen('loginScreen');
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97abc684b7773b34',t:'MTc1NzEzODczNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97abda16540ba6dc',t:'MTc1NzEzOTUzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
