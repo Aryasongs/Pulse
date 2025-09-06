@@ -1262,29 +1262,306 @@
     <!-- Chat Page -->
     <div id="chatPage" class="hidden fixed inset-0 bg-white z-50">
         <div class="h-full flex flex-col">
-            <div class="bg-white border-b p-4 flex items-center">
-                <button onclick="hidePage('chatPage')" class="p-2 rounded-full hover:bg-gray-100 mr-4 touch-target">
-                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                </button>
-                <div class="flex items-center space-x-3">
-                    <div id="chatUserAvatar" class="w-10 h-10 rounded-full avatar-gradient flex items-center justify-center text-white font-bold"></div>
-                    <div>
-                        <div id="chatUserName" class="font-semibold"></div>
-                        <div id="chatUserUsername" class="text-sm text-gray-500"></div>
+            <div class="bg-white border-b p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <button onclick="hidePage('chatPage')" class="p-2 rounded-full hover:bg-gray-100 mr-4 touch-target">
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                    <div class="flex items-center space-x-3">
+                        <div class="relative">
+                            <div id="chatUserAvatar" class="w-10 h-10 rounded-full avatar-gradient flex items-center justify-center text-white font-bold"></div>
+                            <div id="chatUserOnlineStatus" class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full hidden"></div>
+                        </div>
+                        <div>
+                            <div id="chatUserName" class="font-semibold"></div>
+                            <div id="chatUserStatus" class="text-sm text-gray-500">
+                                <span id="chatUserUsername">@username</span>
+                                <span id="chatUserTyping" class="hidden text-blue-500 italic"> • typing...</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
+                <button onclick="openChatInfo()" class="p-2 rounded-full hover:bg-gray-100 touch-target">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
             </div>
             
             <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-3">
                 <!-- Messages will be loaded here -->
             </div>
             
-            <div class="border-t p-4">
-                <div class="flex space-x-3">
-                    <input type="text" id="messageInput" placeholder="Type a message..." class="flex-1 p-3 border border-gray-300 rounded-full outline-none focus:border-purple-500">
-                    <button id="sendMessageBtn" class="instagram-gradient text-white px-6 py-3 rounded-full font-semibold touch-target">Send</button>
+            <!-- Typing Indicator -->
+            <div id="typingIndicator" class="hidden px-4 py-2">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <div class="flex space-x-1">
+                            <div class="w-1 h-1 bg-gray-500 rounded-full animate-bounce"></div>
+                            <div class="w-1 h-1 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
+                            <div class="w-1 h-1 bg-gray-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        </div>
+                    </div>
+                    <span class="text-sm text-gray-500">typing...</span>
+                </div>
+            </div>
+            
+            <!-- Message Input Area -->
+            <div class="border-t bg-white">
+                <!-- Link Preview in Message -->
+                <div id="messageLinkPreview" class="hidden border-t border-gray-200 p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">Link Preview</span>
+                        <button onclick="removeMessageLinkPreview()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="border border-gray-200 rounded-lg overflow-hidden">
+                        <img id="messageLinkPreviewImage" class="w-full h-24 object-cover hidden">
+                        <div class="p-2">
+                            <div id="messageLinkPreviewTitle" class="font-medium text-sm line-clamp-1"></div>
+                            <div id="messageLinkPreviewDescription" class="text-xs text-gray-600 line-clamp-2 mt-1"></div>
+                            <div id="messageLinkPreviewUrl" class="text-xs text-blue-500 mt-1"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Image Preview in Message -->
+                <div id="messageImagePreview" class="hidden border-t border-gray-200 p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">Image</span>
+                        <button onclick="removeMessageImage()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <img id="messagePreviewImg" class="w-32 h-32 object-cover rounded-lg">
+                </div>
+                
+                <!-- File Preview in Message -->
+                <div id="messageFilePreview" class="hidden border-t border-gray-200 p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">File</span>
+                        <button onclick="removeMessageFile()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="flex-1">
+                            <div id="messageFileName" class="font-medium text-sm"></div>
+                            <div id="messageFileSize" class="text-xs text-gray-500"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GIF Preview in Message -->
+                <div id="messageGifPreview" class="hidden border-t border-gray-200 p-3">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm font-medium text-gray-700">GIF</span>
+                        <button onclick="removeMessageGif()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    <img id="messagePreviewGif" class="w-32 h-32 object-cover rounded-lg">
+                </div>
+                
+                <div class="p-4">
+                    <div class="flex items-end space-x-2">
+                        <!-- Attachment Button -->
+                        <div class="relative">
+                            <button onclick="toggleMessageAttachments()" class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full touch-target">
+                                <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8 4a3 3 0 00-3 3v4a5 5 0 0010 0V7a1 1 0 112 0v4a7 7 0 11-14 0V7a5 5 0 0110 0v4a3 3 0 11-6 0V7a1 1 0 012 0v4a1 1 0 102 0V7a3 3 0 00-3-3z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                            
+                            <!-- Attachment Menu -->
+                            <div id="messageAttachmentMenu" class="hidden absolute bottom-full left-0 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-48">
+                                <button onclick="selectMessageImage()" class="w-full flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg text-left touch-target">
+                                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-sm">Photo</div>
+                                        <div class="text-xs text-gray-500">Share an image</div>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="selectMessageFile()" class="w-full flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg text-left touch-target">
+                                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-sm">File</div>
+                                        <div class="text-xs text-gray-500">Share a document</div>
+                                    </div>
+                                </button>
+                                
+                                <button onclick="openGifPicker()" class="w-full flex items-center space-x-3 p-2 hover:bg-gray-50 rounded-lg text-left touch-target">
+                                    <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm3 2h6v4H7V5zm8 8v2h1v-2h-1zm-2-2H7v4h6v-4z" clip-rule="evenodd"/>
+                                        </svg>
+                                    </div>
+                                    <div>
+                                        <div class="font-medium text-sm">GIF</div>
+                                        <div class="text-xs text-gray-500">Send a GIF</div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- Message Input -->
+                        <div class="flex-1 relative">
+                            <input type="text" id="messageInput" placeholder="Type a message..." class="w-full p-3 border border-gray-300 rounded-full outline-none focus:border-purple-500 pr-12">
+                            <div id="messageAutocomplete" class="autocomplete-dropdown hidden"></div>
+                            
+                            <!-- Emoji Button -->
+                            <button onclick="toggleEmojiPicker()" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 touch-target">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100-2 1 1 0 000 2zm7-1a1 1 0 11-2 0 1 1 0 012 0zm-.464 5.535a1 1 0 10-1.415-1.414 3 3 0 01-4.242 0 1 1 0 00-1.415 1.414 5 5 0 007.072 0z" clip-rule="evenodd"/>
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- Send Button -->
+                        <button id="sendMessageBtn" class="instagram-gradient text-white p-3 rounded-full font-semibold touch-target">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Hidden File Inputs -->
+                <input type="file" id="messageImageInput" accept="image/*" class="hidden">
+                <input type="file" id="messageFileInput" accept="*/*" class="hidden">
+            </div>
+        </div>
+    </div>
+
+    <!-- GIF Picker Modal -->
+    <div id="gifPickerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-screen overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold">Choose a GIF</h3>
+                <button onclick="hideModal('gifPickerModal')" class="text-gray-500 hover:text-gray-700 touch-target">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <!-- GIF Categories -->
+            <div class="p-4 border-b">
+                <div class="flex space-x-2 overflow-x-auto">
+                    <button onclick="loadGifCategory('trending')" class="px-4 py-2 bg-purple-100 text-purple-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Trending</button>
+                    <button onclick="loadGifCategory('happy')" class="px-4 py-2 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Happy</button>
+                    <button onclick="loadGifCategory('funny')" class="px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Funny</button>
+                    <button onclick="loadGifCategory('angry')" class="px-4 py-2 bg-red-100 text-red-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Angry</button>
+                    <button onclick="loadGifCategory('cry')" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Cry</button>
+                    <button onclick="loadGifCategory('love')" class="px-4 py-2 bg-pink-100 text-pink-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Love</button>
+                    <button onclick="loadGifCategory('dance')" class="px-4 py-2 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">Dance</button>
+                    <button onclick="loadUserGifs()" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-full text-sm font-medium whitespace-nowrap touch-target">My GIFs</button>
+                </div>
+            </div>
+            
+            <!-- Upload Custom GIF -->
+            <div class="p-4 border-b">
+                <div class="flex items-center space-x-3">
+                    <button onclick="uploadCustomGif()" class="flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 touch-target">
+                        <svg class="w-5 h-5 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                        <span class="text-sm font-medium">Upload GIF</span>
+                    </button>
+                    <span class="text-xs text-gray-500">Upload your own GIF to share with everyone</span>
+                </div>
+                <input type="file" id="customGifInput" accept="image/gif" class="hidden">
+            </div>
+            
+            <!-- GIF Grid -->
+            <div class="p-4 max-h-96 overflow-y-auto">
+                <div id="gifGrid" class="grid grid-cols-3 gap-2">
+                    <!-- GIFs will be loaded here -->
+                </div>
+                <div id="gifLoading" class="hidden flex justify-center items-center py-8">
+                    <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Emoji Picker Modal -->
+    <div id="emojiPickerModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-96 overflow-hidden">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold">Choose an Emoji</h3>
+                <button onclick="hideModal('emojiPickerModal')" class="text-gray-500 hover:text-gray-700 touch-target">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 max-h-64 overflow-y-auto">
+                <div id="emojiGrid" class="grid grid-cols-8 gap-2">
+                    <!-- Emojis will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Info Modal -->
+    <div id="chatInfoModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold">Chat Info</h3>
+                <button onclick="hideModal('chatInfoModal')" class="text-gray-500 hover:text-gray-700 touch-target">
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <div class="text-center mb-6">
+                    <div id="chatInfoAvatar" class="w-20 h-20 rounded-full avatar-gradient flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4"></div>
+                    <h3 id="chatInfoName" class="text-xl font-bold mb-1"></h3>
+                    <p id="chatInfoUsername" class="text-gray-500 mb-2"></p>
+                    <div id="chatInfoOnlineStatus" class="text-sm text-gray-500"></div>
+                </div>
+                
+                <div class="space-y-3">
+                    <button onclick="viewChatUserProfile()" class="w-full text-left p-3 hover:bg-gray-50 rounded-lg touch-target">
+                        <div class="font-medium">View Profile</div>
+                        <div class="text-sm text-gray-500">See full profile</div>
+                    </button>
+                    
+                    <button onclick="clearChatHistory()" class="w-full text-left p-3 hover:bg-gray-50 rounded-lg touch-target">
+                        <div class="font-medium">Clear Chat</div>
+                        <div class="text-sm text-gray-500">Delete all messages</div>
+                    </button>
+                    
+                    <button onclick="blockChatUser()" class="w-full text-left p-3 hover:bg-gray-50 rounded-lg text-red-500 touch-target">
+                        <div class="font-medium">Block User</div>
+                        <div class="text-sm text-red-400">Block this user</div>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1496,6 +1773,114 @@
         let currentShareBuzzId = null;
         let allHashtags = [];
         let currentAutocompleteInput = null;
+        let typingTimeout = null;
+        let isTyping = false;
+        let onlineUsers = new Set();
+        let currentMessageLinkPreview = null;
+        let currentMessageImage = null;
+        let currentMessageFile = null;
+        let currentMessageGif = null;
+        let userGifs = [];
+        let builtInGifs = {
+            trending: [
+                'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+                'https://media.giphy.com/media/l0MYt5jPR6QX5pnqM/giphy.gif',
+                'https://media.giphy.com/media/26BRrSvJUa0crqw4E/giphy.gif'
+            ],
+            happy: [
+                'https://media.giphy.com/media/XR9Dp54ZC2dji/giphy.gif',
+                'https://media.giphy.com/media/blSTtZehjAZ8I/giphy.gif',
+                'https://media.giphy.com/media/8Iv5lqKwKsZ2g/giphy.gif'
+            ],
+            funny: [
+                'https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif',
+                'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
+                'https://media.giphy.com/media/3o6Zt4HU9uwXmXSAuI/giphy.gif'
+            ],
+            angry: [
+                'https://media.giphy.com/media/12XMGIWtrHBl5e/giphy.gif',
+                'https://media.giphy.com/media/l4FGGafcOHmrlQxG0/giphy.gif',
+                'https://media.giphy.com/media/26uf759LlDftqZNVm/giphy.gif'
+            ],
+            cry: [
+                'https://media.giphy.com/media/d2lcHJTG5Tscg/giphy.gif',
+                'https://media.giphy.com/media/ROF8OQvDmxytW/giphy.gif',
+                'https://media.giphy.com/media/L95W4wv8nnb9K/giphy.gif'
+            ],
+            love: [
+                'https://media.giphy.com/media/3o6ZtaO9BZHcOjmErm/giphy.gif',
+                'https://media.giphy.com/media/26BRBKqUiq586bRVm/giphy.gif',
+                'https://media.giphy.com/media/l0MYC0LajbaPoEADu/giphy.gif'
+            ],
+            dance: [
+                'https://media.giphy.com/media/l0MYGb1LuZ3n7dRnO/giphy.gif',
+                'https://media.giphy.com/media/26BRzozg4TCBXv6QU/giphy.gif',
+                'https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif'
+            ]
+        };
+        
+        // Common emojis
+        const commonEmojis = [
+            '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣',
+            '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰',
+            '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
+            '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏',
+            '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
+            '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠',
+            '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨',
+            '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥',
+            '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧',
+            '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
+            '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑',
+            '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻',
+            '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸',
+            '😹', '😻', '😼', '😽', '🙀', '😿', '😾', '👋',
+            '🤚', '🖐️', '✋', '🖖', '👌', '🤏', '✌️', '🤞',
+            '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇',
+            '☝️', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏',
+            '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳',
+            '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃',
+            '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅',
+            '👄', '💋', '🩸', '👶', '🧒', '👦', '👧', '🧑',
+            '👱', '👨', '🧔', '👩', '🧓', '👴', '👵', '🙍',
+            '🙎', '🙅', '🙆', '💁', '🙋', '🧏', '🙇', '🤦',
+            '🤷', '👮', '🕵️', '💂', '🥷', '👷', '🤴', '👸',
+            '👳', '👲', '🧕', '🤵', '👰', '🤰', '🤱', '👼',
+            '🎅', '🤶', '🦸', '🦹', '🧙', '🧚', '🧛', '🧜',
+            '🧝', '🧞', '🧟', '💆', '💇', '🚶', '🧍', '🧎',
+            '🏃', '💃', '🕺', '🕴️', '👯', '🧖', '🧗', '🤺',
+            '🏇', '⛷️', '🏂', '🏌️', '🏄', '🚣', '🏊', '⛹️',
+            '🏋️', '🚴', '🚵', '🤸', '🤼', '🤽', '🤾', '🤹',
+            '🧘', '🛀', '🛌', '👭', '👫', '👬', '💏', '💑',
+            '👪', '🗣️', '👤', '👥', '🫂', '👣', '🦰', '🦱',
+            '🦳', '🦲', '🐵', '🐒', '🦍', '🦧', '🐶', '🐕',
+            '🦮', '🐕‍🦺', '🐩', '🐺', '🦊', '🦝', '🐱', '🐈',
+            '🐈‍⬛', '🦁', '🐯', '🐅', '🐆', '🐴', '🐎', '🦄',
+            '🦓', '🦌', '🦬', '🐮', '🐂', '🐃', '🐄', '🐷',
+            '🐖', '🐗', '🐽', '🐏', '🐑', '🐐', '🐪', '🐫',
+            '🦙', '🦒', '🐘', '🦣', '🦏', '🦛', '🐭', '🐁',
+            '🐀', '🐹', '🐰', '🐇', '🐿️', '🦫', '🦔', '🦇',
+            '🐻', '🐻‍❄️', '🐨', '🐼', '🦥', '🦦', '🦨', '🦘',
+            '🦡', '🐾', '🦃', '🐔', '🐓', '🐣', '🐤', '🐥',
+            '🐦', '🐧', '🕊️', '🦅', '🦆', '🦢', '🦉', '🦤',
+            '🪶', '🦩', '🦚', '🦜', '🐸', '🐊', '🐢', '🦎',
+            '🐍', '🐲', '🐉', '🦕', '🦖', '🐳', '🐋', '🐬',
+            '🦭', '🐟', '🐠', '🐡', '🦈', '🐙', '🐚', '🐌',
+            '🦋', '🐛', '🐜', '🐝', '🪲', '🐞', '🦗', '🕷️',
+            '🕸️', '🦂', '🦟', '🪰', '🪱', '🦠', '💐', '🌸',
+            '💮', '🏵️', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷',
+            '🌱', '🪴', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄',
+            '🌾', '💫', '⭐', '🌟', '✨', '⚡', '☄️', '💥',
+            '🔥', '🌪️', '🌈', '☀️', '🌤️', '⛅', '🌥️', '☁️',
+            '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄',
+            '🌬️', '💨', '💧', '💦', '☔', '☂️', '🌊', '🌍',
+            '🌎', '🌏', '🌐', '🌑', '🌒', '🌓', '🌔', '🌕',
+            '🌖', '🌗', '🌘', '🌙', '🌚', '🌛', '🌜', '🌡️',
+            '☀️', '🔆', '🔅', '🌞', '🪐', '⭐', '🌟', '🌠',
+            '🌌', '☁️', '⛅', '⛈️', '🌤️', '🌦️', '🌧️', '🌩️',
+            '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '🌪️', '🌫️',
+            '🌈', '☔', '💧', '💦', '🌊'
+        ];
         
         // Document types by country
         const documentTypes = {
@@ -2733,6 +3118,18 @@
             // Setup autocomplete
             setupAutocomplete(document.getElementById('buzzText'), document.getElementById('buzzAutocomplete'));
             setupAutocomplete(document.getElementById('commentInput'), document.getElementById('commentAutocomplete'));
+            
+            // Setup online status updates
+            updateOnlineStatus();
+            setInterval(updateOnlineStatus, 30000); // Update every 30 seconds
+            
+            // Set user offline when leaving
+            window.addEventListener('beforeunload', () => {
+                if (currentUser) {
+                    database.ref('users/' + currentUser.uid + '/isOnline').set(false);
+                    database.ref('users/' + currentUser.uid + '/lastSeen').set(Date.now());
+                }
+            });
         }
 
 
@@ -4503,6 +4900,13 @@
             document.getElementById('chatUserName').innerHTML = `${user.name} ${user.verified ? '<span class="verified-badge ml-1"></span>' : ''}`;
             document.getElementById('chatUserUsername').textContent = '@' + user.username;
             
+            // Setup online status and typing indicators
+            checkUserOnlineStatus(userId);
+            listenForTyping(userId);
+            
+            // Update online status for current user
+            updateOnlineStatus();
+            
             loadMessages(userId);
         }
 
@@ -4533,21 +4937,400 @@
             const div = document.createElement('div');
             const isSent = message.senderId === currentUser.uid;
             
-            div.className = `flex ${isSent ? 'justify-end' : 'justify-start'} mb-2`;
+            div.className = `flex ${isSent ? 'justify-end' : 'justify-start'} mb-3`;
+            
+            let messageContent = '';
+            
+            // Handle different message types
+            if (message.image) {
+                messageContent = `
+                    <img src="${message.image}" class="max-w-xs rounded-lg mb-2 cursor-pointer" onclick="openImageViewer('${message.image}')">
+                    ${message.text ? `<div class="text-sm">${processTextWithHashtagsAndMentions(message.text)}</div>` : ''}
+                `;
+            } else if (message.gif) {
+                messageContent = `
+                    <img src="${message.gif}" class="max-w-xs rounded-lg mb-2 cursor-pointer" onclick="openImageViewer('${message.gif}')">
+                    ${message.text ? `<div class="text-sm">${processTextWithHashtagsAndMentions(message.text)}</div>` : ''}
+                `;
+            } else if (message.file) {
+                const fileIcon = getFileIcon(message.file.type);
+                messageContent = `
+                    <div class="flex items-center space-x-3 p-3 bg-white bg-opacity-20 rounded-lg mb-2 cursor-pointer" onclick="downloadFile('${message.file.data}', '${message.file.name}')">
+                        <div class="w-10 h-10 bg-white bg-opacity-30 rounded-lg flex items-center justify-center">
+                            ${fileIcon}
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm">${message.file.name}</div>
+                            <div class="text-xs opacity-75">${formatFileSize(message.file.size)}</div>
+                        </div>
+                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </div>
+                    ${message.text ? `<div class="text-sm">${processTextWithHashtagsAndMentions(message.text)}</div>` : ''}
+                `;
+            } else if (message.linkPreview) {
+                messageContent = `
+                    <div class="border border-white border-opacity-30 rounded-lg overflow-hidden mb-2 max-w-xs">
+                        ${message.linkPreview.image ? `<img src="${message.linkPreview.image}" class="w-full h-32 object-cover">` : ''}
+                        <div class="p-3">
+                            <div class="font-medium text-sm line-clamp-2">${message.linkPreview.title || ''}</div>
+                            <div class="text-xs opacity-75 line-clamp-2 mt-1">${message.linkPreview.description || ''}</div>
+                            <a href="${message.linkPreview.url}" target="_blank" class="text-xs opacity-90 hover:underline mt-1 block">${message.linkPreview.url}</a>
+                        </div>
+                    </div>
+                    ${message.text ? `<div class="text-sm">${processTextWithHashtagsAndMentions(message.text)}</div>` : ''}
+                `;
+            } else {
+                messageContent = `<div class="text-sm">${processTextWithHashtagsAndMentions(message.text)}</div>`;
+            }
             
             div.innerHTML = `
-                <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${isSent ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-900'}">
-                    <div class="text-sm">${message.text}</div>
-                    <div class="text-xs ${isSent ? 'text-blue-100' : 'text-gray-500'} mt-1">${formatDate(message.timestamp)}</div>
+                <div class="max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${isSent ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-900'} relative">
+                    ${messageContent}
+                    <div class="flex items-center justify-between mt-1">
+                        <div class="text-xs ${isSent ? 'text-blue-100' : 'text-gray-500'}">${formatDate(message.timestamp)}</div>
+                        ${isSent ? `
+                            <div class="flex items-center space-x-1">
+                                ${message.seen ? `
+                                    <svg class="w-3 h-3 text-blue-200" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                    <svg class="w-3 h-3 text-blue-200 -ml-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                ` : `
+                                    <svg class="w-3 h-3 text-blue-200" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                                    </svg>
+                                `}
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
             `;
             
             return div;
         }
 
+        // Enhanced messaging functions
+        function toggleMessageAttachments() {
+            const menu = document.getElementById('messageAttachmentMenu');
+            menu.classList.toggle('hidden');
+        }
+
+        function selectMessageImage() {
+            document.getElementById('messageImageInput').click();
+            document.getElementById('messageAttachmentMenu').classList.add('hidden');
+        }
+
+        function selectMessageFile() {
+            document.getElementById('messageFileInput').click();
+            document.getElementById('messageAttachmentMenu').classList.add('hidden');
+        }
+
+        function openGifPicker() {
+            showModal('gifPickerModal');
+            loadGifCategory('trending');
+            document.getElementById('messageAttachmentMenu').classList.add('hidden');
+        }
+
+        function toggleEmojiPicker() {
+            showModal('emojiPickerModal');
+            loadEmojis();
+        }
+
+        function loadEmojis() {
+            const emojiGrid = document.getElementById('emojiGrid');
+            emojiGrid.innerHTML = '';
+            
+            commonEmojis.forEach(emoji => {
+                const emojiBtn = document.createElement('button');
+                emojiBtn.className = 'p-2 hover:bg-gray-100 rounded text-lg touch-target';
+                emojiBtn.textContent = emoji;
+                emojiBtn.onclick = () => insertEmoji(emoji);
+                emojiGrid.appendChild(emojiBtn);
+            });
+        }
+
+        function insertEmoji(emoji) {
+            const input = document.getElementById('messageInput');
+            const currentValue = input.value;
+            const cursorPos = input.selectionStart;
+            
+            const newValue = currentValue.slice(0, cursorPos) + emoji + currentValue.slice(cursorPos);
+            input.value = newValue;
+            
+            // Set cursor position after emoji
+            const newCursorPos = cursorPos + emoji.length;
+            input.setSelectionRange(newCursorPos, newCursorPos);
+            input.focus();
+            
+            hideModal('emojiPickerModal');
+        }
+
+        function loadGifCategory(category) {
+            const gifGrid = document.getElementById('gifGrid');
+            const gifLoading = document.getElementById('gifLoading');
+            
+            gifGrid.innerHTML = '';
+            gifLoading.classList.remove('hidden');
+            
+            setTimeout(() => {
+                gifLoading.classList.add('hidden');
+                
+                const gifs = builtInGifs[category] || [];
+                gifs.forEach(gifUrl => {
+                    const gifElement = document.createElement('div');
+                    gifElement.className = 'aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity';
+                    gifElement.innerHTML = `<img src="${gifUrl}" class="w-full h-full object-cover">`;
+                    gifElement.onclick = () => selectGif(gifUrl);
+                    gifGrid.appendChild(gifElement);
+                });
+                
+                if (gifs.length === 0) {
+                    gifGrid.innerHTML = '<div class="col-span-3 text-center text-gray-500 py-8">No GIFs found</div>';
+                }
+            }, 500);
+        }
+
+        function loadUserGifs() {
+            const gifGrid = document.getElementById('gifGrid');
+            gifGrid.innerHTML = '';
+            
+            database.ref('userGifs/' + currentUser.uid).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const gifData = childSnapshot.val();
+                        const gifElement = document.createElement('div');
+                        gifElement.className = 'aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity';
+                        gifElement.innerHTML = `<img src="${gifData.url}" class="w-full h-full object-cover">`;
+                        gifElement.onclick = () => selectGif(gifData.url);
+                        gifGrid.appendChild(gifElement);
+                    });
+                } else {
+                    gifGrid.innerHTML = '<div class="col-span-3 text-center text-gray-500 py-8">No custom GIFs yet. Upload some!</div>';
+                }
+            });
+        }
+
+        function uploadCustomGif() {
+            document.getElementById('customGifInput').click();
+        }
+
+        function selectGif(gifUrl) {
+            currentMessageGif = gifUrl;
+            document.getElementById('messagePreviewGif').src = gifUrl;
+            document.getElementById('messageGifPreview').classList.remove('hidden');
+            hideModal('gifPickerModal');
+        }
+
+        function removeMessageImage() {
+            currentMessageImage = null;
+            document.getElementById('messageImagePreview').classList.add('hidden');
+            document.getElementById('messageImageInput').value = '';
+        }
+
+        function removeMessageFile() {
+            currentMessageFile = null;
+            document.getElementById('messageFilePreview').classList.add('hidden');
+            document.getElementById('messageFileInput').value = '';
+        }
+
+        function removeMessageGif() {
+            currentMessageGif = null;
+            document.getElementById('messageGifPreview').classList.add('hidden');
+        }
+
+        function removeMessageLinkPreview() {
+            currentMessageLinkPreview = null;
+            document.getElementById('messageLinkPreview').classList.add('hidden');
+        }
+
+        function getFileIcon(fileType) {
+            if (fileType.startsWith('image/')) {
+                return '<svg class="w-6 h-6 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd"/></svg>';
+            } else if (fileType.startsWith('video/')) {
+                return '<svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>';
+            } else if (fileType.includes('pdf')) {
+                return '<svg class="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>';
+            } else {
+                return '<svg class="w-6 h-6 text-gray-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clip-rule="evenodd"/></svg>';
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function downloadFile(fileData, fileName) {
+            const link = document.createElement('a');
+            link.href = fileData;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function openImageViewer(imageUrl) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="relative max-w-4xl max-h-full">
+                    <img src="${imageUrl}" class="max-w-full max-h-full object-contain">
+                    <button onclick="document.body.removeChild(this.closest('.fixed'))" class="absolute top-4 right-4 text-white hover:text-gray-300 touch-target">
+                        <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        // Online status and typing indicators
+        function updateOnlineStatus() {
+            if (currentUser) {
+                database.ref('users/' + currentUser.uid + '/lastSeen').set(Date.now());
+                database.ref('users/' + currentUser.uid + '/isOnline').set(true);
+            }
+        }
+
+        function startTypingIndicator(otherUserId) {
+            if (!isTyping) {
+                isTyping = true;
+                const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+                database.ref('typing/' + conversationId + '/' + currentUser.uid).set(true);
+            }
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                stopTypingIndicator(otherUserId);
+            }, 3000);
+        }
+
+        function stopTypingIndicator(otherUserId) {
+            if (isTyping) {
+                isTyping = false;
+                const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+                database.ref('typing/' + conversationId + '/' + currentUser.uid).remove();
+            }
+        }
+
+        function listenForTyping(otherUserId) {
+            const conversationId = [currentUser.uid, otherUserId].sort().join('_');
+            database.ref('typing/' + conversationId + '/' + otherUserId).on('value', (snapshot) => {
+                const isTyping = snapshot.exists();
+                const typingIndicator = document.getElementById('typingIndicator');
+                const chatUserTyping = document.getElementById('chatUserTyping');
+                
+                if (isTyping) {
+                    typingIndicator.classList.remove('hidden');
+                    chatUserTyping.classList.remove('hidden');
+                } else {
+                    typingIndicator.classList.add('hidden');
+                    chatUserTyping.classList.add('hidden');
+                }
+            });
+        }
+
+        function checkUserOnlineStatus(userId) {
+            database.ref('users/' + userId + '/isOnline').on('value', (snapshot) => {
+                const isOnline = snapshot.val();
+                const onlineStatus = document.getElementById('chatUserOnlineStatus');
+                
+                if (isOnline) {
+                    onlineStatus.classList.remove('hidden');
+                    onlineUsers.add(userId);
+                } else {
+                    onlineStatus.classList.add('hidden');
+                    onlineUsers.delete(userId);
+                }
+            });
+        }
+
+        // Chat info functions
+        function openChatInfo() {
+            if (currentChatUser) {
+                showModal('chatInfoModal');
+                
+                const initials = getInitials(currentChatUser.name);
+                document.getElementById('chatInfoAvatar').textContent = initials;
+                if (currentChatUser.profilePicture) {
+                    document.getElementById('chatInfoAvatar').style.backgroundImage = `url(${currentChatUser.profilePicture})`;
+                    document.getElementById('chatInfoAvatar').style.backgroundSize = 'cover';
+                    document.getElementById('chatInfoAvatar').textContent = '';
+                }
+                
+                document.getElementById('chatInfoName').innerHTML = `${currentChatUser.name} ${currentChatUser.verified ? '<span class="verified-badge ml-1"></span>' : ''}`;
+                document.getElementById('chatInfoUsername').textContent = '@' + currentChatUser.username;
+                
+                const isOnline = onlineUsers.has(currentChatUser.uid);
+                document.getElementById('chatInfoOnlineStatus').textContent = isOnline ? 'Online' : 'Last seen recently';
+            }
+        }
+
+        function viewChatUserProfile() {
+            hideModal('chatInfoModal');
+            hidePage('chatPage');
+            openUserProfile(currentChatUser.uid);
+        }
+
+        function clearChatHistory() {
+            if (currentChatUser) {
+                const conversationId = [currentUser.uid, currentChatUser.uid].sort().join('_');
+                
+                const modal = document.createElement('div');
+                modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+                modal.innerHTML = `
+                    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+                        <div class="text-center">
+                            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                                <svg class="h-6 w-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"/>
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">Clear Chat History</h3>
+                            <p class="text-sm text-gray-500 mb-6">Are you sure you want to delete all messages? This action cannot be undone.</p>
+                            <div class="flex space-x-3">
+                                <button onclick="document.body.removeChild(this.closest('.fixed'))" class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 touch-target">Cancel</button>
+                                <button onclick="confirmClearChat('${conversationId}'); document.body.removeChild(this.closest('.fixed'))" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 touch-target">Clear</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+        }
+
+        function confirmClearChat(conversationId) {
+            database.ref('messages/' + conversationId).remove().then(() => {
+                database.ref('conversations/' + conversationId + '/lastMessage').set('');
+                database.ref('conversations/' + conversationId + '/lastMessageTime').set(Date.now());
+                
+                hideModal('chatInfoModal');
+                loadMessages(currentChatUser.uid);
+                showToast('Success!', 'Chat history cleared successfully!', 'success');
+            });
+        }
+
+        function blockChatUser() {
+            if (currentChatUser) {
+                blockUser(currentChatUser.uid);
+                hideModal('chatInfoModal');
+                hidePage('chatPage');
+                showToast('Success!', 'User blocked successfully!', 'success');
+            }
+        }
+
         function sendMessage() {
             const messageText = document.getElementById('messageInput').value.trim();
-            if (!messageText || !currentChatUser) return;
+            if ((!messageText && !currentMessageImage && !currentMessageFile && !currentMessageGif) || !currentChatUser) return;
             
             const conversationId = [currentUser.uid, currentChatUser.uid].sort().join('_');
             
@@ -4555,25 +5338,73 @@
                 senderId: currentUser.uid,
                 receiverId: currentChatUser.uid,
                 text: messageText,
-                timestamp: Date.now()
+                timestamp: Date.now(),
+                seen: false
             };
+            
+            // Add image if selected
+            if (currentMessageImage) {
+                messageData.image = currentMessageImage;
+            }
+            
+            // Add file if selected
+            if (currentMessageFile) {
+                messageData.file = currentMessageFile;
+            }
+            
+            // Add GIF if selected
+            if (currentMessageGif) {
+                messageData.gif = currentMessageGif;
+            }
+            
+            // Add link preview if detected
+            if (currentMessageLinkPreview) {
+                messageData.linkPreview = currentMessageLinkPreview;
+            }
+            
+            // Extract hashtags and mentions
+            const hashtags = extractHashtags(messageText);
+            const mentions = extractMentions(messageText);
             
             // Save message
             database.ref('messages/' + conversationId).push(messageData).then(() => {
                 // Update conversation
+                let lastMessage = messageText;
+                if (currentMessageImage) lastMessage = '📷 Photo';
+                else if (currentMessageFile) lastMessage = '📎 File';
+                else if (currentMessageGif) lastMessage = '🎬 GIF';
+                else if (!messageText && currentMessageLinkPreview) lastMessage = '🔗 Link';
+                
                 const conversationData = {
                     participants: {
                         [currentUser.uid]: true,
                         [currentChatUser.uid]: true
                     },
-                    lastMessage: messageText,
+                    lastMessage: lastMessage,
                     lastMessageTime: Date.now()
                 };
                 
                 database.ref('conversations/' + conversationId).set(conversationData);
                 
-                // Clear input and reload messages
+                // Save hashtags
+                if (hashtags.length > 0) {
+                    saveHashtags(hashtags);
+                }
+                
+                // Send mention notifications
+                if (mentions.length > 0) {
+                    sendMentionNotifications(mentions, null);
+                }
+                
+                // Clear all inputs
                 document.getElementById('messageInput').value = '';
+                document.getElementById('messageAutocomplete').classList.add('hidden');
+                clearMessageAttachments();
+                
+                // Stop typing indicator
+                stopTypingIndicator(currentChatUser.uid);
+                
+                // Reload messages
                 loadMessages(currentChatUser.uid);
                 
                 // Send notification
@@ -4581,10 +5412,146 @@
             });
         }
 
+        function clearMessageAttachments() {
+            currentMessageImage = null;
+            currentMessageFile = null;
+            currentMessageGif = null;
+            currentMessageLinkPreview = null;
+            
+            document.getElementById('messageImagePreview').classList.add('hidden');
+            document.getElementById('messageFilePreview').classList.add('hidden');
+            document.getElementById('messageGifPreview').classList.add('hidden');
+            document.getElementById('messageLinkPreview').classList.add('hidden');
+            
+            document.getElementById('messageImageInput').value = '';
+            document.getElementById('messageFileInput').value = '';
+        }
+
+        // Message link preview detection
+        async function detectMessageLinks() {
+            const text = document.getElementById('messageInput').value;
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            const urls = text.match(urlRegex);
+            
+            if (urls && urls.length > 0) {
+                const url = urls[0];
+                try {
+                    const preview = await getLinkPreview(url);
+                    if (preview && preview.title) {
+                        showMessageLinkPreview(preview);
+                    }
+                } catch (error) {
+                    console.error('Message link preview error:', error);
+                }
+            } else {
+                document.getElementById('messageLinkPreview').classList.add('hidden');
+                currentMessageLinkPreview = null;
+            }
+        }
+
+        function showMessageLinkPreview(preview) {
+            document.getElementById('messageLinkPreviewTitle').textContent = preview.title || '';
+            document.getElementById('messageLinkPreviewDescription').textContent = preview.description || '';
+            document.getElementById('messageLinkPreviewUrl').textContent = preview.url || '';
+            
+            const img = document.getElementById('messageLinkPreviewImage');
+            if (preview.image) {
+                img.src = preview.image;
+                img.classList.remove('hidden');
+            } else {
+                img.classList.add('hidden');
+            }
+            
+            document.getElementById('messageLinkPreview').classList.remove('hidden');
+            currentMessageLinkPreview = preview;
+        }
+
         document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
         document.getElementById('messageInput').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 sendMessage();
+            }
+        });
+
+        // Enhanced message input event listeners
+        document.getElementById('messageInput').addEventListener('input', debounce(detectMessageLinks, 500));
+        document.getElementById('messageInput').addEventListener('input', (e) => {
+            if (currentChatUser) {
+                startTypingIndicator(currentChatUser.uid);
+            }
+        });
+
+        // Message image input
+        document.getElementById('messageImageInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentMessageImage = e.target.result;
+                    document.getElementById('messagePreviewImg').src = e.target.result;
+                    document.getElementById('messageImagePreview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Message file input
+        document.getElementById('messageFileInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    currentMessageFile = {
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        data: e.target.result
+                    };
+                    
+                    document.getElementById('messageFileName').textContent = file.name;
+                    document.getElementById('messageFileSize').textContent = formatFileSize(file.size);
+                    document.getElementById('messageFilePreview').classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Custom GIF upload
+        document.getElementById('customGifInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'image/gif') {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const gifData = {
+                        url: e.target.result,
+                        name: file.name,
+                        uploadedBy: currentUser.uid,
+                        uploadedAt: Date.now(),
+                        public: true // Allow others to use this GIF
+                    };
+                    
+                    // Save to user's GIFs
+                    database.ref('userGifs/' + currentUser.uid).push(gifData).then(() => {
+                        // Also save to public GIFs for others to use
+                        database.ref('publicGifs').push(gifData);
+                        
+                        showToast('Success!', 'GIF uploaded successfully! Others can now use it too.', 'success');
+                        loadUserGifs(); // Refresh user GIFs
+                    });
+                };
+                reader.readAsDataURL(file);
+            } else {
+                showToast('Error!', 'Please select a valid GIF file.', 'error');
+            }
+        });
+
+        // Setup message autocomplete
+        setupAutocomplete(document.getElementById('messageInput'), document.getElementById('messageAutocomplete'));
+
+        // Close attachment menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#messageAttachmentMenu') && !e.target.closest('button[onclick="toggleMessageAttachments()"]')) {
+                document.getElementById('messageAttachmentMenu').classList.add('hidden');
             }
         });
 
@@ -4777,5 +5744,5 @@
         // Initialize
         showScreen('loginScreen');
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97abf96854d0a6dc',t:'MTc1NzE0MDgxOS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97ac094e431d5524',t:'MTc1NzE0MTQ3MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
