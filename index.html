@@ -405,6 +405,18 @@
                                             </svg>
                                             <span class="hidden md:inline">Photo</span>
                                         </button>
+                                        <button id="addPollBtn" class="flex items-center space-x-2 text-blue-500 hover:bg-blue-50 px-3 py-2 rounded-lg touch-target">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+                                            </svg>
+                                            <span class="hidden md:inline">Poll</span>
+                                        </button>
+                                        <button id="addLocationBtn" class="flex items-center space-x-2 text-green-500 hover:bg-green-50 px-3 py-2 rounded-lg touch-target">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
+                                            </svg>
+                                            <span class="hidden md:inline">Location</span>
+                                        </button>
                                         <input type="file" id="buzzImageInput" accept="image/*" class="hidden">
                                     </div>
                                     <button id="postBuzzBtn" class="instagram-gradient text-white px-4 md:px-6 py-2 rounded-full font-semibold touch-target">Buzz</button>
@@ -412,6 +424,57 @@
                                 <div id="imagePreview" class="mt-4 hidden">
                                     <img id="previewImg" class="w-full max-h-64 object-cover rounded-xl">
                                     <button id="removeImage" class="mt-2 text-red-500 text-sm touch-target">Remove image</button>
+                                </div>
+                                
+                                <!-- Poll Preview -->
+                                <div id="pollPreview" class="mt-4 hidden border border-gray-200 rounded-xl p-4">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-semibold">Create Poll</h4>
+                                        <button id="removePoll" class="text-red-500 text-sm touch-target">Remove</button>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <input type="text" id="pollOption1" placeholder="Option 1" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" maxlength="25">
+                                        <input type="text" id="pollOption2" placeholder="Option 2" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" maxlength="25">
+                                        <input type="text" id="pollOption3" placeholder="Option 3 (optional)" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" maxlength="25">
+                                        <input type="text" id="pollOption4" placeholder="Option 4 (optional)" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500" maxlength="25">
+                                    </div>
+                                    <div class="mt-3">
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Poll Duration</label>
+                                        <select id="pollDuration" class="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500">
+                                            <option value="1">1 day</option>
+                                            <option value="3" selected>3 days</option>
+                                            <option value="7">7 days</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Location Preview -->
+                                <div id="locationPreview" class="mt-4 hidden border border-gray-200 rounded-xl p-4">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-semibold">Location</h4>
+                                        <button id="removeLocation" class="text-red-500 text-sm touch-target">Remove</button>
+                                    </div>
+                                    <div class="flex items-center space-x-3">
+                                        <div id="mapPreview" class="w-16 h-16 rounded-lg overflow-hidden"></div>
+                                        <div>
+                                            <div id="selectedLocation" class="text-sm font-medium"></div>
+                                            <div class="text-xs text-gray-500">Current location</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Link Preview -->
+                                <div id="linkPreview" class="mt-4 hidden border border-gray-200 rounded-xl overflow-hidden">
+                                    <div class="flex justify-between items-center p-3 border-b">
+                                        <h4 class="font-semibold text-sm">Link Preview</h4>
+                                        <button id="removeLinkPreview" class="text-red-500 text-sm touch-target">Remove</button>
+                                    </div>
+                                    <img id="linkPreviewImage" class="w-full h-32 object-cover hidden">
+                                    <div class="p-3">
+                                        <h5 id="linkPreviewTitle" class="font-semibold text-sm line-clamp-2"></h5>
+                                        <p id="linkPreviewDescription" class="text-xs text-gray-600 line-clamp-2 mt-1"></p>
+                                        <a id="linkPreviewUrl" href="#" target="_blank" class="text-xs text-blue-500 hover:underline mt-1 block"></a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1456,7 +1519,35 @@
 
         function openProfile() {
             showPage('profilePage');
-            loadProfileData();
+            // Always fetch fresh data from Firebase
+            database.ref('users/' + currentUser.uid).once('value').then((snapshot) => {
+                if (snapshot.exists()) {
+                    const userData = snapshot.val();
+                    currentUserData = userData; // Update current user data
+                    
+                    const initials = getInitials(userData.name);
+                    const avatarStyle = userData.profilePicture ? 
+                        `background-image: url(${userData.profilePicture}); background-size: cover;` : 
+                        '';
+                    
+                    document.getElementById('profileModalAvatar').textContent = initials;
+                    document.getElementById('profileModalAvatar').style.cssText = avatarStyle;
+                    
+                    if (userData.profilePicture) {
+                        document.getElementById('profileModalAvatar').textContent = '';
+                    }
+                    
+                    document.getElementById('profileModalName').innerHTML = `${userData.name} ${userData.verified ? '<span class="verified-badge ml-1"></span>' : ''}`;
+                    document.getElementById('profilePageUsername').textContent = '@' + userData.username;
+                    document.getElementById('profileBio').textContent = userData.bio || '';
+                    
+                    loadUserStats();
+                    loadProfileContent('buzzes');
+                }
+            }).catch((error) => {
+                console.error('Error loading profile data:', error);
+                showToast('Error!', 'Failed to load profile data', 'error');
+            });
         }
 
         function openSettingsPage() {
@@ -3397,10 +3488,16 @@
                     return;
                 }
                 
-                // Always fetch fresh user data from database for verified status
+                // Always fetch fresh user data from database for verified status and other updates
                 database.ref('users/' + buzz.userId).once('value').then((userSnapshot) => {
                     const user = userSnapshot.val();
                     if (user) {
+                        // Update buzz with fresh user data
+                        buzz.authorName = user.name;
+                        buzz.authorUsername = user.username;
+                        buzz.authorImage = user.profilePicture;
+                        buzz.authorVerified = user.verified;
+                        
                         const buzzElement = createBuzzElement(buzz, user);
                         feed.appendChild(buzzElement);
                     }
@@ -3633,8 +3730,30 @@
         }
 
         function quoteRebuzz(buzzId) {
-            // Implementation for quote rebuzz
-            alert('Quote Rebuzz feature coming soon!');
+            database.ref('buzzes/' + buzzId).once('value').then((snapshot) => {
+                const originalBuzz = snapshot.val();
+                if (originalBuzz) {
+                    // Get original author data
+                    database.ref('users/' + originalBuzz.userId).once('value').then((userSnapshot) => {
+                        const originalUser = userSnapshot.val();
+                        if (originalUser) {
+                            // Pre-fill buzz text with quote
+                            const quoteText = `"${originalBuzz.text}" - @${originalUser.username}\n\n`;
+                            document.getElementById('buzzText').value = quoteText;
+                            document.getElementById('buzzText').focus();
+                            
+                            // Set cursor at the end
+                            const textArea = document.getElementById('buzzText');
+                            textArea.setSelectionRange(textArea.value.length, textArea.value.length);
+                            
+                            // Scroll to top smoothly
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                            
+                            showToast('Success!', 'Quote added! Add your thoughts and buzz it.', 'success');
+                        }
+                    });
+                }
+            });
         }
 
         function toggleFollow(userId) {
@@ -4492,5 +4611,5 @@
         // Initialize
         showScreen('loginScreen');
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97abda16540ba6dc',t:'MTc1NzEzOTUzNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97abebb9018b4850',t:'MTc1NzE0MDI1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
