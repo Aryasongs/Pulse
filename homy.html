@@ -1258,7 +1258,10 @@
         function hideAllPages() {
             const pages = ['homePage', 'productDetailPage', 'cartPage', 'checkoutPage', 'paymentPage', 'ordersPage', 'businessPanel', 'addProductForm', 'settingsPage', 'sellerRegistrationPage', 'profilePage', 'couponManagementPage', 'createCouponForm', 'adminPanel', 'categoryManager', 'announcementManager', 'createAnnouncementForm'];
             pages.forEach(page => {
-                document.getElementById(page).classList.add('hidden');
+                const element = document.getElementById(page);
+                if (element) {
+                    element.classList.add('hidden');
+                }
             });
         }
 
@@ -2043,10 +2046,20 @@
         }
 
         function filterByCategory(category) {
+            // Show home page first
+            hideAllPages();
+            document.getElementById('homePage').classList.remove('hidden');
+            
+            // Load filtered products
             database.ref('products').orderByChild('category').equalTo(category).once('value')
                 .then((snapshot) => {
                     const products = snapshot.val() || {};
                     displayProducts(Object.entries(products).map(([id, product]) => ({id, ...product})));
+                })
+                .catch((error) => {
+                    console.error('Error loading category products:', error);
+                    // Show all products if category filter fails
+                    loadProducts();
                 });
         }
 
@@ -2064,22 +2077,39 @@
         }
 
         function loadUserSettings() {
-            document.getElementById('userDisplayName').value = currentUser.displayName || '';
-            document.getElementById('userEmail').value = currentUser.email || '';
+            console.log('Loading user settings for:', currentUser);
+            
+            const userDisplayNameEl = document.getElementById('userDisplayName');
+            const userEmailEl = document.getElementById('userEmail');
+            
+            if (userDisplayNameEl) {
+                userDisplayNameEl.value = currentUser.displayName || '';
+            }
+            if (userEmailEl) {
+                userEmailEl.value = currentUser.email || '';
+            }
             
             // Check seller status
             database.ref(`sellers/${currentUser.uid}`).once('value')
                 .then((snapshot) => {
                     const sellerData = snapshot.val();
+                    const notSellerSection = document.getElementById('notSellerSection');
+                    const sellerStatusSection = document.getElementById('sellerStatusSection');
+                    const sellerStatus = document.getElementById('sellerStatus');
+                    const sellerBusinessName = document.getElementById('sellerBusinessName');
+                    
                     if (sellerData) {
-                        document.getElementById('notSellerSection').classList.add('hidden');
-                        document.getElementById('sellerStatusSection').classList.remove('hidden');
-                        document.getElementById('sellerStatus').textContent = sellerData.status;
-                        document.getElementById('sellerBusinessName').textContent = sellerData.businessName;
+                        if (notSellerSection) notSellerSection.classList.add('hidden');
+                        if (sellerStatusSection) sellerStatusSection.classList.remove('hidden');
+                        if (sellerStatus) sellerStatus.textContent = sellerData.status;
+                        if (sellerBusinessName) sellerBusinessName.textContent = sellerData.businessName;
                     } else {
-                        document.getElementById('notSellerSection').classList.remove('hidden');
-                        document.getElementById('sellerStatusSection').classList.add('hidden');
+                        if (notSellerSection) notSellerSection.classList.remove('hidden');
+                        if (sellerStatusSection) sellerStatusSection.classList.add('hidden');
                     }
+                })
+                .catch((error) => {
+                    console.error('Error loading seller data:', error);
                 });
         }
 
@@ -2766,5 +2796,5 @@
         // Load initial data
         showHomePage();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4045050749cd9',t:'MTc1NzIyNTE1Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4095f645e3b34',t:'MTc1NzIyNTM1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
