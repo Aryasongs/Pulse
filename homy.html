@@ -307,20 +307,57 @@
                 <div class="mb-6">
                     <h3 class="font-semibold mb-4">Select Payment Method</h3>
                     <div class="space-y-3">
-                        <label class="flex items-center">
-                            <input type="radio" name="payment" value="card" class="mr-3" checked>
-                            <i class="fas fa-credit-card mr-2"></i>Credit/Debit Card
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                            <input type="radio" name="payment" value="upi" class="mr-3" checked>
+                            <i class="fas fa-mobile-alt mr-2 text-green-600"></i>UPI Payment
                         </label>
-                        <label class="flex items-center">
-                            <input type="radio" name="payment" value="upi" class="mr-3">
-                            <i class="fas fa-mobile-alt mr-2"></i>UPI
-                        </label>
-                        <label class="flex items-center">
+                        <label class="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
                             <input type="radio" name="payment" value="cod" class="mr-3">
-                            <i class="fas fa-money-bill-wave mr-2"></i>Cash on Delivery
+                            <i class="fas fa-money-bill-wave mr-2 text-blue-600"></i>Cash on Delivery
                         </label>
                     </div>
                 </div>
+
+                <!-- UPI Apps Selection -->
+                <div id="upiAppsSection" class="mb-6">
+                    <h4 class="font-semibold mb-3">Choose UPI App</h4>
+                    <div class="grid grid-cols-2 gap-3" id="upiOptions">
+                        <button onclick="selectUPIApp('phonepe')" class="flex items-center justify-center p-3 border rounded-lg hover:bg-purple-50 hover:border-purple-500">
+                            <div class="text-center">
+                                <div class="w-8 h-8 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1">Pe</div>
+                                <div class="text-xs">PhonePe</div>
+                            </div>
+                        </button>
+                        <button onclick="selectUPIApp('paytm')" class="flex items-center justify-center p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-500">
+                            <div class="text-center">
+                                <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1">Py</div>
+                                <div class="text-xs">Paytm</div>
+                            </div>
+                        </button>
+                        <button onclick="selectUPIApp('googlepay')" class="flex items-center justify-center p-3 border rounded-lg hover:bg-green-50 hover:border-green-500">
+                            <div class="text-center">
+                                <div class="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1">G</div>
+                                <div class="text-xs">Google Pay</div>
+                            </div>
+                        </button>
+                        <button onclick="selectUPIApp('bhim')" class="flex items-center justify-center p-3 border rounded-lg hover:bg-orange-50 hover:border-orange-500">
+                            <div class="text-center">
+                                <div class="w-8 h-8 bg-orange-600 rounded-full flex items-center justify-center text-white font-bold text-sm mb-1">B</div>
+                                <div class="text-xs">BHIM</div>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- COD Advance Info -->
+                <div id="codAdvanceInfo" class="mb-6 hidden">
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                        <h4 class="font-semibold text-yellow-800 mb-2">Advance Payment Required</h4>
+                        <p class="text-sm text-yellow-700 mb-2">For Cash on Delivery, you need to pay ₹<span id="codAdvance">0</span> as advance via UPI.</p>
+                        <p class="text-xs text-yellow-600">Remaining amount will be collected at delivery.</p>
+                    </div>
+                </div>
+
                 <div class="mb-6">
                     <div class="flex justify-between text-xl font-bold">
                         <span>Amount to Pay:</span>
@@ -328,7 +365,7 @@
                     </div>
                 </div>
                 <button onclick="processPayment()" class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700">
-                    Complete Payment
+                    <span id="paymentButtonText">Pay Now</span>
                 </button>
             </div>
         </div>
@@ -347,11 +384,91 @@
         <div id="businessPanel" class="hidden fade-in">
             <div class="bg-white rounded-lg shadow-lg p-6">
                 <h2 class="text-2xl font-bold mb-6">Business Dashboard</h2>
-                <div class="mb-6">
+                
+                <!-- Dashboard Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-blue-100 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-blue-600" id="sellerTotalProducts">0</div>
+                        <div class="text-sm text-blue-800">Total Products</div>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-green-600" id="sellerTotalOrders">0</div>
+                        <div class="text-sm text-green-800">Total Orders</div>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-yellow-600" id="sellerPendingOrders">0</div>
+                        <div class="text-sm text-yellow-800">Pending Orders</div>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg text-center">
+                        <div class="text-2xl font-bold text-purple-600" id="sellerTotalEarnings">₹0</div>
+                        <div class="text-sm text-purple-800">Total Earnings</div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex flex-wrap gap-4 mb-6">
                     <button onclick="showAddProductForm()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
                         <i class="fas fa-plus mr-2"></i>Add New Product
                     </button>
+                    <button onclick="showSellerOrders()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        <i class="fas fa-shopping-bag mr-2"></i>Manage Orders
+                    </button>
+                    <button onclick="showSellerProducts()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        <i class="fas fa-box mr-2"></i>My Products
+                    </button>
                 </div>
+
+                <!-- Quick View -->
+                <div id="businessQuickView">
+                    <h3 class="text-lg font-semibold mb-4">Recent Orders</h3>
+                    <div id="recentSellerOrders" class="space-y-3">
+                        <!-- Recent orders will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Orders Management -->
+        <div id="sellerOrdersPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Order Management</h2>
+                    <button onclick="showBusinessPanel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                    </button>
+                </div>
+                
+                <!-- Order Filters -->
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button onclick="filterSellerOrders('all')" class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" id="filterAll">All Orders</button>
+                    <button onclick="filterSellerOrders('pending')" class="px-4 py-2 bg-yellow-200 rounded hover:bg-yellow-300" id="filterPending">Pending</button>
+                    <button onclick="filterSellerOrders('accepted')" class="px-4 py-2 bg-green-200 rounded hover:bg-green-300" id="filterAccepted">Accepted</button>
+                    <button onclick="filterSellerOrders('shipped')" class="px-4 py-2 bg-blue-200 rounded hover:bg-blue-300" id="filterShipped">Shipped</button>
+                    <button onclick="filterSellerOrders('delivered')" class="px-4 py-2 bg-purple-200 rounded hover:bg-purple-300" id="filterDelivered">Delivered</button>
+                    <button onclick="filterSellerOrders('rejected')" class="px-4 py-2 bg-red-200 rounded hover:bg-red-300" id="filterRejected">Rejected</button>
+                </div>
+
+                <div id="sellerOrdersList" class="space-y-4">
+                    <!-- Seller orders will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Products Management -->
+        <div id="sellerProductsPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">My Products</h2>
+                    <div class="space-x-2">
+                        <button onclick="showAddProductForm()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                            <i class="fas fa-plus mr-2"></i>Add Product
+                        </button>
+                        <button onclick="showBusinessPanel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Dashboard
+                        </button>
+                    </div>
+                </div>
+                
                 <div id="businessProducts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Business products will be loaded here -->
                 </div>
@@ -722,15 +839,22 @@
                     <!-- Variants -->
                     <div id="variantsContainer" class="border-b pb-6 hidden">
                         <h3 class="text-lg font-semibold mb-4">🎨 Product Variants</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm font-medium mb-2">Available Colors</label>
-                                <input type="text" id="colors" class="w-full border rounded-lg px-3 py-2" placeholder="Red, Blue, Green (comma separated)">
+                        
+                        <!-- Color Variants -->
+                        <div class="mb-6">
+                            <label class="block text-sm font-medium mb-2">Color Variants</label>
+                            <div id="colorVariantsList" class="space-y-4">
+                                <!-- Color variants will be added here -->
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium mb-2">Available Sizes</label>
-                                <input type="text" id="sizes" class="w-full border rounded-lg px-3 py-2" placeholder="S, M, L, XL (comma separated)">
-                            </div>
+                            <button type="button" onclick="addColorVariant()" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                <i class="fas fa-plus mr-2"></i>Add Color Variant
+                            </button>
+                        </div>
+
+                        <!-- Size Variants -->
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Available Sizes</label>
+                            <input type="text" id="sizes" class="w-full border rounded-lg px-3 py-2" placeholder="S, M, L, XL (comma separated)">
                         </div>
                     </div>
 
@@ -1691,7 +1815,7 @@
         }
 
         function hideAllPages() {
-            const pages = ['homePage', 'productDetailPage', 'cartPage', 'checkoutPage', 'paymentPage', 'ordersPage', 'businessPanel', 'addProductForm', 'settingsPage', 'sellerRegistrationPage', 'profilePage', 'couponManagementPage', 'createCouponForm', 'adminPanel', 'categoryManager', 'announcementManager', 'createAnnouncementForm', 'mobileSettingsPage', 'mobileSellerRegistrationPage'];
+            const pages = ['homePage', 'productDetailPage', 'cartPage', 'checkoutPage', 'paymentPage', 'ordersPage', 'businessPanel', 'addProductForm', 'settingsPage', 'sellerRegistrationPage', 'profilePage', 'couponManagementPage', 'createCouponForm', 'adminPanel', 'categoryManager', 'announcementManager', 'createAnnouncementForm', 'mobileSettingsPage', 'mobileSellerRegistrationPage', 'sellerOrdersPage', 'sellerProductsPage'];
             pages.forEach(page => {
                 const element = document.getElementById(page);
                 if (element) {
@@ -2548,6 +2672,7 @@
             const order = {
                 userId: currentUser.uid,
                 userName: currentUser.displayName,
+                userEmail: currentUser.email,
                 items: cart,
                 shippingInfo: {
                     fullName: document.getElementById('fullName').value,
@@ -2565,7 +2690,8 @@
                 total: finalTotal,
                 appliedCoupon: appliedCoupon,
                 sellerInfo: sellerData,
-                status: 'accepted',
+                sellerId: cart[0].sellerId,
+                status: 'pending',
                 timestamp: Date.now(),
                 orderId: 'ORD' + Date.now()
             };
@@ -2618,13 +2744,261 @@
                     updateCartCount();
                     
                     // Show success message
-                    alert(`🎉 Order placed successfully!\n\nOrder ID: ${order.orderId}\nPayment Method: ${paymentMethod.toUpperCase()}\nTotal: ₹${finalTotal}\n\nYour order will be delivered within 3-5 business days.`);
+                    alert(`🎉 Order placed successfully!\n\nOrder ID: ${order.orderId}\nPayment Method: ${paymentMethod.toUpperCase()}\nTotal: ₹${finalTotal}\n\nYour order is pending seller approval. You will be notified once confirmed.`);
                     showHomePage();
                 })
                 .catch((error) => {
                     console.error('Error placing order:', error);
                     alert('Failed to place order. Please try again.');
                 });
+        }
+
+        // Seller Order Management Functions
+        function showSellerOrders() {
+            hideAllPages();
+            document.getElementById('sellerOrdersPage').classList.remove('hidden');
+            loadSellerOrders();
+        }
+
+        function showSellerProducts() {
+            hideAllPages();
+            document.getElementById('sellerProductsPage').classList.remove('hidden');
+            loadBusinessProducts();
+        }
+
+        function loadSellerOrders() {
+            database.ref('orders').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    const ordersArray = Object.entries(orders).map(([id, order]) => ({id, ...order}));
+                    displaySellerOrders(ordersArray);
+                    updateSellerStats(ordersArray);
+                });
+        }
+
+        function displaySellerOrders(orders) {
+            const ordersList = document.getElementById('sellerOrdersList');
+            
+            if (orders.length === 0) {
+                ordersList.innerHTML = '<div class="text-center text-gray-500 py-8">No orders received yet</div>';
+                return;
+            }
+
+            ordersList.innerHTML = orders.map(order => `
+                <div class="border rounded-lg p-6 bg-white shadow-sm">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-lg font-bold">Order #${order.orderId}</h3>
+                            <p class="text-gray-600">Customer: ${order.userName}</p>
+                            <p class="text-gray-600">Phone: ${order.shippingInfo.phone}</p>
+                            <p class="text-sm text-gray-500">${new Date(order.timestamp).toLocaleString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-green-600">₹${order.total}</div>
+                            <span class="px-3 py-1 rounded-full text-sm ${getOrderStatusColor(order.status)}">${order.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+
+                    <!-- Order Items -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">Items:</h4>
+                        <div class="space-y-2">
+                            ${order.items.map(item => `
+                                <div class="flex justify-between items-center bg-gray-50 p-2 rounded">
+                                    <span>${item.name} x ${item.quantity}</span>
+                                    <span>₹${item.price * item.quantity}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <!-- Shipping Address -->
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">Shipping Address:</h4>
+                        <div class="bg-gray-50 p-3 rounded text-sm">
+                            <p><strong>${order.shippingInfo.fullName}</strong></p>
+                            <p>${order.shippingInfo.address}</p>
+                            <p>${order.shippingInfo.city}, ${order.shippingInfo.pincode}</p>
+                            <p>Phone: ${order.shippingInfo.phone}</p>
+                            <p>Email: ${order.shippingInfo.email}</p>
+                        </div>
+                    </div>
+
+                    <!-- Order Actions -->
+                    <div class="flex flex-wrap gap-2">
+                        ${order.status === 'pending' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'accepted')" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                                <i class="fas fa-check mr-2"></i>Accept Order
+                            </button>
+                            <button onclick="rejectOrder('${order.id}')" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                                <i class="fas fa-times mr-2"></i>Reject Order
+                            </button>
+                        ` : ''}
+                        
+                        ${order.status === 'accepted' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'shipped')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                                <i class="fas fa-shipping-fast mr-2"></i>Mark as Shipped
+                            </button>
+                        ` : ''}
+                        
+                        ${order.status === 'shipped' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'out-for-delivery')" class="bg-orange-500 text-white px-4 py-2 rounded hover:bg-orange-600">
+                                <i class="fas fa-truck mr-2"></i>Out for Delivery
+                            </button>
+                        ` : ''}
+                        
+                        ${order.status === 'out-for-delivery' ? `
+                            <button onclick="updateOrderStatus('${order.id}', 'delivered')" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                                <i class="fas fa-check-circle mr-2"></i>Mark as Delivered
+                            </button>
+                        ` : ''}
+                        
+                        <button onclick="contactCustomer('${order.shippingInfo.phone}')" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            <i class="fas fa-phone mr-2"></i>Contact Customer
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            database.ref(`orders/${orderId}/status`).set(newStatus)
+                .then(() => {
+                    showSuccess(`Order status updated to ${newStatus}!`);
+                    loadSellerOrders();
+                    
+                    // Send notification to customer
+                    database.ref(`orders/${orderId}`).once('value').then((snapshot) => {
+                        const order = snapshot.val();
+                        if (order) {
+                            const customerNotification = {
+                                userId: order.userId,
+                                orderId: order.orderId,
+                                message: `Your order #${order.orderId} is now ${newStatus}`,
+                                type: 'order_update',
+                                timestamp: Date.now(),
+                                read: false
+                            };
+                            database.ref('customerNotifications').push(customerNotification);
+                        }
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error updating order status:', error);
+                    showError('Failed to update order status');
+                });
+        }
+
+        function rejectOrder(orderId) {
+            const reason = prompt('Please provide a reason for rejection:');
+            if (reason) {
+                database.ref(`orders/${orderId}`).update({
+                    status: 'rejected',
+                    rejectionReason: reason,
+                    rejectedAt: Date.now()
+                })
+                .then(() => {
+                    showSuccess('Order rejected successfully!');
+                    loadSellerOrders();
+                    
+                    // Send notification to customer
+                    database.ref(`orders/${orderId}`).once('value').then((snapshot) => {
+                        const order = snapshot.val();
+                        if (order) {
+                            const customerNotification = {
+                                userId: order.userId,
+                                orderId: order.orderId,
+                                message: `Your order #${order.orderId} has been rejected. Reason: ${reason}`,
+                                type: 'order_rejected',
+                                timestamp: Date.now(),
+                                read: false
+                            };
+                            database.ref('customerNotifications').push(customerNotification);
+                        }
+                    });
+                })
+                .catch((error) => {
+                    console.error('Error rejecting order:', error);
+                    showError('Failed to reject order');
+                });
+            }
+        }
+
+        function contactCustomer(phone) {
+            window.open(`tel:${phone}`, '_self');
+        }
+
+        function getOrderStatusColor(status) {
+            const colors = {
+                'pending': 'bg-yellow-100 text-yellow-800',
+                'accepted': 'bg-green-100 text-green-800',
+                'shipped': 'bg-blue-100 text-blue-800',
+                'out-for-delivery': 'bg-orange-100 text-orange-800',
+                'delivered': 'bg-purple-100 text-purple-800',
+                'rejected': 'bg-red-100 text-red-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function filterSellerOrders(status) {
+            // Reset all filter buttons
+            document.querySelectorAll('[id^="filter"]').forEach(btn => {
+                btn.classList.remove('bg-blue-500', 'text-white');
+                btn.classList.add('bg-gray-200', 'hover:bg-gray-300');
+            });
+            
+            // Highlight active filter
+            const activeBtn = document.getElementById(`filter${status.charAt(0).toUpperCase() + status.slice(1)}`);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-gray-200', 'hover:bg-gray-300');
+                activeBtn.classList.add('bg-blue-500', 'text-white');
+            }
+            
+            // Load filtered orders
+            database.ref('orders').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    let ordersArray = Object.entries(orders).map(([id, order]) => ({id, ...order}));
+                    
+                    if (status !== 'all') {
+                        ordersArray = ordersArray.filter(order => order.status === status);
+                    }
+                    
+                    displaySellerOrders(ordersArray);
+                });
+        }
+
+        function updateSellerStats(orders) {
+            const totalOrders = orders.length;
+            const pendingOrders = orders.filter(order => order.status === 'pending').length;
+            const totalEarnings = orders
+                .filter(order => order.status === 'delivered')
+                .reduce((sum, order) => sum + order.total, 0);
+            
+            document.getElementById('sellerTotalOrders').textContent = totalOrders;
+            document.getElementById('sellerPendingOrders').textContent = pendingOrders;
+            document.getElementById('sellerTotalEarnings').textContent = `₹${totalEarnings}`;
+            
+            // Load recent orders for dashboard
+            const recentOrders = orders.slice(0, 3);
+            const recentOrdersContainer = document.getElementById('recentSellerOrders');
+            
+            if (recentOrders.length === 0) {
+                recentOrdersContainer.innerHTML = '<p class="text-gray-500">No recent orders</p>';
+            } else {
+                recentOrdersContainer.innerHTML = recentOrders.map(order => `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
+                        <div>
+                            <div class="font-semibold">Order #${order.orderId}</div>
+                            <div class="text-sm text-gray-600">${order.userName}</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold">₹${order.total}</div>
+                            <span class="text-xs px-2 py-1 rounded ${getOrderStatusColor(order.status)}">${order.status}</span>
+                        </div>
+                    </div>
+                `).join('');
+            }
         }
 
         // Orders Functions
@@ -3251,6 +3625,267 @@
             event.target.closest('button').classList.add('bg-blue-100', 'border-blue-500');
         }
 
+        // Color Variant Management
+        let colorVariants = [];
+
+        function addColorVariant() {
+            const variantId = Date.now();
+            const variantHtml = `
+                <div class="border rounded-lg p-4" id="colorVariant_${variantId}">
+                    <div class="flex justify-between items-center mb-3">
+                        <h4 class="font-semibold">Color Variant ${colorVariants.length + 1}</h4>
+                        <button type="button" onclick="removeColorVariant('${variantId}')" class="text-red-500 hover:text-red-700">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Color Name *</label>
+                            <input type="text" class="w-full border rounded-lg px-3 py-2" placeholder="e.g., Red, Blue" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Color Code</label>
+                            <input type="color" class="w-full border rounded-lg px-3 py-2 h-10">
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Price for this color (₹)</label>
+                            <input type="number" class="w-full border rounded-lg px-3 py-2" placeholder="Leave empty to use base price" min="0" step="0.01">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Stock Quantity</label>
+                            <input type="number" class="w-full border rounded-lg px-3 py-2" placeholder="Stock for this color" min="0" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Images for this color *</label>
+                        <input type="file" class="w-full border rounded-lg px-3 py-2" multiple accept="image/*" required>
+                        <div class="mt-2 grid grid-cols-4 gap-2 hidden" id="colorPreview_${variantId}">
+                            <!-- Color-specific image previews will appear here -->
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('colorVariantsList').insertAdjacentHTML('beforeend', variantHtml);
+            colorVariants.push(variantId);
+        }
+
+        function removeColorVariant(variantId) {
+            document.getElementById(`colorVariant_${variantId}`).remove();
+            colorVariants = colorVariants.filter(id => id !== variantId);
+        }
+
+        // Fix Buy Now button
+        function buyNow() {
+            if (!currentUser) {
+                alert('Please login to buy products');
+                return;
+            }
+            
+            if (!currentProduct) {
+                alert('Product not found');
+                return;
+            }
+            
+            // Clear existing cart and add current product
+            cart = [];
+            
+            const cartItem = {
+                productId: currentProduct.id,
+                name: currentProduct.name,
+                price: currentProduct.sellingPrice,
+                mrp: currentProduct.mrp,
+                quantity: 1,
+                image: currentProduct.images && currentProduct.images.length > 0 ? currentProduct.images[0] : '',
+                brand: currentProduct.brandName || '',
+                category: currentProduct.category || '',
+                sellerId: currentProduct.sellerId || '',
+                sellerName: currentProduct.sellerName || '',
+                stockQuantity: currentProduct.stockQuantity || 0
+            };
+            
+            cart.push(cartItem);
+            saveCartToFirebase();
+            updateCartCount();
+            
+            // Proceed directly to checkout
+            proceedToCheckout();
+        }
+
+        // Fix UPI redirect functionality
+        function simulateUPIPayment() {
+            if (!selectedUPIApp) {
+                alert('Please select a UPI app first');
+                return;
+            }
+            
+            // Get seller UPI ID from the first product's seller
+            const firstItem = cart[0];
+            database.ref(`products/${firstItem.productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product && product.sellerId) {
+                        return database.ref(`sellers/${product.sellerId}`).once('value');
+                    }
+                })
+                .then((sellerSnapshot) => {
+                    const sellerData = sellerSnapshot.val();
+                    const sellerUPI = sellerData ? sellerData.upiId : 'seller@paytm';
+                    const paymentAmount = document.getElementById('paymentAmount').textContent.replace('₹', '');
+                    
+                    // Create UPI payment URL based on selected app
+                    let upiUrl = '';
+                    const upiString = `upi://pay?pa=${sellerUPI}&pn=Homy Seller&am=${paymentAmount}&cu=INR&tn=Payment for Order`;
+                    
+                    switch(selectedUPIApp) {
+                        case 'phonepe':
+                            upiUrl = `phonepe://pay?${upiString}`;
+                            break;
+                        case 'paytm':
+                            upiUrl = `paytmmp://pay?${upiString}`;
+                            break;
+                        case 'googlepay':
+                            upiUrl = `tez://upi/pay?${upiString}`;
+                            break;
+                        case 'bhim':
+                            upiUrl = `bhim://pay?${upiString}`;
+                            break;
+                        default:
+                            upiUrl = upiString;
+                    }
+                    
+                    // Show payment confirmation
+                    const confirmPayment = confirm(`Redirecting to ${selectedUPIApp.toUpperCase()}...\n\nAmount: ₹${paymentAmount}\nReceiver: ${sellerUPI}\n\nClick OK to open ${selectedUPIApp.toUpperCase()} app`);
+                    
+                    if (confirmPayment) {
+                        // Try to open UPI app
+                        try {
+                            window.location.href = upiUrl;
+                        } catch (error) {
+                            console.log('UPI app not installed, showing manual payment info');
+                        }
+                        
+                        // Show loading and simulate payment completion
+                        document.body.innerHTML += `
+                            <div id="paymentLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                <div class="bg-white p-8 rounded-lg text-center max-w-sm">
+                                    <div class="loading mx-auto mb-4"></div>
+                                    <p class="mb-4">Complete payment in ${selectedUPIApp.toUpperCase()} app</p>
+                                    <div class="space-y-2">
+                                        <button onclick="completePaymentManually()" class="w-full bg-green-500 text-white py-2 px-4 rounded hover:bg-green-600">
+                                            Payment Completed
+                                        </button>
+                                        <button onclick="cancelPayment()" class="w-full bg-red-500 text-white py-2 px-4 rounded hover:bg-red-600">
+                                            Cancel Payment
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+        }
+
+        function completePaymentManually() {
+            document.getElementById('paymentLoading').remove();
+            
+            // Get seller data and complete order
+            const firstItem = cart[0];
+            database.ref(`products/${firstItem.productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product && product.sellerId) {
+                        return database.ref(`sellers/${product.sellerId}`).once('value');
+                    }
+                })
+                .then((sellerSnapshot) => {
+                    const sellerData = sellerSnapshot.val();
+                    completeOrder('upi', sellerData);
+                });
+        }
+
+        function cancelPayment() {
+            document.getElementById('paymentLoading').remove();
+            alert('Payment cancelled');
+        }
+
+        // Load seller stats when business panel loads
+        function loadBusinessPanel() {
+            if (!currentUser) {
+                alert('Please login to access business panel');
+                return;
+            }
+            
+            database.ref(`sellers/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    const sellerData = snapshot.val();
+                    
+                    if (!sellerData || sellerData.status !== 'approved') {
+                        alert('You need to be an approved seller to access business panel. Please apply for seller account first.');
+                        showSettings();
+                        return;
+                    }
+                    
+                    hideAllPages();
+                    document.getElementById('businessPanel').classList.remove('hidden');
+                    
+                    // Load seller statistics
+                    loadSellerDashboardStats();
+                });
+        }
+
+        function loadSellerDashboardStats() {
+            // Load products count
+            database.ref('products').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    document.getElementById('sellerTotalProducts').textContent = Object.keys(products).length;
+                });
+            
+            // Load orders and calculate stats
+            database.ref('orders').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    const ordersArray = Object.values(orders);
+                    
+                    const totalOrders = ordersArray.length;
+                    const pendingOrders = ordersArray.filter(order => order.status === 'pending').length;
+                    const totalEarnings = ordersArray
+                        .filter(order => order.status === 'delivered')
+                        .reduce((sum, order) => sum + order.total, 0);
+                    
+                    document.getElementById('sellerTotalOrders').textContent = totalOrders;
+                    document.getElementById('sellerPendingOrders').textContent = pendingOrders;
+                    document.getElementById('sellerTotalEarnings').textContent = `₹${totalEarnings}`;
+                    
+                    // Load recent orders
+                    const recentOrders = ordersArray.slice(0, 3);
+                    const recentOrdersContainer = document.getElementById('recentSellerOrders');
+                    
+                    if (recentOrders.length === 0) {
+                        recentOrdersContainer.innerHTML = '<p class="text-gray-500">No recent orders</p>';
+                    } else {
+                        recentOrdersContainer.innerHTML = recentOrders.map(order => `
+                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded cursor-pointer hover:bg-gray-100" onclick="showSellerOrders()">
+                                <div>
+                                    <div class="font-semibold">Order #${order.orderId}</div>
+                                    <div class="text-sm text-gray-600">${order.userName}</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-bold">₹${order.total}</div>
+                                    <span class="text-xs px-2 py-1 rounded ${getOrderStatusColor(order.status)}">${order.status}</span>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                });
+        }
+
         function applyCoupon() {
             const couponCode = document.getElementById('couponCode').value.trim();
             if (!couponCode) {
@@ -3691,8 +4326,59 @@
             }
         });
 
+        // Utility functions for notifications
+        function showSuccess(message) {
+            showNotification(message, 'success');
+        }
+
+        function showError(message) {
+            showNotification(message, 'error');
+        }
+
+        function showWarning(message) {
+            showNotification(message, 'warning');
+        }
+
+        function showInfo(message) {
+            showNotification(message, 'info');
+        }
+
+        function showNotification(message, type) {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                warning: 'bg-yellow-500',
+                info: 'bg-blue-500'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm`;
+            notification.innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Update showBusinessPanel function name
+        async function showBusinessPanel() {
+            await loadBusinessPanel();
+        }
+
         // Load initial data
         showHomePage();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4249345e93b34',t:'MTc1NzIyNjQ3NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b44376c345a6dc',t:'MTc1NzIyNzc0MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
