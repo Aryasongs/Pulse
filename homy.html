@@ -1,0 +1,2770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homy - Your Home Shopping Destination</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .star-rating {
+            color: #fbbf24;
+        }
+        .product-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .loading {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Navigation Header -->
+    <header class="bg-white text-gray-800 sticky top-0 z-50 shadow-md border-b-2 border-red-500">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold cursor-pointer flex items-center" onclick="showHomePage()">
+                        <img src="https://pulse.oriontec.xyz/IMG_0901.png" alt="Homy Logo" class="w-24 h-24">
+                    </h1>
+                    <div class="hidden md:flex items-center bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
+                        <input type="text" id="searchInput" placeholder="Search products..." class="px-4 py-2 text-gray-800 w-96 focus:outline-none bg-transparent">
+                        <button onclick="searchProducts()" class="bg-red-500 px-4 py-2 hover:bg-red-600 text-white">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div id="userSection" class="hidden">
+                        <span id="userName" class="mr-2"></span>
+                        <button onclick="showCart()" class="relative">
+                            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M7 18C5.9 18 5 18.9 5 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H5.21L4.27 3H1ZM17 18C15.9 18 15 18.9 15 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"/>
+                            </svg>
+                            <span id="cartCount" class="absolute -top-2 -right-2 bg-red-500 text-xs rounded-full px-1">0</span>
+                        </button>
+                        <button onclick="showOrders()" class="hover:text-red-500">Orders</button>
+                        <div id="sellerNavButton" class="hidden">
+                            <button onclick="showBusinessPanel()" class="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700 text-white">
+                                <i class="fas fa-store mr-1"></i>Seller Panel
+                            </button>
+                        </div>
+                        <div id="adminNavButton" class="hidden">
+                            <button onclick="showAdminPanel()" class="bg-gray-800 px-3 py-1 rounded text-sm hover:bg-gray-900 text-white">
+                                <i class="fas fa-crown mr-1"></i>Admin
+                            </button>
+                        </div>
+                        <button onclick="showSettings()" class="hover:text-red-500">Settings</button>
+                        <button onclick="logout()" class="hover:text-red-600">Logout</button>
+                    </div>
+                    <div id="loginSection">
+                        <button onclick="loginWithGoogle()" class="bg-red-500 px-4 py-2 rounded hover:bg-red-600 text-white">
+                            <i class="fab fa-google mr-2"></i>Login with Google
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        <!-- Home Page -->
+        <div id="homePage" class="fade-in">
+            <!-- Announcements Banner -->
+            <div id="announcementBanner" class="mb-6 hidden">
+                <!-- Active announcements will be displayed here -->
+            </div>
+            
+            <!-- Categories -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Shop by Category</h2>
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('electronics')">
+                        <svg class="w-12 h-12 mx-auto text-blue-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 3H4C2.9 3 2 3.9 2 5V15C2 16.1 2.9 17 4 17H9L8 19V20H16V19L15 17H20C21.1 17 22 16.1 22 15V5C22 3.9 21.1 3 20 3ZM20 15H4V5H20V15Z"/>
+                        </svg>
+                        <p class="font-semibold">Electronics</p>
+                    </div>
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('fashion')">
+                        <svg class="w-12 h-12 mx-auto text-green-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M16 4L14.5 2.5C14.1 2.1 13.6 1.9 13 1.9H11C10.4 1.9 9.9 2.1 9.5 2.5L8 4H6C4.9 4 4 4.9 4 6V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V6C20 4.9 19.1 4 18 4H16ZM12 3.5C12.3 3.5 12.5 3.7 12.5 4S12.3 4.5 12 4.5 11.5 4.3 11.5 4 11.7 3.5 12 3.5ZM18 20H6V6H8.8L10.3 4.5H13.7L15.2 6H18V20Z"/>
+                        </svg>
+                        <p class="font-semibold">Fashion</p>
+                    </div>
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('books')">
+                        <svg class="w-12 h-12 mx-auto text-purple-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M18 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V4C20 2.9 19.1 2 18 2ZM18 20H6V4H18V20ZM8 6H16V8H8V6ZM8 10H16V12H8V10ZM8 14H13V16H8V14Z"/>
+                        </svg>
+                        <p class="font-semibold">Books</p>
+                    </div>
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('grocery')">
+                        <svg class="w-12 h-12 mx-auto text-orange-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 18C5.9 18 5 18.9 5 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H5.21L4.27 3H1ZM17 18C15.9 18 15 18.9 15 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"/>
+                        </svg>
+                        <p class="font-semibold">Grocery</p>
+                    </div>
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('jewelry')">
+                        <svg class="w-12 h-12 mx-auto text-red-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M5 16L3 5H1L3.5 17H5.5L12 7L18.5 17H20.5L23 5H21L19 16L12 9L5 16Z"/>
+                        </svg>
+                        <p class="font-semibold">Jewelry</p>
+                    </div>
+                    <div class="category-card bg-white p-4 rounded-lg shadow hover:shadow-lg cursor-pointer text-center" onclick="filterByCategory('toys')">
+                        <svg class="w-12 h-12 mx-auto text-pink-600 mb-2" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 8L13.5 7C12.7 6.6 11.8 6.4 11 6.4C10.2 6.4 9.3 6.6 8.5 7L7 8L1 7V9L6.5 9.5L8 11V22H10V16H14V22H16V11L17.5 9.5L21 9Z"/>
+                        </svg>
+                        <p class="font-semibold">Toys</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Featured Products -->
+            <div class="mb-8">
+                <h2 class="text-2xl font-bold mb-4">Featured Products</h2>
+                <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Products will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Product Detail Page -->
+        <div id="productDetailPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div>
+                        <img id="productImage" src="" alt="" class="w-full h-96 object-cover rounded-lg mb-4">
+                        <div id="productGallery" class="flex space-x-2 overflow-x-auto">
+                            <!-- Additional images will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h1 id="productTitle" class="text-3xl font-bold mb-4"></h1>
+                        <div id="productRating" class="flex items-center mb-4">
+                            <!-- Rating stars will be loaded here -->
+                        </div>
+                        <div class="mb-4">
+                            <span id="productPrice" class="text-3xl font-bold text-green-600"></span>
+                            <span id="productMRP" class="text-xl text-gray-500 line-through ml-2"></span>
+                        </div>
+                        <p id="productDescription" class="text-gray-700 mb-6"></p>
+                        
+                        <!-- Variants Section -->
+                        <div id="variantsSection" class="mb-6">
+                            <div id="colorVariants" class="mb-4 hidden">
+                                <h3 class="font-semibold mb-2">Color:</h3>
+                                <div id="colorOptions" class="flex space-x-2">
+                                    <!-- Color options will be loaded here -->
+                                </div>
+                            </div>
+                            <div id="sizeVariants" class="mb-4 hidden">
+                                <h3 class="font-semibold mb-2">Size:</h3>
+                                <div id="sizeOptions" class="flex space-x-2">
+                                    <!-- Size options will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex space-x-4 mb-6">
+                            <button onclick="addToCart()" class="bg-red-500 text-white px-6 py-3 rounded-lg hover:bg-red-600 flex-1">
+                                <i class="fas fa-shopping-cart mr-2"></i>Add to Cart
+                            </button>
+                            <button onclick="buyNow()" class="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-900 flex-1">
+                                Buy Now
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reviews Section -->
+                <div class="mt-8 border-t pt-8">
+                    <h2 class="text-2xl font-bold mb-6">Customer Reviews</h2>
+                    <div class="mb-6">
+                        <button onclick="showReviewForm()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                            Write a Review
+                        </button>
+                    </div>
+                    <div id="reviewsContainer">
+                        <!-- Reviews will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- Related Products -->
+                <div class="mt-8 border-t pt-8">
+                    <h2 class="text-2xl font-bold mb-6">Related Products</h2>
+                    <div id="relatedProducts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Related products will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cart Page -->
+        <div id="cartPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Shopping Cart</h2>
+                <div id="cartItems">
+                    <!-- Cart items will be loaded here -->
+                </div>
+                <div class="border-t pt-4 mt-6">
+                    <div class="flex justify-between items-center text-xl font-bold">
+                        <span>Total: </span>
+                        <span id="cartTotal">₹0</span>
+                    </div>
+                    <button onclick="proceedToCheckout()" class="w-full bg-red-500 text-white py-3 rounded-lg mt-4 hover:bg-red-600">
+                        Proceed to Checkout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkout Page -->
+        <div id="checkoutPage" class="hidden fade-in">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-6">Shipping Information</h2>
+                    <form id="checkoutForm">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Full Name</label>
+                            <input type="text" id="fullName" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Email</label>
+                            <input type="email" id="email" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Phone Number</label>
+                            <input type="tel" id="phone" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Address</label>
+                            <textarea id="address" class="w-full border rounded-lg px-3 py-2" rows="3" required></textarea>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">City</label>
+                                <input type="text" id="city" class="w-full border rounded-lg px-3 py-2" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">PIN Code</label>
+                                <input type="text" id="pincode" class="w-full border rounded-lg px-3 py-2" required>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="bg-white rounded-lg shadow-lg p-6">
+                    <h2 class="text-2xl font-bold mb-6">Order Summary</h2>
+                    <div id="checkoutItems">
+                        <!-- Checkout items will be loaded here -->
+                    </div>
+                    <div class="border-t pt-4 mt-6">
+                        <div class="flex justify-between mb-2">
+                            <span>Subtotal:</span>
+                            <span id="subtotal">₹0</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span>Shipping:</span>
+                            <span>₹50</span>
+                        </div>
+                        <div class="flex justify-between text-xl font-bold">
+                            <span>Total:</span>
+                            <span id="finalTotal">₹0</span>
+                        </div>
+                        <button onclick="proceedToPayment()" class="w-full bg-red-600 text-white py-3 rounded-lg mt-4 hover:bg-red-700">
+                            Proceed to Payment
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Page -->
+        <div id="paymentPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6 max-w-md mx-auto">
+                <h2 class="text-2xl font-bold mb-6">Payment</h2>
+                <div class="mb-6">
+                    <h3 class="font-semibold mb-4">Select Payment Method</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center">
+                            <input type="radio" name="payment" value="card" class="mr-3" checked>
+                            <i class="fas fa-credit-card mr-2"></i>Credit/Debit Card
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="payment" value="upi" class="mr-3">
+                            <i class="fas fa-mobile-alt mr-2"></i>UPI
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="payment" value="cod" class="mr-3">
+                            <i class="fas fa-money-bill-wave mr-2"></i>Cash on Delivery
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-6">
+                    <div class="flex justify-between text-xl font-bold">
+                        <span>Amount to Pay:</span>
+                        <span id="paymentAmount">₹0</span>
+                    </div>
+                </div>
+                <button onclick="processPayment()" class="w-full bg-red-600 text-white py-3 rounded-lg hover:bg-red-700">
+                    Complete Payment
+                </button>
+            </div>
+        </div>
+
+        <!-- Orders Page -->
+        <div id="ordersPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">My Orders</h2>
+                <div id="ordersContainer">
+                    <!-- Orders will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Business Panel -->
+        <div id="businessPanel" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Business Dashboard</h2>
+                <div class="mb-6">
+                    <button onclick="showAddProductForm()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                        <i class="fas fa-plus mr-2"></i>Add New Product
+                    </button>
+                </div>
+                <div id="businessProducts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Business products will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Page -->
+        <div id="settingsPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Settings</h2>
+                <div class="space-y-6">
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">Account Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Name</label>
+                                <input type="text" id="userDisplayName" class="w-full border rounded-lg px-3 py-2" readonly>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Email</label>
+                                <input type="email" id="userEmail" class="w-full border rounded-lg px-3 py-2" readonly>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="sellerSection" class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">Seller Account</h3>
+                        <div id="notSellerSection">
+                            <p class="text-gray-600 mb-4">Want to sell products on TrendCart? Create your seller account now!</p>
+                            <button onclick="showSellerRegistration()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                                Create Seller Account
+                            </button>
+                        </div>
+                        <div id="sellerStatusSection" class="hidden">
+                            <div class="flex items-center space-x-4">
+                                <div class="flex-1">
+                                    <p class="font-semibold">Seller Status: <span id="sellerStatus" class="text-green-600">Active</span></p>
+                                    <p class="text-sm text-gray-600">Business Name: <span id="sellerBusinessName"></span></p>
+                                </div>
+                                <button onclick="showBusinessPanel()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                                    Manage Products
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Seller Registration Form -->
+        <div id="sellerRegistrationPage" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-bold mb-6">Create Seller Account</h2>
+                <form id="sellerRegistrationForm" class="space-y-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Business Name *</label>
+                        <input type="text" id="businessName" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">PAN Number *</label>
+                        <input type="text" id="panNumber" class="w-full border rounded-lg px-3 py-2" pattern="[A-Z]{5}[0-9]{4}[A-Z]{1}" placeholder="ABCDE1234F" required>
+                        <p class="text-xs text-gray-500 mt-1">Enter valid PAN number (e.g., ABCDE1234F)</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">UPI ID *</label>
+                        <input type="text" id="upiId" class="w-full border rounded-lg px-3 py-2" placeholder="yourname@paytm" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Business Category *</label>
+                        <select id="businessCategory" class="w-full border rounded-lg px-3 py-2" required>
+                            <option value="">Select Category</option>
+                            <option value="fashion">Fashion</option>
+                            <option value="grocery">Grocery</option>
+                            <option value="electronics">Electronics</option>
+                            <option value="jewelry">Jewelry</option>
+                            <option value="toys">Toys</option>
+                            <option value="books">Books</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Business Address *</label>
+                        <textarea id="businessAddress" class="w-full border rounded-lg px-3 py-2" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">City *</label>
+                            <input type="text" id="businessCity" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">PIN Code *</label>
+                            <input type="text" id="businessPincode" class="w-full border rounded-lg px-3 py-2" pattern="[0-9]{6}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="termsAccepted" class="mr-2" required>
+                        <label for="termsAccepted" class="text-sm">I agree to the Terms and Conditions for sellers</label>
+                    </div>
+                    
+                    <div class="flex space-x-4">
+                        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                            Submit for Review
+                        </button>
+                        <button type="button" onclick="showSettings()" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">
+                    <i class="fas fa-crown mr-2 text-red-600"></i>Admin Dashboard
+                </h2>
+                
+                <!-- Admin Stats -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-blue-100 p-4 rounded-lg">
+                        <h3 class="font-semibold text-blue-800">Total Users</h3>
+                        <p id="totalUsers" class="text-2xl font-bold text-blue-600">0</p>
+                    </div>
+                    <div class="bg-green-100 p-4 rounded-lg">
+                        <h3 class="font-semibold text-green-800">Total Products</h3>
+                        <p id="totalProducts" class="text-2xl font-bold text-green-600">0</p>
+                    </div>
+                    <div class="bg-yellow-100 p-4 rounded-lg">
+                        <h3 class="font-semibold text-yellow-800">Total Orders</h3>
+                        <p id="totalOrders" class="text-2xl font-bold text-yellow-600">0</p>
+                    </div>
+                    <div class="bg-purple-100 p-4 rounded-lg">
+                        <h3 class="font-semibold text-purple-800">Total Sellers</h3>
+                        <p id="totalSellers" class="text-2xl font-bold text-purple-600">0</p>
+                    </div>
+                </div>
+
+                <!-- Admin Actions -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <button onclick="showCategoryManager()" class="bg-red-600 text-white p-4 rounded-lg hover:bg-red-700">
+                        <i class="fas fa-tags text-2xl mb-2"></i>
+                        <div class="font-semibold">Manage Categories</div>
+                        <div class="text-sm opacity-90">Update category images & names</div>
+                    </button>
+                    
+                    <button onclick="showAnnouncementManager()" class="bg-gray-700 text-white p-4 rounded-lg hover:bg-gray-800">
+                        <i class="fas fa-bullhorn text-2xl mb-2"></i>
+                        <div class="font-semibold">Announcements</div>
+                        <div class="text-sm opacity-90">Create sales & promotional banners</div>
+                    </button>
+                    
+                    <button onclick="showSellerManager()" class="bg-red-500 text-white p-4 rounded-lg hover:bg-red-600">
+                        <i class="fas fa-store text-2xl mb-2"></i>
+                        <div class="font-semibold">Manage Sellers</div>
+                        <div class="text-sm opacity-90">Approve/reject seller applications</div>
+                    </button>
+                    
+                    <button onclick="showProductManager()" class="bg-gray-600 text-white p-4 rounded-lg hover:bg-gray-700">
+                        <i class="fas fa-box text-2xl mb-2"></i>
+                        <div class="font-semibold">Product Management</div>
+                        <div class="text-sm opacity-90">Review & moderate products</div>
+                    </button>
+                    
+                    <button onclick="showOrderManager()" class="bg-red-700 text-white p-4 rounded-lg hover:bg-red-800">
+                        <i class="fas fa-shopping-cart text-2xl mb-2"></i>
+                        <div class="font-semibold">Order Management</div>
+                        <div class="text-sm opacity-90">Monitor all platform orders</div>
+                    </button>
+                    
+                    <button onclick="showAnalytics()" class="bg-gray-800 text-white p-4 rounded-lg hover:bg-gray-900">
+                        <i class="fas fa-chart-bar text-2xl mb-2"></i>
+                        <div class="font-semibold">Analytics</div>
+                        <div class="text-sm opacity-90">Platform performance metrics</div>
+                    </button>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="border-t pt-6">
+                    <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+                    <div id="recentActivity" class="space-y-3">
+                        <!-- Recent activity will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category Manager -->
+        <div id="categoryManager" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Category Management</h2>
+                    <button onclick="showAdminPanel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                        <i class="fas fa-arrow-left mr-2"></i>Back to Admin
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="categoryGrid">
+                    <!-- Categories will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Announcement Manager -->
+        <div id="announcementManager" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Announcement Management</h2>
+                    <div class="space-x-2">
+                        <button onclick="showCreateAnnouncement()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700">
+                            <i class="fas fa-plus mr-2"></i>Create Announcement
+                        </button>
+                        <button onclick="showAdminPanel()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                            <i class="fas fa-arrow-left mr-2"></i>Back to Admin
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="announcementsList" class="space-y-4">
+                    <!-- Announcements will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Announcement Form -->
+        <div id="createAnnouncementForm" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-bold mb-6">Create New Announcement</h2>
+                <form id="announcementForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Announcement Type</label>
+                        <select id="announcementType" class="w-full border rounded-lg px-3 py-2" required>
+                            <option value="">Select Type</option>
+                            <option value="sale">Sale/Discount</option>
+                            <option value="new-arrival">New Arrival</option>
+                            <option value="festival">Festival Offer</option>
+                            <option value="general">General Announcement</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Title</label>
+                        <input type="text" id="announcementTitle" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Description</label>
+                        <textarea id="announcementDescription" class="w-full border rounded-lg px-3 py-2" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Start Date</label>
+                            <input type="datetime-local" id="announcementStart" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-2">End Date</label>
+                            <input type="datetime-local" id="announcementEnd" class="w-full border rounded-lg px-3 py-2" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Banner Color</label>
+                        <select id="announcementColor" class="w-full border rounded-lg px-3 py-2">
+                            <option value="bg-red-500">Red (Sale/Urgent)</option>
+                            <option value="bg-green-500">Green (New/Fresh)</option>
+                            <option value="bg-blue-500">Blue (Information)</option>
+                            <option value="bg-purple-500">Purple (Premium)</option>
+                            <option value="bg-orange-500">Orange (Festival)</option>
+                            <option value="bg-yellow-500">Yellow (Warning/Alert)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <input type="checkbox" id="announcementActive" class="mr-2" checked>
+                        <label for="announcementActive" class="text-sm">Active (show on homepage)</label>
+                    </div>
+                    
+                    <div class="flex space-x-4">
+                        <button type="submit" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                            Create Announcement
+                        </button>
+                        <button type="button" onclick="showAnnouncementManager()" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Add Product Form -->
+        <div id="addProductForm" class="hidden fade-in">
+            <div class="bg-white rounded-lg shadow-lg p-6">
+                <h2 class="text-2xl font-bold mb-6">Add New Product</h2>
+                <form id="productForm" class="space-y-6">
+                    <!-- Basic Info -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">🏷️ Basic Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Product Name *</label>
+                                <input type="text" id="productName" class="w-full border rounded-lg px-3 py-2" required>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Brand Name</label>
+                                <input type="text" id="brandName" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Category *</label>
+                                <select id="category" class="w-full border rounded-lg px-3 py-2" required onchange="toggleVariants()">
+                                    <option value="">Select Category</option>
+                                    <option value="fashion">Fashion</option>
+                                    <option value="grocery">Grocery</option>
+                                    <option value="electronics">Electronics</option>
+                                    <option value="jewelry">Jewelry</option>
+                                    <option value="toys">Toys</option>
+                                    <option value="books">Books</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Sub-Category</label>
+                                <input type="text" id="subCategory" class="w-full border rounded-lg px-3 py-2">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium mb-2">Short Description</label>
+                            <input type="text" id="shortDescription" class="w-full border rounded-lg px-3 py-2" maxlength="100">
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium mb-2">Detailed Description</label>
+                            <textarea id="detailedDescription" class="w-full border rounded-lg px-3 py-2" rows="4"></textarea>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium mb-2">Product Images *</label>
+                            <input type="file" id="productImages" class="w-full border rounded-lg px-3 py-2" multiple accept="image/*" required>
+                            <p class="text-xs text-gray-500 mt-1">Upload multiple images. First image will be the cover image.</p>
+                            <div id="imagePreview" class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4 hidden">
+                                <!-- Image previews will appear here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory & SKU -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">📦 Inventory & SKU</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">SKU Code</label>
+                                <div class="flex">
+                                    <input type="text" id="skuCode" class="flex-1 border rounded-l-lg px-3 py-2">
+                                    <button type="button" onclick="generateSKU()" class="bg-gray-500 text-white px-3 py-2 rounded-r-lg hover:bg-gray-600">Auto</button>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Stock Quantity *</label>
+                                <input type="number" id="stockQuantity" class="w-full border rounded-lg px-3 py-2" required min="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Variants -->
+                    <div id="variantsContainer" class="border-b pb-6 hidden">
+                        <h3 class="text-lg font-semibold mb-4">🎨 Product Variants</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Available Colors</label>
+                                <input type="text" id="colors" class="w-full border rounded-lg px-3 py-2" placeholder="Red, Blue, Green (comma separated)">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Available Sizes</label>
+                                <input type="text" id="sizes" class="w-full border rounded-lg px-3 py-2" placeholder="S, M, L, XL (comma separated)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pricing -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">💰 Pricing</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">MRP (₹) *</label>
+                                <input type="number" id="mrp" class="w-full border rounded-lg px-3 py-2" required min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Selling Price (₹) *</label>
+                                <input type="number" id="sellingPrice" class="w-full border rounded-lg px-3 py-2" required min="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shipping -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">🚚 Shipping & Delivery</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Weight (kg)</label>
+                                <input type="number" id="weight" class="w-full border rounded-lg px-3 py-2" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Shipping Charges (₹)</label>
+                                <input type="number" id="shippingCharges" class="w-full border rounded-lg px-3 py-2" min="0" step="0.01" value="50">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Delivery Days</label>
+                                <input type="number" id="deliveryDays" class="w-full border rounded-lg px-3 py-2" min="1" value="3">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Marketing -->
+                    <div class="border-b pb-6">
+                        <h3 class="text-lg font-semibold mb-4">📊 Marketing & Visibility</h3>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Tags/Keywords</label>
+                            <input type="text" id="tags" class="w-full border rounded-lg px-3 py-2" placeholder="smartphone, android, mobile (comma separated)">
+                        </div>
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium mb-2">Product Highlights</label>
+                            <textarea id="highlights" class="w-full border rounded-lg px-3 py-2" rows="3" placeholder="• Feature 1&#10;• Feature 2&#10;• Feature 3"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Controls -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">🔒 Advanced Controls</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Product Status</label>
+                                <select id="productStatus" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="active">Active</option>
+                                    <option value="draft">Draft</option>
+                                    <option value="out-of-stock">Out of Stock</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Return Policy</label>
+                                <select id="returnPolicy" class="w-full border rounded-lg px-3 py-2">
+                                    <option value="yes">Returnable</option>
+                                    <option value="no">Non-Returnable</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="block text-sm font-medium mb-2">Warranty/Guarantee</label>
+                            <input type="text" id="warranty" class="w-full border rounded-lg px-3 py-2" placeholder="1 Year Manufacturer Warranty">
+                        </div>
+                    </div>
+
+                    <div class="flex space-x-4 pt-6">
+                        <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                            <i class="fas fa-save mr-2"></i>Save Product
+                        </button>
+                        <button type="button" onclick="cancelAddProduct()" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Review Form Modal -->
+    <div id="reviewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+        <div class="flex items-center justify-center min-h-screen p-4">
+            <div class="bg-white rounded-lg p-6 w-full max-w-md">
+                <h3 class="text-xl font-bold mb-4">Write a Review</h3>
+                <form id="reviewForm">
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Rating</label>
+                        <div class="flex space-x-1">
+                            <i class="fas fa-star text-2xl cursor-pointer text-gray-300" onclick="setRating(1)"></i>
+                            <i class="fas fa-star text-2xl cursor-pointer text-gray-300" onclick="setRating(2)"></i>
+                            <i class="fas fa-star text-2xl cursor-pointer text-gray-300" onclick="setRating(3)"></i>
+                            <i class="fas fa-star text-2xl cursor-pointer text-gray-300" onclick="setRating(4)"></i>
+                            <i class="fas fa-star text-2xl cursor-pointer text-gray-300" onclick="setRating(5)"></i>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Review Title</label>
+                        <input type="text" id="reviewTitle" class="w-full border rounded-lg px-3 py-2" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Review</label>
+                        <textarea id="reviewText" class="w-full border rounded-lg px-3 py-2" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium mb-2">Upload Images (Optional)</label>
+                        <input type="file" id="reviewImages" class="w-full border rounded-lg px-3 py-2" multiple accept="image/*">
+                    </div>
+                    <div class="flex space-x-4">
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Submit Review</button>
+                        <button type="button" onclick="closeReviewModal()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjfNlHwhT4xYb7vVym_SAqMlSuY_TMz0o",
+            authDomain: "orioplay.firebaseapp.com",
+            databaseURL: "https://orioplay-default-rtdb.firebaseio.com",
+            projectId: "orioplay",
+            storageBucket: "orioplay.firebasestorage.app",
+            messagingSenderId: "300811706751",
+            appId: "1:300811706751:web:bdce98b1ba7e11d34d7a4a"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        // Global Variables
+        let currentUser = null;
+        let cart = [];
+        let currentProduct = null;
+        let selectedRating = 0;
+        let selectedUPIApp = '';
+        let appliedCoupon = null;
+        let currentDiscount = 0;
+        let isAdmin = false;
+        let isSeller = false;
+        const ADMIN_EMAIL = 'customerserviceffrj4@gmail.com';
+
+        // Authentication
+        function loginWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    currentUser = result.user;
+                    updateUI();
+                    loadUserData();
+                })
+                .catch((error) => {
+                    console.error('Login error:', error);
+                    alert('Login failed. Please try again.');
+                });
+        }
+
+        function logout() {
+            auth.signOut().then(() => {
+                currentUser = null;
+                cart = [];
+                updateUI();
+                showHomePage();
+            });
+        }
+
+        function updateUI() {
+            const loginSection = document.getElementById('loginSection');
+            const userSection = document.getElementById('userSection');
+            const userName = document.getElementById('userName');
+            const sellerNavButton = document.getElementById('sellerNavButton');
+            const adminNavButton = document.getElementById('adminNavButton');
+
+            if (currentUser) {
+                loginSection.classList.add('hidden');
+                userSection.classList.remove('hidden');
+                userName.textContent = currentUser.displayName;
+                updateCartCount();
+                
+                // Check admin access
+                isAdmin = currentUser.email === ADMIN_EMAIL;
+                if (isAdmin) {
+                    adminNavButton.classList.remove('hidden');
+                } else {
+                    adminNavButton.classList.add('hidden');
+                }
+                
+                // Check seller status
+                checkSellerStatus();
+            } else {
+                loginSection.classList.remove('hidden');
+                userSection.classList.add('hidden');
+                sellerNavButton.classList.add('hidden');
+                adminNavButton.classList.add('hidden');
+                isAdmin = false;
+                isSeller = false;
+            }
+        }
+
+        function checkSellerStatus() {
+            if (currentUser) {
+                database.ref(`sellers/${currentUser.uid}`).once('value')
+                    .then((snapshot) => {
+                        const sellerData = snapshot.val();
+                        isSeller = sellerData && sellerData.status === 'approved';
+                        const sellerNavButton = document.getElementById('sellerNavButton');
+                        
+                        if (isSeller) {
+                            sellerNavButton.classList.remove('hidden');
+                        } else {
+                            sellerNavButton.classList.add('hidden');
+                        }
+                    });
+            }
+        }
+
+        // Page Navigation
+        function showHomePage() {
+            hideAllPages();
+            document.getElementById('homePage').classList.remove('hidden');
+            loadProducts();
+            loadActiveAnnouncements();
+        }
+
+        function playOrderNotificationSound() {
+            // Create audio context for notification sound
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.1);
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.2);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } catch (error) {
+                console.log('Audio notification not supported');
+            }
+        }
+
+        function loadAdminStats() {
+            // Load total users
+            database.ref('users').once('value').then((snapshot) => {
+                const users = snapshot.val() || {};
+                document.getElementById('totalUsers').textContent = Object.keys(users).length;
+            });
+
+            // Load total products
+            database.ref('products').once('value').then((snapshot) => {
+                const products = snapshot.val() || {};
+                document.getElementById('totalProducts').textContent = Object.keys(products).length;
+            });
+
+            // Load total orders
+            database.ref('orders').once('value').then((snapshot) => {
+                const orders = snapshot.val() || {};
+                document.getElementById('totalOrders').textContent = Object.keys(orders).length;
+            });
+
+            // Load total sellers
+            database.ref('sellers').once('value').then((snapshot) => {
+                const sellers = snapshot.val() || {};
+                const approvedSellers = Object.values(sellers).filter(seller => seller.status === 'approved');
+                document.getElementById('totalSellers').textContent = approvedSellers.length;
+            });
+        }
+
+        function loadRecentActivity() {
+            const recentActivity = document.getElementById('recentActivity');
+            
+            // Load recent orders
+            database.ref('orders').orderByChild('timestamp').limitToLast(5).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    const activities = [];
+                    
+                    Object.values(orders).forEach(order => {
+                        activities.push({
+                            type: 'order',
+                            message: `New order #${order.orderId} - ₹${order.total}`,
+                            timestamp: order.timestamp
+                        });
+                    });
+                    
+                    // Sort by timestamp and display
+                    activities.sort((a, b) => b.timestamp - a.timestamp);
+                    
+                    recentActivity.innerHTML = activities.slice(0, 5).map(activity => `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+                            <div class="flex items-center">
+                                <i class="fas fa-shopping-cart text-blue-500 mr-3"></i>
+                                <span>${activity.message}</span>
+                            </div>
+                            <span class="text-sm text-gray-500">${new Date(activity.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        function loadCategoryManager() {
+            const categories = [
+                { id: 'electronics', name: 'Electronics', icon: 'fas fa-laptop' },
+                { id: 'fashion', name: 'Fashion', icon: 'fas fa-tshirt' },
+                { id: 'books', name: 'Books', icon: 'fas fa-book' },
+                { id: 'grocery', name: 'Grocery', icon: 'fas fa-shopping-basket' },
+                { id: 'jewelry', name: 'Jewelry', icon: 'fas fa-gem' },
+                { id: 'toys', name: 'Toys', icon: 'fas fa-gamepad' }
+            ];
+
+            const categoryGrid = document.getElementById('categoryGrid');
+            categoryGrid.innerHTML = categories.map(category => `
+                <div class="bg-white border rounded-lg p-6 text-center">
+                    <i class="${category.icon} text-4xl text-blue-600 mb-4"></i>
+                    <h3 class="text-lg font-semibold mb-2">${category.name}</h3>
+                    <div class="space-y-2">
+                        <button onclick="editCategory('${category.id}')" class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                            Edit Category
+                        </button>
+                        <button onclick="updateCategoryImage('${category.id}')" class="w-full bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                            Update Image
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadAnnouncements() {
+            database.ref('announcements').once('value')
+                .then((snapshot) => {
+                    const announcements = snapshot.val() || {};
+                    displayAnnouncements(Object.entries(announcements).map(([id, announcement]) => ({id, ...announcement})));
+                });
+        }
+
+        function displayAnnouncements(announcements) {
+            const announcementsList = document.getElementById('announcementsList');
+            
+            if (announcements.length === 0) {
+                announcementsList.innerHTML = '<div class="text-center text-gray-500 py-8">No announcements created yet</div>';
+                return;
+            }
+
+            announcementsList.innerHTML = announcements.map(announcement => `
+                <div class="border rounded-lg p-4 ${announcement.isActive ? 'border-green-500' : 'border-gray-300'}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="text-lg font-semibold">${announcement.title}</h3>
+                            <p class="text-gray-600">${announcement.description}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="toggleAnnouncement('${announcement.id}', ${!announcement.isActive})" class="px-3 py-1 text-sm rounded ${announcement.isActive ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
+                                ${announcement.isActive ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button onclick="deleteAnnouncement('${announcement.id}')" class="px-3 py-1 text-sm bg-gray-500 text-white rounded">
+                                Delete
+                            </button>
+                        </div>
+                    </div>
+                    <div class="text-sm text-gray-500">
+                        <span class="mr-4">Type: ${announcement.type}</span>
+                        <span class="mr-4">Active: ${announcement.isActive ? 'Yes' : 'No'}</span>
+                        <span>Valid: ${new Date(announcement.startDate).toLocaleDateString()} - ${new Date(announcement.endDate).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadActiveAnnouncements() {
+            database.ref('announcements').orderByChild('isActive').equalTo(true).once('value')
+                .then((snapshot) => {
+                    const announcements = snapshot.val() || {};
+                    const activeAnnouncements = Object.values(announcements).filter(announcement => {
+                        const now = Date.now();
+                        const startDate = new Date(announcement.startDate).getTime();
+                        const endDate = new Date(announcement.endDate).getTime();
+                        return now >= startDate && now <= endDate;
+                    });
+
+                    displayAnnouncementBanner(activeAnnouncements);
+                });
+        }
+
+        function displayAnnouncementBanner(announcements) {
+            const banner = document.getElementById('announcementBanner');
+            
+            if (announcements.length === 0) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            banner.classList.remove('hidden');
+            banner.innerHTML = announcements.map(announcement => `
+                <div class="${announcement.color || 'bg-blue-500'} text-white p-4 rounded-lg mb-4 relative">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-lg font-bold">${announcement.title}</h3>
+                            <p class="text-sm opacity-90">${announcement.description}</p>
+                        </div>
+                        <button onclick="closeBanner(this)" class="text-white hover:text-gray-200">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showProductDetail(productId) {
+            hideAllPages();
+            document.getElementById('productDetailPage').classList.remove('hidden');
+            loadProductDetail(productId);
+        }
+
+        function showCart() {
+            if (!currentUser) {
+                alert('Please login to view cart');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('cartPage').classList.remove('hidden');
+            loadCart();
+        }
+
+        function showOrders() {
+            if (!currentUser) {
+                alert('Please login to view orders');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('ordersPage').classList.remove('hidden');
+            loadOrders();
+        }
+
+        function changeMainImage(imageSrc) {
+            document.getElementById('productImage').src = imageSrc;
+        }
+
+        async function showBusinessPanel() {
+            if (!currentUser) {
+                alert('Please login to access business panel');
+                return;
+            }
+            
+            // Check if user is approved seller
+            const sellerSnapshot = await database.ref(`sellers/${currentUser.uid}`).once('value');
+            const sellerData = sellerSnapshot.val();
+            
+            if (!sellerData || sellerData.status !== 'approved') {
+                alert('You need to be an approved seller to access business panel. Please apply for seller account first.');
+                showSettings();
+                return;
+            }
+            
+            hideAllPages();
+            document.getElementById('businessPanel').classList.remove('hidden');
+            loadBusinessProducts();
+        }
+
+        function showAddProductForm() {
+            hideAllPages();
+            document.getElementById('addProductForm').classList.remove('hidden');
+        }
+
+        function showSettings() {
+            if (!currentUser) {
+                alert('Please login to access settings');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('settingsPage').classList.remove('hidden');
+            loadUserSettings();
+        }
+
+        function showSellerRegistration() {
+            hideAllPages();
+            document.getElementById('sellerRegistrationPage').classList.remove('hidden');
+        }
+
+        function showProfile() {
+            if (!currentUser) {
+                alert('Please login to view profile');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('profilePage').classList.remove('hidden');
+            loadUserProfile();
+        }
+
+        function showCouponManagement() {
+            if (!currentUser) {
+                alert('Please login to manage coupons');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('couponManagementPage').classList.remove('hidden');
+            loadSellerCoupons();
+        }
+
+        function showCreateCouponForm() {
+            hideAllPages();
+            document.getElementById('createCouponForm').classList.remove('hidden');
+            loadSellerProducts();
+        }
+
+        function hideAllPages() {
+            const pages = ['homePage', 'productDetailPage', 'cartPage', 'checkoutPage', 'paymentPage', 'ordersPage', 'businessPanel', 'addProductForm', 'settingsPage', 'sellerRegistrationPage', 'profilePage', 'couponManagementPage', 'createCouponForm', 'adminPanel', 'categoryManager', 'announcementManager', 'createAnnouncementForm'];
+            pages.forEach(page => {
+                document.getElementById(page).classList.add('hidden');
+            });
+        }
+
+        function showAdminPanel() {
+            if (!isAdmin) {
+                alert('Access denied. Admin privileges required.');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('adminPanel').classList.remove('hidden');
+            loadAdminStats();
+            loadRecentActivity();
+        }
+
+        function showCategoryManager() {
+            if (!isAdmin) {
+                alert('Access denied. Admin privileges required.');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('categoryManager').classList.remove('hidden');
+            loadCategoryManager();
+        }
+
+        function showAnnouncementManager() {
+            if (!isAdmin) {
+                alert('Access denied. Admin privileges required.');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('announcementManager').classList.remove('hidden');
+            loadAnnouncements();
+        }
+
+        function showCreateAnnouncement() {
+            if (!isAdmin) {
+                alert('Access denied. Admin privileges required.');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('createAnnouncementForm').classList.remove('hidden');
+        }
+
+        // Product Functions
+        function loadProducts() {
+            const productsGrid = document.getElementById('productsGrid');
+            productsGrid.innerHTML = '<div class="col-span-full text-center"><div class="loading mx-auto"></div></div>';
+
+            database.ref('products').once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    displayProducts(Object.entries(products).map(([id, product]) => ({id, ...product})));
+                })
+                .catch((error) => {
+                    console.error('Error loading products:', error);
+                    productsGrid.innerHTML = '<div class="col-span-full text-center text-red-500">Failed to load products</div>';
+                });
+        }
+
+        function displayProducts(products) {
+            const productsGrid = document.getElementById('productsGrid');
+            
+            if (products.length === 0) {
+                productsGrid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">No products available yet. Be the first seller to add products!</div>';
+                return;
+            }
+
+            productsGrid.innerHTML = products.map(product => `
+                <div class="product-card bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer transition-transform duration-300" onclick="showProductDetail('${product.id}')">
+                    <div class="h-48 bg-gray-200 flex items-center justify-center overflow-hidden">
+                        ${product.images && product.images.length > 0 ? 
+                            `<img src="${product.images[0]}" alt="${product.name}" class="w-full h-full object-cover">` :
+                            getCategoryImage(product.category)
+                        }
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-2 truncate">${product.name}</h3>
+                        <p class="text-gray-600 text-sm mb-2 truncate">${product.shortDescription || ''}</p>
+                        <div class="flex items-center mb-2">
+                            <div class="star-rating">
+                                ${generateStarRating(product.averageRating || 0)}
+                            </div>
+                            <span class="text-sm text-gray-500 ml-2">(${product.reviewCount || 0})</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="text-xl font-bold text-green-600">₹${product.sellingPrice}</span>
+                                ${product.mrp > product.sellingPrice ? `<span class="text-sm text-gray-500 line-through ml-2">₹${product.mrp}</span>` : ''}
+                            </div>
+                            <button onclick="event.stopPropagation(); quickAddToCart('${product.id}')" class="bg-orange-500 text-white px-3 py-1 rounded text-sm hover:bg-orange-600">
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadProductDetail(productId) {
+            database.ref(`products/${productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product) {
+                        currentProduct = {id: productId, ...product};
+                        displayProductDetail(currentProduct);
+                        loadProductReviews(productId);
+                        loadRelatedProducts(product.category);
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error loading product:', error);
+                });
+        }
+
+        function displayProductDetail(product) {
+            document.getElementById('productTitle').textContent = product.name;
+            document.getElementById('productPrice').textContent = `₹${product.sellingPrice}`;
+            document.getElementById('productMRP').textContent = `₹${product.mrp}`;
+            document.getElementById('productDescription').textContent = product.detailedDescription || product.shortDescription;
+
+            // Display main product image
+            const productImage = document.getElementById('productImage');
+            if (product.images && product.images.length > 0) {
+                productImage.src = product.images[0];
+                productImage.alt = product.name;
+                
+                // Display image gallery
+                const gallery = document.getElementById('productGallery');
+                gallery.innerHTML = product.images.map((img, index) => `
+                    <img src="${img}" alt="${product.name}" class="w-16 h-16 object-cover rounded cursor-pointer border-2 border-transparent hover:border-blue-500" onclick="changeMainImage('${img}')">
+                `).join('');
+            } else {
+                productImage.src = '';
+                productImage.alt = 'No image available';
+                document.getElementById('productGallery').innerHTML = '';
+            }
+
+            // Display rating
+            const ratingContainer = document.getElementById('productRating');
+            const rating = product.averageRating || 0;
+            ratingContainer.innerHTML = `
+                <div class="star-rating text-xl">
+                    ${generateStarRating(rating)}
+                </div>
+                <span class="ml-2 text-gray-600">${rating.toFixed(1)} out of 5 (${product.reviewCount || 0} reviews)</span>
+            `;
+
+            // Display variants if available
+            const variantsSection = document.getElementById('variantsSection');
+            const colorVariants = document.getElementById('colorVariants');
+            const sizeVariants = document.getElementById('sizeVariants');
+
+            if (product.colors && product.colors.length > 0) {
+                colorVariants.classList.remove('hidden');
+                document.getElementById('colorOptions').innerHTML = product.colors.split(',').map(color => 
+                    `<button class="w-8 h-8 rounded-full border-2 border-gray-300" style="background-color: ${color.trim().toLowerCase()}" onclick="selectColor('${color.trim()}')"></button>`
+                ).join('');
+            } else {
+                colorVariants.classList.add('hidden');
+            }
+
+            if (product.sizes && product.sizes.length > 0) {
+                sizeVariants.classList.remove('hidden');
+                document.getElementById('sizeOptions').innerHTML = product.sizes.split(',').map(size => 
+                    `<button class="border border-gray-300 px-3 py-1 rounded hover:bg-gray-100" onclick="selectSize('${size.trim()}')">${size.trim()}</button>`
+                ).join('');
+            } else {
+                sizeVariants.classList.add('hidden');
+            }
+        }
+
+        function loadProductReviews(productId) {
+            database.ref(`reviews/${productId}`).once('value')
+                .then((snapshot) => {
+                    const reviews = snapshot.val() || {};
+                    displayReviews(Object.entries(reviews).map(([id, review]) => ({id, ...review})));
+                });
+        }
+
+        function displayReviews(reviews) {
+            const reviewsContainer = document.getElementById('reviewsContainer');
+            
+            if (reviews.length === 0) {
+                reviewsContainer.innerHTML = '<p class="text-gray-500">No reviews yet. Be the first to review!</p>';
+                return;
+            }
+
+            reviewsContainer.innerHTML = reviews.map(review => `
+                <div class="border-b pb-4 mb-4">
+                    <div class="flex items-center mb-2">
+                        <div class="star-rating text-sm">
+                            ${'★'.repeat(review.rating)}${'☆'.repeat(5 - review.rating)}
+                        </div>
+                        <span class="ml-2 font-semibold">${review.title}</span>
+                    </div>
+                    <p class="text-gray-700 mb-2">${review.text}</p>
+                    <div class="flex items-center text-sm text-gray-500">
+                        <span>By ${review.userName}</span>
+                        <span class="ml-4">${new Date(review.timestamp).toLocaleDateString()}</span>
+                    </div>
+                    ${review.images ? `
+                        <div class="flex space-x-2 mt-2">
+                            ${review.images.map(img => `<img src="${img}" alt="Review image" class="w-16 h-16 object-cover rounded">`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function loadRelatedProducts(category) {
+            database.ref('products').orderByChild('category').equalTo(category).limitToFirst(4).once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    const relatedProducts = Object.entries(products)
+                        .map(([id, product]) => ({id, ...product}))
+                        .filter(product => product.id !== currentProduct.id);
+                    
+                    document.getElementById('relatedProducts').innerHTML = relatedProducts.map(product => `
+                        <div class="product-card bg-white rounded-lg shadow-lg overflow-hidden cursor-pointer" onclick="showProductDetail('${product.id}')">
+                            <div class="h-32 bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-image text-2xl text-gray-400"></i>
+                            </div>
+                            <div class="p-3">
+                                <h4 class="font-semibold text-sm mb-1 truncate">${product.name}</h4>
+                                <div class="text-lg font-bold text-green-600">₹${product.sellingPrice}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                });
+        }
+
+        // Cart Functions
+        function addToCart() {
+            if (!currentUser) {
+                alert('Please login to add items to cart');
+                return;
+            }
+
+            const cartItem = {
+                productId: currentProduct.id,
+                name: currentProduct.name,
+                price: currentProduct.sellingPrice,
+                quantity: 1,
+                image: currentProduct.image || ''
+            };
+
+            const existingItem = cart.find(item => item.productId === currentProduct.id);
+            if (existingItem) {
+                existingItem.quantity += 1;
+            } else {
+                cart.push(cartItem);
+            }
+
+            saveCartToFirebase();
+            updateCartCount();
+            alert('Product added to cart!');
+        }
+
+        function quickAddToCart(productId) {
+            if (!currentUser) {
+                alert('Please login to add items to cart');
+                return;
+            }
+
+            database.ref(`products/${productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product) {
+                        const cartItem = {
+                            productId: productId,
+                            name: product.name,
+                            price: product.sellingPrice,
+                            quantity: 1,
+                            image: product.image || ''
+                        };
+
+                        const existingItem = cart.find(item => item.productId === productId);
+                        if (existingItem) {
+                            existingItem.quantity += 1;
+                        } else {
+                            cart.push(cartItem);
+                        }
+
+                        saveCartToFirebase();
+                        updateCartCount();
+                        alert('Product added to cart!');
+                    }
+                });
+        }
+
+        function loadCart() {
+            const cartItems = document.getElementById('cartItems');
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = '<p class="text-center text-gray-500">Your cart is empty</p>';
+                document.getElementById('cartTotal').textContent = '₹0';
+                return;
+            }
+
+            let total = 0;
+            cartItems.innerHTML = cart.map((item, index) => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                return `
+                    <div class="flex items-center justify-between border-b pb-4 mb-4">
+                        <div class="flex items-center space-x-4">
+                            <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                                <i class="fas fa-image text-gray-400"></i>
+                            </div>
+                            <div>
+                                <h3 class="font-semibold">${item.name}</h3>
+                                <p class="text-green-600 font-bold">₹${item.price}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-4">
+                            <div class="flex items-center space-x-2">
+                                <button onclick="updateQuantity(${index}, -1)" class="bg-gray-200 px-2 py-1 rounded">-</button>
+                                <span class="px-3">${item.quantity}</span>
+                                <button onclick="updateQuantity(${index}, 1)" class="bg-gray-200 px-2 py-1 rounded">+</button>
+                            </div>
+                            <div class="font-bold">₹${itemTotal}</div>
+                            <button onclick="removeFromCart(${index})" class="text-red-500 hover:text-red-700">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('cartTotal').textContent = `₹${total}`;
+        }
+
+        function updateQuantity(index, change) {
+            cart[index].quantity += change;
+            if (cart[index].quantity <= 0) {
+                cart.splice(index, 1);
+            }
+            saveCartToFirebase();
+            updateCartCount();
+            loadCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            saveCartToFirebase();
+            updateCartCount();
+            loadCart();
+        }
+
+        function updateCartCount() {
+            const cartCount = document.getElementById('cartCount');
+            const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+            cartCount.textContent = totalItems;
+        }
+
+        function saveCartToFirebase() {
+            if (currentUser) {
+                database.ref(`carts/${currentUser.uid}`).set(cart);
+            }
+        }
+
+        function loadUserData() {
+            if (currentUser) {
+                database.ref(`carts/${currentUser.uid}`).once('value')
+                    .then((snapshot) => {
+                        cart = snapshot.val() || [];
+                        updateCartCount();
+                    });
+            }
+        }
+
+        // Checkout Functions
+        function proceedToCheckout() {
+            if (cart.length === 0) {
+                alert('Your cart is empty');
+                return;
+            }
+            hideAllPages();
+            document.getElementById('checkoutPage').classList.remove('hidden');
+            loadCheckoutItems();
+        }
+
+        function loadCheckoutItems() {
+            const checkoutItems = document.getElementById('checkoutItems');
+            let subtotal = 0;
+
+            checkoutItems.innerHTML = cart.map(item => {
+                const itemTotal = item.price * item.quantity;
+                subtotal += itemTotal;
+                return `
+                    <div class="flex justify-between items-center mb-2">
+                        <span>${item.name} x ${item.quantity}</span>
+                        <span>₹${itemTotal}</span>
+                    </div>
+                `;
+            }).join('');
+
+            document.getElementById('subtotal').textContent = `₹${subtotal}`;
+            document.getElementById('finalTotal').textContent = `₹${subtotal + 50}`;
+        }
+
+        function proceedToPayment() {
+            const form = document.getElementById('checkoutForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            hideAllPages();
+            document.getElementById('paymentPage').classList.remove('hidden');
+            
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('paymentAmount').textContent = `₹${subtotal + 50}`;
+        }
+
+        function processPayment() {
+            const paymentMethod = document.querySelector('input[name="payment"]:checked').value;
+            
+            if (paymentMethod === 'upi' && !selectedUPIApp) {
+                alert('Please select a UPI app');
+                return;
+            }
+
+            // Show loading and simulate UPI redirect
+            if (paymentMethod === 'upi') {
+                simulateUPIPayment();
+            } else {
+                processCODPayment();
+            }
+        }
+
+        function simulateUPIPayment() {
+            // Get seller UPI ID from the first product's seller
+            const firstItem = cart[0];
+            database.ref(`products/${firstItem.productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product && product.sellerId) {
+                        return database.ref(`sellers/${product.sellerId}`).once('value');
+                    }
+                })
+                .then((sellerSnapshot) => {
+                    const sellerData = sellerSnapshot.val();
+                    const sellerUPI = sellerData ? sellerData.upiId : 'seller@paytm';
+                    
+                    // Simulate UPI app redirect
+                    const paymentAmount = document.getElementById('paymentAmount').textContent.replace('₹', '');
+                    alert(`Redirecting to ${selectedUPIApp.toUpperCase()}...\nPay ₹${paymentAmount} to ${sellerUPI}`);
+                    
+                    // Simulate UPI PIN entry
+                    setTimeout(() => {
+                        const upiPin = prompt('Enter your UPI PIN:');
+                        if (upiPin && upiPin.length >= 4) {
+                            // Show loading
+                            document.body.innerHTML += `
+                                <div id="paymentLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="bg-white p-8 rounded-lg text-center">
+                                        <div class="loading mx-auto mb-4"></div>
+                                        <p>Processing payment...</p>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            // Simulate 5 second processing
+                            setTimeout(() => {
+                                document.getElementById('paymentLoading').remove();
+                                completeOrder('upi', sellerData);
+                            }, 5000);
+                        } else {
+                            alert('Invalid UPI PIN. Payment cancelled.');
+                        }
+                    }, 1000);
+                });
+        }
+
+        function processCODPayment() {
+            const advanceAmount = Math.round(parseFloat(document.getElementById('paymentAmount').textContent.replace('₹', '')));
+            
+            // Get seller UPI for advance payment
+            const firstItem = cart[0];
+            database.ref(`products/${firstItem.productId}`).once('value')
+                .then((snapshot) => {
+                    const product = snapshot.val();
+                    if (product && product.sellerId) {
+                        return database.ref(`sellers/${product.sellerId}`).once('value');
+                    }
+                })
+                .then((sellerSnapshot) => {
+                    const sellerData = sellerSnapshot.val();
+                    const sellerUPI = sellerData ? sellerData.upiId : 'seller@paytm';
+                    
+                    alert(`COD Advance Payment Required\nPay ₹${advanceAmount} to ${sellerUPI} via UPI`);
+                    
+                    // Simulate advance payment
+                    setTimeout(() => {
+                        const upiPin = prompt('Enter your UPI PIN for advance payment:');
+                        if (upiPin && upiPin.length >= 4) {
+                            document.body.innerHTML += `
+                                <div id="paymentLoading" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                                    <div class="bg-white p-8 rounded-lg text-center">
+                                        <div class="loading mx-auto mb-4"></div>
+                                        <p>Processing advance payment...</p>
+                                    </div>
+                                </div>
+                            `;
+                            
+                            setTimeout(() => {
+                                document.getElementById('paymentLoading').remove();
+                                completeOrder('cod', sellerData);
+                            }, 5000);
+                        } else {
+                            alert('Invalid UPI PIN. Payment cancelled.');
+                        }
+                    }, 1000);
+                });
+        }
+
+        function completeOrder(paymentMethod, sellerData) {
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            const finalTotal = subtotal - currentDiscount + 50;
+            
+            // Create order
+            const order = {
+                userId: currentUser.uid,
+                userName: currentUser.displayName,
+                items: cart,
+                shippingInfo: {
+                    fullName: document.getElementById('fullName').value,
+                    email: document.getElementById('email').value,
+                    phone: document.getElementById('phone').value,
+                    address: document.getElementById('address').value,
+                    city: document.getElementById('city').value,
+                    pincode: document.getElementById('pincode').value
+                },
+                paymentMethod: paymentMethod,
+                upiApp: selectedUPIApp,
+                subtotal: subtotal,
+                discount: currentDiscount,
+                shippingCharges: 50,
+                total: finalTotal,
+                appliedCoupon: appliedCoupon,
+                sellerInfo: sellerData,
+                status: 'accepted',
+                timestamp: Date.now(),
+                orderId: 'ORD' + Date.now()
+            };
+
+            // Save order
+            database.ref('orders').push(order)
+                .then((orderRef) => {
+                    // Create seller notification
+                    if (sellerData && sellerData.userId) {
+                        const notification = {
+                            sellerId: sellerData.userId,
+                            orderId: order.orderId,
+                            message: `New order received! Order #${order.orderId} - ₹${finalTotal}`,
+                            type: 'new_order',
+                            timestamp: Date.now(),
+                            read: false
+                        };
+                        
+                        database.ref('sellerNotifications').push(notification);
+                        
+                        // Play notification sound for seller (if they're online)
+                        database.ref(`sellerOnline/${sellerData.userId}`).once('value')
+                            .then((snapshot) => {
+                                if (snapshot.val() === true) {
+                                    // Trigger notification sound
+                                    database.ref(`sellerNotifications/${sellerData.userId}/playSound`).set(true);
+                                }
+                            });
+                    }
+                    
+                    // Update coupon usage if applied
+                    if (appliedCoupon) {
+                        database.ref('coupons').orderByChild('code').equalTo(appliedCoupon.code).once('value')
+                            .then((snapshot) => {
+                                const coupons = snapshot.val();
+                                if (coupons) {
+                                    const couponId = Object.keys(coupons)[0];
+                                    const currentUsage = coupons[couponId].usedCount || 0;
+                                    database.ref(`coupons/${couponId}/usedCount`).set(currentUsage + 1);
+                                }
+                            });
+                    }
+                    
+                    // Clear cart and reset
+                    cart = [];
+                    appliedCoupon = null;
+                    currentDiscount = 0;
+                    selectedUPIApp = '';
+                    saveCartToFirebase();
+                    updateCartCount();
+                    
+                    // Show success message
+                    alert(`🎉 Order placed successfully!\n\nOrder ID: ${order.orderId}\nPayment Method: ${paymentMethod.toUpperCase()}\nTotal: ₹${finalTotal}\n\nYour order will be delivered within 3-5 business days.`);
+                    showHomePage();
+                })
+                .catch((error) => {
+                    console.error('Error placing order:', error);
+                    alert('Failed to place order. Please try again.');
+                });
+        }
+
+        // Orders Functions
+        function loadOrders() {
+            database.ref('orders').orderByChild('userId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    displayOrders(Object.entries(orders).map(([id, order]) => ({id, ...order})));
+                });
+        }
+
+        function displayOrders(orders) {
+            const ordersContainer = document.getElementById('ordersContainer');
+            
+            if (orders.length === 0) {
+                ordersContainer.innerHTML = '<p class="text-center text-gray-500">No orders found</p>';
+                return;
+            }
+
+            ordersContainer.innerHTML = orders.map(order => `
+                <div class="border rounded-lg p-4 mb-4">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="font-bold text-lg">Order #${order.orderId}</h3>
+                            <p class="text-gray-600">${new Date(order.timestamp).toLocaleDateString()}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-bold text-xl">₹${order.total}</div>
+                            <span class="px-3 py-1 rounded-full text-sm ${getStatusColor(order.status)}">${order.status.toUpperCase()}</span>
+                        </div>
+                    </div>
+                    <div class="border-t pt-4">
+                        ${order.items.map(item => `
+                            <div class="flex justify-between items-center mb-2">
+                                <span>${item.name} x ${item.quantity}</span>
+                                <span>₹${item.price * item.quantity}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'accepted': 'bg-blue-100 text-blue-800',
+                'shipped': 'bg-yellow-100 text-yellow-800',
+                'out-for-delivery': 'bg-orange-100 text-orange-800',
+                'delivered': 'bg-green-100 text-green-800',
+                'rejected': 'bg-red-100 text-red-800'
+            };
+            return colors[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        // Business Functions
+        function loadBusinessProducts() {
+            database.ref('products').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    displayBusinessProducts(Object.entries(products).map(([id, product]) => ({id, ...product})));
+                });
+        }
+
+        function displayBusinessProducts(products) {
+            const businessProducts = document.getElementById('businessProducts');
+            
+            if (products.length === 0) {
+                businessProducts.innerHTML = '<div class="col-span-full text-center text-gray-500">No products added yet</div>';
+                return;
+            }
+
+            businessProducts.innerHTML = products.map(product => `
+                <div class="bg-white rounded-lg shadow-lg p-4">
+                    <div class="h-32 bg-gray-200 rounded mb-4 flex items-center justify-center">
+                        <i class="fas fa-image text-2xl text-gray-400"></i>
+                    </div>
+                    <h3 class="font-semibold mb-2">${product.name}</h3>
+                    <p class="text-green-600 font-bold mb-2">₹${product.sellingPrice}</p>
+                    <p class="text-sm text-gray-600 mb-4">Stock: ${product.stockQuantity}</p>
+                    <div class="flex space-x-2">
+                        <button onclick="editProduct('${product.id}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">Edit</button>
+                        <button onclick="deleteProduct('${product.id}')" class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function generateStarRating(rating) {
+            const fullStars = Math.floor(rating);
+            const hasHalfStar = rating % 1 >= 0.5;
+            const emptyStars = 5 - fullStars - (hasHalfStar ? 1 : 0);
+            
+            return '★'.repeat(fullStars) + 
+                   (hasHalfStar ? '☆' : '') + 
+                   '☆'.repeat(emptyStars);
+        }
+
+        function calculateAverageRating(reviews) {
+            if (!reviews || reviews.length === 0) return 0;
+            const sum = reviews.reduce((acc, review) => acc + review.rating, 0);
+            return (sum / reviews.length).toFixed(1);
+        }
+
+        function toggleVariants() {
+            const category = document.getElementById('category').value;
+            const variantsContainer = document.getElementById('variantsContainer');
+            
+            // Show variants for fashion category
+            if (category === 'fashion') {
+                variantsContainer.classList.remove('hidden');
+            } else {
+                variantsContainer.classList.add('hidden');
+            }
+        }
+
+        function generateSKU() {
+            const sku = 'SKU' + Date.now();
+            document.getElementById('skuCode').value = sku;
+        }
+
+        function cancelAddProduct() {
+            document.getElementById('productForm').reset();
+            showBusinessPanel();
+        }
+
+        // Review Functions
+        function showReviewForm() {
+            if (!currentUser) {
+                alert('Please login to write a review');
+                return;
+            }
+            document.getElementById('reviewModal').classList.remove('hidden');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').classList.add('hidden');
+            document.getElementById('reviewForm').reset();
+            selectedRating = 0;
+            updateStarDisplay();
+        }
+
+        function setRating(rating) {
+            selectedRating = rating;
+            updateStarDisplay();
+        }
+
+        function updateStarDisplay() {
+            const stars = document.querySelectorAll('#reviewModal .fas.fa-star');
+            stars.forEach((star, index) => {
+                if (index < selectedRating) {
+                    star.classList.remove('text-gray-300');
+                    star.classList.add('text-yellow-400');
+                } else {
+                    star.classList.remove('text-yellow-400');
+                    star.classList.add('text-gray-300');
+                }
+            });
+        }
+
+        // Search and Filter Functions
+        function searchProducts() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (!query) {
+                loadProducts();
+                return;
+            }
+
+            database.ref('products').once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    const filteredProducts = Object.entries(products)
+                        .map(([id, product]) => ({id, ...product}))
+                        .filter(product => 
+                            product.name.toLowerCase().includes(query) ||
+                            (product.tags && product.tags.toLowerCase().includes(query)) ||
+                            (product.category && product.category.toLowerCase().includes(query))
+                        );
+                    displayProducts(filteredProducts);
+                });
+        }
+
+        function filterByCategory(category) {
+            database.ref('products').orderByChild('category').equalTo(category).once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    displayProducts(Object.entries(products).map(([id, product]) => ({id, ...product})));
+                });
+        }
+
+        function buyNow() {
+            if (!currentUser) {
+                alert('Please login to buy products');
+                return;
+            }
+            
+            // Add to cart and proceed to checkout
+            addToCart();
+            setTimeout(() => {
+                proceedToCheckout();
+            }, 500);
+        }
+
+        function loadUserSettings() {
+            document.getElementById('userDisplayName').value = currentUser.displayName || '';
+            document.getElementById('userEmail').value = currentUser.email || '';
+            
+            // Check seller status
+            database.ref(`sellers/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    const sellerData = snapshot.val();
+                    if (sellerData) {
+                        document.getElementById('notSellerSection').classList.add('hidden');
+                        document.getElementById('sellerStatusSection').classList.remove('hidden');
+                        document.getElementById('sellerStatus').textContent = sellerData.status;
+                        document.getElementById('sellerBusinessName').textContent = sellerData.businessName;
+                    } else {
+                        document.getElementById('notSellerSection').classList.remove('hidden');
+                        document.getElementById('sellerStatusSection').classList.add('hidden');
+                    }
+                });
+        }
+
+        function convertToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        async function handleImageUpload() {
+            const files = document.getElementById('productImages').files;
+            const imagePreview = document.getElementById('imagePreview');
+            const images = [];
+            
+            if (files.length > 0) {
+                imagePreview.classList.remove('hidden');
+                imagePreview.innerHTML = '';
+                
+                for (let file of files) {
+                    try {
+                        const base64 = await convertToBase64(file);
+                        images.push(base64);
+                        
+                        // Show preview
+                        const previewDiv = document.createElement('div');
+                        previewDiv.className = 'relative';
+                        previewDiv.innerHTML = `
+                            <img src="${base64}" alt="Preview" class="w-full h-24 object-cover rounded">
+                            <button type="button" onclick="removeImage(${images.length - 1})" class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs">×</button>
+                        `;
+                        imagePreview.appendChild(previewDiv);
+                    } catch (error) {
+                        console.error('Error converting image:', error);
+                    }
+                }
+            }
+            
+            return images;
+        }
+
+        function removeImage(index) {
+            // This would need to be implemented to remove specific images
+            console.log('Remove image at index:', index);
+        }
+
+        // Event Listeners
+        document.getElementById('productImages').addEventListener('change', handleImageUpload);
+
+        document.getElementById('sellerRegistrationForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const sellerData = {
+                userId: currentUser.uid,
+                userName: currentUser.displayName,
+                userEmail: currentUser.email,
+                businessName: document.getElementById('businessName').value,
+                panNumber: document.getElementById('panNumber').value,
+                upiId: document.getElementById('upiId').value,
+                businessCategory: document.getElementById('businessCategory').value,
+                businessAddress: document.getElementById('businessAddress').value,
+                businessCity: document.getElementById('businessCity').value,
+                businessPincode: document.getElementById('businessPincode').value,
+                status: 'pending',
+                appliedAt: Date.now()
+            };
+
+            database.ref(`sellers/${currentUser.uid}`).set(sellerData)
+                .then(() => {
+                    alert('Seller application submitted successfully! Your account will be reviewed and approved within 2 minutes.');
+                    
+                    // Auto-approve after 2 minutes (120000 ms)
+                    setTimeout(() => {
+                        database.ref(`sellers/${currentUser.uid}/status`).set('approved')
+                            .then(() => {
+                                console.log('Seller account auto-approved');
+                            });
+                    }, 120000);
+                    
+                    showSettings();
+                })
+                .catch((error) => {
+                    console.error('Error submitting seller application:', error);
+                    alert('Failed to submit application. Please try again.');
+                });
+        });
+
+        document.getElementById('productForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Check if user is approved seller
+            const sellerSnapshot = await database.ref(`sellers/${currentUser.uid}`).once('value');
+            const sellerData = sellerSnapshot.val();
+            
+            if (!sellerData || sellerData.status !== 'approved') {
+                alert('You need to be an approved seller to add products. Please apply for seller account first.');
+                return;
+            }
+            
+            // Get uploaded images
+            const images = await handleImageUpload();
+            
+            if (images.length === 0) {
+                alert('Please upload at least one product image.');
+                return;
+            }
+            
+            const product = {
+                name: document.getElementById('productName').value,
+                brandName: document.getElementById('brandName').value,
+                category: document.getElementById('category').value,
+                subCategory: document.getElementById('subCategory').value,
+                shortDescription: document.getElementById('shortDescription').value,
+                detailedDescription: document.getElementById('detailedDescription').value,
+                images: images,
+                skuCode: document.getElementById('skuCode').value,
+                stockQuantity: parseInt(document.getElementById('stockQuantity').value),
+                colors: document.getElementById('colors').value,
+                sizes: document.getElementById('sizes').value,
+                mrp: parseFloat(document.getElementById('mrp').value),
+                sellingPrice: parseFloat(document.getElementById('sellingPrice').value),
+                weight: parseFloat(document.getElementById('weight').value) || 0,
+                shippingCharges: parseFloat(document.getElementById('shippingCharges').value) || 50,
+                deliveryDays: parseInt(document.getElementById('deliveryDays').value) || 3,
+                tags: document.getElementById('tags').value,
+                highlights: document.getElementById('highlights').value,
+                productStatus: document.getElementById('productStatus').value,
+                returnPolicy: document.getElementById('returnPolicy').value,
+                warranty: document.getElementById('warranty').value,
+                sellerId: currentUser.uid,
+                sellerName: currentUser.displayName,
+                businessName: sellerData.businessName,
+                timestamp: Date.now(),
+                averageRating: 0,
+                reviewCount: 0
+            };
+
+            database.ref('products').push(product)
+                .then(() => {
+                    alert('Product added successfully!');
+                    document.getElementById('productForm').reset();
+                    document.getElementById('imagePreview').classList.add('hidden');
+                    showBusinessPanel();
+                })
+                .catch((error) => {
+                    console.error('Error adding product:', error);
+                    alert('Failed to add product. Please try again.');
+                });
+        });
+
+        document.getElementById('reviewForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (selectedRating === 0) {
+                alert('Please select a rating');
+                return;
+            }
+
+            const review = {
+                productId: currentProduct.id,
+                userId: currentUser.uid,
+                userName: currentUser.displayName,
+                rating: selectedRating,
+                title: document.getElementById('reviewTitle').value,
+                text: document.getElementById('reviewText').value,
+                timestamp: Date.now()
+            };
+
+            // Handle image uploads for review
+            const reviewImageFiles = document.getElementById('reviewImages').files;
+            if (reviewImageFiles.length > 0) {
+                const reviewImages = [];
+                for (let file of reviewImageFiles) {
+                    try {
+                        const base64 = await convertToBase64(file);
+                        reviewImages.push(base64);
+                    } catch (error) {
+                        console.error('Error converting review image:', error);
+                    }
+                }
+                review.images = reviewImages;
+            }
+
+            database.ref(`reviews/${currentProduct.id}`).push(review)
+                .then(() => {
+                    // Update product's average rating
+                    return database.ref(`reviews/${currentProduct.id}`).once('value');
+                })
+                .then((snapshot) => {
+                    const reviews = snapshot.val() || {};
+                    const reviewsArray = Object.values(reviews);
+                    const averageRating = calculateAverageRating(reviewsArray);
+                    const reviewCount = reviewsArray.length;
+                    
+                    // Update product with new rating
+                    return database.ref(`products/${currentProduct.id}`).update({
+                        averageRating: parseFloat(averageRating),
+                        reviewCount: reviewCount
+                    });
+                })
+                .then(() => {
+                    alert('Review submitted successfully!');
+                    closeReviewModal();
+                    loadProductReviews(currentProduct.id);
+                    // Refresh product detail to show updated rating
+                    loadProductDetail(currentProduct.id);
+                })
+                .catch((error) => {
+                    console.error('Error submitting review:', error);
+                    alert('Failed to submit review. Please try again.');
+                });
+        });
+
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchProducts();
+            }
+        });
+
+        // Utility Functions
+        function getCategoryImage(category) {
+            const categoryImages = {
+                'electronics': `<svg class="w-16 h-16 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M20 3H4C2.9 3 2 3.9 2 5V15C2 16.1 2.9 17 4 17H9L8 19V20H16V19L15 17H20C21.1 17 22 16.1 22 15V5C22 3.9 21.1 3 20 3ZM20 15H4V5H20V15Z"/>
+                </svg>`,
+                'fashion': `<svg class="w-16 h-16 text-green-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 4L14.5 2.5C14.1 2.1 13.6 1.9 13 1.9H11C10.4 1.9 9.9 2.1 9.5 2.5L8 4H6C4.9 4 4 4.9 4 6V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V6C20 4.9 19.1 4 18 4H16Z"/>
+                </svg>`,
+                'books': `<svg class="w-16 h-16 text-purple-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M18 2H6C4.9 2 4 2.9 4 4V20C4 21.1 4.9 22 6 22H18C19.1 22 20 21.1 20 20V4C20 2.9 19.1 2 18 2Z"/>
+                </svg>`,
+                'grocery': `<svg class="w-16 h-16 text-orange-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M7 18C5.9 18 5 18.9 5 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H5.21L4.27 3H1Z"/>
+                </svg>`,
+                'jewelry': `<svg class="w-16 h-16 text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M5 16L3 5H1L3.5 17H5.5L12 7L18.5 17H20.5L23 5H21L19 16L12 9L5 16Z"/>
+                </svg>`,
+                'toys': `<svg class="w-16 h-16 text-pink-600" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2Z"/>
+                </svg>`
+            };
+            return categoryImages[category] || `<svg class="w-16 h-16 text-gray-400" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 19V5C21 3.9 20.1 3 19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19Z"/>
+            </svg>`;
+        }
+
+        function selectUPIApp(app) {
+            selectedUPIApp = app;
+            // Highlight selected app
+            document.querySelectorAll('#upiOptions button').forEach(btn => {
+                btn.classList.remove('bg-blue-100', 'border-blue-500');
+            });
+            event.target.closest('button').classList.add('bg-blue-100', 'border-blue-500');
+        }
+
+        function applyCoupon() {
+            const couponCode = document.getElementById('couponCode').value.trim();
+            if (!couponCode) {
+                showCouponMessage('Please enter a coupon code', 'error');
+                return;
+            }
+
+            database.ref('coupons').orderByChild('code').equalTo(couponCode).once('value')
+                .then((snapshot) => {
+                    const coupons = snapshot.val();
+                    if (!coupons) {
+                        showCouponMessage('Invalid coupon code', 'error');
+                        return;
+                    }
+
+                    const couponId = Object.keys(coupons)[0];
+                    const coupon = coupons[couponId];
+                    
+                    // Validate coupon
+                    const now = Date.now();
+                    if (now < new Date(coupon.validFrom).getTime() || now > new Date(coupon.validUntil).getTime()) {
+                        showCouponMessage('Coupon has expired', 'error');
+                        return;
+                    }
+
+                    const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    if (coupon.minOrderAmount && subtotal < coupon.minOrderAmount) {
+                        showCouponMessage(`Minimum order amount is ₹${coupon.minOrderAmount}`, 'error');
+                        return;
+                    }
+
+                    // Calculate discount
+                    let discount = 0;
+                    if (coupon.type === 'percentage') {
+                        discount = (subtotal * coupon.discountValue) / 100;
+                        if (coupon.maxDiscount && discount > coupon.maxDiscount) {
+                            discount = coupon.maxDiscount;
+                        }
+                    } else if (coupon.type === 'fixed') {
+                        discount = coupon.discountValue;
+                    }
+
+                    appliedCoupon = coupon;
+                    currentDiscount = discount;
+                    
+                    showCouponMessage(`Coupon applied! You saved ₹${discount}`, 'success');
+                    updateCheckoutTotals();
+                })
+                .catch((error) => {
+                    console.error('Error applying coupon:', error);
+                    showCouponMessage('Error applying coupon', 'error');
+                });
+        }
+
+        function showCouponMessage(message, type) {
+            const messageDiv = document.getElementById('couponMessage');
+            messageDiv.textContent = message;
+            messageDiv.className = `text-sm mt-2 ${type === 'success' ? 'text-green-600' : 'text-red-600'}`;
+            messageDiv.classList.remove('hidden');
+        }
+
+        function updateCheckoutTotals() {
+            const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+            document.getElementById('subtotal').textContent = `₹${subtotal}`;
+            
+            if (currentDiscount > 0) {
+                document.getElementById('discountRow').classList.remove('hidden');
+                document.getElementById('discountAmount').textContent = `-₹${currentDiscount}`;
+            } else {
+                document.getElementById('discountRow').classList.add('hidden');
+            }
+            
+            const finalTotal = subtotal - currentDiscount + 50;
+            document.getElementById('finalTotal').textContent = `₹${finalTotal}`;
+            document.getElementById('paymentAmount').textContent = `₹${finalTotal}`;
+        }
+
+        function loadUserProfile() {
+            document.getElementById('profileName').textContent = currentUser.displayName || 'User';
+            document.getElementById('profileEmail').textContent = currentUser.email || '';
+            document.getElementById('profileInitials').textContent = (currentUser.displayName || 'U').charAt(0).toUpperCase();
+            
+            // Load user profile data from Firebase
+            database.ref(`users/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    const userData = snapshot.val() || {};
+                    document.getElementById('editDisplayName').value = userData.displayName || currentUser.displayName || '';
+                    document.getElementById('editPhone').value = userData.phone || '';
+                    document.getElementById('editDOB').value = userData.dob || '';
+                    document.getElementById('editGender').value = userData.gender || '';
+                    document.getElementById('editAddress').value = userData.address || '';
+                    document.getElementById('editCity').value = userData.city || '';
+                    document.getElementById('editPincode').value = userData.pincode || '';
+                    document.getElementById('editState').value = userData.state || '';
+                });
+
+            // Load user statistics
+            loadUserStatistics();
+        }
+
+        function loadUserStatistics() {
+            // Load orders count and total spent
+            database.ref('orders').orderByChild('userId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const orders = snapshot.val() || {};
+                    const ordersArray = Object.values(orders);
+                    document.getElementById('totalOrders').textContent = ordersArray.length;
+                    
+                    const totalSpent = ordersArray.reduce((sum, order) => sum + (order.total || 0), 0);
+                    document.getElementById('totalSpent').textContent = `₹${totalSpent}`;
+                });
+
+            // Load reviews count
+            database.ref('reviews').once('value')
+                .then((snapshot) => {
+                    const allReviews = snapshot.val() || {};
+                    let userReviewsCount = 0;
+                    Object.values(allReviews).forEach(productReviews => {
+                        Object.values(productReviews).forEach(review => {
+                            if (review.userId === currentUser.uid) {
+                                userReviewsCount++;
+                            }
+                        });
+                    });
+                    document.getElementById('totalReviews').textContent = userReviewsCount;
+                });
+        }
+
+        function saveProfile() {
+            const profileData = {
+                displayName: document.getElementById('editDisplayName').value,
+                phone: document.getElementById('editPhone').value,
+                dob: document.getElementById('editDOB').value,
+                gender: document.getElementById('editGender').value,
+                address: document.getElementById('editAddress').value,
+                city: document.getElementById('editCity').value,
+                pincode: document.getElementById('editPincode').value,
+                state: document.getElementById('editState').value,
+                updatedAt: Date.now()
+            };
+
+            database.ref(`users/${currentUser.uid}`).update(profileData)
+                .then(() => {
+                    alert('Profile updated successfully!');
+                    loadUserProfile();
+                })
+                .catch((error) => {
+                    console.error('Error updating profile:', error);
+                    alert('Failed to update profile. Please try again.');
+                });
+        }
+
+        function loadSellerCoupons() {
+            database.ref('coupons').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const coupons = snapshot.val() || {};
+                    displaySellerCoupons(Object.entries(coupons).map(([id, coupon]) => ({id, ...coupon})));
+                });
+        }
+
+        function displaySellerCoupons(coupons) {
+            const couponsGrid = document.getElementById('couponsGrid');
+            
+            if (coupons.length === 0) {
+                couponsGrid.innerHTML = '<div class="col-span-full text-center text-gray-500">No coupons created yet</div>';
+                return;
+            }
+
+            couponsGrid.innerHTML = coupons.map(coupon => `
+                <div class="bg-white border-2 border-dashed border-gray-300 rounded-lg p-4">
+                    <div class="text-center mb-4">
+                        <div class="text-2xl font-bold text-blue-600">${coupon.code}</div>
+                        <div class="text-sm text-gray-600">${coupon.type === 'percentage' ? coupon.discountValue + '% OFF' : '₹' + coupon.discountValue + ' OFF'}</div>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <div><strong>Valid:</strong> ${new Date(coupon.validFrom).toLocaleDateString()} - ${new Date(coupon.validUntil).toLocaleDateString()}</div>
+                        <div><strong>Used:</strong> ${coupon.usedCount || 0}/${coupon.usageLimit}</div>
+                        <div><strong>Status:</strong> <span class="${coupon.isActive ? 'text-green-600' : 'text-red-600'}">${coupon.isActive ? 'Active' : 'Inactive'}</span></div>
+                    </div>
+                    <div class="mt-4 flex space-x-2">
+                        <button onclick="toggleCouponStatus('${coupon.id}', ${!coupon.isActive})" class="flex-1 px-3 py-1 text-sm rounded ${coupon.isActive ? 'bg-red-500 text-white' : 'bg-green-500 text-white'}">
+                            ${coupon.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onclick="deleteCoupon('${coupon.id}')" class="px-3 py-1 text-sm bg-gray-500 text-white rounded">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadSellerProducts() {
+            database.ref('products').orderByChild('sellerId').equalTo(currentUser.uid).once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    const productSelect = document.getElementById('couponProduct');
+                    productSelect.innerHTML = '<option value="">Select Product</option>' +
+                        Object.entries(products).map(([id, product]) => 
+                            `<option value="${id}">${product.name}</option>`
+                        ).join('');
+                });
+        }
+
+        function generateCouponCode() {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let code = '';
+            for (let i = 0; i < 8; i++) {
+                code += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            document.getElementById('generatedCouponCode').value = code;
+        }
+
+        function toggleCouponFields() {
+            const type = document.getElementById('couponType').value;
+            const productSection = document.getElementById('productSpecificSection');
+            const discountHint = document.getElementById('discountHint');
+            
+            if (type === 'product') {
+                productSection.classList.remove('hidden');
+            } else {
+                productSection.classList.add('hidden');
+            }
+            
+            if (type === 'percentage') {
+                discountHint.textContent = 'Enter percentage (1-100)';
+            } else {
+                discountHint.textContent = 'Enter fixed amount in ₹';
+            }
+        }
+
+        // Seller notification listener
+        function setupSellerNotifications() {
+            if (currentUser && isSeller) {
+                // Set seller as online
+                database.ref(`sellerOnline/${currentUser.uid}`).set(true);
+                
+                // Listen for new notifications
+                database.ref(`sellerNotifications/${currentUser.uid}/playSound`).on('value', (snapshot) => {
+                    if (snapshot.val() === true) {
+                        playOrderNotificationSound();
+                        // Reset the trigger
+                        database.ref(`sellerNotifications/${currentUser.uid}/playSound`).set(false);
+                        
+                        // Show notification
+                        showOrderNotification();
+                    }
+                });
+                
+                // Set offline when page unloads
+                window.addEventListener('beforeunload', () => {
+                    database.ref(`sellerOnline/${currentUser.uid}`).set(false);
+                });
+            }
+        }
+
+        function showOrderNotification() {
+            // Create notification popup
+            const notification = document.createElement('div');
+            notification.className = 'fixed top-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg z-50 animate-bounce';
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-bell text-xl mr-3"></i>
+                    <div>
+                        <div class="font-bold">New Order Received!</div>
+                        <div class="text-sm">Check your seller panel for details</div>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (notification.parentElement) {
+                    notification.remove();
+                }
+            }, 5000);
+        }
+
+        // Admin utility functions
+        function toggleAnnouncement(announcementId, newStatus) {
+            database.ref(`announcements/${announcementId}/isActive`).set(newStatus)
+                .then(() => {
+                    loadAnnouncements();
+                    alert(`Announcement ${newStatus ? 'activated' : 'deactivated'} successfully!`);
+                });
+        }
+
+        function deleteAnnouncement(announcementId) {
+            if (confirm('Are you sure you want to delete this announcement?')) {
+                database.ref(`announcements/${announcementId}`).remove()
+                    .then(() => {
+                        loadAnnouncements();
+                        alert('Announcement deleted successfully!');
+                    });
+            }
+        }
+
+        function closeBanner(element) {
+            element.closest('.bg-blue-500, .bg-red-500, .bg-green-500, .bg-purple-500, .bg-orange-500, .bg-yellow-500').remove();
+        }
+
+        function editCategory(categoryId) {
+            const newName = prompt('Enter new category name:');
+            if (newName) {
+                // In a real app, you would save this to Firebase
+                alert(`Category ${categoryId} updated to: ${newName}`);
+            }
+        }
+
+        function updateCategoryImage(categoryId) {
+            alert(`Category image update feature for ${categoryId} - This would open an image upload dialog in a full implementation.`);
+        }
+
+        // Initialize app
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                updateUI();
+                loadUserData();
+                
+                // Setup seller notifications after checking seller status
+                setTimeout(() => {
+                    if (isSeller) {
+                        setupSellerNotifications();
+                    }
+                }, 1000);
+            } else {
+                currentUser = null;
+                updateUI();
+                
+                // Clean up seller online status
+                if (currentUser) {
+                    database.ref(`sellerOnline/${currentUser.uid}`).set(false);
+                }
+            }
+        });
+
+        // Payment method change handler
+        document.addEventListener('change', function(e) {
+            if (e.target.name === 'payment') {
+                const codAdvanceInfo = document.getElementById('codAdvanceInfo');
+                const paymentAmount = document.getElementById('paymentAmount');
+                const finalTotal = parseFloat(document.getElementById('finalTotal').textContent.replace('₹', ''));
+                
+                if (e.target.value === 'cod') {
+                    const advance = Math.round(finalTotal * 0.05);
+                    document.getElementById('codAdvance').textContent = advance;
+                    codAdvanceInfo.classList.remove('hidden');
+                    paymentAmount.textContent = `₹${advance}`;
+                } else {
+                    codAdvanceInfo.classList.add('hidden');
+                    paymentAmount.textContent = `₹${finalTotal}`;
+                }
+            }
+        });
+
+        // Coupon form submission
+        document.getElementById('couponForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const couponData = {
+                code: document.getElementById('generatedCouponCode').value,
+                type: document.getElementById('couponType').value,
+                discountValue: parseFloat(document.getElementById('discountValue').value),
+                productId: document.getElementById('couponProduct').value || null,
+                minOrderAmount: parseFloat(document.getElementById('minOrderAmount').value) || 0,
+                maxDiscount: parseFloat(document.getElementById('maxDiscount').value) || null,
+                validFrom: document.getElementById('validFrom').value,
+                validUntil: document.getElementById('validUntil').value,
+                usageLimit: parseInt(document.getElementById('usageLimit').value),
+                perUserLimit: parseInt(document.getElementById('perUserLimit').value),
+                description: document.getElementById('couponDescription').value,
+                sellerId: currentUser.uid,
+                sellerName: currentUser.displayName,
+                isActive: true,
+                usedCount: 0,
+                createdAt: Date.now()
+            };
+
+            database.ref('coupons').push(couponData)
+                .then(() => {
+                    alert('Coupon created successfully!');
+                    document.getElementById('couponForm').reset();
+                    showCouponManagement();
+                })
+                .catch((error) => {
+                    console.error('Error creating coupon:', error);
+                    alert('Failed to create coupon. Please try again.');
+                });
+        });
+
+        // Announcement form submission
+        document.getElementById('announcementForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!isAdmin) {
+                alert('Access denied. Admin privileges required.');
+                return;
+            }
+            
+            const announcementData = {
+                type: document.getElementById('announcementType').value,
+                title: document.getElementById('announcementTitle').value,
+                description: document.getElementById('announcementDescription').value,
+                startDate: document.getElementById('announcementStart').value,
+                endDate: document.getElementById('announcementEnd').value,
+                color: document.getElementById('announcementColor').value,
+                isActive: document.getElementById('announcementActive').checked,
+                createdBy: currentUser.uid,
+                createdAt: Date.now()
+            };
+
+            database.ref('announcements').push(announcementData)
+                .then(() => {
+                    alert('Announcement created successfully!');
+                    document.getElementById('announcementForm').reset();
+                    showAnnouncementManager();
+                })
+                .catch((error) => {
+                    console.error('Error creating announcement:', error);
+                    alert('Failed to create announcement. Please try again.');
+                });
+        });
+
+        // Load initial data
+        showHomePage();
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4045050749cd9',t:'MTc1NzIyNTE1Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
