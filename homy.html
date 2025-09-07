@@ -56,27 +56,28 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-4">
+                    <!-- Mobile Search Icon -->
+                    <button onclick="toggleMobileSearch()" class="md:hidden text-gray-600 hover:text-red-500">
+                        <i class="fas fa-search text-xl"></i>
+                    </button>
+                    
+                    <!-- Desktop Menu Button -->
+                    <button onclick="showMobileMenu()" class="hidden md:block text-gray-600 hover:text-red-500">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    
                     <div id="userSection" class="hidden">
-                        <span id="userName" class="mr-2"></span>
-                        <button onclick="showCart()" class="relative">
+                        <button onclick="showCart()" class="relative text-gray-600 hover:text-red-500">
                             <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M7 18C5.9 18 5 18.9 5 20S5.9 22 7 22 9 21.1 9 20 8.1 18 7 18ZM1 2V4H3L6.6 11.59L5.25 14.04C5.09 14.32 5 14.65 5 15C5 16.1 5.9 17 7 17H19V15H7.42C7.28 15 7.17 14.89 7.17 14.75L7.2 14.63L8.1 13H15.55C16.3 13 16.96 12.59 17.3 11.97L20.88 5H5.21L4.27 3H1ZM17 18C15.9 18 15 18.9 15 20S15.9 22 17 22 19 21.1 19 20 18.1 18 17 18Z"/>
                             </svg>
                             <span id="cartCount" class="absolute -top-2 -right-2 bg-red-500 text-xs rounded-full px-1">0</span>
                         </button>
-                        <button onclick="showOrders()" class="hover:text-red-500">Orders</button>
-                        <div id="sellerNavButton" class="hidden">
-                            <button onclick="showBusinessPanel()" class="bg-red-600 px-3 py-1 rounded text-sm hover:bg-red-700 text-white">
-                                <i class="fas fa-store mr-1"></i>Seller Panel
-                            </button>
-                        </div>
-                        <div id="adminNavButton" class="hidden">
-                            <button onclick="showAdminPanel()" class="bg-gray-800 px-3 py-1 rounded text-sm hover:bg-gray-900 text-white">
-                                <i class="fas fa-crown mr-1"></i>Admin
-                            </button>
-                        </div>
-                        <button onclick="showSettings()" class="hover:text-red-500">Settings</button>
-                        <button onclick="logout()" class="hover:text-red-600">Logout</button>
+                        
+                        <!-- Mobile Menu Button (only for logged in users on mobile) -->
+                        <button onclick="showMobileMenu()" class="md:hidden text-gray-600 hover:text-red-500">
+                            <i class="fas fa-bars text-xl"></i>
+                        </button>
                     </div>
                     <div id="loginSection">
                         <button onclick="loginWithGoogle()" class="bg-red-500 px-4 py-2 rounded hover:bg-red-600 text-white">
@@ -842,6 +843,30 @@
         </div>
     </nav>
 
+    <!-- Mobile Search Overlay -->
+    <div id="mobileSearchOverlay" class="fixed inset-0 bg-white z-50 hidden">
+        <div class="flex items-center p-4 border-b">
+            <button onclick="closeMobileSearch()" class="mr-4 text-gray-600 hover:text-gray-800">
+                <i class="fas fa-arrow-left text-xl"></i>
+            </button>
+            <div class="flex-1 flex items-center bg-gray-100 rounded-lg overflow-hidden border border-gray-300">
+                <input type="text" id="mobileSearchInput" placeholder="Search products..." class="px-4 py-3 text-gray-800 w-full focus:outline-none bg-transparent" autofocus>
+                <button onclick="searchProductsMobile()" class="bg-red-500 px-4 py-3 hover:bg-red-600 text-white">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-4">
+            <div class="text-sm text-gray-500 mb-4">Popular searches</div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="quickSearch('electronics')" class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200">Electronics</button>
+                <button onclick="quickSearch('fashion')" class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200">Fashion</button>
+                <button onclick="quickSearch('books')" class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200">Books</button>
+                <button onclick="quickSearch('grocery')" class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-gray-200">Grocery</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Mobile Menu Overlay -->
     <div id="mobileMenuOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden">
         <div class="fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform translate-x-full transition-transform duration-300" id="mobileMenuPanel">
@@ -1305,7 +1330,7 @@
                 })
                 .catch((error) => {
                     console.error('Login error:', error);
-                    alert('Login failed. Please try again.');
+                    showError('Login failed. Please try again.');
                 });
         }
 
@@ -1857,11 +1882,12 @@
 
         function showAdminPanel() {
             if (!isAdmin) {
-                alert('Access denied. Admin privileges required.');
+                showError('Access denied. Admin privileges required.');
                 return;
             }
             hideAllPages();
             document.getElementById('adminPanel').classList.remove('hidden');
+            updateURL('admin');
             loadAdminStats();
             loadRecentActivity();
         }
@@ -2108,14 +2134,14 @@
             if (existingItem) {
                 if (existingItem.quantity < currentProduct.stockQuantity) {
                     existingItem.quantity += 1;
-                    alert('Product quantity updated in cart!');
+                    showSuccess('Product quantity updated in cart!');
                 } else {
-                    alert('Cannot add more items. Stock limit reached!');
+                    showWarning('Cannot add more items. Stock limit reached!');
                     return;
                 }
             } else {
                 cart.push(cartItem);
-                alert('Product added to cart!');
+                showSuccess('Product added to cart!');
             }
 
             saveCartToFirebase();
@@ -2124,7 +2150,7 @@
 
         function quickAddToCart(productId) {
             if (!currentUser) {
-                alert('Please login to add items to cart');
+                showError('Please login to add items to cart');
                 return;
             }
 
@@ -2150,14 +2176,14 @@
                         if (existingItem) {
                             if (existingItem.quantity < product.stockQuantity) {
                                 existingItem.quantity += 1;
-                                alert('Product quantity updated in cart!');
+                                showSuccess('Product quantity updated in cart!');
                             } else {
-                                alert('Cannot add more items. Stock limit reached!');
+                                showWarning('Cannot add more items. Stock limit reached!');
                                 return;
                             }
                         } else {
                             cart.push(cartItem);
-                            alert('Product added to cart!');
+                            showSuccess('Product added to cart!');
                         }
 
                         saveCartToFirebase();
@@ -2780,6 +2806,53 @@
                 });
         }
 
+        function toggleMobileSearch() {
+            const overlay = document.getElementById('mobileSearchOverlay');
+            overlay.classList.remove('hidden');
+            
+            // Focus on search input after a short delay
+            setTimeout(() => {
+                document.getElementById('mobileSearchInput').focus();
+            }, 100);
+        }
+
+        function closeMobileSearch() {
+            const overlay = document.getElementById('mobileSearchOverlay');
+            overlay.classList.add('hidden');
+            
+            // Clear search input
+            document.getElementById('mobileSearchInput').value = '';
+        }
+
+        function searchProductsMobile() {
+            const query = document.getElementById('mobileSearchInput').value.toLowerCase();
+            if (!query) {
+                loadProducts();
+                closeMobileSearch();
+                return;
+            }
+
+            database.ref('products').once('value')
+                .then((snapshot) => {
+                    const products = snapshot.val() || {};
+                    const filteredProducts = Object.entries(products)
+                        .map(([id, product]) => ({id, ...product}))
+                        .filter(product => 
+                            product.name.toLowerCase().includes(query) ||
+                            (product.tags && product.tags.toLowerCase().includes(query)) ||
+                            (product.category && product.category.toLowerCase().includes(query))
+                        );
+                    displayProducts(filteredProducts);
+                    closeMobileSearch();
+                    showHomePage();
+                });
+        }
+
+        function quickSearch(category) {
+            document.getElementById('mobileSearchInput').value = category;
+            searchProductsMobile();
+        }
+
         function filterByCategory(category) {
             // Show home page first
             hideAllPages();
@@ -2915,18 +2988,13 @@
                 appliedAt: Date.now()
             };
 
+            // Set status to approved immediately
+            sellerData.status = 'approved';
+            
             database.ref(`sellers/${currentUser.uid}`).set(sellerData)
                 .then(() => {
-                    alert('🎉 Seller application submitted successfully!\n\nYour account will be reviewed and approved within 2 minutes. You will receive a notification once approved.');
-                    
-                    // Auto-approve after 2 minutes (120000 ms)
-                    setTimeout(() => {
-                        database.ref(`sellers/${currentUser.uid}/status`).set('approved')
-                            .then(() => {
-                                console.log('Seller account auto-approved');
-                                checkSellerStatus(); // Refresh seller status
-                            });
-                    }, 120000);
+                    showSuccess('🎉 Congratulations! Your seller account has been approved instantly!\n\nYou can now start selling products on Homy.');
+                    checkSellerStatus(); // Refresh seller status immediately
                     
                     showMobileSettings();
                 })
@@ -2987,17 +3055,13 @@
                 appliedAt: Date.now()
             };
 
+            // Set status to approved immediately
+            sellerData.status = 'approved';
+            
             database.ref(`sellers/${currentUser.uid}`).set(sellerData)
                 .then(() => {
-                    alert('Seller application submitted successfully! Your account will be reviewed and approved within 2 minutes.');
-                    
-                    // Auto-approve after 2 minutes (120000 ms)
-                    setTimeout(() => {
-                        database.ref(`sellers/${currentUser.uid}/status`).set('approved')
-                            .then(() => {
-                                console.log('Seller account auto-approved');
-                            });
-                    }, 120000);
+                    showSuccess('🎉 Congratulations! Your seller account has been approved instantly!\n\nYou can now start selling products on Homy.');
+                    checkSellerStatus(); // Refresh seller status immediately
                     
                     showSettings();
                 })
@@ -3136,6 +3200,18 @@
         document.getElementById('searchInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 searchProducts();
+            }
+        });
+
+        // Add event listener for mobile search input after DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileSearchInput = document.getElementById('mobileSearchInput');
+            if (mobileSearchInput) {
+                mobileSearchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        searchProductsMobile();
+                    }
+                });
             }
         });
 
@@ -3487,7 +3563,7 @@
         }
 
         function updateCategoryImage(categoryId) {
-            alert(`Category image update feature for ${categoryId} - This would open an image upload dialog in a full implementation.`);
+            showInfo(`Category image update for ${categoryId} will be available in the next update.`);
         }
 
         // Initialize app
@@ -3618,5 +3694,5 @@
         // Load initial data
         showHomePage();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4130065a5a6dc',t:'MTc1NzIyNTc1NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97b4249345e93b34',t:'MTc1NzIyNjQ3NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
