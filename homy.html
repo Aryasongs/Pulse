@@ -1874,7 +1874,67 @@
             updateBottomNavigation('home');
             loadProducts();
             loadActiveAnnouncements();
+            updateURL('');
         }
+
+        // URL Management Functions
+        function updateURL(path) {
+            const baseUrl = window.location.origin + window.location.pathname;
+            const newUrl = path ? `${baseUrl}#${path}` : baseUrl;
+            window.history.pushState({path}, '', newUrl);
+        }
+
+        function handleURLRouting() {
+            const hash = window.location.hash.substring(1); // Remove #
+            
+            if (!hash) {
+                showHomePage();
+                return;
+            }
+
+            const parts = hash.split('/');
+            const route = parts[0];
+            const id = parts[1];
+
+            switch (route) {
+                case 'product':
+                    if (id) {
+                        showProductDetail(id);
+                    } else {
+                        showHomePage();
+                    }
+                    break;
+                case 'category':
+                    if (id) {
+                        filterByCategory(id);
+                    } else {
+                        showHomePage();
+                    }
+                    break;
+                case 'cart':
+                    showCart();
+                    break;
+                case 'orders':
+                    showOrders();
+                    break;
+                case 'profile':
+                    showProfile();
+                    break;
+                case 'seller':
+                    showBusinessPanel();
+                    break;
+                case 'admin':
+                    showAdminPanel();
+                    break;
+                default:
+                    showHomePage();
+            }
+        }
+
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(event) {
+            handleURLRouting();
+        });
 
         function playOrderNotificationSound() {
             // Create audio context for notification sound
@@ -2070,6 +2130,7 @@
             hideAllPages();
             document.getElementById('productDetailPage').classList.remove('hidden');
             loadProductDetail(productId);
+            updateURL(`product/${productId}`);
         }
 
         function showCart() {
@@ -2081,6 +2142,7 @@
             document.getElementById('cartPage').classList.remove('hidden');
             updateBottomNavigation('cart');
             loadCart();
+            updateURL('cart');
         }
 
         function showOrders() {
@@ -2091,6 +2153,7 @@
             hideAllPages();
             document.getElementById('ordersPage').classList.remove('hidden');
             loadOrders();
+            updateURL('orders');
         }
 
         function changeMainImage(imageSrc) {
@@ -2268,6 +2331,7 @@
             hideAllPages();
             document.getElementById('profilePage').classList.remove('hidden');
             updateBottomNavigation('profile');
+            updateURL('profile');
             
             if (currentUser) {
                 document.getElementById('profileLoginPrompt').classList.add('hidden');
@@ -4060,6 +4124,7 @@
             // Show home page first
             hideAllPages();
             document.getElementById('homePage').classList.remove('hidden');
+            updateURL(`category/${category}`);
             
             // Load filtered products
             database.ref('products').orderByChild('category').equalTo(category).once('value')
@@ -5497,16 +5562,17 @@
 
         // Product Sharing Function
         function shareProduct(productId) {
+            const productUrl = `${window.location.origin}${window.location.pathname}#product/${productId}`;
+            
             if (navigator.share) {
                 navigator.share({
                     title: currentProduct.name,
                     text: `Check out this amazing product: ${currentProduct.name}`,
-                    url: window.location.href
+                    url: productUrl
                 });
             } else {
                 // Fallback for browsers that don't support Web Share API
-                const url = window.location.href;
-                navigator.clipboard.writeText(url).then(() => {
+                navigator.clipboard.writeText(productUrl).then(() => {
                     showSuccess('Product link copied to clipboard!');
                 }).catch(() => {
                     // Show share modal with social media options
@@ -5546,18 +5612,21 @@
         }
 
         function shareToWhatsApp(productId) {
+            const productUrl = `${window.location.origin}${window.location.pathname}#product/${productId}`;
             const text = `Check out this amazing product: ${currentProduct.name} - Only ₹${currentProduct.sellingPrice}`;
-            const url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + window.location.href)}`;
+            const url = `https://wa.me/?text=${encodeURIComponent(text + ' ' + productUrl)}`;
             window.open(url, '_blank');
         }
 
         function shareToFacebook(productId) {
-            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`;
+            const productUrl = `${window.location.origin}${window.location.pathname}#product/${productId}`;
+            const url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(productUrl)}`;
             window.open(url, '_blank');
         }
 
         function copyProductLink(productId) {
-            navigator.clipboard.writeText(window.location.href).then(() => {
+            const productUrl = `${window.location.origin}${window.location.pathname}#product/${productId}`;
+            navigator.clipboard.writeText(productUrl).then(() => {
                 showSuccess('Product link copied to clipboard!');
                 document.querySelector('.fixed').remove();
             });
@@ -5793,8 +5862,17 @@
             await loadBusinessPanel();
         }
 
-        // Load initial data
-        showHomePage();
+        // Load initial data and handle URL routing
+        document.addEventListener('DOMContentLoaded', function() {
+            handleURLRouting();
+        });
+        
+        // Fallback if DOMContentLoaded already fired
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', handleURLRouting);
+        } else {
+            handleURLRouting();
+        }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97bd2981901a211e',t:'MTc1NzMyMTA0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97bd2c3b246559cf',t:'MTc1NzMyMTE1OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
