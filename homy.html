@@ -3086,21 +3086,21 @@
                             <i class="fas fa-mobile-alt text-2xl text-blue-600"></i>
                         </div>
                         <h3 class="text-lg font-semibold mb-2">
-                            ${isCOD ? 'COD Advance Payment' : 'Redirecting to Payment'}
+                            ${isCOD ? 'COD Advance Payment' : 'Payment Required'}
                         </h3>
                         <p class="text-gray-600 text-sm mb-4">
-                            ${isCOD ? 'Pay advance amount for Cash on Delivery' : `Redirecting to ${appName.toUpperCase()}...`}
+                            ${isCOD ? 'Pay advance amount for Cash on Delivery' : `Pay using ${appName.toUpperCase()}`}
                         </p>
                         
                         <div class="bg-gray-50 rounded-lg p-4 mb-4">
                             <div class="text-sm text-gray-600 mb-1">Amount:</div>
                             <div class="text-2xl font-bold text-green-600">₹${amount}</div>
-                            <div class="text-sm text-gray-600 mt-2">Receiver:</div>
+                            <div class="text-sm text-gray-600 mt-2">Pay to:</div>
                             <div class="font-mono text-sm">${receiver}</div>
                         </div>
                         
                         <p class="text-xs text-gray-500 mb-6">
-                            Click OK to open ${isCOD ? 'payment' : appName.toUpperCase()} app
+                            Click "Pay Now" to open ${appName.toUpperCase()} app and complete payment
                         </p>
                     </div>
                     
@@ -3108,8 +3108,8 @@
                         <button onclick="closePaymentDialog()" class="flex-1 bg-gray-500 text-white py-3 px-4 rounded-lg hover:bg-gray-600">
                             Cancel
                         </button>
-                        <button onclick="confirmPayment()" class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700">
-                            OK
+                        <button onclick="redirectToPaymentApp('${appName}', '${amount}', '${receiver}')" class="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700">
+                            Pay Now
                         </button>
                     </div>
                 </div>
@@ -3119,6 +3119,91 @@
             
             // Store callback for later use
             window.paymentConfirmCallback = onConfirm;
+        }
+
+        function redirectToPaymentApp(appName, amount, receiver) {
+            let paymentUrl = '';
+            
+            // Create UPI payment URLs for different apps
+            switch(appName.toLowerCase()) {
+                case 'phonepe':
+                    paymentUrl = `phonepe://pay?pa=${receiver}&pn=Homy&am=${amount}&cu=INR&tn=Order Payment`;
+                    break;
+                case 'paytm':
+                    paymentUrl = `paytmmp://pay?pa=${receiver}&pn=Homy&am=${amount}&cu=INR&tn=Order Payment`;
+                    break;
+                case 'googlepay':
+                    paymentUrl = `tez://upi/pay?pa=${receiver}&pn=Homy&am=${amount}&cu=INR&tn=Order Payment`;
+                    break;
+                case 'bhim':
+                    paymentUrl = `bhim://pay?pa=${receiver}&pn=Homy&am=${amount}&cu=INR&tn=Order Payment`;
+                    break;
+                default:
+                    // Generic UPI URL
+                    paymentUrl = `upi://pay?pa=${receiver}&pn=Homy&am=${amount}&cu=INR&tn=Order Payment`;
+            }
+            
+            // Try to open the payment app
+            const link = document.createElement('a');
+            link.href = paymentUrl;
+            link.click();
+            
+            // Show payment confirmation dialog after a short delay
+            setTimeout(() => {
+                showPaymentConfirmationDialog();
+            }, 2000);
+        }
+
+        function showPaymentConfirmationDialog() {
+            closePaymentDialog();
+            
+            const modal = document.createElement('div');
+            modal.id = 'paymentConfirmDialog';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+                    <div class="text-center mb-6">
+                        <div class="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-question-circle text-2xl text-orange-600"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-2">Payment Confirmation</h3>
+                        <p class="text-gray-600 text-sm mb-4">
+                            Did you complete the payment successfully?
+                        </p>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button onclick="paymentFailed()" class="flex-1 bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600">
+                            Payment Failed
+                        </button>
+                        <button onclick="paymentSuccess()" class="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700">
+                            Payment Done
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+        }
+
+        function paymentSuccess() {
+            const confirmDialog = document.getElementById('paymentConfirmDialog');
+            if (confirmDialog) {
+                confirmDialog.remove();
+            }
+            
+            if (window.paymentConfirmCallback) {
+                window.paymentConfirmCallback();
+            }
+        }
+
+        function paymentFailed() {
+            const confirmDialog = document.getElementById('paymentConfirmDialog');
+            if (confirmDialog) {
+                confirmDialog.remove();
+            }
+            
+            showError('Payment failed. Please try again or choose a different payment method.');
         }
 
         function confirmPayment() {
@@ -4974,35 +5059,156 @@
                     terms: "1. All sales are final for delivered orders\n2. For any queries, contact customer service\n3. Return policy applies as per product terms"
                 };
 
+                // Use the correct API endpoint with proper headers
                 const response = await fetch('https://invoice-generator.com', {
                     method: 'POST',
                     headers: {
-                        'Authorization': 'Bearer sk_wODeI6RdUfts8FHq514INrxBFgL2SDZm',
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/pdf'
                     },
                     body: JSON.stringify(invoiceData)
                 });
 
                 if (response.ok) {
                     const blob = await response.blob();
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `Invoice_${order.orderId}.pdf`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    window.URL.revokeObjectURL(url);
                     
-                    hideInvoiceLoading();
-                    showSuccess('Invoice downloaded successfully!');
+                    // Check if we actually got a PDF
+                    if (blob.type === 'application/pdf' || blob.size > 1000) {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Invoice_${order.orderId}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        hideInvoiceLoading();
+                        showSuccess('Invoice downloaded successfully!');
+                    } else {
+                        throw new Error('Invalid PDF response');
+                    }
                 } else {
-                    throw new Error('Failed to generate invoice');
+                    // If API fails, generate a simple HTML invoice
+                    generateHTMLInvoice(order);
                 }
             } catch (error) {
                 console.error('Error generating invoice:', error);
+                // Fallback to HTML invoice
+                generateHTMLInvoice(order);
+            }
+        }
+
+        function generateHTMLInvoice(order) {
+            try {
+                const invoiceHTML = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Invoice - ${order.orderId}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; margin: 20px; color: #333; }
+                        .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #ff9900; padding-bottom: 20px; }
+                        .logo { width: 80px; height: 80px; margin: 0 auto 10px; }
+                        .company-name { font-size: 24px; font-weight: bold; color: #232f3e; }
+                        .invoice-details { display: flex; justify-content: space-between; margin: 30px 0; }
+                        .invoice-info, .customer-info { width: 48%; }
+                        .invoice-info h3, .customer-info h3 { color: #232f3e; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+                        .items-table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+                        .items-table th, .items-table td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+                        .items-table th { background-color: #f8f9fa; font-weight: bold; }
+                        .total-section { text-align: right; margin: 30px 0; }
+                        .total-row { margin: 5px 0; }
+                        .grand-total { font-size: 18px; font-weight: bold; color: #ff9900; }
+                        .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
+                        @media print { body { margin: 0; } }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <img src="https://pulse.oriontec.xyz/IMG_0901.png" alt="Homy Logo" class="logo">
+                        <div class="company-name">Homy</div>
+                        <div>Your Home Shopping Destination</div>
+                        <div>Email: customerserviceffrj4@gmail.com</div>
+                    </div>
+
+                    <div class="invoice-details">
+                        <div class="invoice-info">
+                            <h3>Invoice Details</h3>
+                            <p><strong>Invoice Number:</strong> ${order.orderId}</p>
+                            <p><strong>Invoice Date:</strong> ${new Date(order.timestamp).toLocaleDateString('en-IN')}</p>
+                            <p><strong>Payment Method:</strong> ${order.paymentMethod.toUpperCase()}</p>
+                            <p><strong>Order Status:</strong> ${order.status.toUpperCase()}</p>
+                        </div>
+                        
+                        <div class="customer-info">
+                            <h3>Bill To</h3>
+                            <p><strong>${order.shippingInfo.fullName}</strong></p>
+                            <p>${order.shippingInfo.address}</p>
+                            <p>${order.shippingInfo.city}, ${order.shippingInfo.state} - ${order.shippingInfo.pincode}</p>
+                            <p>Phone: ${order.shippingInfo.phone}</p>
+                            <p>Email: ${order.shippingInfo.email}</p>
+                        </div>
+                    </div>
+
+                    <table class="items-table">
+                        <thead>
+                            <tr>
+                                <th>Item</th>
+                                <th>Brand</th>
+                                <th>Quantity</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${order.items.map(item => `
+                                <tr>
+                                    <td>${item.name}</td>
+                                    <td>${item.brand || 'N/A'}</td>
+                                    <td>${item.quantity}</td>
+                                    <td>₹${item.price}</td>
+                                    <td>₹${item.price * item.quantity}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+
+                    <div class="total-section">
+                        <div class="total-row">Subtotal: ₹${order.subtotal || order.total - 50}</div>
+                        <div class="total-row">Shipping: ₹${order.shippingCharges || 50}</div>
+                        <div class="total-row">Tax: ₹0</div>
+                        <div class="total-row grand-total">Grand Total: ₹${order.total}</div>
+                    </div>
+
+                    <div class="footer">
+                        <p><strong>Thank you for shopping with Homy!</strong></p>
+                        <p>For any queries, please contact our customer service.</p>
+                        <p>Terms: All sales are final for delivered orders. Return policy applies as per product terms.</p>
+                    </div>
+                </body>
+                </html>
+                `;
+
+                // Create and download HTML file
+                const blob = new Blob([invoiceHTML], { type: 'text/html' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Invoice_${order.orderId}.html`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
                 hideInvoiceLoading();
-                showError('Failed to generate invoice. Please try again later.');
+                showSuccess('Invoice downloaded successfully! Open the HTML file in your browser and print as PDF if needed.');
+                
+            } catch (error) {
+                console.error('Error generating HTML invoice:', error);
+                hideInvoiceLoading();
+                showError('Failed to generate invoice. Please contact customer service.');
             }
         }
 
@@ -5590,5 +5796,5 @@
         // Load initial data
         showHomePage();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97bd1fbd06285524',t:'MTc1NzMyMDY0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97bd2981901a211e',t:'MTc1NzMyMTA0Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
