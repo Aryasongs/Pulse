@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulse - Social Media Platform</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .pulse-shadow {
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+        }
+        .buzz-card {
+            transition: all 0.3s ease;
+        }
+        .buzz-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        .nav-item {
+            transition: all 0.3s ease;
+        }
+        .nav-item:hover {
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateX(5px);
+        }
+        .profile-modal {
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-screen gradient-bg flex items-center justify-center">
+        <div class="bg-white rounded-2xl p-8 shadow-2xl max-w-md w-full mx-4">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full mx-auto mb-4 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to Pulse</h1>
+                <p class="text-gray-600">Connect, Share, and Buzz with the world</p>
+            </div>
+            
+            <button id="googleLoginBtn" class="w-full bg-white border-2 border-gray-300 rounded-lg py-3 px-4 flex items-center justify-center space-x-3 hover:bg-gray-50 transition-colors">
+                <svg class="w-5 h-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span class="text-gray-700 font-medium">Continue with Google</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden min-h-screen bg-gray-50">
+        <!-- Navigation -->
+        <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+            <div class="max-w-6xl mx-auto px-4">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-4">
+                        <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                        </div>
+                        <h1 class="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">Pulse</h1>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <button id="profileBtn" class="w-8 h-8 rounded-full bg-gray-300 overflow-hidden">
+                                <img id="userAvatar" src="" alt="Profile" class="w-full h-full object-cover">
+                            </button>
+                            <div id="navVerifiedBadge" class="absolute -top-1 -right-1"></div>
+                        </div>
+                        <button id="logoutBtn" class="text-gray-600 hover:text-red-500 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-6xl mx-auto px-4 py-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Sidebar -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl shadow-sm p-6 sticky top-24">
+                        <div class="space-y-4">
+                            <button class="nav-item w-full flex items-center space-x-3 p-3 rounded-lg text-left">
+                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+                                </svg>
+                                <span class="font-medium text-gray-700">Home</span>
+                            </button>
+                            
+                            <button class="nav-item w-full flex items-center space-x-3 p-3 rounded-lg text-left">
+                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                                <span class="font-medium text-gray-700">Explore</span>
+                            </button>
+                            
+                            <button class="nav-item w-full flex items-center space-x-3 p-3 rounded-lg text-left">
+                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M16 4c0-1.11.89-2 2-2s2 .89 2 2-.89 2-2 2-2-.89-2-2zm4 18v-6h2.5l-2.54-7.63A2.996 2.996 0 0 0 16.5 6.5h-1c-1.66 0-3 1.34-3 3v7H8V9.5c0-.28-.22-.5-.5-.5s-.5.22-.5.5V16H3v2h4v2h2v-2h4v2h2v-2h5z"/>
+                                </svg>
+                                <span class="font-medium text-gray-700">Following</span>
+                            </button>
+                            
+                            <button class="nav-item w-full flex items-center space-x-3 p-3 rounded-lg text-left">
+                                <svg class="w-6 h-6 text-purple-600" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                                </svg>
+                                <span class="font-medium text-gray-700">Profile</span>
+                            </button>
+                        </div>
+                        
+                        <button id="buzzBtn" class="w-full mt-6 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg py-3 font-semibold hover:from-purple-700 hover:to-blue-700 transition-all pulse-shadow">
+                            Create Buzz
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Main Feed -->
+                <div class="lg:col-span-2">
+                    <!-- Create Buzz -->
+                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                        <div class="flex space-x-4">
+                            <div class="relative">
+                                <img id="createBuzzAvatar" src="" alt="Your avatar" class="w-12 h-12 rounded-full">
+                                <div id="createBuzzVerifiedBadge" class="absolute -top-1 -right-1"></div>
+                            </div>
+                            <div class="flex-1">
+                                <textarea id="buzzText" placeholder="What's buzzing?" class="w-full p-3 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent" rows="3"></textarea>
+                                
+                                <div class="flex items-center justify-between mt-4">
+                                    <div class="flex space-x-4">
+                                        <button class="text-purple-600 hover:bg-purple-50 p-2 rounded-full transition-colors">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V9h-3V7H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="text-purple-600 hover:bg-purple-50 p-2 rounded-full transition-colors">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                            </svg>
+                                        </button>
+                                        <button class="text-purple-600 hover:bg-purple-50 p-2 rounded-full transition-colors">
+                                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M9 11H7v3h2v-3zm4 0h-2v3h2v-3zm4 0h-2v3h2v-3zm2-7h-1V2h-2v2H8V2H6v2H5c-1.1 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V9h14v11z"/>
+                                            </svg>
+                                        </button>
+                                    </div>
+                                    
+                                    <button id="postBuzzBtn" class="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-2 rounded-full font-semibold hover:from-purple-700 hover:to-blue-700 transition-all">
+                                        Buzz
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Feed -->
+                    <div id="buzzFeed" class="space-y-6">
+                        <!-- Buzz posts will be dynamically added here -->
+                    </div>
+                </div>
+
+                <!-- Right Sidebar -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Trending</h3>
+                        <div class="space-y-3">
+                            <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                                <p class="text-sm text-gray-500">Trending in Technology</p>
+                                <p class="font-semibold text-gray-800">#WebDevelopment</p>
+                                <p class="text-sm text-gray-500">12.5K Buzzes</p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                                <p class="text-sm text-gray-500">Trending</p>
+                                <p class="font-semibold text-gray-800">#PulseApp</p>
+                                <p class="text-sm text-gray-500">8.2K Buzzes</p>
+                            </div>
+                            <div class="cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                                <p class="text-sm text-gray-500">Trending in Sports</p>
+                                <p class="font-semibold text-gray-800">#Football</p>
+                                <p class="text-sm text-gray-500">15.7K Buzzes</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Who to follow</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white font-semibold">JD</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-gray-800">John Doe</p>
+                                        <p class="text-sm text-gray-500">@johndoe</p>
+                                    </div>
+                                </div>
+                                <button class="bg-purple-600 text-white px-4 py-1 rounded-full text-sm hover:bg-purple-700 transition-colors">
+                                    Follow
+                                </button>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-gradient-to-r from-pink-400 to-red-500 rounded-full flex items-center justify-center">
+                                        <span class="text-white font-semibold">AS</span>
+                                    </div>
+                                    <div>
+                                        <p class="font-semibold text-gray-800">Alice Smith</p>
+                                        <p class="text-sm text-gray-500">@alicesmith</p>
+                                    </div>
+                                </div>
+                                <button class="bg-purple-600 text-white px-4 py-1 rounded-full text-sm hover:bg-purple-700 transition-colors">
+                                    Follow
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile Modal -->
+    <div id="profileModal" class="hidden fixed inset-0 bg-black bg-opacity-50 profile-modal z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800 flex items-center" id="profileModalTitle">Profile Settings</h2>
+                    <button id="closeProfileModal" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="space-y-6">
+                    <div class="text-center">
+                        <div class="relative inline-block">
+                            <img id="modalAvatar" src="" alt="Profile" class="w-24 h-24 rounded-full mx-auto">
+                            <button class="absolute bottom-0 right-0 bg-purple-600 text-white p-2 rounded-full hover:bg-purple-700 transition-colors">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Display Name</label>
+                        <input id="displayNameInput" type="text" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                        <input id="usernameInput" type="text" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="@username">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Bio</label>
+                        <textarea id="bioInput" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" rows="3" placeholder="Tell us about yourself..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                        <input id="locationInput" type="text" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Your location">
+                    </div>
+                    
+                    <button id="saveProfileBtn" class="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all">
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDjfNlHwhT4xYb7vVym_SAqMlSuY_TMz0o",
+            authDomain: "orioplay.firebaseapp.com",
+            databaseURL: "https://orioplay-default-rtdb.firebaseio.com",
+            projectId: "orioplay",
+            storageBucket: "orioplay.firebasestorage.app",
+            messagingSenderId: "300811706751",
+            appId: "1:300811706751:web:bdce98b1ba7e11d34d7a4a"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        // Global variables
+        let currentUser = null;
+        let userProfile = null;
+
+        // DOM Elements
+        const loginScreen = document.getElementById('loginScreen');
+        const mainApp = document.getElementById('mainApp');
+        const googleLoginBtn = document.getElementById('googleLoginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const profileBtn = document.getElementById('profileBtn');
+        const profileModal = document.getElementById('profileModal');
+        const closeProfileModal = document.getElementById('closeProfileModal');
+        const buzzText = document.getElementById('buzzText');
+        const postBuzzBtn = document.getElementById('postBuzzBtn');
+        const buzzFeed = document.getElementById('buzzFeed');
+
+        // Authentication
+        googleLoginBtn.addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    currentUser = result.user;
+                    initializeUser();
+                })
+                .catch((error) => {
+                    console.error('Login error:', error);
+                    alert('Login failed. Please try again.');
+                });
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                currentUser = null;
+                userProfile = null;
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            });
+        });
+
+        // Initialize user profile
+        function initializeUser() {
+            if (!currentUser) return;
+
+            // Update UI with user info
+            document.getElementById('userAvatar').src = currentUser.photoURL || '';
+            document.getElementById('createBuzzAvatar').src = currentUser.photoURL || '';
+            document.getElementById('modalAvatar').src = currentUser.photoURL || '';
+            
+            // Update verified badges
+            document.getElementById('navVerifiedBadge').innerHTML = getVerifiedBadge(currentUser.email, 'w-4 h-4');
+            document.getElementById('createBuzzVerifiedBadge').innerHTML = getVerifiedBadge(currentUser.email, 'w-4 h-4');
+
+            // Load or create user profile
+            database.ref(`users/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    if (snapshot.exists()) {
+                        userProfile = snapshot.val();
+                    } else {
+                        // Create new user profile
+                        userProfile = {
+                            uid: currentUser.uid,
+                            displayName: currentUser.displayName,
+                            email: currentUser.email,
+                            photoURL: currentUser.photoURL,
+                            username: `@${currentUser.displayName?.toLowerCase().replace(/\s+/g, '') || 'user'}`,
+                            bio: '',
+                            location: '',
+                            followers: [],
+                            following: [],
+                            createdAt: Date.now()
+                        };
+                        database.ref(`users/${currentUser.uid}`).set(userProfile);
+                    }
+                    
+                    updateProfileModal();
+                    loadBuzzFeed();
+                    loginScreen.classList.add('hidden');
+                    mainApp.classList.remove('hidden');
+                });
+        }
+
+        // Update profile modal with user data
+        function updateProfileModal() {
+            if (!userProfile) return;
+            
+            document.getElementById('displayNameInput').value = userProfile.displayName || '';
+            document.getElementById('usernameInput').value = userProfile.username || '';
+            document.getElementById('bioInput').value = userProfile.bio || '';
+            document.getElementById('locationInput').value = userProfile.location || '';
+            
+            // Update profile modal title with verified badge
+            const profileTitle = document.getElementById('profileModalTitle');
+            profileTitle.innerHTML = `Profile Settings ${getVerifiedBadge(userProfile.email, 'w-6 h-6')}`;
+        }
+
+        // Profile modal handlers
+        profileBtn.addEventListener('click', () => {
+            profileModal.classList.remove('hidden');
+        });
+
+        closeProfileModal.addEventListener('click', () => {
+            profileModal.classList.add('hidden');
+        });
+
+        document.getElementById('saveProfileBtn').addEventListener('click', () => {
+            if (!currentUser) return;
+
+            const updatedProfile = {
+                ...userProfile,
+                displayName: document.getElementById('displayNameInput').value,
+                username: document.getElementById('usernameInput').value,
+                bio: document.getElementById('bioInput').value,
+                location: document.getElementById('locationInput').value
+            };
+
+            database.ref(`users/${currentUser.uid}`).update(updatedProfile)
+                .then(() => {
+                    userProfile = updatedProfile;
+                    profileModal.classList.add('hidden');
+                    alert('Profile updated successfully!');
+                })
+                .catch((error) => {
+                    console.error('Profile update error:', error);
+                    alert('Failed to update profile. Please try again.');
+                });
+        });
+
+        // Create buzz
+        postBuzzBtn.addEventListener('click', () => {
+            const text = buzzText.value.trim();
+            if (!text || !currentUser) return;
+
+            const buzzId = database.ref('buzzes').push().key;
+            const buzz = {
+                id: buzzId,
+                userId: currentUser.uid,
+                userDisplayName: userProfile.displayName,
+                userUsername: userProfile.username,
+                userPhotoURL: userProfile.photoURL,
+                userEmail: userProfile.email,
+                text: text,
+                timestamp: Date.now(),
+                likes: [],
+                rebuzzes: [],
+                comments: []
+            };
+
+            database.ref(`buzzes/${buzzId}`).set(buzz)
+                .then(() => {
+                    buzzText.value = '';
+                    loadBuzzFeed();
+                })
+                .catch((error) => {
+                    console.error('Buzz creation error:', error);
+                    alert('Failed to create buzz. Please try again.');
+                });
+        });
+
+        // Load buzz feed
+        function loadBuzzFeed() {
+            database.ref('buzzes').orderByChild('timestamp').limitToLast(20).once('value')
+                .then((snapshot) => {
+                    const buzzes = [];
+                    snapshot.forEach((child) => {
+                        buzzes.unshift(child.val());
+                    });
+                    
+                    renderBuzzFeed(buzzes);
+                });
+        }
+
+        // Render buzz feed
+        function renderBuzzFeed(buzzes) {
+            buzzFeed.innerHTML = '';
+            
+            buzzes.forEach((buzz) => {
+                const buzzElement = createBuzzElement(buzz);
+                buzzFeed.appendChild(buzzElement);
+            });
+        }
+
+        // Create buzz element
+        function createBuzzElement(buzz) {
+            const div = document.createElement('div');
+            div.className = 'bg-white rounded-xl shadow-sm p-6 buzz-card';
+            
+            const timeAgo = getTimeAgo(buzz.timestamp);
+            const isLiked = buzz.likes && buzz.likes.includes(currentUser?.uid);
+            const isRebuzzed = buzz.rebuzzes && buzz.rebuzzes.includes(currentUser?.uid);
+            
+            div.innerHTML = `
+                <div class="flex space-x-4">
+                    <img src="${buzz.userPhotoURL || ''}" alt="${buzz.userDisplayName}" class="w-12 h-12 rounded-full">
+                    <div class="flex-1">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <h3 class="font-semibold text-gray-800 flex items-center">${buzz.userDisplayName}${getVerifiedBadge(buzz.userEmail, 'w-4 h-4')}</h3>
+                            <span class="text-gray-500">${buzz.userUsername}</span>
+                            <span class="text-gray-400">·</span>
+                            <span class="text-gray-500 text-sm">${timeAgo}</span>
+                        </div>
+                        
+                        <p class="text-gray-800 mb-4">${formatBuzzText(buzz.text)}</p>
+                        
+                        <div class="flex items-center justify-between text-gray-500">
+                            <button class="flex items-center space-x-2 hover:text-blue-500 transition-colors" onclick="toggleLike('${buzz.id}')">
+                                <svg class="w-5 h-5 ${isLiked ? 'text-red-500 fill-current' : ''}" fill="${isLiked ? 'currentColor' : 'none'}" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                                </svg>
+                                <span>${buzz.likes ? buzz.likes.length : 0}</span>
+                            </button>
+                            
+                            <button class="flex items-center space-x-2 hover:text-green-500 transition-colors" onclick="toggleRebuzz('${buzz.id}')">
+                                <svg class="w-5 h-5 ${isRebuzzed ? 'text-green-500' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                <span>${buzz.rebuzzes ? buzz.rebuzzes.length : 0}</span>
+                            </button>
+                            
+                            <button class="flex items-center space-x-2 hover:text-purple-500 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                </svg>
+                                <span>${buzz.comments ? buzz.comments.length : 0}</span>
+                            </button>
+                            
+                            <button class="flex items-center space-x-2 hover:text-blue-500 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            return div;
+        }
+
+        // Toggle like
+        function toggleLike(buzzId) {
+            if (!currentUser) return;
+
+            database.ref(`buzzes/${buzzId}`).once('value')
+                .then((snapshot) => {
+                    const buzz = snapshot.val();
+                    if (!buzz) return;
+
+                    let likes = buzz.likes || [];
+                    const userIndex = likes.indexOf(currentUser.uid);
+
+                    if (userIndex > -1) {
+                        likes.splice(userIndex, 1);
+                    } else {
+                        likes.push(currentUser.uid);
+                    }
+
+                    database.ref(`buzzes/${buzzId}/likes`).set(likes)
+                        .then(() => loadBuzzFeed());
+                });
+        }
+
+        // Toggle rebuzz
+        function toggleRebuzz(buzzId) {
+            if (!currentUser) return;
+
+            database.ref(`buzzes/${buzzId}`).once('value')
+                .then((snapshot) => {
+                    const buzz = snapshot.val();
+                    if (!buzz) return;
+
+                    let rebuzzes = buzz.rebuzzes || [];
+                    const userIndex = rebuzzes.indexOf(currentUser.uid);
+
+                    if (userIndex > -1) {
+                        rebuzzes.splice(userIndex, 1);
+                    } else {
+                        rebuzzes.push(currentUser.uid);
+                    }
+
+                    database.ref(`buzzes/${buzzId}/rebuzzes`).set(rebuzzes)
+                        .then(() => loadBuzzFeed());
+                });
+        }
+
+        // Format buzz text (hashtags, mentions)
+        function formatBuzzText(text) {
+            return text
+                .replace(/#(\w+)/g, '<span class="text-purple-600 font-semibold">#$1</span>')
+                .replace(/@(\w+)/g, '<span class="text-blue-600 font-semibold">@$1</span>');
+        }
+
+        // Check if user is verified
+        function isVerifiedUser(email) {
+            return email === 'customerserviceffrj4@gmail.com';
+        }
+
+        // Get verified badge HTML
+        function getVerifiedBadge(email, size = 'w-4 h-4') {
+            if (isVerifiedUser(email)) {
+                return `<img src="https://community.oriontec.xyz/verify.png" alt="Verified" class="${size} inline-block ml-1">`;
+            }
+            return '';
+        }
+
+        // Get time ago
+        function getTimeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+
+            if (days > 0) return `${days}d`;
+            if (hours > 0) return `${hours}h`;
+            if (minutes > 0) return `${minutes}m`;
+            return 'now';
+        }
+
+        // Auth state observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                initializeUser();
+            } else {
+                currentUser = null;
+                userProfile = null;
+                loginScreen.classList.remove('hidden');
+                mainApp.classList.add('hidden');
+            }
+        });
+
+        // Make functions global for onclick handlers
+        window.toggleLike = toggleLike;
+        window.toggleRebuzz = toggleRebuzz;
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98313ae3f7702772',t:'MTc1ODUzODEwNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
