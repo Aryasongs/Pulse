@@ -230,10 +230,49 @@
                         <p class="text-yellow-600">📅 Status: Pending Review</p>
                     </div>
                 </div>
-                <button onclick="resetForm()" 
-                        class="neumorphism text-blue-600 px-6 py-2 rounded-lg hover:scale-105 transition-transform">
-                    New Registration
-                </button>
+                <div class="flex gap-2 justify-center mb-4">
+                    <button onclick="openCandidateChat()" 
+                            class="neumorphism bg-blue-600 text-white px-6 py-2 rounded-lg hover:scale-105 transition-transform">
+                        💬 Chat with Team
+                    </button>
+                    <button onclick="resetForm()" 
+                            class="neumorphism text-blue-600 px-6 py-2 rounded-lg hover:scale-105 transition-transform">
+                        New Registration
+                    </button>
+                </div>
+            </div>
+
+            <!-- Candidate Chat Screen -->
+            <div id="candidateChatScreen" class="hidden p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-semibold text-gray-800">💬 Chat with Dozera Team</h3>
+                    <button onclick="closeCandidateChat()" class="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                </div>
+                
+                <div id="candidateChatMessages" class="h-64 border rounded-lg p-4 mb-4 overflow-y-auto bg-gray-50 neumorphism-inset">
+                    <div class="text-center text-gray-500">
+                        <div class="typing-indicator mb-2">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                        <p>Connecting to team...</p>
+                    </div>
+                </div>
+                
+                <div class="flex">
+                    <input type="text" id="candidateChatInput" placeholder="Type your message..." 
+                           class="flex-1 px-3 py-2 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-l-lg"
+                           onkeypress="if(event.key==='Enter') sendCandidateMessage()">
+                    <button onclick="sendCandidateMessage()" 
+                            class="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors neumorphism">
+                        Send
+                    </button>
+                </div>
+                
+                <div class="mt-3 text-center">
+                    <p class="text-xs text-gray-500">💡 Ask about job opportunities, interview process, or any questions!</p>
+                </div>
             </div>
         </div>
 
@@ -446,6 +485,7 @@
         // Global variables
         let currentAdmin = null;
         let currentChatUser = null;
+        let currentCandidate = null;
         let secretClickCount = 0;
         let dozeraClickCount = 0;
         let specialAdminMode = false;
@@ -622,6 +662,13 @@
                 // Save to Firebase
                 const candidateRef = await database.ref('candidates').push(candidateData);
                 candidateData.id = candidateRef.key;
+                
+                // Store current candidate info for chat
+                currentCandidate = {
+                    id: candidateRef.key,
+                    name: candidateData.name,
+                    email: candidateData.email
+                };
 
                 // Show success
                 setTimeout(() => {
@@ -1058,12 +1105,16 @@
             chatList.innerHTML = candidatesArray.map(candidate => {
                 const jobChance = calculateJobChance(candidate);
                 const chanceColor = getChanceColor(jobChance);
+                const hasNewMessage = candidate.hasNewMessage;
                 
                 return `
                 <div onclick="openChat('${candidate.id}', '${candidate.name}')" 
-                     class="p-2 border rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                     class="p-2 border rounded cursor-pointer hover:bg-blue-50 transition-colors ${hasNewMessage ? 'bg-yellow-50 border-yellow-300' : ''}">
                     <div class="flex justify-between items-start mb-1">
-                        <p class="font-medium text-sm">${candidate.name}</p>
+                        <div class="flex items-center gap-1">
+                            <p class="font-medium text-sm">${candidate.name}</p>
+                            ${hasNewMessage ? '<span class="w-2 h-2 bg-red-500 rounded-full notification-badge"></span>' : ''}
+                        </div>
                         <span class="text-xs font-bold px-2 py-1 rounded" style="background-color: ${chanceColor}20; color: ${chanceColor};">
                             ${jobChance}%
                         </span>
@@ -1073,6 +1124,7 @@
                         <span>👍 ${candidate.goodResponses || 0}</span>
                         <span>👎 ${candidate.poorResponses || 0}</span>
                     </div>
+                    ${hasNewMessage ? '<p class="text-xs text-red-600 font-semibold mt-1">💬 New Message!</p>' : ''}
                 </div>
             `;
             }).join('');
@@ -1080,6 +1132,11 @@
 
         function openChat(candidateId, candidateName) {
             currentChatUser = { id: candidateId, name: candidateName };
+            
+            // Mark messages as read by admin
+            database.ref(`candidates/${candidateId}`).update({
+                hasNewMessage: false
+            });
             
             // Load chat messages
             database.ref(`chats/${candidateId}`).on('value', (snapshot) => {
@@ -1318,6 +1375,114 @@
             showSection('chat');
             openChat(candidateId, candidateName);
         }
+
+        // Candidate Chat Functions
+        function openCandidateChat() {
+            if (!currentCandidate) {
+                showToast('❌ No candidate data found', 'error');
+                return;
+            }
+            
+            document.getElementById('successScreen').classList.add('hidden');
+            document.getElementById('candidateChatScreen').classList.remove('hidden');
+            
+            // Load existing chat messages
+            loadCandidateChat();
+            
+            // Send welcome message from admin
+            setTimeout(() => {
+                sendWelcomeMessage();
+            }, 1000);
+        }
+
+        function closeCandidateChat() {
+            document.getElementById('candidateChatScreen').classList.add('hidden');
+            document.getElementById('successScreen').classList.remove('hidden');
+        }
+
+        function loadCandidateChat() {
+            if (!currentCandidate) return;
+            
+            database.ref(`chats/${currentCandidate.id}`).on('value', (snapshot) => {
+                const messages = snapshot.val();
+                displayCandidateChatMessages(messages);
+            });
+        }
+
+        function displayCandidateChatMessages(messages) {
+            const chatMessages = document.getElementById('candidateChatMessages');
+            
+            if (!messages) {
+                chatMessages.innerHTML = `
+                    <div class="text-center text-gray-500">
+                        <p class="mb-2">👋 Welcome ${currentCandidate.name}!</p>
+                        <p class="text-sm">Our team will respond to your messages soon.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const messagesArray = Object.entries(messages).map(([id, data]) => ({ id, ...data }));
+            
+            chatMessages.innerHTML = messagesArray.map(message => `
+                <div class="chat-message ${message.sender === 'candidate' ? 'ml-auto bg-blue-100' : 'mr-auto bg-gray-100'} p-3 rounded-lg mb-2">
+                    <div class="flex justify-between items-start mb-1">
+                        <p class="text-xs font-semibold ${message.sender === 'candidate' ? 'text-blue-700' : 'text-gray-700'}">
+                            ${message.sender === 'candidate' ? 'You' : (message.senderName || 'Dozera Team')}
+                        </p>
+                        <p class="text-xs text-gray-500">${new Date(message.timestamp).toLocaleTimeString()}</p>
+                    </div>
+                    <p class="text-sm">${message.text}</p>
+                </div>
+            `).join('');
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendCandidateMessage() {
+            const chatInput = document.getElementById('candidateChatInput');
+            const messageText = chatInput.value.trim();
+            
+            if (!messageText || !currentCandidate) return;
+
+            try {
+                await database.ref(`chats/${currentCandidate.id}`).push({
+                    text: messageText,
+                    sender: 'candidate',
+                    senderName: currentCandidate.name,
+                    senderEmail: currentCandidate.email,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                chatInput.value = '';
+                showToast('Message sent!', 'success');
+                
+                // Notify admin about new message
+                await database.ref(`candidates/${currentCandidate.id}`).update({
+                    hasNewMessage: true,
+                    lastMessageAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showToast('Error sending message', 'error');
+            }
+        }
+
+        async function sendWelcomeMessage() {
+            if (!currentCandidate) return;
+            
+            try {
+                await database.ref(`chats/${currentCandidate.id}`).push({
+                    text: `Hello ${currentCandidate.name}! 👋 Welcome to Dozera Careers. Thank you for your application. Our HR team has received your details and will review them shortly. Feel free to ask any questions about the job process!`,
+                    sender: 'admin',
+                    senderName: 'Dozera HR Team',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+            } catch (error) {
+                console.error('Error sending welcome message:', error);
+            }
+        }
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98be653f95ed2e8f',t:'MTc2MDAxODMzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98be6f8974bfa5d3',t:'MTc2MDAxODc1Ny4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
