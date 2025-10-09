@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dozera Careers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage-compat.js"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --dozera-blue: #0044ff;
+            --dozera-silver: #c0c0c0;
+        }
+        
+        .neumorphism {
+            background: #f0f0f0;
+            border-radius: 20px;
+            box-shadow: 20px 20px 60px #bebebe, -20px -20px 60px #ffffff;
+        }
+        
+        .neumorphism-inset {
+            background: #f0f0f0;
+            border-radius: 15px;
+            box-shadow: inset 8px 8px 16px #bebebe, inset -8px -8px 16px #ffffff;
+        }
+        
+        .loading-spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid var(--dozera-blue);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .notification-badge {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--dozera-blue);
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .chat-message {
+            max-width: 70%;
+            word-wrap: break-word;
+            margin-bottom: 10px;
+        }
+        
+        .ai-enhanced {
+            background: linear-gradient(45deg, #e6f3ff, #f0f8ff);
+            border-left: 4px solid var(--dozera-blue);
+        }
+        
+        .dark-mode {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+        
+        .dark-mode .neumorphism {
+            background: #2d2d2d;
+            box-shadow: 20px 20px 60px #1a1a1a, -20px -20px 60px #404040;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--dozera-blue);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 68, 255, 0.3);
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+        
+        .secret-access {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 30px;
+            height: 30px;
+            background: transparent;
+            cursor: pointer;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body class="min-h-full" id="mainBody">
+    <!-- Secret Admin Access -->
+    <div class="secret-access" onclick="checkSecretAccess()" title="Admin Access"></div>
+    
+    <!-- Dark Mode Toggle -->
+    <button onclick="toggleDarkMode()" class="fixed top-4 right-4 z-50 p-2 rounded-full neumorphism">
+        <span id="darkModeIcon">🌙</span>
+    </button>
+
+    <!-- Main Container -->
+    <div class="min-h-full flex items-center justify-center p-4" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+        
+        <!-- Landing Page -->
+        <div id="landingPage" class="neumorphism w-full max-w-md overflow-hidden">
+            
+            <!-- Header -->
+            <div class="p-6 text-center" style="background: linear-gradient(135deg, var(--dozera-blue), #0066ff);">
+                <h1 class="text-3xl font-bold text-white mb-2 cursor-pointer hover:scale-105 transition-transform" onclick="dozeraClick()">Dozera Careers</h1>
+                <p class="text-blue-100">Your Career, Our Priority</p>
+            </div>
+
+            <!-- Candidate Registration Form -->
+            <div id="candidateForm" class="p-6">
+                <h2 class="text-2xl font-semibold text-gray-800 mb-6 text-center">Registration Form</h2>
+                
+                <form onsubmit="submitCandidateForm(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+                        <input type="text" id="candidateName" required 
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Enter your full name">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Age *</label>
+                        <input type="number" id="candidateAge" required min="18" max="65"
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Your age">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email *</label>
+                        <input type="email" id="candidateEmail" required
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="example@email.com">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+                        <input type="tel" id="candidatePhone" required
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="+1 234-567-8900">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Resume Upload (PDF/Image)</label>
+                        <input type="file" id="candidateResume" accept=".pdf,.jpg,.jpeg,.png"
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tell us about yourself</label>
+                        <textarea id="candidateMessage" rows="3"
+                                  class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Write your introduction and experience..."></textarea>
+                        <button type="button" onclick="enhanceMessageWithAI()" 
+                                class="mt-2 text-sm bg-purple-100 text-purple-700 px-3 py-1 rounded-full hover:bg-purple-200 transition-colors">
+                            ✨ Enhance message with AI
+                        </button>
+                    </div>
+                    
+                    <button type="submit" 
+                            class="w-full text-white py-3 px-6 rounded-lg font-semibold transition-all duration-300 transform hover:scale-105 neumorphism"
+                            style="background: linear-gradient(135deg, var(--dozera-blue), #0066ff);">
+                        Connect to Team
+                    </button>
+                </form>
+            </div>
+
+            <!-- Loading Screen -->
+            <div id="loadingScreen" class="hidden p-6 text-center">
+                <div class="loading-spinner mx-auto mb-4"></div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Connecting...</h3>
+                <p class="text-gray-600">Please wait, connecting to our team</p>
+            </div>
+
+            <!-- Success Screen -->
+            <div id="successScreen" class="hidden p-6 text-center">
+                <div class="text-6xl mb-4">✅</div>
+                <h3 class="text-xl font-semibold text-gray-800 mb-2">Successfully Registered!</h3>
+                <p class="text-gray-600 mb-4">Our team will contact you soon</p>
+                <div id="candidateStatus" class="neumorphism-inset p-4 mb-4">
+                    <h4 class="font-semibold text-gray-800 mb-2">Your Status:</h4>
+                    <div id="statusDetails">
+                        <p class="text-yellow-600">📅 Status: Pending Review</p>
+                    </div>
+                </div>
+                <button onclick="resetForm()" 
+                        class="neumorphism text-blue-600 px-6 py-2 rounded-lg hover:scale-105 transition-transform">
+                    New Registration
+                </button>
+            </div>
+        </div>
+
+        <!-- Admin Panel -->
+        <div id="adminPanel" class="hidden neumorphism w-full max-w-6xl max-h-full overflow-hidden">
+            
+            <!-- Admin Login -->
+            <div id="adminLogin" class="p-6">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">Admin Panel - Team Access Dashboard</h2>
+                
+                <!-- Regular Admin Login -->
+                <form id="regularAdminForm" onsubmit="adminLoginSubmit(event)" class="max-w-sm mx-auto">
+                    <div class="mb-4">
+                        <input type="email" id="adminEmail" required
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Admin Email">
+                    </div>
+                    <div class="mb-6">
+                        <input type="password" id="adminPassword" required
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                               placeholder="Password">
+                    </div>
+                    <button type="submit" 
+                            class="w-full text-white py-3 rounded-lg font-semibold transition-colors neumorphism"
+                            style="background: linear-gradient(135deg, #dc2626, #ef4444);">
+                        Login to Dashboard
+                    </button>
+                </form>
+                
+                <!-- Special Admin Login (Hidden by default) -->
+                <form id="specialAdminForm" onsubmit="specialAdminLogin(event)" class="max-w-sm mx-auto hidden">
+                    <div class="text-center mb-4">
+                        <div class="text-4xl mb-2">🔐</div>
+                        <h3 class="text-lg font-semibold text-purple-800">Special Admin Access</h3>
+                        <p class="text-sm text-purple-600">Enter the special code</p>
+                    </div>
+                    <div class="mb-6">
+                        <input type="password" id="specialCode" required
+                               class="w-full px-4 py-3 neumorphism-inset border-0 focus:outline-none focus:ring-2 focus:ring-purple-500 text-center text-2xl tracking-widest"
+                               placeholder="****"
+                               maxlength="4">
+                    </div>
+                    <button type="submit" 
+                            class="w-full text-white py-3 rounded-lg font-semibold transition-colors neumorphism"
+                            style="background: linear-gradient(135deg, #7c3aed, #a855f7);">
+                        🚀 Super Admin Access
+                    </button>
+                    <button type="button" onclick="cancelSpecialLogin()" 
+                            class="w-full mt-2 text-gray-600 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        Cancel
+                    </button>
+                </form>
+                
+                <button onclick="closeAdminPanel()" 
+                        class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 text-2xl">×</button>
+            </div>
+
+            <!-- Admin Dashboard -->
+            <div id="adminDashboard" class="hidden">
+                <div class="text-white p-4 flex justify-between items-center" style="background: linear-gradient(135deg, var(--dozera-blue), #0066ff);">
+                    <h2 class="text-xl font-bold">Dozera Admin Dashboard</h2>
+                    <div class="flex items-center space-x-4">
+                        <div class="notification-badge bg-yellow-400 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
+                            <span id="notificationCount">0</span> New Applications
+                        </div>
+                        <button onclick="closeAdminPanel()" class="text-white hover:text-gray-200 text-2xl">×</button>
+                    </div>
+                </div>
+                
+                <div class="flex">
+                    <!-- Sidebar -->
+                    <div class="w-1/4 bg-gray-100 p-4">
+                        <div class="space-y-2">
+                            <button onclick="showSection('candidates')" class="w-full text-left p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                                👥 Candidates
+                            </button>
+                            <button onclick="showSection('chat')" class="w-full text-left p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                                💬 Chat System
+                            </button>
+                            <button onclick="showSection('posts')" class="w-full text-left p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                                📝 Posts & Images
+                            </button>
+                            <button onclick="showSection('ai-assistant')" class="w-full text-left p-3 rounded-lg hover:bg-blue-100 transition-colors">
+                                🤖 AI Assistant
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Main Content -->
+                    <div class="flex-1 p-6 max-h-96 overflow-y-auto">
+                        
+                        <!-- Candidates Section -->
+                        <div id="candidatesSection" class="section-content">
+                            <h3 class="text-xl font-semibold mb-4">Candidate Management</h3>
+                            <div id="candidatesList" class="space-y-4">
+                                <p class="text-gray-500 text-center">No applications found</p>
+                            </div>
+                        </div>
+                        
+                        <!-- Chat Section -->
+                        <div id="chatSection" class="section-content hidden">
+                            <h3 class="text-xl font-semibold mb-4">Chat with Candidates</h3>
+                            <div class="flex">
+                                <div class="w-1/3 border-r pr-4">
+                                    <h4 class="font-medium mb-2">Active Chats</h4>
+                                    <div id="chatList" class="space-y-2">
+                                        <p class="text-gray-500 text-sm">No active chats</p>
+                                    </div>
+                                </div>
+                                <div class="flex-1 pl-4">
+                                    <div id="chatMessages" class="h-64 border rounded-lg p-4 mb-4 overflow-y-auto bg-gray-50">
+                                        <p class="text-gray-500 text-center">Select a chat to start messaging</p>
+                                    </div>
+                                    <div class="flex">
+                                        <input type="text" id="chatInput" placeholder="Type your message..." 
+                                               class="flex-1 px-3 py-2 border rounded-l-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <button onclick="sendMessage()" 
+                                                class="px-4 py-2 bg-blue-600 text-white rounded-r-lg hover:bg-blue-700 transition-colors">
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Posts Section -->
+                        <div id="postsSection" class="section-content hidden">
+                            <h3 class="text-xl font-semibold mb-4">Posts & Image Sharing</h3>
+                            <div class="mb-4">
+                                <textarea id="postContent" rows="3" placeholder="Write a post for candidates..." 
+                                          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                <div class="flex justify-between items-center mt-2">
+                                    <input type="file" id="postImage" accept="image/*" class="text-sm">
+                                    <button onclick="createPost()" 
+                                            class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                                        📝 Create Post
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="postsList" class="space-y-4">
+                                <p class="text-gray-500 text-center">No posts yet</p>
+                            </div>
+                        </div>
+                        
+                        <!-- AI Assistant Section -->
+                        <div id="aiSection" class="section-content hidden">
+                            <h3 class="text-xl font-semibold mb-4">🤖 Dozera AI Assistant</h3>
+                            <div class="space-y-4">
+                                <div class="neumorphism-inset p-4">
+                                    <h4 class="font-medium mb-2">Message Improvement</h4>
+                                    <textarea id="aiInputText" rows="3" placeholder="Enter text to improve..." 
+                                              class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                    <button onclick="improveTextWithAI()" 
+                                            class="mt-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors">
+                                        ✨ Improve with AI
+                                    </button>
+                                    <div id="aiImprovedText" class="mt-3 p-3 bg-purple-50 rounded-lg hidden">
+                                        <h5 class="font-medium text-purple-800 mb-2">Improved Text:</h5>
+                                        <p id="improvedTextContent" class="text-purple-700"></p>
+                                    </div>
+                                </div>
+                                
+                                <div class="neumorphism-inset p-4">
+                                    <h4 class="font-medium mb-2">Auto Reply Generator</h4>
+                                    <select id="replyType" class="w-full px-3 py-2 border rounded-lg mb-2">
+                                        <option value="welcome">Welcome Message</option>
+                                        <option value="interview">Interview Invitation</option>
+                                        <option value="rejection">Polite Rejection</option>
+                                        <option value="followup">Follow-up Message</option>
+                                    </select>
+                                    <button onclick="generateAutoReply()" 
+                                            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                        🤖 Generate Reply
+                                    </button>
+                                    <div id="generatedReply" class="mt-3 p-3 bg-blue-50 rounded-lg hidden">
+                                        <h5 class="font-medium text-blue-800 mb-2">Generated Reply:</h5>
+                                        <p id="replyContent" class="text-blue-700"></p>
+                                        <button onclick="useGeneratedReply()" 
+                                                class="mt-2 px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition-colors">
+                                            Use This Reply
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const auth = firebase.auth();
+        const storage = firebase.storage();
+
+        // Global variables
+        let currentAdmin = null;
+        let currentChatUser = null;
+        let secretClickCount = 0;
+        let dozeraClickCount = 0;
+        let specialAdminMode = false;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCandidatesRealtime();
+            updateNotificationCount();
+        });
+
+        // Dark Mode Toggle
+        function toggleDarkMode() {
+            const body = document.getElementById('mainBody');
+            const icon = document.getElementById('darkModeIcon');
+            
+            body.classList.toggle('dark-mode');
+            icon.textContent = body.classList.contains('dark-mode') ? '☀️' : '🌙';
+        }
+
+        // Secret Access
+        function checkSecretAccess() {
+            secretClickCount++;
+            if (secretClickCount >= 3) {
+                showToast('🔓 Admin access unlocked!');
+                setTimeout(() => {
+                    document.getElementById('landingPage').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                }, 1000);
+                secretClickCount = 0;
+            } else {
+                showToast(`Click ${3 - secretClickCount} more times for admin access`);
+            }
+        }
+
+        // Dozera Click Function
+        function dozeraClick() {
+            dozeraClickCount++;
+            
+            if (dozeraClickCount === 5) {
+                specialAdminMode = true;
+                showToast('🔥 Special admin mode activated! Enter admin panel now.', 'success');
+                // Auto-open admin panel
+                setTimeout(() => {
+                    document.getElementById('landingPage').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    // Show special login form
+                    document.getElementById('regularAdminForm').classList.add('hidden');
+                    document.getElementById('specialAdminForm').classList.remove('hidden');
+                }, 1000);
+                dozeraClickCount = 0;
+            } else if (dozeraClickCount < 5) {
+                showToast(`✨ ${dozeraClickCount}/5 clicks - Keep clicking Dozera!`);
+            }
+            
+            // Reset counter after 10 seconds of inactivity
+            setTimeout(() => {
+                if (dozeraClickCount < 5) {
+                    dozeraClickCount = 0;
+                }
+            }, 10000);
+        }
+
+        // Special Admin Login
+        async function specialAdminLogin(event) {
+            event.preventDefault();
+            
+            const specialCode = document.getElementById('specialCode').value;
+            
+            if (specialCode === '7777') {
+                currentAdmin = { 
+                    email: 'superadmin@dozera.com', 
+                    name: 'Super Admin',
+                    level: 'super'
+                };
+                
+                document.getElementById('adminLogin').classList.add('hidden');
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                
+                showToast('🚀 Super Admin access granted!', 'success');
+                showToast('🎉 Welcome Super Admin! You have full access.', 'success');
+                
+                loadCandidatesRealtime();
+                specialAdminMode = false;
+            } else {
+                showToast('❌ Invalid special code! Try again.', 'error');
+                document.getElementById('specialCode').value = '';
+                
+                // Shake animation for wrong code
+                const form = document.getElementById('specialAdminForm');
+                form.style.animation = 'shake 0.5s';
+                setTimeout(() => {
+                    form.style.animation = '';
+                }, 500);
+            }
+        }
+
+        // Cancel Special Login
+        function cancelSpecialLogin() {
+            document.getElementById('regularAdminForm').classList.remove('hidden');
+            document.getElementById('specialAdminForm').classList.add('hidden');
+            document.getElementById('specialCode').value = '';
+            specialAdminMode = false;
+            showToast('Switched back to regular login');
+        }
+
+        // Toast Notifications
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            
+            if (type === 'success') toast.style.background = '#10b981';
+            if (type === 'error') toast.style.background = '#ef4444';
+            
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.classList.add('show'), 100);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+            
+            // Play notification sound
+            playNotificationSound();
+        }
+
+        function playNotificationSound() {
+            // Create audio context for notification sound
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = 800;
+            oscillator.type = 'sine';
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        // Candidate Form Submission
+        async function submitCandidateForm(event) {
+            event.preventDefault();
+            
+            // Show loading
+            document.getElementById('candidateForm').classList.add('hidden');
+            document.getElementById('loadingScreen').classList.remove('hidden');
+
+            const candidateData = {
+                name: document.getElementById('candidateName').value,
+                age: document.getElementById('candidateAge').value,
+                email: document.getElementById('candidateEmail').value,
+                phone: document.getElementById('candidatePhone').value,
+                message: document.getElementById('candidateMessage').value,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                status: 'pending',
+                jobTitle: null,
+                assignedOfficer: null
+            };
+
+            try {
+                // Handle resume upload
+                const resumeFile = document.getElementById('candidateResume').files[0];
+                if (resumeFile) {
+                    const resumeRef = storage.ref(`resumes/${Date.now()}_${resumeFile.name}`);
+                    const snapshot = await resumeRef.put(resumeFile);
+                    candidateData.resumeUrl = await snapshot.ref.getDownloadURL();
+                }
+
+                // Save to Firebase
+                const candidateRef = await database.ref('candidates').push(candidateData);
+                candidateData.id = candidateRef.key;
+
+                // Show success
+                setTimeout(() => {
+                    document.getElementById('loadingScreen').classList.add('hidden');
+                    document.getElementById('successScreen').classList.remove('hidden');
+                    showToast('✅ Application submitted successfully!', 'success');
+                    
+                    // Monitor status changes
+                    monitorCandidateStatus(candidateRef.key);
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error submitting application:', error);
+                showToast('❌ Error submitting application', 'error');
+                document.getElementById('loadingScreen').classList.add('hidden');
+                document.getElementById('candidateForm').classList.remove('hidden');
+            }
+        }
+
+        // Monitor candidate status changes
+        function monitorCandidateStatus(candidateId) {
+            database.ref(`candidates/${candidateId}`).on('value', (snapshot) => {
+                const candidate = snapshot.val();
+                if (candidate && candidate.status !== 'pending') {
+                    updateCandidateStatusDisplay(candidate);
+                }
+            });
+        }
+
+        function updateCandidateStatusDisplay(candidate) {
+            const statusDetails = document.getElementById('statusDetails');
+            let statusHTML = '';
+            
+            switch (candidate.status) {
+                case 'approved':
+                    statusHTML = `
+                        <p class="text-green-600">✅ Status: Approved</p>
+                        <p class="text-blue-600">👨‍💼 Job Title: ${candidate.jobTitle || 'To be assigned'}</p>
+                        <p class="text-purple-600">👤 Officer: ${candidate.assignedOfficer || 'To be assigned'}</p>
+                    `;
+                    showToast('🎉 Congratulations! Your application has been approved!', 'success');
+                    break;
+                case 'interview':
+                    statusHTML = `
+                        <p class="text-blue-600">📅 Status: Interview Scheduled</p>
+                        <p class="text-gray-600">Please check your email for details</p>
+                    `;
+                    showToast('📅 Interview scheduled! Check your email.', 'info');
+                    break;
+                case 'rejected':
+                    statusHTML = `
+                        <p class="text-red-600">❌ Status: Not selected this time</p>
+                        <p class="text-gray-600">Thank you for your interest</p>
+                    `;
+                    break;
+            }
+            
+            statusDetails.innerHTML = statusHTML;
+        }
+
+        // AI Message Enhancement
+        function enhanceMessageWithAI() {
+            const messageField = document.getElementById('candidateMessage');
+            const currentMessage = messageField.value.trim();
+            
+            if (!currentMessage) {
+                showToast('Please write something first, then enhance with AI', 'error');
+                return;
+            }
+
+            // Simulate AI enhancement
+            const enhancedMessages = [
+                `I am ${document.getElementById('candidateName').value || '[Name]'} and I am very excited to apply for this opportunity. ${currentMessage} I am ready to make a significant contribution to your team with my skills and dedication. I believe in facing challenges and continuous learning.`,
+                `Hello, I am a motivated and goal-oriented individual. ${currentMessage} I believe in teamwork and always strive to deliver quality results. I am eager to build a successful and long-term career with your company.`,
+                `I am a skilled and experienced professional who believes in innovation and excellence. ${currentMessage} I am committed to turning challenges into opportunities and contributing to achieving organizational goals.`
+            ];
+
+            const randomEnhanced = enhancedMessages[Math.floor(Math.random() * enhancedMessages.length)];
+            messageField.value = randomEnhanced;
+            messageField.classList.add('ai-enhanced');
+            
+            showToast('✨ Message enhanced with AI!', 'success');
+        }
+
+        // Reset Form
+        function resetForm() {
+            document.getElementById('successScreen').classList.add('hidden');
+            document.getElementById('candidateForm').classList.remove('hidden');
+            document.querySelector('form').reset();
+            document.getElementById('candidateMessage').classList.remove('ai-enhanced');
+        }
+
+        // Admin Panel Functions
+        function closeAdminPanel() {
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('landingPage').classList.remove('hidden');
+            document.getElementById('adminLogin').classList.remove('hidden');
+            document.getElementById('adminDashboard').classList.add('hidden');
+            
+            // Reset login forms
+            document.getElementById('regularAdminForm').classList.remove('hidden');
+            document.getElementById('specialAdminForm').classList.add('hidden');
+            document.getElementById('specialCode').value = '';
+            
+            currentAdmin = null;
+            specialAdminMode = false;
+            dozeraClickCount = 0;
+        }
+
+        async function adminLoginSubmit(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('adminEmail').value;
+            const password = document.getElementById('adminPassword').value;
+            
+            try {
+                // For demo purposes, allow admin@dozera.com with password 'admin123'
+                if (email === 'admin@dozera.com' && password === 'admin123') {
+                    currentAdmin = { email: email, name: 'HR Manager' };
+                    document.getElementById('adminLogin').classList.add('hidden');
+                    document.getElementById('adminDashboard').classList.remove('hidden');
+                    showToast('✅ Admin login successful!', 'success');
+                    loadCandidatesRealtime();
+                } else {
+                    // Try Firebase Auth
+                    const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                    currentAdmin = { email: email, name: 'Admin User' };
+                    document.getElementById('adminLogin').classList.add('hidden');
+                    document.getElementById('adminDashboard').classList.remove('hidden');
+                    showToast('✅ Admin login successful!', 'success');
+                    loadCandidatesRealtime();
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast('❌ Invalid credentials', 'error');
+            }
+        }
+
+        // Load candidates with real-time updates
+        function loadCandidatesRealtime() {
+            database.ref('candidates').on('value', (snapshot) => {
+                const candidates = snapshot.val();
+                displayCandidates(candidates);
+                updateNotificationCount();
+                updateChatList(candidates);
+            });
+        }
+
+        function displayCandidates(candidates) {
+            const candidatesList = document.getElementById('candidatesList');
+            
+            if (!candidates) {
+                candidatesList.innerHTML = '<p class="text-gray-500 text-center">कोई आवेदन नहीं मिला</p>';
+                return;
+            }
+
+            const candidatesArray = Object.entries(candidates).map(([id, data]) => ({ id, ...data }));
+            
+            candidatesList.innerHTML = candidatesArray.map(candidate => {
+                const jobChance = calculateJobChance(candidate);
+                const chanceColor = getChanceColor(jobChance);
+                const chanceText = getChanceText(jobChance);
+                
+                return `
+                <div class="neumorphism-inset p-4 ${candidate.status === 'pending' ? 'border-l-4 border-yellow-400' : ''}">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="font-semibold text-lg">${candidate.name}</h3>
+                        <span class="text-sm text-gray-500">${new Date(candidate.timestamp).toLocaleString('en-US')}</span>
+                    </div>
+                    
+                    <!-- Job Chance Indicator -->
+                    <div class="mb-4 p-3 rounded-lg border-2" style="border-color: ${chanceColor}; background: ${chanceColor}15;">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="font-semibold text-sm">🎯 Job Chance: ${chanceText}</span>
+                            <div class="flex items-center space-x-1">
+                                <button onclick="adjustChance('${candidate.id}', -10)" 
+                                        class="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600">-</button>
+                                <span class="font-bold text-lg" style="color: ${chanceColor};">${jobChance}%</span>
+                                <button onclick="adjustChance('${candidate.id}', 10)" 
+                                        class="bg-green-500 text-white px-2 py-1 rounded text-xs hover:bg-green-600">+</button>
+                            </div>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full transition-all duration-500" 
+                                 style="width: ${jobChance}%; background-color: ${chanceColor};"></div>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-600 mt-1">
+                            <span>Poor Responses: ${candidate.poorResponses || 0}</span>
+                            <span>Good Responses: ${candidate.goodResponses || 0}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2 text-sm text-gray-600 mb-3">
+                        <p><strong>Age:</strong> ${candidate.age}</p>
+                        <p><strong>Phone:</strong> ${candidate.phone}</p>
+                        <p class="col-span-2"><strong>Email:</strong> ${candidate.email}</p>
+                        ${candidate.resumeUrl ? `<p class="col-span-2"><strong>Resume:</strong> <a href="${candidate.resumeUrl}" target="_blank" class="text-blue-600 hover:underline">View Resume</a></p>` : ''}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <p class="text-sm font-medium text-gray-700 mb-1">Message:</p>
+                        <div contenteditable="true" id="message-${candidate.id}" 
+                             class="text-sm text-gray-600 bg-white border border-gray-200 rounded p-2 min-h-16"
+                             onblur="updateCandidateMessage('${candidate.id}', this.textContent)">${candidate.message || 'No message'}</div>
+                    </div>
+                    
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <button onclick="approveCandidate('${candidate.id}')" 
+                                class="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors">
+                            ✅ Approve
+                        </button>
+                        <button onclick="scheduleInterview('${candidate.id}')" 
+                                class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 transition-colors">
+                            📅 Interview
+                        </button>
+                        <button onclick="rejectCandidate('${candidate.id}')" 
+                                class="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors">
+                            ❌ Reject
+                        </button>
+                        <button onclick="assignJob('${candidate.id}')" 
+                                class="bg-purple-600 text-white px-3 py-1 rounded text-sm hover:bg-purple-700 transition-colors">
+                            💼 Assign Job
+                        </button>
+                        <button onclick="startChat('${candidate.id}', '${candidate.name}')" 
+                                class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700 transition-colors">
+                            💬 Chat
+                        </button>
+                        <button onclick="highlightCandidate('${candidate.id}')" 
+                                class="bg-yellow-500 text-white px-3 py-1 rounded text-sm hover:bg-yellow-600 transition-colors">
+                            ⭐ Highlight
+                        </button>
+                    </div>
+                    
+                    ${candidate.status !== 'pending' ? `
+                        <div class="bg-gray-100 border border-gray-300 rounded p-2">
+                            <p class="text-sm"><strong>Status:</strong> ${candidate.status}</p>
+                            ${candidate.jobTitle ? `<p class="text-sm"><strong>Job:</strong> ${candidate.jobTitle}</p>` : ''}
+                            ${candidate.assignedOfficer ? `<p class="text-sm"><strong>Officer:</strong> ${candidate.assignedOfficer}</p>` : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            }).join('');
+        }
+
+        // Job Chance System Functions
+        function calculateJobChance(candidate) {
+            let baseChance = candidate.manualChance || 75; // Default 75%
+            
+            const poorResponses = candidate.poorResponses || 0;
+            const goodResponses = candidate.goodResponses || 0;
+            
+            // Decrease chance for poor responses (5% per poor response)
+            baseChance -= (poorResponses * 5);
+            
+            // Increase chance for good responses (3% per good response)
+            baseChance += (goodResponses * 3);
+            
+            // Keep within 0-100 range
+            return Math.max(0, Math.min(100, baseChance));
+        }
+
+        function getChanceColor(chance) {
+            if (chance >= 80) return '#10b981'; // Green
+            if (chance >= 60) return '#f59e0b'; // Yellow
+            if (chance >= 40) return '#f97316'; // Orange
+            return '#ef4444'; // Red
+        }
+
+        function getChanceText(chance) {
+            if (chance >= 80) return 'Excellent';
+            if (chance >= 60) return 'Good';
+            if (chance >= 40) return 'Average';
+            return 'Poor';
+        }
+
+        async function adjustChance(candidateId, adjustment) {
+            try {
+                const candidateRef = database.ref(`candidates/${candidateId}`);
+                const snapshot = await candidateRef.once('value');
+                const candidate = snapshot.val();
+                
+                const currentManualChance = candidate.manualChance || 75;
+                const newChance = Math.max(0, Math.min(100, currentManualChance + adjustment));
+                
+                await candidateRef.update({
+                    manualChance: newChance,
+                    lastAdjustedBy: currentAdmin.name,
+                    lastAdjustedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                showToast(`Job chance ${adjustment > 0 ? 'increased' : 'decreased'} to ${newChance}%`, 'success');
+            } catch (error) {
+                console.error('Error adjusting chance:', error);
+                showToast('Error adjusting chance', 'error');
+            }
+        }
+
+        async function markResponseQuality(candidateId, isGood) {
+            try {
+                const candidateRef = database.ref(`candidates/${candidateId}`);
+                const snapshot = await candidateRef.once('value');
+                const candidate = snapshot.val();
+                
+                if (isGood) {
+                    await candidateRef.update({
+                        goodResponses: (candidate.goodResponses || 0) + 1
+                    });
+                    showToast('✅ Good response marked!', 'success');
+                } else {
+                    await candidateRef.update({
+                        poorResponses: (candidate.poorResponses || 0) + 1
+                    });
+                    showToast('❌ Poor response marked!', 'info');
+                }
+            } catch (error) {
+                console.error('Error marking response quality:', error);
+                showToast('Error marking response', 'error');
+            }
+        }
+
+        // Candidate Management Functions
+        async function updateCandidateMessage(candidateId, newMessage) {
+            try {
+                await database.ref(`candidates/${candidateId}/message`).set(newMessage);
+                showToast('Message updated successfully', 'success');
+            } catch (error) {
+                console.error('Error updating message:', error);
+                showToast('Error updating message', 'error');
+            }
+        }
+
+        async function approveCandidate(candidateId) {
+            try {
+                await database.ref(`candidates/${candidateId}`).update({
+                    status: 'approved',
+                    assignedOfficer: currentAdmin.name,
+                    approvedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                showToast('Candidate approved successfully!', 'success');
+            } catch (error) {
+                console.error('Error approving candidate:', error);
+                showToast('Error approving candidate', 'error');
+            }
+        }
+
+        async function scheduleInterview(candidateId) {
+            try {
+                await database.ref(`candidates/${candidateId}`).update({
+                    status: 'interview',
+                    interviewScheduledBy: currentAdmin.name,
+                    interviewScheduledAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                showToast('Interview scheduled successfully!', 'success');
+            } catch (error) {
+                console.error('Error scheduling interview:', error);
+                showToast('Error scheduling interview', 'error');
+            }
+        }
+
+        async function rejectCandidate(candidateId) {
+            if (confirm('Are you sure you want to reject this candidate?')) {
+                try {
+                    await database.ref(`candidates/${candidateId}`).update({
+                        status: 'rejected',
+                        rejectedBy: currentAdmin.name,
+                        rejectedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    showToast('Candidate rejected', 'info');
+                } catch (error) {
+                    console.error('Error rejecting candidate:', error);
+                    showToast('Error rejecting candidate', 'error');
+                }
+            }
+        }
+
+        async function assignJob(candidateId) {
+            const jobTitle = prompt('Enter Job Title:');
+            if (!jobTitle) return;
+            
+            try {
+                await database.ref(`candidates/${candidateId}`).update({
+                    jobTitle: jobTitle,
+                    assignedOfficer: currentAdmin.name,
+                    jobAssignedAt: firebase.database.ServerValue.TIMESTAMP
+                });
+                showToast(`Job "${jobTitle}" assigned successfully!`, 'success');
+            } catch (error) {
+                console.error('Error assigning job:', error);
+                showToast('Error assigning job', 'error');
+            }
+        }
+
+        function highlightCandidate(candidateId) {
+            const candidateElement = document.querySelector(`#message-${candidateId}`).closest('.neumorphism-inset');
+            candidateElement.classList.add('ring-4', 'ring-yellow-400', 'bg-yellow-50');
+            setTimeout(() => {
+                candidateElement.classList.remove('ring-4', 'ring-yellow-400', 'bg-yellow-50');
+            }, 3000);
+            showToast('Candidate highlighted!', 'info');
+        }
+
+        function updateNotificationCount() {
+            database.ref('candidates').orderByChild('status').equalTo('pending').once('value', (snapshot) => {
+                const count = snapshot.numChildren();
+                const badge = document.getElementById('notificationCount');
+                if (badge) {
+                    badge.textContent = count;
+                }
+            });
+        }
+
+        // Section Navigation
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + 'Section').classList.remove('hidden');
+        }
+
+        // Chat System
+        function updateChatList(candidates) {
+            const chatList = document.getElementById('chatList');
+            if (!candidates) {
+                chatList.innerHTML = '<p class="text-gray-500 text-sm">No candidates available</p>';
+                return;
+            }
+
+            const candidatesArray = Object.entries(candidates).map(([id, data]) => ({ id, ...data }));
+            
+            chatList.innerHTML = candidatesArray.map(candidate => {
+                const jobChance = calculateJobChance(candidate);
+                const chanceColor = getChanceColor(jobChance);
+                
+                return `
+                <div onclick="openChat('${candidate.id}', '${candidate.name}')" 
+                     class="p-2 border rounded cursor-pointer hover:bg-blue-50 transition-colors">
+                    <div class="flex justify-between items-start mb-1">
+                        <p class="font-medium text-sm">${candidate.name}</p>
+                        <span class="text-xs font-bold px-2 py-1 rounded" style="background-color: ${chanceColor}20; color: ${chanceColor};">
+                            ${jobChance}%
+                        </span>
+                    </div>
+                    <p class="text-xs text-gray-500">${candidate.email}</p>
+                    <div class="flex justify-between text-xs text-gray-400 mt-1">
+                        <span>👍 ${candidate.goodResponses || 0}</span>
+                        <span>👎 ${candidate.poorResponses || 0}</span>
+                    </div>
+                </div>
+            `;
+            }).join('');
+        }
+
+        function openChat(candidateId, candidateName) {
+            currentChatUser = { id: candidateId, name: candidateName };
+            
+            // Load chat messages
+            database.ref(`chats/${candidateId}`).on('value', (snapshot) => {
+                const messages = snapshot.val();
+                displayChatMessages(messages);
+            });
+        }
+
+        function displayChatMessages(messages) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            if (!messages) {
+                chatMessages.innerHTML = `
+                    <p class="text-gray-500 text-center">Start conversation with ${currentChatUser.name}</p>
+                    <div class="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                        <h4 class="font-semibold text-yellow-800 mb-2">📊 Response Quality Control</h4>
+                        <div class="flex gap-2">
+                            <button onclick="markResponseQuality('${currentChatUser.id}', true)" 
+                                    class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
+                                👍 Good Response (+3%)
+                            </button>
+                            <button onclick="markResponseQuality('${currentChatUser.id}', false)" 
+                                    class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
+                                👎 Poor Response (-5%)
+                            </button>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const messagesArray = Object.entries(messages).map(([id, data]) => ({ id, ...data }));
+            
+            chatMessages.innerHTML = `
+                <div class="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <h4 class="font-semibold text-yellow-800 mb-2">📊 Response Quality Control</h4>
+                    <div class="flex gap-2">
+                        <button onclick="markResponseQuality('${currentChatUser.id}', true)" 
+                                class="bg-green-500 text-white px-3 py-1 rounded text-sm hover:bg-green-600">
+                            👍 Good Response (+3%)
+                        </button>
+                        <button onclick="markResponseQuality('${currentChatUser.id}', false)" 
+                                class="bg-red-500 text-white px-3 py-1 rounded text-sm hover:bg-red-600">
+                            👎 Poor Response (-5%)
+                        </button>
+                    </div>
+                </div>
+                ${messagesArray.map(message => `
+                    <div class="chat-message ${message.sender === 'admin' ? 'ml-auto bg-blue-100' : 'mr-auto bg-gray-100'} p-3 rounded-lg mb-2">
+                        <p class="text-sm">${message.text}</p>
+                        <p class="text-xs text-gray-500 mt-1">${new Date(message.timestamp).toLocaleTimeString()}</p>
+                        ${message.sender !== 'admin' ? `
+                            <div class="flex gap-1 mt-2">
+                                <button onclick="markResponseQuality('${currentChatUser.id}', true)" 
+                                        class="bg-green-400 text-white px-2 py-1 rounded text-xs hover:bg-green-500">
+                                    👍
+                                </button>
+                                <button onclick="markResponseQuality('${currentChatUser.id}', false)" 
+                                        class="bg-red-400 text-white px-2 py-1 rounded text-xs hover:bg-red-500">
+                                    👎
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            `;
+            
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const messageText = chatInput.value.trim();
+            
+            if (!messageText || !currentChatUser) return;
+
+            try {
+                await database.ref(`chats/${currentChatUser.id}`).push({
+                    text: messageText,
+                    sender: 'admin',
+                    senderName: currentAdmin.name,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                chatInput.value = '';
+                showToast('Message sent!', 'success');
+            } catch (error) {
+                console.error('Error sending message:', error);
+                showToast('Error sending message', 'error');
+            }
+        }
+
+        // Posts System
+        async function createPost() {
+            const postContent = document.getElementById('postContent').value.trim();
+            const postImageFile = document.getElementById('postImage').files[0];
+            
+            if (!postContent && !postImageFile) {
+                showToast('Please add content or image', 'error');
+                return;
+            }
+
+            try {
+                const postData = {
+                    content: postContent,
+                    author: currentAdmin.name,
+                    timestamp: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                if (postImageFile) {
+                    const imageRef = storage.ref(`posts/${Date.now()}_${postImageFile.name}`);
+                    const snapshot = await imageRef.put(postImageFile);
+                    postData.imageUrl = await snapshot.ref.getDownloadURL();
+                }
+
+                await database.ref('posts').push(postData);
+                
+                document.getElementById('postContent').value = '';
+                document.getElementById('postImage').value = '';
+                showToast('Post created successfully!', 'success');
+                loadPosts();
+            } catch (error) {
+                console.error('Error creating post:', error);
+                showToast('Error creating post', 'error');
+            }
+        }
+
+        function loadPosts() {
+            database.ref('posts').orderByChild('timestamp').on('value', (snapshot) => {
+                const posts = snapshot.val();
+                displayPosts(posts);
+            });
+        }
+
+        function displayPosts(posts) {
+            const postsList = document.getElementById('postsList');
+            
+            if (!posts) {
+                postsList.innerHTML = '<p class="text-gray-500 text-center">No posts yet</p>';
+                return;
+            }
+
+            const postsArray = Object.entries(posts).map(([id, data]) => ({ id, ...data })).reverse();
+            
+            postsList.innerHTML = postsArray.map(post => `
+                <div class="neumorphism-inset p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <h4 class="font-medium">${post.author}</h4>
+                        <span class="text-sm text-gray-500">${new Date(post.timestamp).toLocaleString()}</span>
+                    </div>
+                    ${post.content ? `<p class="text-gray-700 mb-3">${post.content}</p>` : ''}
+                    ${post.imageUrl ? `<img src="${post.imageUrl}" alt="Post image" class="w-full rounded-lg mb-3">` : ''}
+                    <div class="flex gap-2">
+                        <button onclick="deletePost('${post.id}')" 
+                                class="text-red-600 hover:text-red-800 text-sm">
+                            🗑️ Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function deletePost(postId) {
+            if (confirm('Delete this post?')) {
+                try {
+                    await database.ref(`posts/${postId}`).remove();
+                    showToast('Post deleted', 'info');
+                } catch (error) {
+                    console.error('Error deleting post:', error);
+                    showToast('Error deleting post', 'error');
+                }
+            }
+        }
+
+        // AI Assistant Functions
+        function improveTextWithAI() {
+            const inputText = document.getElementById('aiInputText').value.trim();
+            
+            if (!inputText) {
+                showToast('Please enter text to improve', 'error');
+                return;
+            }
+
+            // Simulate AI improvement
+            const improvements = [
+                `${inputText} इस संदेश को और भी प्रभावी बनाने के लिए, मैं यह सुझाव देता हूं कि हम इसमें अधिक व्यावसायिकता और स्पष्टता लाएं।`,
+                `आपका मूल संदेश: "${inputText}" को बेहतर बनाते हुए - यह एक उत्कृष्ट विचार है जो हमारी टीम के लक्ष्यों के साथ पूर्णतः मेल खाता है।`,
+                `${inputText} - इस विषय पर आपका दृष्टिकोण बहुत सराहनीय है। मैं इसे और भी प्रभावशाली बनाने के लिए कुछ अतिरिक्त सुझाव देना चाहूंगा।`
+            ];
+
+            const improvedText = improvements[Math.floor(Math.random() * improvements.length)];
+            
+            document.getElementById('improvedTextContent').textContent = improvedText;
+            document.getElementById('aiImprovedText').classList.remove('hidden');
+            showToast('✨ Text improved with AI!', 'success');
+        }
+
+        function generateAutoReply() {
+            const replyType = document.getElementById('replyType').value;
+            
+            const replies = {
+                welcome: "Hello! Welcome to Dozera Careers. We have received your application and our team is reviewing it. We will contact you soon.",
+                interview: "Congratulations! Your profile matches our requirements. We would like to invite you for an interview. Please let us know your convenient time.",
+                rejection: "Thank you for your application. At this time we cannot move forward with your profile, but we will contact you when suitable opportunities arise in the future.",
+                followup: "We hope you are doing well. We want to give you an update on the status of your application. Please contact us if you have any questions."
+            };
+
+            const generatedReply = replies[replyType];
+            document.getElementById('replyContent').textContent = generatedReply;
+            document.getElementById('generatedReply').classList.remove('hidden');
+            showToast('🤖 Auto reply generated!', 'success');
+        }
+
+        function useGeneratedReply() {
+            const replyContent = document.getElementById('replyContent').textContent;
+            const chatInput = document.getElementById('chatInput');
+            
+            if (chatInput) {
+                chatInput.value = replyContent;
+                showToast('Reply added to chat input!', 'success');
+                showSection('chat');
+            }
+        }
+
+        // Initialize posts loading when admin panel opens
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(() => {
+                if (currentAdmin) {
+                    loadPosts();
+                }
+            }, 1000);
+        });
+
+        // Start chat function
+        function startChat(candidateId, candidateName) {
+            showSection('chat');
+            openChat(candidateId, candidateName);
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98be653f95ed2e8f',t:'MTc2MDAxODMzNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
