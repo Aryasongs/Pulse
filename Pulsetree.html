@@ -279,6 +279,11 @@
                     Continue with Google
                 </button>
 
+                <!-- Demo Login Button -->
+                <button id="demoLoginBtn" class="w-full bg-purple-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-purple-700 transition-colors mb-4">
+                    🚀 Try Demo Mode
+                </button>
+
                 <p class="text-center text-white/60 text-sm">Quick and secure login with your Google account</p>
 
                 <div class="text-center mt-6">
@@ -871,9 +876,15 @@
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const database = firebase.database();
+        try {
+            firebase.initializeApp(firebaseConfig);
+            const auth = firebase.auth();
+            const database = firebase.database();
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            alert('Firebase connection failed. Please refresh the page.');
+        }
 
 
         // Global variables
@@ -919,6 +930,16 @@
             const pathUsername = window.location.pathname.split('/').pop();
             const username = urlParams.get('user') || hashUsername || pathUsername;
             
+            // Handle redirect result first
+            auth.getRedirectResult().then(result => {
+                if (result.user) {
+                    showSuccess('Google login successful! Welcome! 🎉');
+                    checkAndCreateUserProfile(result.user);
+                }
+            }).catch(error => {
+                console.error('Redirect result error:', error);
+            });
+
             // Check auth state
             auth.onAuthStateChanged(user => {
                 currentUser = user;
@@ -981,6 +1002,7 @@
             // Authentication event listeners
             document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
             document.getElementById('googleSignupBtn').addEventListener('click', signInWithGoogle);
+            document.getElementById('demoLoginBtn').addEventListener('click', demoLogin);
             document.getElementById('showSignupBtn').addEventListener('click', showSignupScreen);
             document.getElementById('showLoginBtn').addEventListener('click', showLoginScreen);
 
@@ -1572,7 +1594,16 @@
                 provider.addScope('email');
                 provider.addScope('profile');
                 
-                const result = await auth.signInWithPopup(provider);
+                // Try popup first, fallback to redirect
+                let result;
+                try {
+                    result = await auth.signInWithPopup(provider);
+                } catch (popupError) {
+                    console.log('Popup blocked, trying redirect...');
+                    await auth.signInWithRedirect(provider);
+                    return; // Redirect will handle the rest
+                }
+                
                 const user = result.user;
                 
                 if (user) {
@@ -1580,14 +1611,22 @@
                     
                     // Check if user has a profile, if not create one
                     await checkAndCreateUserProfile(user);
+                    
+                    // Navigate to appropriate view
+                    showDiscoveryView();
+                    loadDiscoveryContent();
+                    loadPosts();
                 }
             } catch (error) {
                 console.error('Google Sign-In error:', error);
                 if (error.code === 'auth/popup-closed-by-user') {
-                    // User closed popup, no need to show error
                     return;
                 }
-                alert('Google Sign-In failed: ' + error.message);
+                if (error.code === 'auth/popup-blocked') {
+                    alert('Popup blocked! Please allow popups for this site or try again.');
+                    return;
+                }
+                alert('Login failed: ' + error.message);
             }
         }
 
@@ -1644,15 +1683,151 @@
             return username;
         }
 
+        function demoLogin() {
+            // Create a demo user object
+            const demoUser = {
+                uid: 'demo-user-' + Date.now(),
+                displayName: 'Demo User',
+                email: 'demo@pulsetree.com',
+                photoURL: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23667eea\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3ED%3C/text%3E%3C/svg%3E'
+            };
+
+            // Set as current user
+            currentUser = demoUser;
+            
+            // Create demo profile
+            currentProfile = {
+                userId: demoUser.uid,
+                username: 'demouser',
+                name: 'Demo User',
+                bio: 'This is a demo account to explore Pulsetree features! 🚀',
+                email: demoUser.email,
+                imageUrl: demoUser.photoURL,
+                links: [
+                    { title: '🌐 Website', url: 'https://pulsetree.com' },
+                    { title: '📱 Instagram', url: 'https://instagram.com/pulsetree' }
+                ],
+                upiId: 'demo@paytm',
+                theme: 'purple',
+                category: 'tech',
+                privacy: {
+                    showUpiPublic: true,
+                    showTipCount: true,
+                    showRecentTips: true,
+                    hidePayerNames: false
+                },
+                createdAt: Date.now(),
+                updatedAt: Date.now()
+            };
+
+            showSuccess('Demo mode activated! Explore all features! 🎉');
+            updateAuthUI();
+            updateNavProfileImage(demoUser);
+            showDiscoveryView();
+            loadDemoContent();
+        }
+
         async function logout() {
             try {
-                await auth.signOut();
-                elements.settingsSection.classList.add('hidden');
-                showSuccess('Logged out successfully!');
-                showLoginScreen();
+                if (currentUser && currentUser.uid.startsWith('demo-user')) {
+                    // Demo logout
+                    currentUser = null;
+                    currentProfile = null;
+                    elements.settingsSection.classList.add('hidden');
+                    showSuccess('Demo session ended!');
+                    showLoginScreen();
+                } else {
+                    await auth.signOut();
+                    elements.settingsSection.classList.add('hidden');
+                    showSuccess('Logged out successfully!');
+                    showLoginScreen();
+                }
             } catch (error) {
                 alert('Logout failed: ' + error.message);
             }
+        }
+
+        function loadDemoContent() {
+            // Load demo posts
+            const demoPosts = [
+                {
+                    id: 'demo1',
+                    userId: 'creator1',
+                    username: 'techguru',
+                    userName: 'Tech Guru',
+                    userImage: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%2300d4aa\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3ET%3C/text%3E%3C/svg%3E',
+                    type: 'text',
+                    content: 'Just launched my new coding tutorial series! 🚀 Perfect for beginners who want to learn web development.',
+                    createdAt: Date.now() - 3600000,
+                    likes: 24,
+                    comments: 5
+                },
+                {
+                    id: 'demo2',
+                    userId: 'creator2',
+                    username: 'artlover',
+                    userName: 'Art Lover',
+                    userImage: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23ff6b6b\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3EA%3C/text%3E%3C/svg%3E',
+                    type: 'tweet',
+                    content: 'Creating art is not just about the final piece, it\'s about the journey of self-discovery. Every stroke tells a story! 🎨✨',
+                    createdAt: Date.now() - 7200000,
+                    likes: 18,
+                    comments: 3
+                },
+                {
+                    id: 'demo3',
+                    userId: 'creator3',
+                    username: 'fitnessmotivator',
+                    userName: 'Fitness Motivator',
+                    userImage: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23ffa726\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3EF%3C/text%3E%3C/svg%3E',
+                    type: 'text',
+                    content: 'Morning workout complete! 💪 Remember: consistency beats perfection. Small steps every day lead to big changes!',
+                    createdAt: Date.now() - 10800000,
+                    likes: 31,
+                    comments: 8
+                }
+            ];
+
+            displayPosts(demoPosts);
+
+            // Load demo creators
+            const demoCreators = [
+                {
+                    id: 'creator1',
+                    username: 'techguru',
+                    name: 'Tech Guru',
+                    bio: 'Full-stack developer sharing coding tips and tutorials 💻',
+                    category: 'tech',
+                    imageUrl: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%2300d4aa\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3ET%3C/text%3E%3C/svg%3E',
+                    tipCount: 47,
+                    createdAt: Date.now() - 86400000
+                },
+                {
+                    id: 'creator2',
+                    username: 'artlover',
+                    name: 'Art Lover',
+                    bio: 'Digital artist creating beautiful illustrations 🎨',
+                    category: 'art',
+                    imageUrl: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23ff6b6b\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3EA%3C/text%3E%3C/svg%3E',
+                    tipCount: 23,
+                    createdAt: Date.now() - 172800000
+                },
+                {
+                    id: 'creator3',
+                    username: 'fitnessmotivator',
+                    name: 'Fitness Motivator',
+                    bio: 'Personal trainer helping you achieve your fitness goals 💪',
+                    category: 'fitness',
+                    imageUrl: 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23ffa726\'/%3E%3Ctext x=\'50\' y=\'55\' text-anchor=\'middle\' fill=\'white\' font-size=\'30\' font-weight=\'bold\'%3EF%3C/text%3E%3C/svg%3E',
+                    tipCount: 35,
+                    createdAt: Date.now() - 259200000
+                }
+            ];
+
+            displayCreators('featuredCreators', demoCreators.slice(0, 2));
+            displayCreators('newCreators', demoCreators.slice(1));
+            displayCreators('allCreators', demoCreators);
+            setupSearch(demoCreators);
         }
 
         function updateNavProfileImage(user) {
@@ -2687,5 +2862,5 @@
         */
     </script>
     </div>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98d5f07dd2cf8584',t:'MTc2MDI2NTIxMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98d5f9b954f58584',t:'MTc2MDI2NTU4OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
