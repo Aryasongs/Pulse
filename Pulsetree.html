@@ -1,0 +1,2038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pulsetree - UPI QR Generator & Profile Creator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .gradient-purple {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .gradient-pink {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+        .gradient-orange {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        }
+        .gradient-green {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        .gradient-blue {
+            background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="min-h-full gradient-bg">
+    <!-- UPI QR Generator View -->
+    <div id="qrGeneratorView" class="min-h-full p-4">
+        <div class="max-w-md mx-auto">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-white mb-2">🚀 Pulsetree</h1>
+                <p class="text-white/80 text-lg">UPI QR Generator</p>
+                <p class="text-white/60 text-sm mt-2">Generate instant UPI payment QR codes</p>
+            </div>
+
+            <div class="glass-effect rounded-2xl p-6 mb-6">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-white font-medium mb-2">UPI ID *</label>
+                        <input type="text" id="qrUpiId" class="w-full p-3 border border-white/20 rounded-lg bg-white/10 text-white placeholder-white/50" placeholder="rahul@okaxis">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-white font-medium mb-2">Payee Name (Optional)</label>
+                        <input type="text" id="qrPayeeName" class="w-full p-3 border border-white/20 rounded-lg bg-white/10 text-white placeholder-white/50" placeholder="Rahul Kumar">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-white font-medium mb-2">Amount (Optional)</label>
+                        <input type="number" id="qrAmount" class="w-full p-3 border border-white/20 rounded-lg bg-white/10 text-white placeholder-white/50" placeholder="100" min="1">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-white font-medium mb-2">Note/Message (Optional)</label>
+                        <input type="text" id="qrNote" class="w-full p-3 border border-white/20 rounded-lg bg-white/10 text-white placeholder-white/50" placeholder="Tip for creator">
+                    </div>
+                    
+                    <button id="generateQrBtn" class="w-full bg-white text-purple-600 py-3 rounded-lg font-semibold hover:bg-white/90 transition-colors">
+                        🎯 Generate QR Code
+                    </button>
+                </div>
+            </div>
+
+            <!-- QR Code Display -->
+            <div id="qrDisplay" class="glass-effect rounded-2xl p-6 text-center hidden">
+                <h3 class="text-white font-semibold mb-4">📱 Your UPI QR Code</h3>
+                <div class="bg-white p-4 rounded-lg mb-4 inline-block">
+                    <canvas id="qrCanvas" class="mx-auto"></canvas>
+                </div>
+                <p class="text-white/80 text-sm mb-4">Scan with any UPI app to pay</p>
+                
+                <div class="space-y-3">
+                    <button id="openUpiBtn" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                        📱 Open UPI App
+                    </button>
+                    <button id="downloadQrBtn" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                        💾 Download QR Code
+                    </button>
+                    <button id="shareQrBtn" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                        📤 Share QR Code
+                    </button>
+                </div>
+                
+                <div class="mt-4 p-3 bg-white/10 rounded-lg">
+                    <p class="text-white/60 text-xs mb-1">UPI Deep Link:</p>
+                    <a id="upiDeepLink" href="#" class="text-white text-xs font-mono break-all hover:text-white/80" target="_blank"></a>
+                </div>
+            </div>
+
+            <!-- Create Profile CTA -->
+            <div class="glass-effect rounded-2xl p-6 text-center mt-6">
+                <h3 class="text-white font-semibold mb-2">🌟 Want More Features?</h3>
+                <p class="text-white/80 text-sm mb-4">Create your Pulsetree profile for link-in-bio + tip jar</p>
+                <button id="createProfileBtn" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition-all">
+                    🚀 Create My Profile
+                </button>
+                <p class="text-white/50 text-xs mt-2">Your profile: pulse.oriontec.xyz/pulsetree.html/username</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="min-h-full flex items-center justify-center p-4">
+        <div class="max-w-md w-full">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-4">🚀 Pulsetree</h1>
+                <p class="text-white/80 text-lg mb-2">Social Creator Platform</p>
+                <p class="text-white/60 text-sm">Login required to access profiles and features</p>
+            </div>
+
+            <div class="glass-effect rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-white mb-6 text-center">Welcome Back!</h2>
+                
+                <!-- Google Sign In -->
+                <button id="googleLoginBtn" class="w-full bg-white text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-3 mb-4">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC04" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Continue with Google
+                </button>
+
+                <p class="text-center text-white/60 text-sm">Quick and secure login with your Google account</p>
+
+                <div class="text-center mt-6">
+                    <p class="text-white/60 text-sm mb-3">Don't have an account?</p>
+                    <button id="showSignupBtn" class="text-white font-semibold hover:text-white/80 transition-colors">
+                        Create New Account
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Signup Screen -->
+    <div id="signupScreen" class="min-h-full flex items-center justify-center p-4 hidden">
+        <div class="max-w-md w-full">
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-white mb-4">🚀 Pulsetree</h1>
+                <p class="text-white/80 text-lg mb-2">Join the Creator Community</p>
+                <p class="text-white/60 text-sm">Create your profile and start receiving tips</p>
+            </div>
+
+            <div class="glass-effect rounded-2xl p-6">
+                <h2 class="text-xl font-bold text-white mb-6 text-center">Create Account</h2>
+                
+                <!-- Google Sign Up -->
+                <button id="googleSignupBtn" class="w-full bg-white text-gray-800 py-3 px-4 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center gap-3 mb-4">
+                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC04" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Sign Up with Google
+                </button>
+
+                <p class="text-center text-white/60 text-sm">Join thousands of creators using Google authentication</p>
+
+                <div class="text-center mt-6">
+                    <p class="text-white/60 text-sm mb-3">Already have an account?</p>
+                    <button id="showLoginBtn" class="text-white font-semibold hover:text-white/80 transition-colors">
+                        Sign In Instead
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discovery/Home Feed -->
+    <div id="discoveryView" class="min-h-full hidden">
+        <!-- Fixed Navigation Header -->
+        <div class="fixed top-0 left-0 right-0 bg-white/10 backdrop-blur-md border-b border-white/20 z-40">
+            <div class="max-w-md mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full overflow-hidden border-2 border-white/30">
+                            <img id="navProfileImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23e5e7eb'/%3E%3Cpath d='M50 45c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm0 5c-6.7 0-20 3.3-20 10v5h40v-5c0-6.7-13.3-10-20-10z' fill='%239ca3af'/%3E%3C/svg%3E" alt="Profile" class="w-full h-full object-cover">
+                        </div>
+                        <h1 class="text-lg font-bold text-white">Pulsetree</h1>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="searchToggleBtn" class="text-white/80 hover:text-white p-2">🔍</button>
+                        <button id="myProfileBtn" class="text-white/80 hover:text-white p-2">👤</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="pt-16 p-4">
+            <div class="max-w-md mx-auto">
+                <!-- Search Bar (Hidden by default) -->
+                <div id="searchBar" class="mb-6 hidden">
+                    <div class="glass-effect rounded-xl p-4">
+                        <input type="text" id="searchInput" class="w-full p-3 border border-white/20 rounded-lg bg-white/10 text-white placeholder-white/50" placeholder="Search creators...">
+                        <div class="flex gap-2 mt-3 flex-wrap">
+                            <button class="category-filter px-3 py-1 rounded-full text-xs bg-white/20 text-white hover:bg-white/30" data-category="">All</button>
+                            <button class="category-filter px-3 py-1 rounded-full text-xs bg-white/20 text-white hover:bg-white/30" data-category="tech">💻 Tech</button>
+                            <button class="category-filter px-3 py-1 rounded-full text-xs bg-white/20 text-white hover:bg-white/30" data-category="art">🎨 Art</button>
+                            <button class="category-filter px-3 py-1 rounded-full text-xs bg-white/20 text-white hover:bg-white/30" data-category="music">🎵 Music</button>
+                            <button class="category-filter px-3 py-1 rounded-full text-xs bg-white/20 text-white hover:bg-white/30" data-category="fitness">💪 Fitness</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Featured Creators -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-white mb-4">✨ Featured Creators</h2>
+                    <div id="featuredCreators" class="space-y-3">
+                        <!-- Featured creators will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- New Creators -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-white mb-4">🆕 New Creators</h2>
+                    <div id="newCreators" class="space-y-3">
+                        <!-- New creators will be loaded here -->
+                    </div>
+                </div>
+
+                <!-- All Creators -->
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-white mb-4">🌟 All Creators</h2>
+                    <div id="allCreators" class="space-y-3">
+                        <!-- All creators will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Profile View -->
+    <div id="profileView" class="min-h-full p-4 hidden">
+        <div class="max-w-md mx-auto">
+            <!-- Header -->
+            <div class="text-center mb-6">
+                <div class="w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-4 border-white shadow-lg">
+                    <img id="profileImage" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='50' fill='%23e5e7eb'/%3E%3Cpath d='M50 45c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm0 5c-6.7 0-20 3.3-20 10v5h40v-5c0-6.7-13.3-10-20-10z' fill='%239ca3af'/%3E%3C/svg%3E" alt="Profile" class="w-full h-full object-cover">
+                </div>
+                <h1 id="profileName" class="text-2xl font-bold text-white mb-2">Your Name</h1>
+                <p id="profileBio" class="text-white/80 text-sm leading-relaxed">Add your bio here to tell people about yourself</p>
+                
+                <!-- Profile URL Display -->
+                <div id="profileUrlSection" class="mt-4 hidden">
+                    <div class="glass-effect rounded-lg p-3">
+                        <p class="text-white/60 text-xs mb-1">Your Profile Link:</p>
+                        <div class="flex items-center gap-2">
+                            <span id="profileUrl" class="text-white text-sm font-mono">pulse.oriontec.xyz/pulsetree.html/demo</span>
+                            <button id="copyUrlButton" class="text-white/80 hover:text-white text-xs">📋</button>
+                        </div>
+                        <p class="text-white/50 text-xs mt-2">💡 Copy this link to your Instagram bio!</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Links -->
+            <div id="socialLinks" class="space-y-3 mb-6">
+                <!-- Links will be dynamically added here -->
+            </div>
+
+            <!-- Tip Button -->
+            <div class="text-center mb-6">
+                <button id="tipButton" class="glass-effect text-white px-8 py-4 rounded-full font-semibold text-lg pulse-animation hover:bg-white/20 transition-all duration-300 shadow-lg">
+                    💝 Tip / Support Me
+                </button>
+            </div>
+
+            <!-- Tip Analytics (visible to owner) -->
+            <div id="analyticsSection" class="mb-6 hidden">
+                <div class="glass-effect rounded-xl p-4">
+                    <h3 class="text-white font-semibold mb-3">📊 Your Stats</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center">
+                            <div id="totalTips" class="text-2xl font-bold text-white">0</div>
+                            <div class="text-white/70 text-xs">Total Tips</div>
+                        </div>
+                        <div class="text-center">
+                            <div id="totalAmount" class="text-2xl font-bold text-white">₹0</div>
+                            <div class="text-white/70 text-xs">Total Amount</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Tips (visible to owner) -->
+            <div id="recentTipsSection" class="mb-6 hidden">
+                <div class="glass-effect rounded-xl p-4">
+                    <h3 class="text-white font-semibold mb-3">💬 Recent Messages</h3>
+                    <div id="recentTipsList" class="space-y-2 max-h-40 overflow-y-auto">
+                        <!-- Recent tips will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Proof (public recent tips) -->
+            <div id="socialProofSection" class="mb-6 hidden">
+                <div class="glass-effect rounded-xl p-4">
+                    <h3 class="text-white font-semibold mb-3">💝 Recent Support</h3>
+                    <div id="publicTipsList" class="space-y-2">
+                        <!-- Public tips will be added here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Button (only visible to owner) -->
+            <div id="settingsSection" class="text-center hidden">
+                <div class="space-y-2">
+                    <button id="settingsButton" class="glass-effect text-white px-6 py-2 rounded-full text-sm hover:bg-white/20 transition-all duration-300">
+                        ⚙️ Settings
+                    </button>
+                    <button id="analyticsButton" class="glass-effect text-white px-6 py-2 rounded-full text-sm hover:bg-white/20 transition-all duration-300">
+                        📊 Analytics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">Profile Settings</h2>
+                        <button id="closeSettings" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+
+                    <!-- Profile Info -->
+                    <div class="space-y-4 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Username</label>
+                            <div class="flex items-center">
+                                <span class="text-gray-500 text-sm">pulse.oriontec.xyz/pulsetree.html?user=</span>
+                                <input type="text" id="usernameInput" class="flex-1 p-3 border border-gray-300 rounded-lg ml-1" placeholder="yourname">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Profile Image</label>
+                            <input type="file" id="imageUpload" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                            <input type="text" id="nameInput" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Your Name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Bio (emojis welcome! 😊)</label>
+                            <textarea id="bioInput" class="w-full p-3 border border-gray-300 rounded-lg h-20" placeholder="Tell people about yourself 🚀"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">UPI ID</label>
+                            <input type="text" id="upiInput" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="yourname@paytm">
+                        </div>
+                    </div>
+
+                    <!-- Theme Selection -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">🎨 Choose Theme</h3>
+                        <div class="grid grid-cols-3 gap-3">
+                            <button class="theme-option w-full h-16 rounded-lg gradient-purple border-2 border-transparent" data-theme="purple"></button>
+                            <button class="theme-option w-full h-16 rounded-lg gradient-pink border-2 border-transparent" data-theme="pink"></button>
+                            <button class="theme-option w-full h-16 rounded-lg gradient-orange border-2 border-transparent" data-theme="orange"></button>
+                            <button class="theme-option w-full h-16 rounded-lg gradient-green border-2 border-transparent" data-theme="green"></button>
+                            <button class="theme-option w-full h-16 rounded-lg gradient-blue border-2 border-transparent" data-theme="blue"></button>
+                        </div>
+                    </div>
+
+                    <!-- Privacy Settings -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">🔒 Privacy Settings</h3>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="showUpiPublic" class="mr-2">
+                                <span class="text-sm">Show UPI ID publicly (otherwise only QR)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="showTipCount" class="mr-2">
+                                <span class="text-sm">Show tip count to visitors</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="showRecentTips" class="mr-2">
+                                <span class="text-sm">Show recent tip messages (social proof)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" id="hidePayerNames" class="mr-2">
+                                <span class="text-sm">Hide payer names in public view</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Social Links -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Social Links</h3>
+                        <div id="linkInputs" class="space-y-3">
+                            <div class="flex gap-2">
+                                <input type="text" placeholder="Link Title" class="flex-1 p-2 border border-gray-300 rounded-lg link-title">
+                                <input type="url" placeholder="https://..." class="flex-1 p-2 border border-gray-300 rounded-lg link-url">
+                                <button class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 remove-link">×</button>
+                            </div>
+                        </div>
+                        <button id="addLink" class="mt-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">+ Add Link</button>
+                    </div>
+
+                    <!-- Save Button -->
+                    <button id="saveSettings" class="w-full bg-purple-600 text-white py-3 rounded-lg font-semibold hover:bg-purple-700 transition-colors">
+                        Save Changes
+                    </button>
+
+                    <!-- Auth Section -->
+                    <div id="authSection" class="mt-6 pt-6 border-t border-gray-200">
+                        <div id="loginForm">
+                            <h3 class="text-lg font-semibold text-gray-800 mb-3">Login to Save Profile</h3>
+                            <div class="space-y-3">
+                                <button id="googleSignInBtn" class="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" viewBox="0 0 24 24">
+                                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                                    </svg>
+                                    Continue with Google
+                                </button>
+                                <p class="text-center text-gray-500 text-sm">Secure authentication with your Google account</p>
+                            </div>
+                        </div>
+                        <div id="loggedInSection" class="hidden">
+                            <p class="text-green-600 mb-3">✓ Logged in as <span id="userEmail"></span></p>
+                            <button id="logoutButton" class="w-full bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tip Modal -->
+    <div id="tipModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">Support <span id="tipProfileName"></span> — Tip de ke motivate karein ❤️</h2>
+                        <button id="closeTip" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+
+                    <div class="text-center mb-6">
+                        <div id="qrContainer" class="bg-gray-100 p-4 rounded-lg mb-4">
+                            <canvas id="qrCode" class="mx-auto"></canvas>
+                        </div>
+                        <p class="text-sm text-gray-600">UPI se pay karein. Message add karein (optional). Your message will show to creator.</p>
+                        <div id="upiDisplay" class="mt-2 hidden">
+                            <p class="text-xs text-gray-500">UPI ID: <span id="displayUpiId"></span></p>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-2">💡 Message mein 'Pulsetree' automatically add ho jayega.</p>
+                    </div>
+
+                    <!-- Quick Amount Buttons -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Quick Amount</label>
+                        <div class="grid grid-cols-4 gap-2">
+                            <button class="quick-amount bg-gray-100 hover:bg-gray-200 p-2 rounded text-sm" data-amount="50">₹50</button>
+                            <button class="quick-amount bg-gray-100 hover:bg-gray-200 p-2 rounded text-sm" data-amount="100">₹100</button>
+                            <button class="quick-amount bg-gray-100 hover:bg-gray-200 p-2 rounded text-sm" data-amount="200">₹200</button>
+                            <button class="quick-amount bg-gray-100 hover:bg-gray-200 p-2 rounded text-sm" data-amount="500">₹500</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Amount (₹)</label>
+                            <input type="number" id="tipAmount" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="100" min="1">
+                        </div>
+                        
+                        <!-- Quick Message Prompts -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Quick Messages</label>
+                            <div class="grid grid-cols-1 gap-2 mb-3">
+                                <button class="quick-message bg-blue-50 hover:bg-blue-100 p-2 rounded text-sm text-left border" data-message="Great content! Any tips for beginners?">💡 Great content! Any tips for beginners?</button>
+                                <button class="quick-message bg-blue-50 hover:bg-blue-100 p-2 rounded text-sm text-left border" data-message="Koi latest video recommend karoge?">🎥 Koi latest video recommend karoge?</button>
+                                <button class="quick-message bg-blue-50 hover:bg-blue-100 p-2 rounded text-sm text-left border" data-message="Kya tum merch bhejte ho?">👕 Kya tum merch bhejte ho?</button>
+                                <button class="quick-message bg-blue-50 hover:bg-blue-100 p-2 rounded text-sm text-left border" data-message="Shukriya, keep it up!">🙏 Shukriya, keep it up!</button>
+                                <button class="quick-message bg-blue-50 hover:bg-blue-100 p-2 rounded text-sm text-left border" data-message="Can you make a short tutorial on X?">📚 Can you make a short tutorial on X?</button>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Your Message (Optional)</label>
+                            <textarea id="tipMessage" class="w-full p-3 border border-gray-300 rounded-lg h-20" placeholder="Type your own message or use quick options above..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Your Name (Optional)</label>
+                            <input type="text" id="payerName" class="w-full p-3 border border-gray-300 rounded-lg" placeholder="Anonymous">
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-3">
+                        <button id="payButton" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors">
+                            📱 Open UPI App
+                        </button>
+                        <button id="recordTip" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors">
+                            ✓ Maine Pay Kar Diya - Record Tip
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Analytics Modal -->
+    <div id="analyticsModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm hidden z-50">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-xl font-bold text-gray-800">📊 Analytics Dashboard</h2>
+                        <button id="closeAnalytics" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                    </div>
+
+                    <!-- Stats Overview -->
+                    <div class="grid grid-cols-2 gap-4 mb-6">
+                        <div class="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="analyticsTotal">₹0</div>
+                            <div class="text-sm opacity-80">Total Earned</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-green-500 to-teal-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="analyticsTipCount">0</div>
+                            <div class="text-sm opacity-80">Total Tips</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="analyticsWeekly">₹0</div>
+                            <div class="text-sm opacity-80">Last 7 Days</div>
+                        </div>
+                        <div class="bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-lg">
+                            <div class="text-2xl font-bold" id="analyticsAverage">₹0</div>
+                            <div class="text-sm opacity-80">Average Tip</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Tips List -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3">Recent Tips</h3>
+                        <div id="analyticsRecentTips" class="space-y-3 max-h-60 overflow-y-auto">
+                            <!-- Tips will be loaded here -->
+                        </div>
+                    </div>
+
+                    <!-- Export Options -->
+                    <div class="space-y-3">
+                        <button id="exportTips" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700">
+                            📄 Export Tip History
+                        </button>
+                        <button id="emailNotifications" class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700">
+                            📧 Email Notifications: OFF
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="fixed top-4 left-4 right-4 bg-green-500 text-white p-4 rounded-lg shadow-lg transform -translate-y-full transition-transform duration-300 z-50">
+        <p class="text-center font-semibold">Thank you for your support! 🎉</p>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="notificationToast" class="fixed top-4 right-4 bg-blue-500 text-white p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300 z-50">
+        <div class="flex items-center gap-2">
+            <span class="text-xl">💝</span>
+            <div>
+                <p class="font-semibold">New Tip Received!</p>
+                <p class="text-sm opacity-90" id="notificationText">Someone just supported you</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+
+
+        // Global variables
+        let currentUser = null;
+        let currentProfile = null;
+        let currentTheme = 'purple';
+        let tipStats = { total: 0, count: 0, weekly: 0, average: 0 };
+        const profileId = 'demo-profile'; // In real app, this would come from URL
+
+        // DOM Elements
+        const elements = {
+            profileImage: document.getElementById('profileImage'),
+            profileName: document.getElementById('profileName'),
+            profileBio: document.getElementById('profileBio'),
+            socialLinks: document.getElementById('socialLinks'),
+            tipButton: document.getElementById('tipButton'),
+            settingsSection: document.getElementById('settingsSection'),
+            settingsModal: document.getElementById('settingsModal'),
+            tipModal: document.getElementById('tipModal'),
+            analyticsModal: document.getElementById('analyticsModal'),
+            successMessage: document.getElementById('successMessage'),
+            notificationToast: document.getElementById('notificationToast')
+        };
+
+        // Quick message prompts
+        const quickMessages = [
+            "Great content! Any tips for beginners?",
+            "Koi latest video recommend karoge?",
+            "Kya tum merch bhejte ho?",
+            "Kaunsa topic next chahiye tumhe?",
+            "Shukriya, keep it up!",
+            "Can you make a short tutorial on X?",
+            "Kya tum one-on-one session karte ho?"
+        ];
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            
+            // Show login screen by default
+            showLoginScreen();
+            
+            // Check auth state
+            auth.onAuthStateChanged(user => {
+                currentUser = user;
+                updateAuthUI();
+                
+                if (user) {
+                    // User is logged in
+                    updateNavProfileImage(user);
+                    
+                    // Check URL for profile routing
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const username = urlParams.get('user') || window.location.pathname.split('/').pop();
+                    
+                    if (username && username !== 'pulsetree.html' && username !== '') {
+                        // Load specific user profile
+                        loadUserProfile(username);
+                        showProfileView();
+                    } else {
+                        // Show discovery feed
+                        showDiscoveryView();
+                        loadDiscoveryContent();
+                    }
+                } else {
+                    // User is not logged in
+                    showLoginScreen();
+                }
+            });
+        });
+
+        function setupEventListeners() {
+            // Settings modal
+            document.getElementById('settingsButton').addEventListener('click', () => {
+                elements.settingsModal.classList.remove('hidden');
+                loadSettingsData();
+            });
+
+            document.getElementById('closeSettings').addEventListener('click', () => {
+                elements.settingsModal.classList.add('hidden');
+            });
+
+            // Analytics modal
+            document.getElementById('analyticsButton').addEventListener('click', () => {
+                elements.analyticsModal.classList.remove('hidden');
+                loadAnalytics();
+            });
+
+            document.getElementById('closeAnalytics').addEventListener('click', () => {
+                elements.analyticsModal.classList.add('hidden');
+            });
+
+            // Tip modal
+            elements.tipButton.addEventListener('click', () => {
+                if (currentProfile && currentProfile.upiId) {
+                    elements.tipModal.classList.remove('hidden');
+                    document.getElementById('tipProfileName').textContent = currentProfile.name || 'Creator';
+                    updateUpiDisplay();
+                    generateQRCode();
+                } else {
+                    alert('UPI not configured for tips yet!');
+                }
+            });
+
+            document.getElementById('closeTip').addEventListener('click', () => {
+                elements.tipModal.classList.add('hidden');
+            });
+
+            // Authentication event listeners
+            document.getElementById('googleLoginBtn').addEventListener('click', signInWithGoogle);
+            document.getElementById('googleSignupBtn').addEventListener('click', signInWithGoogle);
+            document.getElementById('showSignupBtn').addEventListener('click', showSignupScreen);
+            document.getElementById('showLoginBtn').addEventListener('click', showLoginScreen);
+
+            // Discovery navigation
+            document.getElementById('searchToggleBtn').addEventListener('click', toggleSearch);
+            document.getElementById('myProfileBtn').addEventListener('click', showMyProfile);
+
+            // Copy URL functionality
+            document.getElementById('copyUrlButton').addEventListener('click', copyProfileUrl);
+
+            // Save settings
+            document.getElementById('saveSettings').addEventListener('click', saveProfile);
+
+            // Add link functionality
+            document.getElementById('addLink').addEventListener('click', addLinkInput);
+
+            // Theme selection
+            document.querySelectorAll('.theme-option').forEach(button => {
+                button.addEventListener('click', () => selectTheme(button.dataset.theme));
+            });
+
+            // Quick amount buttons
+            document.querySelectorAll('.quick-amount').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.getElementById('tipAmount').value = button.dataset.amount;
+                    generateQRCode();
+                });
+            });
+
+            // Quick message buttons
+            document.querySelectorAll('.quick-message').forEach(button => {
+                button.addEventListener('click', () => {
+                    document.getElementById('tipMessage').value = button.dataset.message;
+                    generateQRCode();
+                });
+            });
+
+            // QR Generator buttons
+            document.getElementById('generateQrBtn').addEventListener('click', generateUPIQR);
+            document.getElementById('openUpiBtn').addEventListener('click', openUPIFromQR);
+            document.getElementById('downloadQrBtn').addEventListener('click', downloadQRCode);
+            document.getElementById('shareQrBtn').addEventListener('click', shareQRCode);
+            document.getElementById('createProfileBtn').addEventListener('click', showProfileCreation);
+
+            // Auth buttons
+            document.getElementById('googleSignInBtn').addEventListener('click', signInWithGoogle);
+            document.getElementById('logoutButton').addEventListener('click', logout);
+
+            // Tip functionality
+            document.getElementById('payButton').addEventListener('click', openUPIApp);
+            document.getElementById('recordTip').addEventListener('click', recordTip);
+
+            // Analytics functionality
+            document.getElementById('exportTips').addEventListener('click', exportTipHistory);
+            document.getElementById('emailNotifications').addEventListener('click', toggleEmailNotifications);
+
+            // Image upload
+            document.getElementById('imageUpload').addEventListener('change', handleImageUpload);
+
+            // Amount input for QR update
+            document.getElementById('tipAmount').addEventListener('input', generateQRCode);
+            document.getElementById('tipMessage').addEventListener('input', generateQRCode);
+        }
+
+        function showLoginScreen() {
+            hideAllViews();
+            document.getElementById('loginScreen').classList.remove('hidden');
+        }
+
+        function showSignupScreen() {
+            hideAllViews();
+            document.getElementById('signupScreen').classList.remove('hidden');
+        }
+
+        function showDiscoveryView() {
+            hideAllViews();
+            document.getElementById('discoveryView').classList.remove('hidden');
+        }
+
+        function showQRGeneratorView() {
+            hideAllViews();
+            document.getElementById('qrGeneratorView').classList.remove('hidden');
+        }
+
+        function showProfileView() {
+            hideAllViews();
+            document.getElementById('profileView').classList.remove('hidden');
+        }
+
+        function hideAllViews() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('signupScreen').classList.add('hidden');
+            document.getElementById('discoveryView').classList.add('hidden');
+            document.getElementById('qrGeneratorView').classList.add('hidden');
+            document.getElementById('profileView').classList.add('hidden');
+        }
+
+        function showProfileCreation() {
+            showProfileView();
+            elements.settingsModal.classList.remove('hidden');
+            loadSettingsData();
+        }
+
+        async function loadUserProfile(username) {
+            try {
+                const snapshot = await database.ref('profiles').orderByChild('username').equalTo(username).once('value');
+                const profiles = snapshot.val();
+                
+                if (profiles) {
+                    const profileKey = Object.keys(profiles)[0];
+                    const profile = profiles[profileKey];
+                    currentProfile = profile;
+                    currentTheme = profile.theme || 'purple';
+                    updateProfileUI(profile);
+                    applyTheme(currentTheme);
+                    loadTipStats();
+                    loadRecentTips();
+                } else {
+                    // Profile not found
+                    showQRGeneratorView();
+                    showSuccess('Profile not found. Create your own profile!');
+                }
+            } catch (error) {
+                console.error('Error loading user profile:', error);
+                showQRGeneratorView();
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                const snapshot = await database.ref(`profiles/${profileId}`).once('value');
+                const profile = snapshot.val();
+                
+                if (profile) {
+                    currentProfile = profile;
+                    currentTheme = profile.theme || 'purple';
+                    updateProfileUI(profile);
+                    applyTheme(currentTheme);
+                    loadTipStats();
+                    loadRecentTips();
+                } else {
+                    // Default profile
+                    currentProfile = {
+                        name: 'Your Name',
+                        bio: 'Add your bio here to tell people about yourself 🚀',
+                        username: 'demo',
+                        links: [],
+                        upiId: '',
+                        theme: 'purple',
+                        privacy: {
+                            showUpiPublic: false,
+                            showTipCount: true,
+                            showRecentTips: true,
+                            hidePayerNames: false
+                        }
+                    };
+                }
+            } catch (error) {
+                console.error('Error loading profile:', error);
+            }
+        }
+
+        function updateProfileUI(profile) {
+            elements.profileName.textContent = profile.name || 'Your Name';
+            elements.profileBio.textContent = profile.bio || 'Add your bio here';
+            
+            if (profile.imageUrl) {
+                elements.profileImage.src = profile.imageUrl;
+            }
+
+            // Update profile URL
+            if (profile.username) {
+                document.getElementById('profileUrl').textContent = `pulse.oriontec.xyz/pulsetree.html/${profile.username}`;
+                document.getElementById('profileUrlSection').classList.remove('hidden');
+            }
+
+            // Update social links
+            elements.socialLinks.innerHTML = '';
+            if (profile.links && profile.links.length > 0) {
+                profile.links.forEach(link => {
+                    const linkElement = createLinkElement(link.title, link.url);
+                    elements.socialLinks.appendChild(linkElement);
+                });
+            }
+
+            // Show/hide sections based on privacy settings
+            if (currentUser && profile.userId === currentUser.uid) {
+                elements.settingsSection.classList.remove('hidden');
+                document.getElementById('analyticsSection').classList.remove('hidden');
+                document.getElementById('recentTipsSection').classList.remove('hidden');
+            }
+
+            // Show social proof if enabled
+            if (profile.privacy && profile.privacy.showRecentTips) {
+                document.getElementById('socialProofSection').classList.remove('hidden');
+            }
+        }
+
+        function applyTheme(theme) {
+            const body = document.body;
+            body.className = body.className.replace(/gradient-\w+/, `gradient-${theme}`);
+            currentTheme = theme;
+        }
+
+        function selectTheme(theme) {
+            applyTheme(theme);
+            
+            // Update theme selection UI
+            document.querySelectorAll('.theme-option').forEach(btn => {
+                btn.classList.remove('border-white');
+            });
+            document.querySelector(`[data-theme="${theme}"]`).classList.add('border-white');
+        }
+
+        function copyProfileUrl() {
+            const url = document.getElementById('profileUrl').textContent;
+            navigator.clipboard.writeText(`https://${url}`).then(() => {
+                showSuccess('Profile URL copied to clipboard! 📋');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = `https://${url}`;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showSuccess('Profile URL copied to clipboard! 📋');
+            });
+        }
+
+        function updateUpiDisplay() {
+            const upiDisplay = document.getElementById('upiDisplay');
+            const displayUpiId = document.getElementById('displayUpiId');
+            
+            if (currentProfile && currentProfile.upiId && currentProfile.privacy && currentProfile.privacy.showUpiPublic) {
+                displayUpiId.textContent = currentProfile.upiId;
+                upiDisplay.classList.remove('hidden');
+            } else {
+                upiDisplay.classList.add('hidden');
+            }
+        }
+
+        function createLinkElement(title, url) {
+            const linkDiv = document.createElement('div');
+            linkDiv.className = 'glass-effect rounded-xl p-4 hover:bg-white/20 transition-all duration-300';
+            
+            linkDiv.innerHTML = `
+                <a href="${url}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between text-white">
+                    <span class="font-medium">${title}</span>
+                    <span class="text-white/70">→</span>
+                </a>
+            `;
+            
+            return linkDiv;
+        }
+
+        function loadSettingsData() {
+            if (currentProfile) {
+                document.getElementById('usernameInput').value = currentProfile.username || '';
+                document.getElementById('nameInput').value = currentProfile.name || '';
+                document.getElementById('bioInput').value = currentProfile.bio || '';
+                document.getElementById('upiInput').value = currentProfile.upiId || '';
+                
+                // Load privacy settings
+                if (currentProfile.privacy) {
+                    document.getElementById('showUpiPublic').checked = currentProfile.privacy.showUpiPublic || false;
+                    document.getElementById('showTipCount').checked = currentProfile.privacy.showTipCount !== false;
+                    document.getElementById('showRecentTips').checked = currentProfile.privacy.showRecentTips !== false;
+                    document.getElementById('hidePayerNames').checked = currentProfile.privacy.hidePayerNames || false;
+                }
+                
+                // Load theme
+                selectTheme(currentProfile.theme || 'purple');
+                
+                // Load links
+                const linkInputs = document.getElementById('linkInputs');
+                linkInputs.innerHTML = '';
+                
+                if (currentProfile.links && currentProfile.links.length > 0) {
+                    currentProfile.links.forEach(link => {
+                        addLinkInput(link.title, link.url);
+                    });
+                } else {
+                    addLinkInput();
+                }
+            }
+        }
+
+        async function loadTipStats() {
+            try {
+                const snapshot = await database.ref('tips').orderByChild('profileId').equalTo(profileId).once('value');
+                const tips = snapshot.val();
+                
+                if (tips) {
+                    const tipArray = Object.values(tips);
+                    const now = Date.now();
+                    const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+                    
+                    tipStats.count = tipArray.length;
+                    tipStats.total = tipArray.reduce((sum, tip) => sum + (tip.amount || 0), 0);
+                    tipStats.weekly = tipArray
+                        .filter(tip => tip.createdAt > weekAgo)
+                        .reduce((sum, tip) => sum + (tip.amount || 0), 0);
+                    tipStats.average = tipStats.count > 0 ? Math.round(tipStats.total / tipStats.count) : 0;
+                    
+                    updateStatsUI();
+                }
+            } catch (error) {
+                console.error('Error loading tip stats:', error);
+            }
+        }
+
+        function updateStatsUI() {
+            document.getElementById('totalTips').textContent = tipStats.count;
+            document.getElementById('totalAmount').textContent = `₹${tipStats.total}`;
+            
+            // Update analytics modal
+            document.getElementById('analyticsTotal').textContent = `₹${tipStats.total}`;
+            document.getElementById('analyticsTipCount').textContent = tipStats.count;
+            document.getElementById('analyticsWeekly').textContent = `₹${tipStats.weekly}`;
+            document.getElementById('analyticsAverage').textContent = `₹${tipStats.average}`;
+        }
+
+        async function loadRecentTips() {
+            try {
+                const snapshot = await database.ref('tips')
+                    .orderByChild('profileId')
+                    .equalTo(profileId)
+                    .limitToLast(10)
+                    .once('value');
+                
+                const tips = snapshot.val();
+                if (tips) {
+                    const tipArray = Object.entries(tips)
+                        .map(([key, tip]) => ({ ...tip, id: key }))
+                        .reverse();
+                    
+                    updateRecentTipsUI(tipArray);
+                }
+            } catch (error) {
+                console.error('Error loading recent tips:', error);
+            }
+        }
+
+        function updateRecentTipsUI(tips) {
+            const recentTipsList = document.getElementById('recentTipsList');
+            const publicTipsList = document.getElementById('publicTipsList');
+            
+            recentTipsList.innerHTML = '';
+            publicTipsList.innerHTML = '';
+            
+            tips.forEach(tip => {
+                const tipElement = createTipElement(tip, false);
+                recentTipsList.appendChild(tipElement);
+                
+                // Add to public list if privacy allows
+                if (currentProfile.privacy && currentProfile.privacy.showRecentTips) {
+                    const publicTipElement = createTipElement(tip, true);
+                    publicTipsList.appendChild(publicTipElement);
+                }
+            });
+        }
+
+        function createTipElement(tip, isPublic = false) {
+            const div = document.createElement('div');
+            div.className = 'bg-white/10 rounded-lg p-3 text-sm';
+            
+            const hideNames = isPublic && currentProfile.privacy && currentProfile.privacy.hidePayerNames;
+            const displayName = hideNames ? 'Anonymous' : (tip.payerName || 'Anonymous');
+            const timeAgo = formatTimeAgo(tip.createdAt);
+            
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-1">
+                    <span class="font-medium text-white">${displayName}</span>
+                    <span class="text-white/60 text-xs">₹${tip.amount}</span>
+                </div>
+                <p class="text-white/80 text-xs mb-1">${tip.payerMessage || 'No message'}</p>
+                <span class="text-white/50 text-xs">${timeAgo}</span>
+            `;
+            
+            return div;
+        }
+
+        function formatTimeAgo(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (days > 0) return `${days}d ago`;
+            if (hours > 0) return `${hours}h ago`;
+            if (minutes > 0) return `${minutes}m ago`;
+            return 'Just now';
+        }
+
+        async function loadAnalytics() {
+            await loadTipStats();
+            
+            // Load detailed tip history for analytics
+            try {
+                const snapshot = await database.ref('tips')
+                    .orderByChild('profileId')
+                    .equalTo(profileId)
+                    .limitToLast(50)
+                    .once('value');
+                
+                const tips = snapshot.val();
+                if (tips) {
+                    const tipArray = Object.entries(tips)
+                        .map(([key, tip]) => ({ ...tip, id: key }))
+                        .reverse();
+                    
+                    const analyticsContainer = document.getElementById('analyticsRecentTips');
+                    analyticsContainer.innerHTML = '';
+                    
+                    tipArray.forEach(tip => {
+                        const tipElement = createAnalyticsTipElement(tip);
+                        analyticsContainer.appendChild(tipElement);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+            }
+        }
+
+        function createAnalyticsTipElement(tip) {
+            const div = document.createElement('div');
+            div.className = 'bg-gray-50 rounded-lg p-3 border';
+            
+            const date = new Date(tip.createdAt).toLocaleDateString();
+            const time = new Date(tip.createdAt).toLocaleTimeString();
+            
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div>
+                        <span class="font-medium text-gray-800">${tip.payerName || 'Anonymous'}</span>
+                        <span class="text-green-600 font-bold ml-2">₹${tip.amount}</span>
+                    </div>
+                    <span class="text-gray-500 text-xs">${date} ${time}</span>
+                </div>
+                <p class="text-gray-600 text-sm">${tip.payerMessage || 'No message'}</p>
+            `;
+            
+            return div;
+        }
+
+        function addLinkInput(title = '', url = '') {
+            const linkInputs = document.getElementById('linkInputs');
+            const linkDiv = document.createElement('div');
+            linkDiv.className = 'flex gap-2';
+            
+            linkDiv.innerHTML = `
+                <input type="text" placeholder="Link Title" value="${title}" class="flex-1 p-2 border border-gray-300 rounded-lg link-title">
+                <input type="url" placeholder="https://..." value="${url}" class="flex-1 p-2 border border-gray-300 rounded-lg link-url">
+                <button class="px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 remove-link">×</button>
+            `;
+            
+            linkDiv.querySelector('.remove-link').addEventListener('click', () => {
+                linkDiv.remove();
+            });
+            
+            linkInputs.appendChild(linkDiv);
+        }
+
+        async function saveProfile() {
+            if (!currentUser) {
+                alert('Please login to save your profile');
+                return;
+            }
+
+            try {
+                const username = document.getElementById('usernameInput').value.trim();
+                const name = document.getElementById('nameInput').value;
+                const bio = document.getElementById('bioInput').value;
+                const upiId = document.getElementById('upiInput').value;
+                
+                // Collect links
+                const linkElements = document.querySelectorAll('#linkInputs > div');
+                const links = [];
+                
+                linkElements.forEach(linkDiv => {
+                    const title = linkDiv.querySelector('.link-title').value.trim();
+                    const url = linkDiv.querySelector('.link-url').value.trim();
+                    
+                    if (title && url) {
+                        links.push({ title, url });
+                    }
+                });
+
+                // Collect privacy settings
+                const privacy = {
+                    showUpiPublic: document.getElementById('showUpiPublic').checked,
+                    showTipCount: document.getElementById('showTipCount').checked,
+                    showRecentTips: document.getElementById('showRecentTips').checked,
+                    hidePayerNames: document.getElementById('hidePayerNames').checked
+                };
+
+                const category = document.getElementById('categorySelect')?.value || '';
+                
+                const profileData = {
+                    username: username || generateUsername(currentUser.displayName || currentUser.email),
+                    name: name || currentUser.displayName || 'New Creator',
+                    bio: bio || 'Welcome to my Pulsetree profile! 🚀',
+                    email: currentUser.email,
+                    upiId,
+                    links,
+                    theme: currentTheme,
+                    category,
+                    privacy,
+                    userId: currentUser.uid,
+                    createdAt: currentProfile?.createdAt || firebase.database.ServerValue.TIMESTAMP,
+                    updatedAt: firebase.database.ServerValue.TIMESTAMP
+                };
+
+                if (currentProfile?.imageUrl) {
+                    profileData.imageUrl = currentProfile.imageUrl;
+                }
+
+                // Save profile using user ID as key
+                await database.ref(`profiles/${currentUser.uid}`).set(profileData);
+                currentProfile = profileData;
+                updateProfileUI(profileData);
+                
+                elements.settingsModal.classList.add('hidden');
+                showSuccess('Profile saved successfully! 🎉');
+                
+            } catch (error) {
+                console.error('Error saving profile:', error);
+                alert('Error saving profile. Please try again.');
+            }
+        }
+
+        async function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !currentUser) return;
+
+            try {
+                const storageRef = storage.ref(`profile-images/${currentUser.uid}/${Date.now()}`);
+                const snapshot = await storageRef.put(file);
+                const downloadURL = await snapshot.ref.getDownloadURL();
+                
+                currentProfile.imageUrl = downloadURL;
+                elements.profileImage.src = downloadURL;
+                
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                alert('Error uploading image. Please try again.');
+            }
+        }
+
+        async function signInWithGoogle() {
+            try {
+                const provider = new firebase.auth.GoogleAuthProvider();
+                provider.addScope('email');
+                provider.addScope('profile');
+                
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                
+                if (user) {
+                    showSuccess('Google login successful! Welcome! 🎉');
+                    
+                    // Check if user has a profile, if not create one
+                    await checkAndCreateUserProfile(user);
+                }
+            } catch (error) {
+                console.error('Google Sign-In error:', error);
+                if (error.code === 'auth/popup-closed-by-user') {
+                    // User closed popup, no need to show error
+                    return;
+                }
+                alert('Google Sign-In failed: ' + error.message);
+            }
+        }
+
+
+
+        async function checkAndCreateUserProfile(user) {
+            try {
+                // Check if user already has a profile
+                const snapshot = await database.ref('profiles').orderByChild('userId').equalTo(user.uid).once('value');
+                const existingProfiles = snapshot.val();
+                
+                if (!existingProfiles) {
+                    // Create default profile for new user
+                    const username = generateUsername(user.displayName || user.email);
+                    const profileData = {
+                        userId: user.uid,
+                        username: username,
+                        name: user.displayName || 'New Creator',
+                        bio: 'Welcome to my Pulsetree profile! 🚀',
+                        email: user.email,
+                        imageUrl: user.photoURL || '',
+                        links: [],
+                        upiId: '',
+                        theme: 'purple',
+                        category: '',
+                        privacy: {
+                            showUpiPublic: false,
+                            showTipCount: true,
+                            showRecentTips: true,
+                            hidePayerNames: false
+                        },
+                        createdAt: firebase.database.ServerValue.TIMESTAMP,
+                        updatedAt: firebase.database.ServerValue.TIMESTAMP
+                    };
+                    
+                    // Save profile with user ID as key
+                    await database.ref(`profiles/${user.uid}`).set(profileData);
+                    currentProfile = profileData;
+                }
+            } catch (error) {
+                console.error('Error creating user profile:', error);
+            }
+        }
+
+        function generateUsername(displayName) {
+            // Generate username from display name or email
+            let username = (displayName || 'user').toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .substring(0, 15);
+            
+            // Add random number to make it unique
+            username += Math.floor(Math.random() * 1000);
+            
+            return username;
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                elements.settingsSection.classList.add('hidden');
+                showSuccess('Logged out successfully!');
+                showLoginScreen();
+            } catch (error) {
+                alert('Logout failed: ' + error.message);
+            }
+        }
+
+        function updateNavProfileImage(user) {
+            const navImage = document.getElementById('navProfileImage');
+            if (user && user.photoURL) {
+                navImage.src = user.photoURL;
+            }
+        }
+
+        function toggleSearch() {
+            const searchBar = document.getElementById('searchBar');
+            searchBar.classList.toggle('hidden');
+            
+            if (!searchBar.classList.contains('hidden')) {
+                document.getElementById('searchInput').focus();
+            }
+        }
+
+        async function showMyProfile() {
+            if (currentUser) {
+                try {
+                    const snapshot = await database.ref(`profiles/${currentUser.uid}`).once('value');
+                    const profile = snapshot.val();
+                    
+                    if (profile) {
+                        currentProfile = profile;
+                        updateProfileUI(profile);
+                        showProfileView();
+                        elements.settingsSection.classList.remove('hidden');
+                    } else {
+                        // Create profile if doesn't exist
+                        await checkAndCreateUserProfile(currentUser);
+                        showMyProfile(); // Retry
+                    }
+                } catch (error) {
+                    console.error('Error loading user profile:', error);
+                    alert('Error loading your profile');
+                }
+            }
+        }
+
+        async function loadDiscoveryContent() {
+            try {
+                // Load all profiles for discovery
+                const snapshot = await database.ref('profiles').limitToLast(50).once('value');
+                const profiles = snapshot.val();
+                
+                if (profiles) {
+                    const profileArray = Object.entries(profiles)
+                        .map(([key, profile]) => ({ ...profile, id: key }))
+                        .filter(profile => profile.userId !== currentUser?.uid); // Exclude current user
+                    
+                    // Sort by creation date
+                    profileArray.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+                    
+                    // Featured creators (first 3)
+                    const featured = profileArray.slice(0, 3);
+                    displayCreators('featuredCreators', featured);
+                    
+                    // New creators (next 5)
+                    const newCreators = profileArray.slice(3, 8);
+                    displayCreators('newCreators', newCreators);
+                    
+                    // All creators
+                    displayCreators('allCreators', profileArray);
+                    
+                    // Setup search functionality
+                    setupSearch(profileArray);
+                }
+            } catch (error) {
+                console.error('Error loading discovery content:', error);
+            }
+        }
+
+        function displayCreators(containerId, creators) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            creators.forEach(creator => {
+                const creatorCard = createCreatorCard(creator);
+                container.appendChild(creatorCard);
+            });
+        }
+
+        function createCreatorCard(creator) {
+            const div = document.createElement('div');
+            div.className = 'glass-effect rounded-xl p-4 hover:bg-white/20 transition-all duration-300 cursor-pointer';
+            
+            const categoryEmoji = getCategoryEmoji(creator.category);
+            const tipCount = creator.tipCount || 0;
+            
+            div.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full overflow-hidden border-2 border-white/30 flex-shrink-0">
+                        <img src="${creator.imageUrl || 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'%3E%3Ccircle cx=\'50\' cy=\'50\' r=\'50\' fill=\'%23e5e7eb\'/%3E%3Cpath d=\'M50 45c5.5 0 10-4.5 10-10s-4.5-10-10-10-10 4.5-10 10 4.5 10 10 10zm0 5c-6.7 0-20 3.3-20 10v5h40v-5c0-6.7-13.3-10-20-10z\' fill=\'%239ca3af\'/%3E%3C/svg%3E'}" alt="${creator.name}" class="w-full h-full object-cover">
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="font-semibold text-white truncate">${creator.name}</h3>
+                            ${categoryEmoji ? `<span class="text-sm">${categoryEmoji}</span>` : ''}
+                        </div>
+                        <p class="text-white/70 text-sm truncate mb-1">@${creator.username}</p>
+                        <p class="text-white/60 text-xs line-clamp-2">${creator.bio || 'No bio available'}</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-white/60 text-xs">💝 ${tipCount}</div>
+                        <div class="text-white/40 text-xs">tips</div>
+                    </div>
+                </div>
+            `;
+            
+            div.addEventListener('click', () => {
+                loadCreatorProfile(creator);
+            });
+            
+            return div;
+        }
+
+        function getCategoryEmoji(category) {
+            const categories = {
+                'tech': '💻',
+                'art': '🎨',
+                'music': '🎵',
+                'fitness': '💪',
+                'food': '🍳',
+                'travel': '✈️',
+                'education': '📚',
+                'gaming': '🎮'
+            };
+            return categories[category] || '';
+        }
+
+        async function loadCreatorProfile(creator) {
+            currentProfile = creator;
+            updateProfileUI(creator);
+            showProfileView();
+            
+            // Hide settings section for other users' profiles
+            if (creator.userId !== currentUser?.uid) {
+                elements.settingsSection.classList.add('hidden');
+            } else {
+                elements.settingsSection.classList.remove('hidden');
+            }
+            
+            // Load tip stats for this profile
+            await loadTipStatsForProfile(creator.id);
+            await loadRecentTipsForProfile(creator.id);
+        }
+
+        async function loadTipStatsForProfile(profileId) {
+            try {
+                const snapshot = await database.ref('tips').orderByChild('profileId').equalTo(profileId).once('value');
+                const tips = snapshot.val();
+                
+                if (tips) {
+                    const tipArray = Object.values(tips);
+                    const now = Date.now();
+                    const weekAgo = now - (7 * 24 * 60 * 60 * 1000);
+                    
+                    tipStats.count = tipArray.length;
+                    tipStats.total = tipArray.reduce((sum, tip) => sum + (tip.amount || 0), 0);
+                    tipStats.weekly = tipArray
+                        .filter(tip => tip.createdAt > weekAgo)
+                        .reduce((sum, tip) => sum + (tip.amount || 0), 0);
+                    tipStats.average = tipStats.count > 0 ? Math.round(tipStats.total / tipStats.count) : 0;
+                    
+                    updateStatsUI();
+                }
+            } catch (error) {
+                console.error('Error loading tip stats:', error);
+            }
+        }
+
+        async function loadRecentTipsForProfile(profileId) {
+            try {
+                const snapshot = await database.ref('tips')
+                    .orderByChild('profileId')
+                    .equalTo(profileId)
+                    .limitToLast(10)
+                    .once('value');
+                
+                const tips = snapshot.val();
+                if (tips) {
+                    const tipArray = Object.entries(tips)
+                        .map(([key, tip]) => ({ ...tip, id: key }))
+                        .reverse();
+                    
+                    updateRecentTipsUI(tipArray);
+                }
+            } catch (error) {
+                console.error('Error loading recent tips:', error);
+            }
+        }
+
+        function setupSearch(allCreators) {
+            const searchInput = document.getElementById('searchInput');
+            const categoryFilters = document.querySelectorAll('.category-filter');
+            
+            let currentFilter = '';
+            
+            // Search input handler
+            searchInput.addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                filterAndDisplayCreators(allCreators, query, currentFilter);
+            });
+            
+            // Category filter handlers
+            categoryFilters.forEach(filter => {
+                filter.addEventListener('click', () => {
+                    // Update active filter
+                    categoryFilters.forEach(f => f.classList.remove('bg-white/40'));
+                    filter.classList.add('bg-white/40');
+                    
+                    currentFilter = filter.dataset.category;
+                    const query = searchInput.value.toLowerCase();
+                    filterAndDisplayCreators(allCreators, query, currentFilter);
+                });
+            });
+        }
+
+        function filterAndDisplayCreators(creators, query, category) {
+            let filtered = creators;
+            
+            // Filter by category
+            if (category) {
+                filtered = filtered.filter(creator => creator.category === category);
+            }
+            
+            // Filter by search query
+            if (query) {
+                filtered = filtered.filter(creator => 
+                    creator.name.toLowerCase().includes(query) ||
+                    creator.username.toLowerCase().includes(query) ||
+                    (creator.bio && creator.bio.toLowerCase().includes(query))
+                );
+            }
+            
+            // Display filtered results
+            displayCreators('allCreators', filtered);
+            
+            // Hide other sections when searching/filtering
+            if (query || category) {
+                document.querySelector('#featuredCreators').parentElement.classList.add('hidden');
+                document.querySelector('#newCreators').parentElement.classList.add('hidden');
+            } else {
+                document.querySelector('#featuredCreators').parentElement.classList.remove('hidden');
+                document.querySelector('#newCreators').parentElement.classList.remove('hidden');
+            }
+        }
+
+        function updateAuthUI() {
+            const loginForm = document.getElementById('loginForm');
+            const loggedInSection = document.getElementById('loggedInSection');
+            const userEmail = document.getElementById('userEmail');
+            
+            if (currentUser) {
+                loginForm.classList.add('hidden');
+                loggedInSection.classList.remove('hidden');
+                userEmail.textContent = currentUser.email;
+            } else {
+                loginForm.classList.remove('hidden');
+                loggedInSection.classList.add('hidden');
+            }
+        }
+
+        function generateQRCode() {
+            if (!currentProfile || !currentProfile.upiId) return;
+            
+            const amount = document.getElementById('tipAmount').value || '';
+            const message = document.getElementById('tipMessage').value || 'Support via Pulsetree';
+            const name = currentProfile.name || 'Creator';
+            
+            let upiString = `upi://pay?pa=${currentProfile.upiId}&pn=${encodeURIComponent(name)}&tn=${encodeURIComponent(message + ' - Pulsetree')}&cu=INR`;
+            
+            if (amount) {
+                upiString += `&am=${amount}`;
+            }
+            
+            const canvas = document.getElementById('qrCode');
+            QRCode.toCanvas(canvas, upiString, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) console.error('QR Code generation error:', error);
+            });
+        }
+
+        function openUPIApp() {
+            if (!currentProfile || !currentProfile.upiId) return;
+            
+            const amount = document.getElementById('tipAmount').value || '';
+            const message = document.getElementById('tipMessage').value || 'Support via Pulsetree';
+            const name = currentProfile.name || 'Creator';
+            
+            let upiString = `upi://pay?pa=${currentProfile.upiId}&pn=${encodeURIComponent(name)}&tn=${encodeURIComponent(message + ' - Pulsetree')}&cu=INR`;
+            
+            if (amount) {
+                upiString += `&am=${amount}`;
+            }
+            
+            // Try to open UPI app
+            window.open(upiString, '_blank');
+        }
+
+        // Message moderation - block inappropriate content
+        function moderateMessage(message) {
+            const blockedWords = [
+                'spam', 'scam', 'fake', 'fraud', 'cheat', 'hack', 'illegal',
+                'drugs', 'violence', 'hate', 'abuse', 'harassment'
+            ];
+            
+            const lowerMessage = message.toLowerCase();
+            for (const word of blockedWords) {
+                if (lowerMessage.includes(word)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        // Sanitize input to prevent XSS
+        function sanitizeInput(input) {
+            const div = document.createElement('div');
+            div.textContent = input;
+            return div.innerHTML;
+        }
+
+        async function recordTip() {
+            const amount = document.getElementById('tipAmount').value;
+            const message = document.getElementById('tipMessage').value || '';
+            const payerName = document.getElementById('payerName').value || 'Anonymous';
+            
+            if (!amount) {
+                alert('Please enter an amount');
+                return;
+            }
+
+            if (parseFloat(amount) < 1 || parseFloat(amount) > 50000) {
+                alert('Amount should be between ₹1 and ₹50,000');
+                return;
+            }
+
+            // Moderate message content
+            if (message && !moderateMessage(message)) {
+                alert('Message contains inappropriate content. Please modify your message.');
+                return;
+            }
+            
+            try {
+                // Sanitize inputs
+                const sanitizedMessage = sanitizeInput(message);
+                const sanitizedName = sanitizeInput(payerName);
+                
+                const tipData = {
+                    amount: parseFloat(amount),
+                    payerName: sanitizedName.substring(0, 50), // Limit name length
+                    payerMessage: (sanitizedMessage + (sanitizedMessage ? ' - ' : '') + 'Pulsetree').substring(0, 200), // Limit message length
+                    profileId: profileId,
+                    createdAt: firebase.database.ServerValue.TIMESTAMP,
+                    status: 'recorded',
+                    ipHash: btoa(Math.random().toString()).substring(0, 10) // Simple rate limiting identifier
+                };
+                
+                await database.ref('tips').push(tipData);
+                
+                elements.tipModal.classList.add('hidden');
+                showSuccess('Dhanyawad! Aapka support record ho gaya! 🎉');
+                
+                // Show notification to profile owner
+                if (currentUser && currentProfile.userId === currentUser.uid) {
+                    showNotification(`₹${amount} tip from ${sanitizedName}`);
+                }
+                
+                // Refresh stats and tips
+                loadTipStats();
+                loadRecentTips();
+                
+                // Clear form
+                document.getElementById('tipAmount').value = '';
+                document.getElementById('tipMessage').value = '';
+                document.getElementById('payerName').value = '';
+                
+            } catch (error) {
+                console.error('Error recording tip:', error);
+                alert('Error recording tip. Please try again.');
+            }
+        }
+
+        function exportTipHistory() {
+            // Create CSV content
+            let csvContent = "Date,Time,Payer Name,Amount,Message\n";
+            
+            database.ref('tips').orderByChild('profileId').equalTo(profileId).once('value')
+                .then(snapshot => {
+                    const tips = snapshot.val();
+                    if (tips) {
+                        Object.values(tips).forEach(tip => {
+                            const date = new Date(tip.createdAt);
+                            const dateStr = date.toLocaleDateString();
+                            const timeStr = date.toLocaleTimeString();
+                            const message = (tip.payerMessage || '').replace(/"/g, '""'); // Escape quotes
+                            
+                            csvContent += `"${dateStr}","${timeStr}","${tip.payerName || 'Anonymous'}","₹${tip.amount}","${message}"\n`;
+                        });
+                        
+                        // Download CSV
+                        const blob = new Blob([csvContent], { type: 'text/csv' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `pulsetree-tips-${new Date().toISOString().split('T')[0]}.csv`;
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        
+                        showSuccess('Tip history exported! 📄');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error exporting tips:', error);
+                    alert('Error exporting tip history.');
+                });
+        }
+
+        function toggleEmailNotifications() {
+            const button = document.getElementById('emailNotifications');
+            const isEnabled = button.textContent.includes('OFF');
+            
+            if (isEnabled) {
+                button.textContent = '📧 Email Notifications: ON';
+                button.classList.remove('bg-green-600', 'hover:bg-green-700');
+                button.classList.add('bg-red-600', 'hover:bg-red-700');
+                showSuccess('Email notifications enabled! 📧');
+            } else {
+                button.textContent = '📧 Email Notifications: OFF';
+                button.classList.remove('bg-red-600', 'hover:bg-red-700');
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+                showSuccess('Email notifications disabled');
+            }
+        }
+
+        function showNotification(message) {
+            const toast = elements.notificationToast;
+            document.getElementById('notificationText').textContent = message;
+            toast.style.transform = 'translateX(0)';
+            
+            setTimeout(() => {
+                toast.style.transform = 'translateX(100%)';
+            }, 4000);
+        }
+
+        function showSuccess(message) {
+            const successEl = elements.successMessage;
+            successEl.querySelector('p').textContent = message;
+            successEl.style.transform = 'translateY(0)';
+            
+            setTimeout(() => {
+                successEl.style.transform = 'translateY(-100%)';
+            }, 3000);
+        }
+
+        // UPI QR Generator Functions
+        let currentUPILink = '';
+
+        function generateUPIQR() {
+            const upiId = document.getElementById('qrUpiId').value.trim();
+            const payeeName = document.getElementById('qrPayeeName').value.trim();
+            const amount = document.getElementById('qrAmount').value.trim();
+            const note = document.getElementById('qrNote').value.trim() || 'Pulsetree';
+
+            if (!upiId) {
+                alert('Please enter UPI ID');
+                return;
+            }
+
+            // Validate UPI ID format
+            const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/;
+            if (!upiRegex.test(upiId)) {
+                alert('Please enter a valid UPI ID (e.g., rahul@okaxis)');
+                return;
+            }
+
+            // Create UPI deep link
+            let upiString = `upi://pay?pa=${encodeURIComponent(upiId)}&cu=INR`;
+            
+            if (payeeName) {
+                upiString += `&pn=${encodeURIComponent(payeeName)}`;
+            }
+            
+            if (note) {
+                upiString += `&tn=${encodeURIComponent(note)}`;
+            }
+            
+            if (amount && parseFloat(amount) > 0) {
+                upiString += `&am=${encodeURIComponent(amount)}`;
+            }
+
+            currentUPILink = upiString;
+
+            // Update deep link display
+            const deepLinkElement = document.getElementById('upiDeepLink');
+            deepLinkElement.href = upiString;
+            deepLinkElement.textContent = upiString;
+
+            // Generate QR code
+            const canvas = document.getElementById('qrCanvas');
+            QRCode.toCanvas(canvas, upiString, {
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function (error) {
+                if (error) {
+                    console.error('QR Code generation error:', error);
+                    alert('Error generating QR code');
+                } else {
+                    document.getElementById('qrDisplay').classList.remove('hidden');
+                    showSuccess('QR Code generated successfully! 🎯');
+                }
+            });
+        }
+
+        function openUPIFromQR() {
+            if (currentUPILink) {
+                window.open(currentUPILink, '_blank');
+            }
+        }
+
+        function downloadQRCode() {
+            const canvas = document.getElementById('qrCanvas');
+            const link = document.createElement('a');
+            link.download = 'upi-qr-code.png';
+            link.href = canvas.toDataURL();
+            link.click();
+            showSuccess('QR Code downloaded! 💾');
+        }
+
+        async function shareQRCode() {
+            const canvas = document.getElementById('qrCanvas');
+            
+            if (navigator.share && navigator.canShare) {
+                try {
+                    canvas.toBlob(async (blob) => {
+                        const file = new File([blob], 'upi-qr-code.png', { type: 'image/png' });
+                        
+                        if (navigator.canShare({ files: [file] })) {
+                            await navigator.share({
+                                title: 'UPI QR Code',
+                                text: 'Scan this QR code to pay via UPI',
+                                files: [file]
+                            });
+                        } else {
+                            // Fallback to sharing the UPI link
+                            await navigator.share({
+                                title: 'UPI Payment Link',
+                                text: 'Pay via UPI using this link',
+                                url: currentUPILink
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error sharing:', error);
+                    copyToClipboard(currentUPILink);
+                }
+            } else {
+                // Fallback: copy UPI link to clipboard
+                copyToClipboard(currentUPILink);
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showSuccess('UPI link copied to clipboard! 📋');
+            }).catch(() => {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showSuccess('UPI link copied to clipboard! 📋');
+            });
+        }
+
+        // Close modals when clicking outside
+        elements.settingsModal.addEventListener('click', (e) => {
+            if (e.target === elements.settingsModal) {
+                elements.settingsModal.classList.add('hidden');
+            }
+        });
+
+        elements.tipModal.addEventListener('click', (e) => {
+            if (e.target === elements.tipModal) {
+                elements.tipModal.classList.add('hidden');
+            }
+        });
+
+        elements.analyticsModal.addEventListener('click', (e) => {
+            if (e.target === elements.analyticsModal) {
+                elements.analyticsModal.classList.add('hidden');
+            }
+        });
+
+        /*
+        FIREBASE SECURITY RULES FOR PRODUCTION:
+        
+        {
+          "rules": {
+            "profiles": {
+              "$profileId": {
+                ".read": true,
+                ".write": "auth != null && auth.uid == data.child('userId').val()",
+                "userId": {
+                  ".validate": "newData.val() == auth.uid"
+                },
+                "username": {
+                  ".validate": "newData.isString() && newData.val().length <= 30"
+                },
+                "name": {
+                  ".validate": "newData.isString() && newData.val().length <= 100"
+                },
+                "bio": {
+                  ".validate": "newData.isString() && newData.val().length <= 500"
+                },
+                "upiId": {
+                  ".validate": "newData.isString() && newData.val().length <= 100"
+                },
+                "theme": {
+                  ".validate": "newData.isString() && newData.val().matches(/^(purple|pink|orange|green|blue)$/)"
+                }
+              }
+            },
+            "tips": {
+              ".read": true,
+              "$tipId": {
+                ".write": true,
+                ".validate": "newData.hasChildren(['amount', 'profileId', 'createdAt'])",
+                "amount": {
+                  ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 50000"
+                },
+                "payerName": {
+                  ".validate": "newData.isString() && newData.val().length <= 50"
+                },
+                "payerMessage": {
+                  ".validate": "newData.isString() && newData.val().length <= 200"
+                },
+                "profileId": {
+                  ".validate": "newData.isString()"
+                }
+              }
+            }
+          }
+        }
+        */
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98d5de7682918adf',t:'MTc2MDI2NDQ3Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
