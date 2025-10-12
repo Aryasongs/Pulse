@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amora - Find Your Perfect Match</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            box-sizing: border-box;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #ff6b6b, #ff8e8e, #ffa726, #ff7043);
+        }
+        
+        .card-swipe {
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        
+        .card-swipe.swipe-left {
+            transform: translateX(-100%) rotate(-30deg);
+            opacity: 0;
+        }
+        
+        .card-swipe.swipe-right {
+            transform: translateX(100%) rotate(30deg);
+            opacity: 0;
+        }
+        
+        .match-animation {
+            animation: matchPulse 0.6s ease-in-out;
+        }
+        
+        @keyframes matchPulse {
+            0% { transform: scale(0.8); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .online-indicator {
+            width: 12px;
+            height: 12px;
+            background: #4ade80;
+            border-radius: 50%;
+            border: 2px solid white;
+            position: absolute;
+            bottom: 2px;
+            right: 2px;
+        }
+        
+        .message-bubble {
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        
+        .dark-mode {
+            background: linear-gradient(135deg, #1a1a2e, #16213e, #0f3460);
+            color: white;
+        }
+        
+        .premium-badge {
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #1a1a2e;
+            font-weight: bold;
+        }
+        
+        .streak-fire {
+            animation: fireFlicker 1s ease-in-out infinite alternate;
+        }
+        
+        @keyframes fireFlicker {
+            0% { transform: scale(1) rotate(-2deg); }
+            100% { transform: scale(1.1) rotate(2deg); }
+        }
+    </style>
+</head>
+<body class="min-h-full gradient-bg">
+    <!-- Navigation -->
+    <nav class="bg-white/10 backdrop-blur-md border-b border-white/20 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center space-x-4">
+                    <h1 class="text-2xl font-bold text-white">💕 Amora</h1>
+                    <div id="streakCounter" class="hidden bg-white/20 px-3 py-1 rounded-full text-white text-sm">
+                        🔥 <span id="streakCount">0</span> Day Streak
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button id="darkModeToggle" class="p-2 rounded-full bg-white/20 text-white hover:bg-white/30 transition-colors">
+                        🌙
+                    </button>
+                    <div id="userPoints" class="hidden bg-white/20 px-3 py-1 rounded-full text-white text-sm">
+                        ⭐ <span id="pointsCount">0</span> Points
+                    </div>
+                    <button id="profileBtn" class="hidden bg-white/20 px-4 py-2 rounded-full text-white hover:bg-white/30 transition-colors">
+                        Profile
+                    </button>
+                    <button id="logoutBtn" class="hidden bg-red-500/80 px-4 py-2 rounded-full text-white hover:bg-red-600/80 transition-colors">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 py-6">
+        <!-- Login Screen -->
+        <div id="loginScreen" class="flex items-center justify-center min-h-[80vh]">
+            <div class="bg-white/10 backdrop-blur-md rounded-3xl p-8 max-w-md w-full border border-white/20">
+                <div class="text-center mb-8">
+                    <h2 class="text-4xl font-bold text-white mb-2">Welcome to Amora</h2>
+                    <p class="text-white/80">Find your perfect match today!</p>
+                </div>
+                <button id="googleLoginBtn" class="w-full bg-white text-gray-800 py-3 px-6 rounded-full font-semibold hover:bg-gray-100 transition-colors flex items-center justify-center space-x-2">
+                    <span>🔐</span>
+                    <span>Continue with Google</span>
+                </button>
+                <div class="mt-6 text-center">
+                    <p class="text-white/60 text-sm">By continuing, you agree to our Terms & Privacy Policy</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Setup Screen -->
+        <div id="profileSetupScreen" class="hidden">
+            <div class="bg-white/10 backdrop-blur-md rounded-3xl p-8 max-w-2xl mx-auto border border-white/20">
+                <h2 class="text-3xl font-bold text-white mb-6 text-center">Complete Your Profile</h2>
+                <form id="profileForm" class="space-y-6">
+                    <!-- Photo Upload -->
+                    <div>
+                        <label class="block text-white font-semibold mb-2">Profile Photos (Upload 1-6)</label>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div id="photoUpload1" class="aspect-square bg-white/20 rounded-xl border-2 border-dashed border-white/40 flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors">
+                                <div class="text-center">
+                                    <div class="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <span class="text-white text-xl">+</span>
+                                    </div>
+                                    <span class="text-white text-sm">Add Photo</span>
+                                </div>
+                                <input type="file" class="hidden" accept="image/*" onchange="handlePhotoUpload(this, 1)">
+                            </div>
+                            <div id="photoUpload2" class="aspect-square bg-white/20 rounded-xl border-2 border-dashed border-white/40 flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors">
+                                <div class="text-center">
+                                    <div class="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <span class="text-white text-xl">+</span>
+                                    </div>
+                                    <span class="text-white text-sm">Add Photo</span>
+                                </div>
+                                <input type="file" class="hidden" accept="image/*" onchange="handlePhotoUpload(this, 2)">
+                            </div>
+                            <div id="photoUpload3" class="aspect-square bg-white/20 rounded-xl border-2 border-dashed border-white/40 flex items-center justify-center cursor-pointer hover:bg-white/30 transition-colors">
+                                <div class="text-center">
+                                    <div class="w-12 h-12 bg-white/30 rounded-full flex items-center justify-center mx-auto mb-2">
+                                        <span class="text-white text-xl">+</span>
+                                    </div>
+                                    <span class="text-white text-sm">Add Photo</span>
+                                </div>
+                                <input type="file" class="hidden" accept="image/*" onchange="handlePhotoUpload(this, 3)">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Basic Info -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-white font-semibold mb-2">Name *</label>
+                            <input type="text" id="userName" required class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60" placeholder="Your name">
+                        </div>
+                        <div>
+                            <label class="block text-white font-semibold mb-2">Age *</label>
+                            <input type="number" id="userAge" required min="18" max="100" class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60" placeholder="25">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-white font-semibold mb-2">Gender *</label>
+                            <select id="userGender" required class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-white font-semibold mb-2">Interested In *</label>
+                            <select id="interestedIn" required class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white">
+                                <option value="">Select Preference</option>
+                                <option value="male">Men</option>
+                                <option value="female">Women</option>
+                                <option value="everyone">Everyone</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-white font-semibold mb-2">City/Location *</label>
+                        <input type="text" id="userLocation" required class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60" placeholder="Mumbai, India">
+                    </div>
+
+                    <div>
+                        <label class="block text-white font-semibold mb-2">About Me *</label>
+                        <textarea id="userBio" required class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60 h-24" placeholder="Adventurous soul who loves road trips 🚗"></textarea>
+                    </div>
+
+                    <!-- Optional Details -->
+                    <div class="border-t border-white/20 pt-6">
+                        <h3 class="text-xl font-semibold text-white mb-4">Optional Details</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-white font-semibold mb-2">Occupation</label>
+                                <input type="text" id="userOccupation" class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60" placeholder="Software Engineer">
+                            </div>
+                            <div>
+                                <label class="block text-white font-semibold mb-2">Height</label>
+                                <input type="text" id="userHeight" class="w-full bg-white/20 border border-white/30 rounded-xl px-4 py-3 text-white placeholder-white/60" placeholder="5'8&quot;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interests -->
+                    <div>
+                        <label class="block text-white font-semibold mb-2">Interests (Select multiple)</label>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="music" class="rounded">
+                                <span>🎵 Music</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="travel" class="rounded">
+                                <span>✈️ Travel</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="fitness" class="rounded">
+                                <span>💪 Fitness</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="movies" class="rounded">
+                                <span>🎬 Movies</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="food" class="rounded">
+                                <span>🍕 Food</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="books" class="rounded">
+                                <span>📚 Books</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="sports" class="rounded">
+                                <span>⚽ Sports</span>
+                            </label>
+                            <label class="flex items-center space-x-2 text-white">
+                                <input type="checkbox" value="art" class="rounded">
+                                <span>🎨 Art</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white py-3 px-6 rounded-full font-semibold hover:from-pink-600 hover:to-red-600 transition-colors">
+                        Complete Profile & Start Matching! 💕
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Main App Screen -->
+        <div id="mainAppScreen" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Sidebar - Navigation -->
+                <div class="lg:col-span-1">
+                    <div class="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20 sticky top-24">
+                        <div class="space-y-4">
+                            <button id="discoverTab" class="w-full bg-gradient-to-r from-pink-500 to-red-500 text-white py-3 px-4 rounded-xl font-semibold transition-colors">
+                                Discover
+                            </button>
+                            <button id="matchesTab" class="w-full bg-white/20 text-white py-3 px-4 rounded-xl font-semibold hover:bg-white/30 transition-colors">
+                                Matches (<span id="matchCount">0</span>)
+                            </button>
+                            <button id="chatTab" class="w-full bg-white/20 text-white py-3 px-4 rounded-xl font-semibold hover:bg-white/30 transition-colors">
+                                Messages
+                            </button>
+                            <button id="likesTab" class="w-full bg-white/20 text-white py-3 px-4 rounded-xl font-semibold hover:bg-white/30 transition-colors">
+                                Likes You
+                            </button>
+                            <button id="premiumTab" class="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white py-3 px-4 rounded-xl font-semibold hover:from-yellow-500 hover:to-orange-600 transition-colors opacity-50 cursor-not-allowed">
+                                Premium (Coming Soon)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Area -->
+                <div class="lg:col-span-2">
+                    <!-- Discover Section -->
+                    <div id="discoverSection" class="bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20">
+                        <div class="text-center mb-6">
+                            <h2 class="text-2xl font-bold text-white mb-2">Discover People</h2>
+                            <p class="text-white/80">Swipe right to like, left to pass</p>
+                        </div>
+                        
+                        <div id="cardStack" class="relative h-96 mx-auto max-w-sm">
+                            <!-- Cards will be dynamically generated here -->
+                        </div>
+                        
+                        <div class="flex justify-center space-x-4 mt-6">
+                            <button id="passBtn" class="bg-red-500/80 hover:bg-red-600/80 text-white px-6 py-3 rounded-full transition-colors font-semibold">
+                                Pass
+                            </button>
+                            <button id="superLikeBtn" class="bg-blue-500/80 hover:bg-blue-600/80 text-white px-6 py-3 rounded-full transition-colors font-semibold">
+                                Super Like
+                            </button>
+                            <button id="likeBtn" class="bg-green-500/80 hover:bg-green-600/80 text-white px-6 py-3 rounded-full transition-colors font-semibold">
+                                Like
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Matches Section -->
+                    <div id="matchesSection" class="hidden bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20">
+                        <h2 class="text-2xl font-bold text-white mb-6">Your Matches</h2>
+                        <div id="matchesList" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <!-- Matches will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Chat Section -->
+                    <div id="chatSection" class="hidden bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20">
+                        <div id="chatList" class="space-y-4">
+                            <h2 class="text-2xl font-bold text-white mb-6">Messages</h2>
+                            <!-- Chat conversations will be listed here -->
+                        </div>
+                        
+                        <!-- Individual Chat Window -->
+                        <div id="chatWindow" class="hidden">
+                            <div class="flex items-center justify-between mb-4 pb-4 border-b border-white/20">
+                                <div class="flex items-center space-x-3">
+                                    <button id="backToChatList" class="text-white hover:text-white/80">
+                                        ← Back
+                                    </button>
+                                    <div class="relative">
+                                        <img id="chatPartnerPhoto" class="w-10 h-10 rounded-full object-cover" src="" alt="">
+                                        <div class="online-indicator"></div>
+                                    </div>
+                                    <div>
+                                        <h3 id="chatPartnerName" class="text-white font-semibold"></h3>
+                                        <p class="text-white/60 text-sm">Active now</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="chatMessages" class="h-64 overflow-y-auto mb-4 space-y-2">
+                                <!-- Messages will appear here -->
+                            </div>
+                            
+                            <div class="flex space-x-2">
+                                <input type="text" id="messageInput" class="flex-1 bg-white/20 border border-white/30 rounded-full px-4 py-2 text-white placeholder-white/60" placeholder="Type a message...">
+                                <button id="sendMessageBtn" class="bg-gradient-to-r from-pink-500 to-red-500 text-white px-6 py-2 rounded-full hover:from-pink-600 hover:to-red-600 transition-colors">
+                                    Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Likes Section -->
+                    <div id="likesSection" class="hidden bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20">
+                        <h2 class="text-2xl font-bold text-white mb-6">People Who Liked You</h2>
+                        <div id="likesList" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <!-- Likes will be displayed here -->
+                        </div>
+                    </div>
+
+                    <!-- Premium Section -->
+                    <div id="premiumSection" class="hidden bg-white/10 backdrop-blur-md rounded-3xl p-6 border border-white/20">
+                        <div class="text-center mb-8">
+                            <h2 class="text-3xl font-bold text-white mb-2">Go Premium ⭐</h2>
+                            <p class="text-white/80">Unlock exclusive features and find love faster!</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Plus Plan -->
+                            <div class="bg-gradient-to-b from-blue-500/20 to-blue-600/20 rounded-2xl p-6 border border-blue-400/30">
+                                <h3 class="text-xl font-bold text-white mb-2">Plus</h3>
+                                <p class="text-2xl font-bold text-white mb-4">₹499/month</p>
+                                <ul class="space-y-2 text-white/80 text-sm mb-6">
+                                    <li>✓ Unlimited likes</li>
+                                    <li>✓ See who liked you</li>
+                                    <li>✓ Rewind last swipe</li>
+                                    <li>✓ 5 Super Likes per day</li>
+                                </ul>
+                                <button class="w-full bg-blue-500 text-white py-2 rounded-xl hover:bg-blue-600 transition-colors">
+                                    Choose Plus
+                                </button>
+                            </div>
+                            
+                            <!-- Gold Plan -->
+                            <div class="bg-gradient-to-b from-yellow-500/20 to-orange-600/20 rounded-2xl p-6 border border-yellow-400/30 transform scale-105">
+                                <div class="premium-badge text-center py-1 px-3 rounded-full text-xs mb-3">MOST POPULAR</div>
+                                <h3 class="text-xl font-bold text-white mb-2">Gold</h3>
+                                <p class="text-2xl font-bold text-white mb-4">₹999/month</p>
+                                <ul class="space-y-2 text-white/80 text-sm mb-6">
+                                    <li>✓ Everything in Plus</li>
+                                    <li>✓ Profile boost (2x/month)</li>
+                                    <li>✓ Travel mode</li>
+                                    <li>✓ Hide ads</li>
+                                    <li>✓ Priority support</li>
+                                </ul>
+                                <button class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-2 rounded-xl hover:from-yellow-600 hover:to-orange-600 transition-colors">
+                                    Choose Gold
+                                </button>
+                            </div>
+                            
+                            <!-- Diamond Plan -->
+                            <div class="bg-gradient-to-b from-purple-500/20 to-pink-600/20 rounded-2xl p-6 border border-purple-400/30">
+                                <h3 class="text-xl font-bold text-white mb-2">Diamond</h3>
+                                <p class="text-2xl font-bold text-white mb-4">₹1499/month</p>
+                                <ul class="space-y-2 text-white/80 text-sm mb-6">
+                                    <li>✓ Everything in Gold</li>
+                                    <li>✓ Message before matching</li>
+                                    <li>✓ Priority likes</li>
+                                    <li>✓ Weekly profile boost</li>
+                                    <li>✓ VIP support</li>
+                                </ul>
+                                <button class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-2 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-colors">
+                                    Choose Diamond
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Match Popup -->
+    <div id="matchPopup" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+        <div class="bg-gradient-to-b from-pink-500 to-red-500 rounded-3xl p-8 max-w-md w-full mx-4 text-center match-animation">
+            <h2 class="text-4xl font-bold text-white mb-4">It's a Match!</h2>
+            <div class="flex justify-center space-x-4 mb-6">
+                <img id="matchUser1Photo" class="w-24 h-24 rounded-full object-cover border-4 border-white" src="" alt="">
+                <img id="matchUser2Photo" class="w-24 h-24 rounded-full object-cover border-4 border-white" src="" alt="">
+            </div>
+            <p class="text-white/90 mb-6">You and <span id="matchUserName"></span> liked each other!</p>
+            <div class="space-y-3">
+                <button id="sendMessageFromMatch" class="w-full bg-white text-pink-500 py-3 rounded-full font-semibold hover:bg-gray-100 transition-colors">
+                    Send Message
+                </button>
+                <button id="keepSwipingBtn" class="w-full bg-white/20 text-white py-3 rounded-full font-semibold hover:bg-white/30 transition-colors">
+                    Keep Swiping
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const database = firebase.database();
+        const storage = firebase.storage();
+
+        // Global variables
+        let currentUser = null;
+        let currentUserProfile = null;
+        let potentialMatches = [];
+        let currentCardIndex = 0;
+        let userPoints = 0;
+        let streakCount = 0;
+        let isDarkMode = false;
+
+        // Users will be loaded from Firebase database
+        let allUsers = [];
+
+        // Authentication
+        document.getElementById('googleLoginBtn').addEventListener('click', () => {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            auth.signInWithPopup(provider)
+                .then((result) => {
+                    currentUser = result.user;
+                    checkUserProfile();
+                })
+                .catch((error) => {
+                    console.error('Login error:', error);
+                    alert('Login failed. Please try again.');
+                });
+        });
+
+        // Check if user has completed profile
+        function checkUserProfile() {
+            if (currentUser) {
+                database.ref(`users/${currentUser.uid}`).once('value')
+                    .then((snapshot) => {
+                        if (snapshot.exists()) {
+                            currentUserProfile = snapshot.val();
+                            showMainApp();
+                        } else {
+                            showProfileSetup();
+                        }
+                    });
+            }
+        }
+
+        // Photo upload handler
+        function handlePhotoUpload(input, index) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const photoDiv = document.getElementById(`photoUpload${index}`);
+                    photoDiv.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover rounded-xl">`;
+                    photoDiv.dataset.photo = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Make photo upload divs clickable
+        document.querySelectorAll('[id^="photoUpload"]').forEach(div => {
+            div.addEventListener('click', () => {
+                div.querySelector('input[type="file"]').click();
+            });
+        });
+
+        // Profile form submission
+        document.getElementById('profileForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const photos = [];
+            for (let i = 1; i <= 3; i++) {
+                const photoDiv = document.getElementById(`photoUpload${i}`);
+                if (photoDiv.dataset.photo) {
+                    photos.push(photoDiv.dataset.photo);
+                }
+            }
+
+            if (photos.length === 0) {
+                alert('Please upload at least one photo');
+                return;
+            }
+
+            const interests = [];
+            document.querySelectorAll('input[type="checkbox"]:checked').forEach(checkbox => {
+                interests.push(checkbox.value);
+            });
+
+            const profileData = {
+                name: document.getElementById('userName').value,
+                age: parseInt(document.getElementById('userAge').value),
+                gender: document.getElementById('userGender').value,
+                interestedIn: document.getElementById('interestedIn').value,
+                location: document.getElementById('userLocation').value,
+                bio: document.getElementById('userBio').value,
+                occupation: document.getElementById('userOccupation').value,
+                height: document.getElementById('userHeight').value,
+                interests: interests,
+                photos: photos,
+                createdAt: Date.now(),
+                online: true,
+                points: 100, // Starting points
+                streak: 0
+            };
+
+            database.ref(`users/${currentUser.uid}`).set(profileData)
+                .then(() => {
+                    currentUserProfile = profileData;
+                    showMainApp();
+                })
+                .catch((error) => {
+                    console.error('Profile save error:', error);
+                    alert('Failed to save profile. Please try again.');
+                });
+        });
+
+        // Show different screens
+        function showProfileSetup() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('profileSetupScreen').classList.remove('hidden');
+            document.getElementById('mainAppScreen').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('profileSetupScreen').classList.add('hidden');
+            document.getElementById('mainAppScreen').classList.remove('hidden');
+            
+            // Show user info in nav
+            document.getElementById('profileBtn').classList.remove('hidden');
+            document.getElementById('logoutBtn').classList.remove('hidden');
+            document.getElementById('userPoints').classList.remove('hidden');
+            document.getElementById('streakCounter').classList.remove('hidden');
+            
+            // Update points and streak
+            userPoints = currentUserProfile.points || 0;
+            streakCount = currentUserProfile.streak || 0;
+            document.getElementById('pointsCount').textContent = userPoints;
+            document.getElementById('streakCount').textContent = streakCount;
+            
+            loadPotentialMatches();
+            showDiscoverSection();
+        }
+
+        // Load potential matches
+        function loadPotentialMatches() {
+            // Load users from Firebase
+            database.ref('users').once('value')
+                .then((snapshot) => {
+                    allUsers = [];
+                    snapshot.forEach((childSnapshot) => {
+                        const userData = childSnapshot.val();
+                        userData.id = childSnapshot.key;
+                        allUsers.push(userData);
+                    });
+                    
+                    // Filter potential matches
+                    potentialMatches = allUsers.filter(user => 
+                        user.id !== currentUser?.uid && 
+                        (currentUserProfile.interestedIn === 'everyone' || user.gender === currentUserProfile.interestedIn)
+                    );
+                    
+                    currentCardIndex = 0;
+                    displayCurrentCard();
+                })
+                .catch((error) => {
+                    console.error('Error loading users:', error);
+                    potentialMatches = [];
+                    currentCardIndex = 0;
+                    displayCurrentCard();
+                });
+        }
+
+        // Display current card
+        function displayCurrentCard() {
+            const cardStack = document.getElementById('cardStack');
+            cardStack.innerHTML = '';
+            
+            if (currentCardIndex >= potentialMatches.length) {
+                cardStack.innerHTML = `
+                    <div class="absolute inset-0 bg-white/10 rounded-2xl flex items-center justify-center">
+                        <div class="text-center text-white">
+                            <h3 class="text-2xl font-bold mb-2">No more profiles!</h3>
+                            <p class="text-white/80">Check back later for new matches</p>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const user = potentialMatches[currentCardIndex];
+            const card = document.createElement('div');
+            card.className = 'absolute inset-0 bg-white rounded-2xl shadow-2xl card-swipe cursor-pointer';
+            card.innerHTML = `
+                <div class="relative h-full">
+                    <img src="${user.photos[0]}" alt="${user.name}" class="w-full h-3/4 object-cover rounded-t-2xl">
+                    ${user.online ? '<div class="online-indicator"></div>' : ''}
+                    <div class="p-4">
+                        <h3 class="text-xl font-bold text-gray-800">${user.name}, ${user.age}</h3>
+                        <p class="text-gray-600 text-sm mb-2">📍 ${user.location}</p>
+                        <p class="text-gray-700">${user.bio}</p>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            ${user.interests.map(interest => `<span class="bg-pink-100 text-pink-600 px-2 py-1 rounded-full text-xs">${interest}</span>`).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            cardStack.appendChild(card);
+            
+            // Add swipe functionality
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+            
+            card.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                startX = e.clientX;
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                currentX = e.clientX - startX;
+                card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.1}deg)`;
+            });
+            
+            document.addEventListener('mouseup', () => {
+                if (!isDragging) return;
+                isDragging = false;
+                
+                if (Math.abs(currentX) > 100) {
+                    if (currentX > 0) {
+                        likeUser(user);
+                    } else {
+                        passUser(user);
+                    }
+                } else {
+                    card.style.transform = '';
+                }
+            });
+        }
+
+        // Swipe actions
+        function likeUser(user) {
+            const card = document.querySelector('.card-swipe');
+            card.classList.add('swipe-right');
+            
+            setTimeout(() => {
+                // Check for match (simulate)
+                if (Math.random() > 0.7) { // 30% chance of match
+                    showMatchPopup(user);
+                    addPoints(50);
+                }
+                nextCard();
+            }, 300);
+        }
+
+        function passUser(user) {
+            const card = document.querySelector('.card-swipe');
+            card.classList.add('swipe-left');
+            
+            setTimeout(() => {
+                nextCard();
+            }, 300);
+        }
+
+        function nextCard() {
+            currentCardIndex++;
+            displayCurrentCard();
+        }
+
+        // Button actions
+        document.getElementById('passBtn').addEventListener('click', () => {
+            if (currentCardIndex < potentialMatches.length) {
+                passUser(potentialMatches[currentCardIndex]);
+            }
+        });
+
+        document.getElementById('likeBtn').addEventListener('click', () => {
+            if (currentCardIndex < potentialMatches.length) {
+                likeUser(potentialMatches[currentCardIndex]);
+            }
+        });
+
+        document.getElementById('superLikeBtn').addEventListener('click', () => {
+            if (currentCardIndex < potentialMatches.length) {
+                // Super like has higher match chance
+                const user = potentialMatches[currentCardIndex];
+                const card = document.querySelector('.card-swipe');
+                card.classList.add('swipe-right');
+                
+                setTimeout(() => {
+                    if (Math.random() > 0.4) { // 60% chance of match
+                        showMatchPopup(user);
+                        addPoints(100);
+                    }
+                    nextCard();
+                }, 300);
+            }
+        });
+
+        // Match popup
+        function showMatchPopup(user) {
+            document.getElementById('matchPopup').classList.remove('hidden');
+            document.getElementById('matchUser1Photo').src = currentUserProfile.photos[0];
+            document.getElementById('matchUser2Photo').src = user.photos[0];
+            document.getElementById('matchUserName').textContent = user.name;
+        }
+
+        document.getElementById('keepSwipingBtn').addEventListener('click', () => {
+            document.getElementById('matchPopup').classList.add('hidden');
+        });
+
+        document.getElementById('sendMessageFromMatch').addEventListener('click', () => {
+            document.getElementById('matchPopup').classList.add('hidden');
+            showChatSection();
+        });
+
+        // Points system
+        function addPoints(points) {
+            userPoints += points;
+            document.getElementById('pointsCount').textContent = userPoints;
+            
+            // Update in database
+            if (currentUser) {
+                database.ref(`users/${currentUser.uid}/points`).set(userPoints);
+            }
+        }
+
+        // Navigation
+        function showSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('[id$="Section"]').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionId).classList.remove('hidden');
+            
+            // Update tab styles
+            document.querySelectorAll('[id$="Tab"]').forEach(tab => {
+                tab.className = 'w-full bg-white/20 text-white py-3 px-4 rounded-xl font-semibold hover:bg-white/30 transition-colors';
+            });
+            
+            const activeTab = sectionId.replace('Section', 'Tab');
+            if (document.getElementById(activeTab)) {
+                document.getElementById(activeTab).className = 'w-full bg-gradient-to-r from-pink-500 to-red-500 text-white py-3 px-4 rounded-xl font-semibold transition-colors';
+            }
+        }
+
+        function showDiscoverSection() {
+            showSection('discoverSection');
+        }
+
+        function showMatchesSection() {
+            showSection('matchesSection');
+            loadMatches();
+        }
+
+        function showChatSection() {
+            showSection('chatSection');
+            loadChats();
+        }
+
+        function showLikesSection() {
+            showSection('likesSection');
+            loadLikes();
+        }
+
+        function showPremiumSection() {
+            showSection('premiumSection');
+        }
+
+        // Tab event listeners
+        document.getElementById('discoverTab').addEventListener('click', showDiscoverSection);
+        document.getElementById('matchesTab').addEventListener('click', showMatchesSection);
+        document.getElementById('chatTab').addEventListener('click', showChatSection);
+        document.getElementById('likesTab').addEventListener('click', showLikesSection);
+        document.getElementById('premiumTab').addEventListener('click', (e) => {
+            e.preventDefault();
+            alert('Premium features coming soon! Stay tuned for updates.');
+        });
+
+        // Load matches
+        function loadMatches() {
+            const matchesList = document.getElementById('matchesList');
+            
+            // Load matches from Firebase
+            database.ref(`matches/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    const matches = [];
+                    snapshot.forEach((childSnapshot) => {
+                        const matchData = childSnapshot.val();
+                        matches.push(matchData);
+                    });
+                    
+                    if (matches.length === 0) {
+                        matchesList.innerHTML = `
+                            <div class="col-span-full text-center py-12">
+                                <h3 class="text-white text-xl font-semibold mb-2">No matches yet</h3>
+                                <p class="text-white/60">Start swiping to find your perfect match!</p>
+                            </div>
+                        `;
+                    } else {
+                        matchesList.innerHTML = matches.map(match => `
+                            <div class="bg-white/10 rounded-2xl p-4 text-center cursor-pointer hover:bg-white/20 transition-colors" onclick="openChat('${match.id}')">
+                                <div class="relative mb-3">
+                                    <img src="${match.photos[0]}" alt="${match.name}" class="w-full aspect-square object-cover rounded-xl">
+                                    ${match.online ? '<div class="online-indicator"></div>' : ''}
+                                </div>
+                                <h3 class="text-white font-semibold">${match.name}</h3>
+                                <p class="text-white/60 text-sm">${match.age} • ${match.location}</p>
+                            </div>
+                        `).join('');
+                    }
+                    
+                    document.getElementById('matchCount').textContent = matches.length;
+                })
+                .catch((error) => {
+                    console.error('Error loading matches:', error);
+                    matchesList.innerHTML = `
+                        <div class="col-span-full text-center py-12">
+                            <h3 class="text-white text-xl font-semibold mb-2">No matches yet</h3>
+                            <p class="text-white/60">Start swiping to find your perfect match!</p>
+                        </div>
+                    `;
+                    document.getElementById('matchCount').textContent = '0';
+                });
+        }
+
+        // Load chats
+        function loadChats() {
+            const chatList = document.getElementById('chatList');
+            
+            // Load chats from Firebase
+            database.ref(`chats/${currentUser.uid}`).once('value')
+                .then((snapshot) => {
+                    const chats = [];
+                    snapshot.forEach((childSnapshot) => {
+                        const chatData = childSnapshot.val();
+                        chats.push(chatData);
+                    });
+                    
+                    if (chats.length === 0) {
+                        chatList.innerHTML = `
+                            <h2 class="text-2xl font-bold text-white mb-6">Messages</h2>
+                            <div class="text-center py-12">
+                                <h3 class="text-white text-xl font-semibold mb-2">No conversations yet</h3>
+                                <p class="text-white/60">Start matching to begin conversations!</p>
+                            </div>
+                        `;
+                    } else {
+                        chatList.innerHTML = `
+                            <h2 class="text-2xl font-bold text-white mb-6">Messages</h2>
+                            ${chats.map(chat => `
+                                <div class="bg-white/10 rounded-2xl p-4 cursor-pointer hover:bg-white/20 transition-colors" onclick="openChat('${chat.id}')">
+                                    <div class="flex items-center space-x-3">
+                                        <div class="relative">
+                                            <img src="${chat.photos[0]}" alt="${chat.name}" class="w-12 h-12 rounded-full object-cover">
+                                            ${chat.online ? '<div class="online-indicator"></div>' : ''}
+                                        </div>
+                                        <div class="flex-1">
+                                            <h3 class="text-white font-semibold">${chat.name}</h3>
+                                            <p class="text-white/60 text-sm">${chat.lastMessage || 'Say hello!'}</p>
+                                        </div>
+                                        <div class="text-white/60 text-xs">${chat.lastMessageTime || 'now'}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        `;
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error loading chats:', error);
+                    chatList.innerHTML = `
+                        <h2 class="text-2xl font-bold text-white mb-6">Messages</h2>
+                        <div class="text-center py-12">
+                            <h3 class="text-white text-xl font-semibold mb-2">No conversations yet</h3>
+                            <p class="text-white/60">Start matching to begin conversations!</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Load likes
+        function loadLikes() {
+            const likesList = document.getElementById('likesList');
+            
+            // Show premium required message
+            likesList.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <div class="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-8 mb-6">
+                        <h3 class="text-white text-2xl font-bold mb-2">Premium Feature</h3>
+                        <p class="text-white/90 mb-4">See who likes you with Premium subscription</p>
+                        <div class="text-white/80 text-sm">Coming Soon!</div>
+                    </div>
+                    <p class="text-white/60">This feature will be available with our premium plans</p>
+                </div>
+            `;
+        }
+
+        // Chat functionality
+        function openChat(userId) {
+            // Find user in allUsers array
+            const user = allUsers.find(u => u.id === userId);
+            if (!user) {
+                console.error('User not found:', userId);
+                return;
+            }
+            
+            document.getElementById('chatList').classList.add('hidden');
+            document.getElementById('chatWindow').classList.remove('hidden');
+            
+            document.getElementById('chatPartnerPhoto').src = user.photos[0];
+            document.getElementById('chatPartnerName').textContent = user.name;
+            
+            // Load messages from Firebase
+            const chatMessages = document.getElementById('chatMessages');
+            const chatId = [currentUser.uid, userId].sort().join('_');
+            
+            database.ref(`messages/${chatId}`).once('value')
+                .then((snapshot) => {
+                    chatMessages.innerHTML = '';
+                    
+                    if (!snapshot.exists()) {
+                        chatMessages.innerHTML = `
+                            <div class="text-center py-8">
+                                <p class="text-white/60">Start your conversation!</p>
+                            </div>
+                        `;
+                    } else {
+                        snapshot.forEach((childSnapshot) => {
+                            const message = childSnapshot.val();
+                            const isCurrentUser = message.senderId === currentUser.uid;
+                            
+                            const messageDiv = document.createElement('div');
+                            messageDiv.className = `flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-2`;
+                            messageDiv.innerHTML = `
+                                <div class="message-bubble ${isCurrentUser ? 'bg-gradient-to-r from-pink-500 to-red-500' : 'bg-white/20'} text-white px-4 py-2 rounded-2xl ${isCurrentUser ? 'rounded-br-md' : 'rounded-bl-md'}">
+                                    ${message.text}
+                                </div>
+                            `;
+                            chatMessages.appendChild(messageDiv);
+                        });
+                    }
+                    
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                })
+                .catch((error) => {
+                    console.error('Error loading messages:', error);
+                    chatMessages.innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-white/60">Start your conversation!</p>
+                        </div>
+                    `;
+                });
+        }
+
+        document.getElementById('backToChatList').addEventListener('click', () => {
+            document.getElementById('chatWindow').classList.add('hidden');
+            document.getElementById('chatList').classList.remove('hidden');
+        });
+
+        // Send message
+        document.getElementById('sendMessageBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+            
+            if (!message) return;
+            
+            const chatPartnerName = document.getElementById('chatPartnerName').textContent;
+            const chatPartner = allUsers.find(u => u.name === chatPartnerName);
+            
+            if (!chatPartner) {
+                console.error('Chat partner not found');
+                return;
+            }
+            
+            const chatId = [currentUser.uid, chatPartner.id].sort().join('_');
+            const messageData = {
+                text: message,
+                senderId: currentUser.uid,
+                timestamp: Date.now()
+            };
+            
+            // Save message to Firebase
+            database.ref(`messages/${chatId}`).push(messageData)
+                .then(() => {
+                    // Add message to UI
+                    const chatMessages = document.getElementById('chatMessages');
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = 'flex justify-end mb-2';
+                    messageDiv.innerHTML = `
+                        <div class="message-bubble bg-gradient-to-r from-pink-500 to-red-500 text-white px-4 py-2 rounded-2xl rounded-br-md">
+                            ${message}
+                        </div>
+                    `;
+                    
+                    chatMessages.appendChild(messageDiv);
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                    
+                    messageInput.value = '';
+                })
+                .catch((error) => {
+                    console.error('Error sending message:', error);
+                    alert('Failed to send message. Please try again.');
+                });
+        }
+
+        // Dark mode toggle
+        document.getElementById('darkModeToggle').addEventListener('click', () => {
+            isDarkMode = !isDarkMode;
+            document.body.classList.toggle('dark-mode', isDarkMode);
+            document.getElementById('darkModeToggle').textContent = isDarkMode ? '☀️' : '🌙';
+        });
+
+        // Logout
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            auth.signOut().then(() => {
+                currentUser = null;
+                currentUserProfile = null;
+                document.getElementById('loginScreen').classList.remove('hidden');
+                document.getElementById('mainAppScreen').classList.add('hidden');
+                document.getElementById('profileBtn').classList.add('hidden');
+                document.getElementById('logoutBtn').classList.add('hidden');
+                document.getElementById('userPoints').classList.add('hidden');
+                document.getElementById('streakCounter').classList.add('hidden');
+            });
+        });
+
+        // Auth state observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                currentUser = user;
+                checkUserProfile();
+            } else {
+                currentUser = null;
+                currentUserProfile = null;
+            }
+        });
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check if user is already logged in
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    checkUserProfile();
+                }
+            });
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'98d7e83ae52ba5d3',t:'MTc2MDI4NTg0NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
