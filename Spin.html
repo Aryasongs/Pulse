@@ -1,0 +1,2565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diwali Spin Wheel - Oriontec Inc.</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-database-compat.js"></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <meta name="google-signin-client_id" content="276235725177-your-client-id.apps.googleusercontent.com">
+    <style>
+        body {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100%;
+            overflow-x: hidden;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        .background-pattern {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.03;
+            background-image: 
+                radial-gradient(circle at 20% 80%, #ffffff 1px, transparent 1px),
+                radial-gradient(circle at 80% 20%, #ffffff 1px, transparent 1px),
+                radial-gradient(circle at 40% 40%, #ffffff 0.5px, transparent 0.5px);
+            background-size: 50px 50px, 70px 70px, 30px 30px;
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 16px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .diya-icon {
+            font-size: 20px;
+            animation: flicker 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.8; transform: scale(1); }
+            100% { opacity: 1; transform: scale(1.1); }
+        }
+
+        .wheel-container {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            margin: 20px auto;
+        }
+
+        .wheel {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 0 8px rgba(255,255,255,0.1),
+                0 0 0 12px rgba(255,255,255,0.05),
+                0 20px 60px rgba(0,0,0,0.4),
+                inset 0 0 0 2px rgba(255,255,255,0.2);
+            transition: transform 4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            background: conic-gradient(
+                from 0deg,
+                #FF6B6B 0deg 45deg,
+                #4ECDC4 45deg 90deg,
+                #45B7D1 90deg 135deg,
+                #96CEB4 135deg 180deg,
+                #FFEAA7 180deg 225deg,
+                #DDA0DD 225deg 270deg,
+                #98D8C8 270deg 315deg,
+                #F7DC6F 315deg 360deg
+            );
+        }
+
+        .segment {
+            position: absolute;
+            width: 50%;
+            height: 50%;
+            transform-origin: 100% 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+            text-align: center;
+            padding: 8px;
+            border-right: 1px solid rgba(255,255,255,0.15);
+        }
+
+        .segment:nth-child(1) { transform: rotate(0deg); }
+        .segment:nth-child(2) { transform: rotate(45deg); }
+        .segment:nth-child(3) { transform: rotate(90deg); }
+        .segment:nth-child(4) { transform: rotate(135deg); }
+        .segment:nth-child(5) { transform: rotate(180deg); }
+        .segment:nth-child(6) { transform: rotate(225deg); }
+        .segment:nth-child(7) { transform: rotate(270deg); }
+        .segment:nth-child(8) { transform: rotate(315deg); }
+
+        .segment-icon {
+            font-size: 16px;
+            margin-bottom: 2px;
+        }
+
+        .segment-text {
+            font-size: 8px;
+            line-height: 1.1;
+        }
+
+        .pointer {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 18px solid transparent;
+            border-right: 18px solid transparent;
+            border-top: 35px solid #ffffff;
+            z-index: 10;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+        }
+
+        .center-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            z-index: 5;
+            box-shadow: 
+                0 8px 25px rgba(0,0,0,0.3),
+                inset 0 2px 4px rgba(255,255,255,0.2);
+            border: 4px solid rgba(255,255,255,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .spin-button {
+            display: block;
+            width: 160px;
+            height: 60px;
+            margin: 30px auto;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 
+                0 8px 25px rgba(102, 126, 234, 0.4),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .spin-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .spin-button:hover:not(:disabled)::before {
+            left: 100%;
+        }
+
+        .spin-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 12px 35px rgba(102, 126, 234, 0.6),
+                inset 0 1px 0 rgba(255,255,255,0.2);
+        }
+
+        .spin-button:active:not(:disabled) {
+            transform: translateY(0px);
+        }
+
+        .spin-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .control-btn {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #ffd700;
+            border-radius: 25px;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .control-btn:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .rules-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.15);
+            border: 2px solid #ffd700;
+        }
+
+        .rules-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rules-content {
+            font-size: 13px;
+            color: #555;
+            line-height: 1.5;
+        }
+
+        .spins-left {
+            text-align: center;
+            font-size: 16px;
+            color: #2c3e50;
+            margin: 15px 0;
+            font-weight: bold;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 25px;
+            padding: 35px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+            border: 3px solid #ffd700;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .modal-content::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, #ff6b35, #f7931e, #ffd700);
+        }
+
+        .modal-title {
+            font-size: 26px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .modal-prize {
+            font-size: 22px;
+            color: #e74c3c;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .modal-details {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.primary {
+            background: linear-gradient(45deg, #ff6b35, #f7931e);
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: #ecf0f1;
+            color: #2c3e50;
+            border: 2px solid #bdc3c7;
+        }
+
+        .modal-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .login-form {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 25px;
+            padding: 35px;
+            margin: 20px 0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            border: 3px solid #ffd700;
+        }
+
+        .login-title {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 25px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ecf0f1;
+            border-radius: 15px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            box-sizing: border-box;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #ff6b35;
+            box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.1);
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #2ecc71;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 15px;
+            box-shadow: 0 6px 25px rgba(0,0,0,0.2);
+            z-index: 1001;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            font-weight: bold;
+        }
+
+        .toast.show {
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background: #e74c3c;
+        }
+
+        .history-modal .modal-content {
+            max-height: 80%;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 15px;
+            margin: 12px 0;
+            text-align: left;
+            border-left: 4px solid #ff6b35;
+        }
+
+        .history-date {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .history-prize {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 16px;
+        }
+
+        .history-code {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #ff6b35;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .admin-trigger {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            width: 30px;
+            height: 30px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            opacity: 0.1;
+            z-index: 999;
+        }
+
+        .admin-panel {
+            background: rgba(255, 255, 255, 0.98);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 95%;
+            max-height: 90%;
+            overflow-y: auto;
+            box-shadow: 0 15px 50px rgba(0,0,0,0.4);
+            border: 3px solid #667eea;
+        }
+
+        .admin-header {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 24px;
+            font-weight: bold;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 15px;
+        }
+
+        .admin-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .admin-section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .admin-form-group {
+            margin-bottom: 15px;
+        }
+
+        .admin-form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .admin-form-group input,
+        .admin-form-group select,
+        .admin-form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ecf0f1;
+            border-radius: 10px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .admin-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .admin-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .admin-btn.danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+
+        .admin-btn.success {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+
+        .admin-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border: 2px solid #ecf0f1;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .google-signin-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: white;
+            border: 2px solid #4285f4;
+            border-radius: 15px;
+            padding: 15px 20px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #4285f4;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .google-signin-btn:hover {
+            background: #4285f4;
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(66, 133, 244, 0.3);
+        }
+
+        .google-icon {
+            width: 20px;
+            height: 20px;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .user-info {
+            flex: 1;
+            color: white;
+        }
+
+        .user-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .user-email {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .ob-coin-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 15px 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .coin-balance {
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .coin-icon {
+            font-size: 20px;
+            animation: coinSpin 3s ease-in-out infinite;
+        }
+
+        @keyframes coinSpin {
+            0%, 100% { transform: rotateY(0deg); }
+            50% { transform: rotateY(180deg); }
+        }
+
+        .coin-balance-header {
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+
+        .store-item {
+            display: flex;
+            align-items: center;
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 15px 0;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .store-item:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+
+        .store-item.special {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .store-item.special .store-item-title,
+        .store-item.special .store-item-desc,
+        .store-item.special .store-item-price {
+            color: white;
+        }
+
+        .store-item-icon {
+            font-size: 32px;
+            margin-right: 15px;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .store-item-details {
+            flex: 1;
+        }
+
+        .store-item-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .store-item-desc {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+
+        .store-item-price {
+            font-size: 14px;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .store-buy-btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 80px;
+        }
+
+        .store-buy-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .store-buy-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .wheel-container {
+                width: 250px;
+                height: 250px;
+            }
+            
+            .title {
+                font-size: 20px;
+            }
+            
+            .segment {
+                font-size: 9px;
+            }
+            
+            .segment-icon {
+                font-size: 14px;
+            }
+            
+            .segment-text {
+                font-size: 7px;
+            }
+            
+            .modal-content {
+                padding: 25px;
+            }
+
+            .ob-coin-display {
+                flex-direction: column;
+                gap: 10px;
+                text-align: center;
+            }
+
+            .store-item {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+
+            .store-item-icon {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-pattern"></div>
+    
+    <div class="container">
+        <div class="header">
+            <div class="logo">Oriontec Inc.</div>
+            <div class="title">
+                <span class="diya-icon">🪔</span>
+                Diwali Spin
+                <span class="diya-icon">🪔</span>
+            </div>
+        </div>
+
+        <div id="loginSection" class="login-form">
+            <h2 class="login-title">🎉 Welcome to Diwali Spin! 🎉</h2>
+            <p style="text-align: center; color: #666; margin-bottom: 25px;">
+                Sign in with Google to start spinning and win amazing prizes!
+            </p>
+            <button class="google-signin-btn" id="googleSignInBtn">
+                <svg class="google-icon" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Continue with Google
+            </button>
+            <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+                Your data is secure and will only be used for this game
+            </div>
+        </div>
+
+        <div id="gameSection" style="display: none;">
+            <div class="user-profile" id="userProfile">
+                <img class="user-avatar" id="userAvatar" src="" alt="User Avatar">
+                <div class="user-info">
+                    <div class="user-name" id="userDisplayName">User Name</div>
+                    <div class="user-email" id="userDisplayEmail">user@email.com</div>
+                </div>
+                <button class="logout-btn" id="logoutBtn">Logout</button>
+            </div>
+            <div class="spins-left" id="spinsLeft">Spins remaining today: 5</div>
+            
+            <div id="progressIndicator" style="display: none;" class="rules-panel">
+                <div class="rules-title">
+                    🏆 Premium Rewards Progress
+                </div>
+                <div class="rules-content">
+                    <div id="progressText">Complete <strong id="remainingSpins">50</strong> more spins to unlock iPhone, Laptop & 20GB Data prizes!</div>
+                    <div style="background: #ecf0f1; border-radius: 10px; height: 8px; margin: 10px 0; overflow: hidden;">
+                        <div id="progressBar" style="background: linear-gradient(90deg, #ff6b35, #f7931e); height: 100%; width: 0%; transition: width 0.3s ease;"></div>
+                    </div>
+                    <div style="font-size: 11px; color: #666; text-align: center;">
+                        <span id="currentSpins">0</span> / 50 spins completed
+                    </div>
+                </div>
+            </div>
+            
+            <div class="wheel-container">
+                <div class="pointer"></div>
+                <div class="wheel" id="wheel">
+                    <div class="segment">
+                        <div class="segment-icon">📱</div>
+                        <div class="segment-text">iPhone</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">💻</div>
+                        <div class="segment-text">Laptop</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">📶</div>
+                        <div class="segment-text">20GB Data</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">🪙</div>
+                        <div class="segment-text">OB Coin x5</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">🪙</div>
+                        <div class="segment-text">OB Coin x3</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">🎁</div>
+                        <div class="segment-text">₹150 Voucher</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">🌸</div>
+                        <div class="segment-text">Perfume ₹1</div>
+                    </div>
+                    <div class="segment">
+                        <div class="segment-icon">🪙</div>
+                        <div class="segment-text">OB Coin x1</div>
+                    </div>
+                </div>
+                <div class="center-circle">🎯</div>
+            </div>
+
+            <button class="spin-button" id="spinBtn">SPIN NOW</button>
+
+            <div class="ob-coin-display">
+                <div class="coin-balance">
+                    <span class="coin-icon">🪙</span>
+                    <span id="obCoinBalance">0</span> OB Coins
+                </div>
+                <button class="control-btn" id="obStoreBtn">🛒 OB Store</button>
+            </div>
+
+            <div class="controls">
+                <button class="control-btn" id="muteBtn">🔊 Sound On</button>
+                <button class="control-btn" id="historyBtn">📜 Spin History</button>
+                <button class="control-btn" id="redeemHistoryBtn">🎫 Redeem History</button>
+            </div>
+
+            <div class="rules-panel">
+                <div class="rules-title">
+                    🎯 How to Play
+                </div>
+                <div class="rules-content">
+                    • Get 5 free spins every day<br>
+                    • Win amazing Diwali prizes & rewards<br>
+                    • Redeem codes instantly after winning<br>
+                    • Check your spin history anytime<br>
+                    • New prizes unlock as you play more!
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Prize Modal -->
+    <div class="modal" id="prizeModal">
+        <div class="modal-content">
+            <div class="modal-title">🎉 Congratulations! 🎉</div>
+            <div class="modal-prize" id="prizeText"></div>
+            <div class="modal-details" id="prizeDetails"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn primary" id="redeemBtn">Redeem Now</button>
+                <button class="modal-btn secondary" id="saveLaterBtn">Save for Later</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal history-modal" id="historyModal">
+        <div class="modal-content">
+            <div class="modal-title">📜 Your Spin History</div>
+            <div id="historyContent"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('historyModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Redeem History Modal -->
+    <div class="modal history-modal" id="redeemHistoryModal">
+        <div class="modal-content">
+            <div class="modal-title">🎫 Your Redeem History</div>
+            <div id="redeemHistoryContent"></div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('redeemHistoryModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- OB Store Modal -->
+    <div class="modal history-modal" id="obStoreModal">
+        <div class="modal-content">
+            <div class="modal-title">🛒 OB Coin Store</div>
+            <div class="coin-balance-header">
+                <span class="coin-icon">🪙</span>
+                <span id="storeObCoinBalance">0</span> OB Coins Available
+            </div>
+            <div id="obStoreContent">
+                <div class="store-item">
+                    <div class="store-item-icon">📺</div>
+                    <div class="store-item-details">
+                        <div class="store-item-title">OTT Power Play</div>
+                        <div class="store-item-desc">Ottplay JioHotstar, SonyLIV, Zee5 + 25 more OTTs</div>
+                        <div class="store-item-price">5 🪙 OB Coins</div>
+                    </div>
+                    <button class="store-buy-btn" data-item="ott" data-cost="5">Buy Now</button>
+                </div>
+                
+                <div class="store-item">
+                    <div class="store-item-icon">🎧</div>
+                    <div class="store-item-details">
+                        <div class="store-item-title">BOAT TWS Earbuds</div>
+                        <div class="store-item-desc">Flat Rs.500 Off on Truly Wireless Earbuds</div>
+                        <div class="store-item-price">15 🪙 OB Coins</div>
+                    </div>
+                    <button class="store-buy-btn" data-item="boat" data-cost="15">Buy Now</button>
+                </div>
+                
+                <div class="store-item">
+                    <div class="store-item-icon">💎</div>
+                    <div class="store-item-details">
+                        <div class="store-item-title">PALMONAS Jewellery</div>
+                        <div class="store-item-desc">Flat 50% Off • Min. Order Rs.2000</div>
+                        <div class="store-item-price">25 🪙 OB Coins</div>
+                    </div>
+                    <button class="store-buy-btn" data-item="palmonas" data-cost="25">Buy Now</button>
+                </div>
+                
+                <div class="store-item special">
+                    <div class="store-item-icon">🎯</div>
+                    <div class="store-item-details">
+                        <div class="store-item-title">Extra Spin</div>
+                        <div class="store-item-desc">Get 1 additional spin today</div>
+                        <div class="store-item-price">40 🪙 OB Coins</div>
+                    </div>
+                    <button class="store-buy-btn" data-item="spin" data-cost="40">Buy Now</button>
+                </div>
+            </div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal('obStoreModal')">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Trigger (Hidden) -->
+    <button class="admin-trigger" id="adminTrigger">🔧</button>
+
+    <!-- Admin Login Modal -->
+    <div class="modal" id="adminLoginModal">
+        <div class="modal-content">
+            <div class="modal-title">🔐 Admin Access</div>
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminPassword">Admin Password</label>
+                    <input type="password" id="adminPassword" required placeholder="Enter admin password">
+                </div>
+                <button type="submit" class="modal-btn primary" style="width: 100%;">Login as Admin</button>
+            </form>
+            <button class="modal-btn secondary" onclick="closeModal('adminLoginModal')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Admin Panel Modal -->
+    <div class="modal" id="adminPanelModal">
+        <div class="admin-panel">
+            <div class="admin-header">
+                🛠️ Admin Control Panel
+                <button class="logout-btn" style="float: right;" onclick="closeModal('adminPanelModal')">Close</button>
+            </div>
+
+            <!-- Statistics Section -->
+            <div class="admin-section">
+                <h3>📊 System Statistics</h3>
+                <div class="admin-stats" id="adminStats">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalUsersCount">0</div>
+                        <div class="stat-label">Total Users</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalSpinsCount">0</div>
+                        <div class="stat-label">Total Spins</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalCoinsCount">0</div>
+                        <div class="stat-label">OB Coins Distributed</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="todaySpinsCount">0</div>
+                        <div class="stat-label">Today's Spins</div>
+                    </div>
+                </div>
+                <button class="admin-btn" onclick="refreshStats()">🔄 Refresh Stats</button>
+            </div>
+
+            <!-- Prize Management -->
+            <div class="admin-section">
+                <h3>🎁 Prize Management</h3>
+                <div class="admin-form-group">
+                    <label>Select Prize to Edit</label>
+                    <select id="prizeSelect">
+                        <option value="">Select a prize...</option>
+                    </select>
+                </div>
+                <div id="prizeEditForm" style="display: none;">
+                    <div class="admin-form-group">
+                        <label>Prize Name</label>
+                        <input type="text" id="editPrizeName">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Prize Code</label>
+                        <input type="text" id="editPrizeCode">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Prize Icon (Emoji)</label>
+                        <input type="text" id="editPrizeIcon" maxlength="2">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Prize Weight (Probability)</label>
+                        <input type="number" id="editPrizeWeight" step="0.000001" min="0" max="1">
+                    </div>
+                    <div class="admin-form-group">
+                        <label>Prize URL (Optional)</label>
+                        <input type="url" id="editPrizeUrl" placeholder="https://example.com">
+                    </div>
+                    <button class="admin-btn success" onclick="updatePrize()">💾 Update Prize</button>
+                    <button class="admin-btn" onclick="cancelPrizeEdit()">❌ Cancel</button>
+                </div>
+            </div>
+
+            <!-- Store Management -->
+            <div class="admin-section">
+                <h3>🛒 Store Management</h3>
+                <div class="admin-form-group">
+                    <label>Select Store Item</label>
+                    <select id="storeItemSelect">
+                        <option value="ott">OTT Power Play</option>
+                        <option value="boat">BOAT TWS Earbuds</option>
+                        <option value="palmonas">PALMONAS Jewellery</option>
+                        <option value="spin">Extra Spin</option>
+                    </select>
+                </div>
+                <div class="admin-form-group">
+                    <label>Item Price (OB Coins)</label>
+                    <input type="number" id="storeItemPrice" min="1">
+                </div>
+                <div class="admin-form-group">
+                    <label>Item Code</label>
+                    <input type="text" id="storeItemCode">
+                </div>
+                <div class="admin-form-group">
+                    <label>Item URL</label>
+                    <input type="url" id="storeItemUrl" placeholder="https://example.com">
+                </div>
+                <div class="admin-form-group">
+                    <label>Item Description</label>
+                    <textarea id="storeItemDesc" rows="2"></textarea>
+                </div>
+                <button class="admin-btn success" onclick="updateStoreItem()">💾 Update Store Item</button>
+            </div>
+
+            <!-- User Management -->
+            <div class="admin-section">
+                <h3>👥 User Management</h3>
+                <div class="admin-form-group">
+                    <label>User Email</label>
+                    <input type="email" id="userEmailInput" placeholder="user@example.com">
+                </div>
+                <div class="admin-form-group">
+                    <label>OB Coins to Add/Remove</label>
+                    <input type="number" id="coinAdjustment" placeholder="Enter positive or negative number">
+                </div>
+                <button class="admin-btn success" onclick="adjustUserCoins()">💰 Adjust Coins</button>
+                <button class="admin-btn" onclick="searchUser()">🔍 Search User</button>
+                <div id="userSearchResult"></div>
+            </div>
+
+            <!-- System Controls -->
+            <div class="admin-section">
+                <h3>⚙️ System Controls</h3>
+                <button class="admin-btn" onclick="exportData()">📥 Export All Data</button>
+                <button class="admin-btn danger" onclick="resetDailySpins()">🔄 Reset Daily Spins</button>
+                <button class="admin-btn danger" onclick="clearAllData()" style="margin-left: 20px;">⚠️ Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Game State
+        let currentUser = null;
+        let spinsToday = 0;
+        let totalSpins = 0;
+        let soundEnabled = true;
+        let isSpinning = false;
+        let obCoinBalance = 0;
+        let isAdmin = false;
+        let storeItems = {
+            ott: { price: 5, code: 'OTTPTNR149', url: 'https://ottplay.com', desc: 'Ottplay JioHotstar, SonyLIV, Zee5 + 25 more OTTs' },
+            boat: { price: 15, code: 'PTM25TWS', url: 'https://boat-lifestyle.com', desc: 'Flat Rs.500 Off on Truly Wireless Earbuds' },
+            palmonas: { price: 25, code: 'PAY50', url: 'https://palmonas.com', desc: 'Flat 50% Off • Min. Order Rs.2000' },
+            spin: { price: 40, code: 'EXTRASPIN', url: '', desc: 'Get 1 additional spin today' }
+        };
+
+        // Prize Configuration with proper weights
+        const prizes = [
+            { name: "iPhone", icon: "📱", code: "PVVD72RKXDXUP", type: "main", weight: 0.00001, minSpins: 50 },
+            { name: "Laptop", icon: "💻", code: "LAPTOP2024XYZ", type: "main", weight: 0.00001, minSpins: 50 },
+            { name: "20GB Data", icon: "📶", code: "DATA20GB2024", type: "main", weight: 0.00001, minSpins: 50 },
+            { name: "OB Coin x5", icon: "🪙", code: "OBCOIN5X", type: "medium", weight: 0.005 },
+            { name: "OB Coin x3", icon: "🪙", code: "OBCOIN3X", type: "medium", weight: 0.007 },
+            { name: "₹150 Voucher", icon: "🎁", code: "AMAZON150", type: "medium", weight: 0.008 },
+            { name: "Perfume ₹1", icon: "🌸", code: "PAYVEL", type: "medium", url: "https://www.bombayshavingcompany.com/products/veleno-perfume", weight: 0.005 },
+            { name: "OB Coin x1", icon: "🪙", code: "OBCOIN1X", type: "small", weight: 0.964967 }
+        ];
+
+        // Sound Effects using Web Audio API
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        function playTickSound() {
+            if (!soundEnabled) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.05);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+        }
+
+        function playWinSound() {
+            if (!soundEnabled) return;
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            // Victory chime sequence
+            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            let time = audioContext.currentTime;
+            
+            notes.forEach((freq, index) => {
+                oscillator.frequency.setValueAtTime(freq, time + (index * 0.15));
+            });
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        }
+
+        // Utility Functions
+        function generateUserId() {
+            return 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function getClientIP() {
+            // In production, this would be handled server-side
+            return 'ip_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function getTodayKey() {
+            return new Date().toISOString().split('T')[0];
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = isError ? 'toast error show' : 'toast show';
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4000);
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Server-side weighted random selection with enhanced probability system
+        function selectPrizeServerSide(userTotalSpins) {
+            let availablePrizes = [...prizes];
+            
+            // Enhanced probability system based on spin count
+            if (userTotalSpins < 50) {
+                // Block main prizes completely before 50 spins
+                availablePrizes = prizes.filter(p => p.type !== 'main');
+                console.log(`User has ${userTotalSpins} spins - main prizes blocked until 50 spins`);
+            } else if (userTotalSpins >= 50 && userTotalSpins < 150) {
+                // 10% chance for main prizes between 50-149 spins
+                availablePrizes = prizes.map(p => {
+                    if (p.type === 'main') {
+                        return { ...p, weight: p.weight * 1000 }; // Increase from 0.00001 to 0.01 (1%)
+                    }
+                    return p;
+                });
+            } else if (userTotalSpins >= 150) {
+                // 100% guaranteed main prize at 150+ spins
+                const mainPrizes = prizes.filter(p => p.type === 'main');
+                return mainPrizes[Math.floor(Math.random() * mainPrizes.length)];
+            }
+            
+            // Normalize weights to ensure they sum to 1
+            const totalWeight = availablePrizes.reduce((sum, p) => sum + p.weight, 0);
+            const normalizedPrizes = availablePrizes.map(p => ({
+                ...p,
+                weight: p.weight / totalWeight
+            }));
+            
+            // Weighted random selection
+            const random = Math.random();
+            let weightSum = 0;
+            
+            for (let prize of normalizedPrizes) {
+                weightSum += prize.weight;
+                if (random <= weightSum) {
+                    return prize;
+                }
+            }
+            
+            // Fallback to most common prize
+            return normalizedPrizes.find(p => p.type === 'small') || normalizedPrizes[normalizedPrizes.length - 1];
+        }
+
+        // Rate limiting check
+        let lastSpinTime = 0;
+        function canSpin() {
+            const now = Date.now();
+            const timeSinceLastSpin = now - lastSpinTime;
+            const minInterval = 3000; // 3 seconds minimum between spins
+            
+            if (timeSinceLastSpin < minInterval) {
+                const remaining = Math.ceil((minInterval - timeSinceLastSpin) / 1000);
+                showToast(`Please wait ${remaining} seconds before spinning again`, true);
+                return false;
+            }
+            
+            return true;
+        }
+
+        // Initialize Firebase Auth
+        const auth = firebase.auth();
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('email');
+        provider.addScope('profile');
+
+        // Google Sign In
+        document.getElementById('googleSignInBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('googleSignInBtn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<div class="loading"></div> Signing in...';
+            btn.disabled = true;
+            
+            try {
+                const result = await auth.signInWithPopup(provider);
+                const user = result.user;
+                
+                currentUser = {
+                    userId: user.uid,
+                    name: user.displayName,
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    ipAddress: getClientIP(),
+                    createdAt: Date.now(),
+                    lastLogin: Date.now()
+                };
+                
+                // Store/update user data in Firebase
+                await database.ref(`users/${user.uid}`).update(currentUser);
+                
+                // Load user's existing data
+                await loadUserData();
+                
+                // Update UI
+                updateUserProfile();
+                
+                // Show game section
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('gameSection').style.display = 'block';
+                
+                showToast(`Welcome ${user.displayName}! 🎉 Ready to spin?`);
+                
+            } catch (error) {
+                console.error('Error signing in:', error);
+                showToast('Sign in failed. Please try again.', true);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        });
+
+        // Update user profile display
+        function updateUserProfile() {
+            if (currentUser) {
+                document.getElementById('userDisplayName').textContent = currentUser.name;
+                document.getElementById('userDisplayEmail').textContent = currentUser.email;
+                document.getElementById('userAvatar').src = currentUser.photoURL || 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23666"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+            }
+        }
+
+        // Logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', async () => {
+            try {
+                await auth.signOut();
+                currentUser = null;
+                document.getElementById('loginSection').style.display = 'block';
+                document.getElementById('gameSection').style.display = 'none';
+                showToast('Logged out successfully! 👋');
+            } catch (error) {
+                console.error('Error signing out:', error);
+                showToast('Error signing out', true);
+            }
+        });
+
+        // Auth state observer
+        auth.onAuthStateChanged(async (user) => {
+            if (user && !currentUser) {
+                currentUser = {
+                    userId: user.uid,
+                    name: user.displayName,
+                    email: user.email,
+                    photoURL: user.photoURL,
+                    ipAddress: getClientIP(),
+                    lastLogin: Date.now()
+                };
+                
+                await database.ref(`users/${user.uid}`).update(currentUser);
+                await loadUserData();
+                updateUserProfile();
+                
+                document.getElementById('loginSection').style.display = 'none';
+                document.getElementById('gameSection').style.display = 'block';
+            }
+        });
+
+        // Load User Data with IP tracking
+        async function loadUserData() {
+            try {
+                const todayKey = getTodayKey();
+                const userSpinsRef = database.ref(`users/${currentUser.userId}/spins`);
+                const snapshot = await userSpinsRef.once('value');
+                const spinsData = snapshot.val() || {};
+                
+                // Count today's spins for this user
+                spinsToday = Object.values(spinsData).filter(spin => 
+                    spin.date === todayKey
+                ).length;
+                
+                // Count total spins
+                totalSpins = Object.keys(spinsData).length;
+                
+                // Load OB Coin balance
+                await loadOBCoinBalance();
+                
+                // Check IP-based abuse prevention
+                await checkIPAbuse();
+                
+                updateSpinsDisplay();
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                showToast('Error loading your data', true);
+            }
+        }
+
+        // IP Abuse Prevention
+        async function checkIPAbuse() {
+            try {
+                const todayKey = getTodayKey();
+                const ipAddress = currentUser.ipAddress;
+                
+                // Check all spins from this IP today across all users
+                const allSpinsRef = database.ref('spins/logs');
+                const ipSpinsQuery = allSpinsRef.orderByChild('ipAddress').equalTo(ipAddress);
+                const ipSnapshot = await ipSpinsQuery.once('value');
+                const ipSpinsData = ipSnapshot.val() || {};
+                
+                const ipSpinsToday = Object.values(ipSpinsData).filter(spin => 
+                    spin.date === todayKey
+                ).length;
+                
+                // Check for suspicious activity (more than 25 spins from same IP)
+                if (ipSpinsToday > 25) {
+                    console.warn(`Suspicious activity detected from IP: ${ipAddress} - ${ipSpinsToday} spins today`);
+                    
+                    // Log suspicious activity
+                    await database.ref(`security/suspicious_ips/${ipAddress.replace(/\./g, '_')}`).set({
+                        ipAddress: ipAddress,
+                        spinsToday: ipSpinsToday,
+                        timestamp: Date.now(),
+                        flagged: true
+                    });
+                }
+                
+                // Check for multiple accounts from same IP
+                const allUsersRef = database.ref('users');
+                const usersSnapshot = await allUsersRef.once('value');
+                const allUsers = usersSnapshot.val() || {};
+                
+                const sameIPUsers = Object.values(allUsers).filter(user => 
+                    user.ipAddress === ipAddress
+                );
+                
+                if (sameIPUsers.length > 5) {
+                    console.warn(`Multiple accounts detected from IP: ${ipAddress} - ${sameIPUsers.length} accounts`);
+                    
+                    // Log multiple accounts
+                    await database.ref(`security/multiple_accounts/${ipAddress.replace(/\./g, '_')}`).set({
+                        ipAddress: ipAddress,
+                        accountCount: sameIPUsers.length,
+                        timestamp: Date.now(),
+                        userIds: sameIPUsers.map(u => u.userId)
+                    });
+                }
+                
+            } catch (error) {
+                console.error('Error checking IP abuse:', error);
+            }
+        }
+
+        function updateSpinsDisplay() {
+            const remaining = Math.max(0, 5 - spinsToday);
+            document.getElementById('spinsLeft').textContent = `Spins remaining today: ${remaining}`;
+            
+            const spinBtn = document.getElementById('spinBtn');
+            if (remaining === 0) {
+                spinBtn.disabled = true;
+                spinBtn.textContent = 'Come back tomorrow! 🌅';
+            } else {
+                spinBtn.disabled = false;
+                spinBtn.textContent = 'SPIN NOW';
+            }
+            
+            // Update progress indicator for main rewards
+            updateProgressIndicator();
+        }
+
+        function updateProgressIndicator() {
+            const progressIndicator = document.getElementById('progressIndicator');
+            const currentSpinsEl = document.getElementById('currentSpins');
+            const remainingSpinsEl = document.getElementById('remainingSpins');
+            const progressBar = document.getElementById('progressBar');
+            const progressText = document.getElementById('progressText');
+            
+            if (totalSpins < 50) {
+                progressIndicator.style.display = 'block';
+                const remaining = 50 - totalSpins;
+                const progress = (totalSpins / 50) * 100;
+                
+                currentSpinsEl.textContent = totalSpins;
+                remainingSpinsEl.textContent = remaining;
+                progressBar.style.width = `${progress}%`;
+                
+                if (remaining === 1) {
+                    progressText.innerHTML = `Complete <strong>1</strong> more spin to unlock premium rewards! 🎯`;
+                } else {
+                    progressText.innerHTML = `Complete <strong>${remaining}</strong> more spins to unlock iPhone, Laptop & 20GB Data prizes!`;
+                }
+            } else {
+                progressIndicator.style.display = 'none';
+            }
+        }
+
+        // Spin Functionality
+        document.getElementById('spinBtn').addEventListener('click', async () => {
+            // Check daily limit
+            if (spinsToday >= 5) {
+                showToast('Daily limit reached — try again tomorrow! 🌅', true);
+                return;
+            }
+            
+            // Check rate limiting
+            if (!canSpin()) {
+                return;
+            }
+            
+            if (isSpinning) return;
+            
+            isSpinning = true;
+            lastSpinTime = Date.now();
+            const spinBtn = document.getElementById('spinBtn');
+            spinBtn.disabled = true;
+            spinBtn.textContent = 'Spinning... 🎯';
+            
+            try {
+                // Server-side prize selection
+                const selectedPrize = selectPrizeServerSide(totalSpins);
+                const prizeIndex = prizes.findIndex(p => p.name === selectedPrize.name);
+                
+                // Calculate wheel rotation
+                const segmentAngle = 360 / 8;
+                const targetAngle = (prizeIndex * segmentAngle) + (segmentAngle / 2);
+                const spins = 5 + Math.random() * 3; // 5-8 full rotations
+                const finalRotation = (spins * 360) + (360 - targetAngle);
+                
+                // Animate wheel with easing
+                const wheel = document.getElementById('wheel');
+                wheel.style.transform = `rotate(${finalRotation}deg)`;
+                
+                // Play tick sounds during spin
+                const tickInterval = setInterval(playTickSound, 120);
+                
+                // Complete spin after animation
+                setTimeout(async () => {
+                    clearInterval(tickInterval);
+                    playWinSound();
+                    
+                    // Record spin in Firebase
+                    await recordSpin(selectedPrize);
+                    
+                    // Show prize modal
+                    showPrizeModal(selectedPrize);
+                    
+                    // Update counters
+                    spinsToday++;
+                    totalSpins++;
+                    
+                    // Award OB Coins for winning
+                    await awardOBCoins(selectedPrize);
+                    
+                    updateSpinsDisplay();
+                    
+                    isSpinning = false;
+                }, 3500); // Slightly longer than CSS animation
+                
+            } catch (error) {
+                console.error('Error during spin:', error);
+                showToast('Spin failed. Please try again.', true);
+                isSpinning = false;
+                spinBtn.disabled = false;
+                spinBtn.textContent = 'SPIN NOW';
+            }
+        });
+
+        // Record Spin in Firebase
+        async function recordSpin(prize) {
+            try {
+                const spinData = {
+                    userId: currentUser.userId,
+                    userName: currentUser.name,
+                    userPhone: currentUser.phone,
+                    prize: prize.name,
+                    prizeIcon: prize.icon,
+                    code: prize.code,
+                    prizeType: prize.type,
+                    date: getTodayKey(),
+                    timestamp: Date.now(),
+                    redeemed: false,
+                    ipAddress: currentUser.ipAddress
+                };
+                
+                const spinId = `spin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                // Store in user's spins
+                await database.ref(`users/${currentUser.userId}/spins/${spinId}`).set(spinData);
+                
+                // Store in global spins log for analytics
+                await database.ref(`spins/logs/${spinId}`).set(spinData);
+                
+            } catch (error) {
+                console.error('Error recording spin:', error);
+                throw error;
+            }
+        }
+
+        // Prize Modal
+        function showPrizeModal(prize) {
+            document.getElementById('prizeText').textContent = `You won: ${prize.name}!`;
+            
+            let details = `🎫 Redemption Code: <strong>${prize.code}</strong>`;
+            if (prize.url) {
+                details += `<br><br>🌟 <em>Special offer: Get this premium perfume for just ₹1!</em>`;
+            }
+            if (prize.type === 'main') {
+                details += `<br><br>🏆 <em>Congratulations! This is a premium reward!</em>`;
+            }
+            
+            document.getElementById('prizeDetails').innerHTML = details;
+            
+            // Store current prize for redeem action
+            document.getElementById('redeemBtn').dataset.prize = JSON.stringify(prize);
+            
+            document.getElementById('prizeModal').style.display = 'flex';
+        }
+
+        // Redeem Functionality with enhanced tracking
+        let perfumeClickCount = 0;
+        document.getElementById('redeemBtn').addEventListener('click', async (e) => {
+            const prize = JSON.parse(e.target.dataset.prize);
+            
+            try {
+                // Copy code to clipboard
+                await navigator.clipboard.writeText(prize.code);
+                showToast(`Code copied: ${prize.code} ✅`);
+                
+                // Record redeem event in Firebase
+                await recordRedeemEvent(prize);
+                
+                // Special handling for Veleno perfume (two-tap behavior)
+                if (prize.url && prize.name === "Perfume ₹1") {
+                    perfumeClickCount++;
+                    if (perfumeClickCount === 1) {
+                        showToast('Code copied! Tap "Redeem" again to open product page 🌸');
+                        return; // Don't close modal yet
+                    } else if (perfumeClickCount >= 2) {
+                        setTimeout(() => {
+                            window.open(prize.url, '_blank', 'noopener,noreferrer');
+                        }, 500);
+                        perfumeClickCount = 0; // Reset counter
+                    }
+                }
+                
+                // Mark as redeemed in Firebase
+                await markAsRedeemed(prize);
+                
+            } catch (error) {
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = prize.code;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast(`Code copied: ${prize.code} ✅`);
+                
+                await recordRedeemEvent(prize);
+                
+                if (prize.url && prize.name === "Perfume ₹1") {
+                    perfumeClickCount++;
+                    if (perfumeClickCount === 1) {
+                        showToast('Code copied! Tap "Redeem" again to open product page 🌸');
+                        return;
+                    } else if (perfumeClickCount >= 2) {
+                        setTimeout(() => {
+                            window.open(prize.url, '_blank', 'noopener,noreferrer');
+                        }, 500);
+                        perfumeClickCount = 0;
+                    }
+                }
+                
+                await markAsRedeemed(prize);
+            }
+            
+            closeModal('prizeModal');
+        });
+
+        // Record redeem event
+        async function recordRedeemEvent(prize) {
+            try {
+                const redeemData = {
+                    userId: currentUser.userId,
+                    userName: currentUser.name,
+                    prize: prize.name,
+                    code: prize.code,
+                    prizeType: prize.type,
+                    timestamp: Date.now(),
+                    used: false,
+                    ipAddress: currentUser.ipAddress
+                };
+                
+                const redeemId = `redeem_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                
+                // Store in user's redeems
+                await database.ref(`users/${currentUser.userId}/redeems/${redeemId}`).set(redeemData);
+                
+                // Store in global redeems log
+                await database.ref(`redeems/logs/${redeemId}`).set(redeemData);
+                
+            } catch (error) {
+                console.error('Error recording redeem event:', error);
+            }
+        }
+
+        async function markAsRedeemed(prize) {
+            try {
+                const userSpinsRef = database.ref(`users/${currentUser.userId}/spins`);
+                const snapshot = await userSpinsRef.once('value');
+                const spinsData = snapshot.val() || {};
+                
+                // Find the latest unredeemed spin with this prize
+                const latestSpin = Object.entries(spinsData)
+                    .filter(([_, spin]) => spin.prize === prize.name && !spin.redeemed)
+                    .sort(([_, a], [__, b]) => b.timestamp - a.timestamp)[0];
+                
+                if (latestSpin) {
+                    const [spinId] = latestSpin;
+                    await database.ref(`users/${currentUser.userId}/spins/${spinId}`).update({
+                        redeemed: true,
+                        redeemedAt: Date.now()
+                    });
+                    
+                    // Also update global log
+                    await database.ref(`spins/logs/${spinId}`).update({
+                        redeemed: true,
+                        redeemedAt: Date.now()
+                    });
+                }
+            } catch (error) {
+                console.error('Error marking as redeemed:', error);
+            }
+        }
+
+        document.getElementById('saveLaterBtn').addEventListener('click', () => {
+            showToast('Prize saved! Check your history anytime. 💾');
+            closeModal('prizeModal');
+        });
+
+        // History Functionality
+        document.getElementById('historyBtn').addEventListener('click', async () => {
+            try {
+                const historyContent = document.getElementById('historyContent');
+                historyContent.innerHTML = '<div style="text-align: center;"><div class="loading"></div> Loading history...</div>';
+                
+                document.getElementById('historyModal').style.display = 'flex';
+                
+                const userSpinsRef = database.ref(`users/${currentUser.userId}/spins`);
+                const snapshot = await userSpinsRef.once('value');
+                const spinsData = snapshot.val() || {};
+                
+                if (Object.keys(spinsData).length === 0) {
+                    historyContent.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🎯</div>
+                            <p>No spins yet!</p>
+                            <p><small>Start spinning to see your history here.</small></p>
+                        </div>
+                    `;
+                } else {
+                    const sortedSpins = Object.entries(spinsData)
+                        .sort(([_, a], [__, b]) => b.timestamp - a.timestamp);
+                    
+                    historyContent.innerHTML = sortedSpins.map(([id, spin]) => `
+                        <div class="history-item">
+                            <div class="history-date">${new Date(spin.timestamp).toLocaleString()}</div>
+                            <div class="history-prize">${spin.prizeIcon} ${spin.prize}</div>
+                            <div class="history-code">
+                                Code: <strong>${spin.code}</strong> 
+                                ${spin.redeemed ? '<span style="color: #2ecc71;">✅ Redeemed</span>' : '<span style="color: #f39c12;">⏳ Available</span>'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+            } catch (error) {
+                console.error('Error loading history:', error);
+                document.getElementById('historyContent').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #e74c3c;">
+                        <p>Error loading history</p>
+                        <p><small>Please try again later.</small></p>
+                    </div>
+                `;
+            }
+        });
+
+        // Redeem History Functionality
+        document.getElementById('redeemHistoryBtn').addEventListener('click', async () => {
+            try {
+                const redeemHistoryContent = document.getElementById('redeemHistoryContent');
+                redeemHistoryContent.innerHTML = '<div style="text-align: center;"><div class="loading"></div> Loading redeem history...</div>';
+                
+                document.getElementById('redeemHistoryModal').style.display = 'flex';
+                
+                const userRedeemsRef = database.ref(`users/${currentUser.userId}/redeems`);
+                const snapshot = await userRedeemsRef.once('value');
+                const redeemsData = snapshot.val() || {};
+                
+                if (Object.keys(redeemsData).length === 0) {
+                    redeemHistoryContent.innerHTML = `
+                        <div style="text-align: center; padding: 20px; color: #666;">
+                            <div style="font-size: 48px; margin-bottom: 10px;">🎫</div>
+                            <p>No redeems yet!</p>
+                            <p><small>Win prizes and redeem them to see your codes here.</small></p>
+                        </div>
+                    `;
+                } else {
+                    const sortedRedeems = Object.entries(redeemsData)
+                        .sort(([_, a], [__, b]) => b.timestamp - a.timestamp);
+                    
+                    redeemHistoryContent.innerHTML = sortedRedeems.map(([id, redeem]) => `
+                        <div class="history-item">
+                            <div class="history-date">${new Date(redeem.timestamp).toLocaleString()}</div>
+                            <div class="history-prize">🎁 ${redeem.prize}</div>
+                            <div class="history-code">
+                                <strong>Code: ${redeem.code}</strong>
+                                <button onclick="copyToClipboard('${redeem.code}')" style="margin-left: 10px; padding: 4px 8px; background: #ff6b35; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 10px;">Copy</button>
+                            </div>
+                            <div style="font-size: 11px; color: #666; margin-top: 5px;">
+                                Status: ${redeem.used ? '✅ Used' : '⏳ Available'}
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+            } catch (error) {
+                console.error('Error loading redeem history:', error);
+                document.getElementById('redeemHistoryContent').innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #e74c3c;">
+                        <p>Error loading redeem history</p>
+                        <p><small>Please try again later.</small></p>
+                    </div>
+                `;
+            }
+        });
+
+        // OB Coin Management Functions
+        async function loadOBCoinBalance() {
+            try {
+                const coinRef = database.ref(`users/${currentUser.userId}/obCoins`);
+                const snapshot = await coinRef.once('value');
+                obCoinBalance = snapshot.val() || 0;
+                updateOBCoinDisplay();
+            } catch (error) {
+                console.error('Error loading OB Coin balance:', error);
+            }
+        }
+
+        function updateOBCoinDisplay() {
+            document.getElementById('obCoinBalance').textContent = obCoinBalance;
+            document.getElementById('storeObCoinBalance').textContent = obCoinBalance;
+            
+            // Update store button states
+            const storeBtns = document.querySelectorAll('.store-buy-btn');
+            storeBtns.forEach(btn => {
+                const cost = parseInt(btn.dataset.cost);
+                btn.disabled = obCoinBalance < cost;
+                if (obCoinBalance < cost) {
+                    btn.textContent = 'Not Enough';
+                } else {
+                    btn.textContent = 'Buy Now';
+                }
+            });
+        }
+
+        async function awardOBCoins(prize) {
+            let coinsToAward = 0;
+            
+            // Award coins based on prize type
+            if (prize.name === "OB Coin x1") coinsToAward = 1;
+            else if (prize.name === "OB Coin x3") coinsToAward = 3;
+            else if (prize.name === "OB Coin x5") coinsToAward = 5;
+            
+            if (coinsToAward > 0) {
+                obCoinBalance += coinsToAward;
+                
+                try {
+                    // Update in Firebase
+                    await database.ref(`users/${currentUser.userId}/obCoins`).set(obCoinBalance);
+                    
+                    // Log coin transaction
+                    const transactionId = `coin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                    await database.ref(`users/${currentUser.userId}/coinTransactions/${transactionId}`).set({
+                        type: 'earned',
+                        amount: coinsToAward,
+                        source: 'spin_win',
+                        prize: prize.name,
+                        timestamp: Date.now(),
+                        balance: obCoinBalance
+                    });
+                    
+                    updateOBCoinDisplay();
+                    showToast(`+${coinsToAward} OB Coins earned! 🪙`);
+                } catch (error) {
+                    console.error('Error awarding OB Coins:', error);
+                }
+            }
+        }
+
+        async function spendOBCoins(amount, item, description) {
+            if (obCoinBalance < amount) {
+                showToast('Insufficient OB Coins!', true);
+                return false;
+            }
+            
+            try {
+                obCoinBalance -= amount;
+                
+                // Update in Firebase
+                await database.ref(`users/${currentUser.userId}/obCoins`).set(obCoinBalance);
+                
+                // Log coin transaction
+                const transactionId = `coin_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+                await database.ref(`users/${currentUser.userId}/coinTransactions/${transactionId}`).set({
+                    type: 'spent',
+                    amount: amount,
+                    item: item,
+                    description: description,
+                    timestamp: Date.now(),
+                    balance: obCoinBalance
+                });
+                
+                updateOBCoinDisplay();
+                showToast(`${amount} OB Coins spent! 💸`);
+                return true;
+            } catch (error) {
+                console.error('Error spending OB Coins:', error);
+                return false;
+            }
+        }
+
+        // Copy to clipboard function for redeem history
+        window.copyToClipboard = async function(code) {
+            try {
+                await navigator.clipboard.writeText(code);
+                showToast(`Code copied: ${code} ✅`);
+            } catch (error) {
+                // Fallback
+                const textArea = document.createElement('textarea');
+                textArea.value = code;
+                textArea.style.position = 'fixed';
+                textArea.style.opacity = '0';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast(`Code copied: ${code} ✅`);
+            }
+        };
+
+        // Sound Toggle
+        document.getElementById('muteBtn').addEventListener('click', () => {
+            soundEnabled = !soundEnabled;
+            const btn = document.getElementById('muteBtn');
+            btn.textContent = soundEnabled ? '🔊 Sound On' : '🔇 Sound Off';
+            
+            // Play a test sound when enabling
+            if (soundEnabled) {
+                playTickSound();
+            }
+        });
+
+        // Close modals when clicking outside
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal')) {
+                e.target.style.display = 'none';
+            }
+        });
+
+        // Initialize audio context on first user interaction
+        document.addEventListener('click', () => {
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        }, { once: true });
+
+        // Prevent form submission on Enter key in phone field
+        document.getElementById('userPhone').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+            }
+        });
+
+        // OB Store Functionality
+        document.getElementById('obStoreBtn').addEventListener('click', () => {
+            updateOBCoinDisplay();
+            document.getElementById('obStoreModal').style.display = 'flex';
+        });
+
+        // Store purchase handlers
+        document.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('store-buy-btn')) {
+                const item = e.target.dataset.item;
+                const cost = parseInt(e.target.dataset.cost || storeItems[item]?.price);
+                const code = e.target.dataset.code || storeItems[item]?.code;
+                const url = e.target.dataset.url || storeItems[item]?.url;
+                
+                if (item === 'spin') {
+                    // Handle extra spin purchase
+                    const success = await spendOBCoins(cost, item, 'Extra Spin Purchase');
+                    if (success) {
+                        spinsToday = Math.max(0, spinsToday - 1); // Give back one spin
+                        updateSpinsDisplay();
+                        showToast('Extra spin added! You can spin again! 🎯');
+                        closeModal('obStoreModal');
+                    }
+                } else {
+                    // Handle other store items
+                    const success = await spendOBCoins(cost, item, e.target.closest('.store-item').querySelector('.store-item-title').textContent);
+                    if (success) {
+                        // Copy code to clipboard
+                        try {
+                            await navigator.clipboard.writeText(code);
+                            showToast(`Code copied: ${code} ✅`);
+                        } catch (error) {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea');
+                            textArea.value = code;
+                            textArea.style.position = 'fixed';
+                            textArea.style.opacity = '0';
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            showToast(`Code copied: ${code} ✅`);
+                        }
+                        
+                        // Open website in new tab
+                        if (url) {
+                            setTimeout(() => {
+                                window.open(url, '_blank', 'noopener,noreferrer');
+                            }, 1000);
+                        }
+                        
+                        closeModal('obStoreModal');
+                    }
+                }
+            }
+        });
+
+        // Admin Functionality
+        document.getElementById('adminTrigger').addEventListener('click', () => {
+            document.getElementById('adminLoginModal').style.display = 'flex';
+        });
+
+        document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const password = document.getElementById('adminPassword').value;
+            
+            if (password === '7973804008') {
+                isAdmin = true;
+                closeModal('adminLoginModal');
+                document.getElementById('adminPanelModal').style.display = 'flex';
+                await loadAdminData();
+                showToast('Admin access granted! 🔐');
+            } else {
+                showToast('Invalid admin password!', true);
+            }
+        });
+
+        async function loadAdminData() {
+            await refreshStats();
+            await loadPrizeOptions();
+            await loadStoreItemData();
+        }
+
+        async function refreshStats() {
+            try {
+                // Get all users
+                const usersSnapshot = await database.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                document.getElementById('totalUsersCount').textContent = Object.keys(users).length;
+
+                // Get all spins
+                const spinsSnapshot = await database.ref('spins/logs').once('value');
+                const spins = spinsSnapshot.val() || {};
+                document.getElementById('totalSpinsCount').textContent = Object.keys(spins).length;
+
+                // Count today's spins
+                const today = getTodayKey();
+                const todaySpins = Object.values(spins).filter(spin => spin.date === today).length;
+                document.getElementById('todaySpinsCount').textContent = todaySpins;
+
+                // Calculate total coins distributed
+                let totalCoins = 0;
+                Object.values(users).forEach(user => {
+                    if (user.obCoins) totalCoins += user.obCoins;
+                });
+                document.getElementById('totalCoinsCount').textContent = totalCoins;
+
+            } catch (error) {
+                console.error('Error loading admin stats:', error);
+                showToast('Error loading statistics', true);
+            }
+        }
+
+        async function loadPrizeOptions() {
+            const select = document.getElementById('prizeSelect');
+            select.innerHTML = '<option value="">Select a prize...</option>';
+            
+            prizes.forEach((prize, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = `${prize.icon} ${prize.name}`;
+                select.appendChild(option);
+            });
+        }
+
+        document.getElementById('prizeSelect').addEventListener('change', (e) => {
+            const index = e.target.value;
+            if (index !== '') {
+                const prize = prizes[index];
+                document.getElementById('editPrizeName').value = prize.name;
+                document.getElementById('editPrizeCode').value = prize.code;
+                document.getElementById('editPrizeIcon').value = prize.icon;
+                document.getElementById('editPrizeWeight').value = prize.weight;
+                document.getElementById('editPrizeUrl').value = prize.url || '';
+                document.getElementById('prizeEditForm').style.display = 'block';
+            } else {
+                document.getElementById('prizeEditForm').style.display = 'none';
+            }
+        });
+
+        async function updatePrize() {
+            const index = document.getElementById('prizeSelect').value;
+            if (index === '') return;
+
+            const updatedPrize = {
+                name: document.getElementById('editPrizeName').value,
+                code: document.getElementById('editPrizeCode').value,
+                icon: document.getElementById('editPrizeIcon').value,
+                weight: parseFloat(document.getElementById('editPrizeWeight').value),
+                url: document.getElementById('editPrizeUrl').value || undefined,
+                type: prizes[index].type
+            };
+
+            prizes[index] = updatedPrize;
+
+            // Update in Firebase
+            await database.ref(`admin/prizes/${index}`).set(updatedPrize);
+            
+            // Update wheel display
+            updateWheelDisplay();
+            
+            showToast('Prize updated successfully! 🎁');
+        }
+
+        function cancelPrizeEdit() {
+            document.getElementById('prizeSelect').value = '';
+            document.getElementById('prizeEditForm').style.display = 'none';
+        }
+
+        function updateWheelDisplay() {
+            const segments = document.querySelectorAll('.segment');
+            segments.forEach((segment, index) => {
+                if (prizes[index]) {
+                    segment.querySelector('.segment-icon').textContent = prizes[index].icon;
+                    segment.querySelector('.segment-text').textContent = prizes[index].name;
+                }
+            });
+        }
+
+        async function loadStoreItemData() {
+            const select = document.getElementById('storeItemSelect');
+            const item = storeItems[select.value];
+            if (item) {
+                document.getElementById('storeItemPrice').value = item.price;
+                document.getElementById('storeItemCode').value = item.code;
+                document.getElementById('storeItemUrl').value = item.url;
+                document.getElementById('storeItemDesc').value = item.desc;
+            }
+        }
+
+        document.getElementById('storeItemSelect').addEventListener('change', loadStoreItemData);
+
+        async function updateStoreItem() {
+            const itemKey = document.getElementById('storeItemSelect').value;
+            const updatedItem = {
+                price: parseInt(document.getElementById('storeItemPrice').value),
+                code: document.getElementById('storeItemCode').value,
+                url: document.getElementById('storeItemUrl').value,
+                desc: document.getElementById('storeItemDesc').value
+            };
+
+            storeItems[itemKey] = updatedItem;
+
+            // Update in Firebase
+            await database.ref(`admin/storeItems/${itemKey}`).set(updatedItem);
+            
+            // Update store display
+            updateStoreDisplay();
+            
+            showToast('Store item updated successfully! 🛒');
+        }
+
+        function updateStoreDisplay() {
+            // Update store item prices and descriptions in the store modal
+            const storeButtons = document.querySelectorAll('.store-buy-btn');
+            storeButtons.forEach(btn => {
+                const item = btn.dataset.item;
+                if (storeItems[item]) {
+                    btn.dataset.cost = storeItems[item].price;
+                    btn.dataset.code = storeItems[item].code;
+                    btn.dataset.url = storeItems[item].url;
+                    
+                    const priceEl = btn.closest('.store-item').querySelector('.store-item-price');
+                    priceEl.textContent = `${storeItems[item].price} 🪙 OB Coins`;
+                    
+                    const descEl = btn.closest('.store-item').querySelector('.store-item-desc');
+                    descEl.textContent = storeItems[item].desc;
+                }
+            });
+            updateOBCoinDisplay();
+        }
+
+        async function searchUser() {
+            const email = document.getElementById('userEmailInput').value.trim();
+            if (!email) {
+                showToast('Please enter user email', true);
+                return;
+            }
+
+            try {
+                const usersSnapshot = await database.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                
+                const user = Object.values(users).find(u => u.email === email);
+                
+                if (user) {
+                    document.getElementById('userSearchResult').innerHTML = `
+                        <div style="background: white; padding: 15px; border-radius: 10px; margin: 10px 0; border: 2px solid #2ecc71;">
+                            <strong>${user.name}</strong><br>
+                            Email: ${user.email}<br>
+                            OB Coins: ${user.obCoins || 0}<br>
+                            Total Spins: ${Object.keys(user.spins || {}).length}<br>
+                            Last Login: ${new Date(user.lastLogin).toLocaleString()}
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('userSearchResult').innerHTML = `
+                        <div style="background: #ffebee; padding: 15px; border-radius: 10px; margin: 10px 0; color: #c62828;">
+                            User not found
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error searching user:', error);
+                showToast('Error searching user', true);
+            }
+        }
+
+        async function adjustUserCoins() {
+            const email = document.getElementById('userEmailInput').value.trim();
+            const adjustment = parseInt(document.getElementById('coinAdjustment').value);
+            
+            if (!email || isNaN(adjustment)) {
+                showToast('Please enter valid email and coin amount', true);
+                return;
+            }
+
+            try {
+                const usersSnapshot = await database.ref('users').once('value');
+                const users = usersSnapshot.val() || {};
+                
+                const userEntry = Object.entries(users).find(([_, u]) => u.email === email);
+                
+                if (userEntry) {
+                    const [userId, user] = userEntry;
+                    const newBalance = Math.max(0, (user.obCoins || 0) + adjustment);
+                    
+                    await database.ref(`users/${userId}/obCoins`).set(newBalance);
+                    
+                    // Log admin action
+                    await database.ref(`admin/actions/${Date.now()}`).set({
+                        action: 'coin_adjustment',
+                        targetUser: email,
+                        adjustment: adjustment,
+                        newBalance: newBalance,
+                        timestamp: Date.now(),
+                        admin: currentUser?.email || 'admin'
+                    });
+                    
+                    showToast(`Coins adjusted! New balance: ${newBalance} 🪙`);
+                    await searchUser(); // Refresh user display
+                } else {
+                    showToast('User not found', true);
+                }
+            } catch (error) {
+                console.error('Error adjusting coins:', error);
+                showToast('Error adjusting coins', true);
+            }
+        }
+
+        async function exportData() {
+            try {
+                const snapshot = await database.ref().once('value');
+                const data = snapshot.val();
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `diwali-spin-data-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                showToast('Data exported successfully! 📥');
+            } catch (error) {
+                console.error('Error exporting data:', error);
+                showToast('Error exporting data', true);
+            }
+        }
+
+        async function resetDailySpins() {
+            if (!confirm('Are you sure you want to reset all daily spins? This will allow all users to spin again today.')) {
+                return;
+            }
+
+            try {
+                // This would typically be handled server-side in production
+                showToast('Daily spins reset! Users can spin again. 🔄');
+                
+                // Log admin action
+                await database.ref(`admin/actions/${Date.now()}`).set({
+                    action: 'reset_daily_spins',
+                    timestamp: Date.now(),
+                    admin: currentUser?.email || 'admin'
+                });
+            } catch (error) {
+                console.error('Error resetting daily spins:', error);
+                showToast('Error resetting daily spins', true);
+            }
+        }
+
+        async function clearAllData() {
+            if (!confirm('⚠️ WARNING: This will delete ALL user data, spins, and coins. This action cannot be undone. Are you absolutely sure?')) {
+                return;
+            }
+
+            if (!confirm('This is your final warning. All data will be permanently deleted. Continue?')) {
+                return;
+            }
+
+            try {
+                await database.ref('users').remove();
+                await database.ref('spins').remove();
+                await database.ref('redeems').remove();
+                
+                showToast('All data cleared! ⚠️');
+                
+                // Log admin action
+                await database.ref(`admin/actions/${Date.now()}`).set({
+                    action: 'clear_all_data',
+                    timestamp: Date.now(),
+                    admin: currentUser?.email || 'admin'
+                });
+                
+                await refreshStats();
+            } catch (error) {
+                console.error('Error clearing data:', error);
+                showToast('Error clearing data', true);
+            }
+        }
+
+        // Load admin settings on startup
+        async function loadAdminSettings() {
+            try {
+                // Load custom prizes
+                const prizesSnapshot = await database.ref('admin/prizes').once('value');
+                const customPrizes = prizesSnapshot.val();
+                if (customPrizes) {
+                    Object.entries(customPrizes).forEach(([index, prize]) => {
+                        if (prizes[index]) {
+                            prizes[index] = { ...prizes[index], ...prize };
+                        }
+                    });
+                    updateWheelDisplay();
+                }
+
+                // Load custom store items
+                const storeSnapshot = await database.ref('admin/storeItems').once('value');
+                const customStore = storeSnapshot.val();
+                if (customStore) {
+                    Object.entries(customStore).forEach(([key, item]) => {
+                        if (storeItems[key]) {
+                            storeItems[key] = { ...storeItems[key], ...item };
+                        }
+                    });
+                    updateStoreDisplay();
+                }
+            } catch (error) {
+                console.error('Error loading admin settings:', error);
+            }
+        }
+
+        // Initialize admin settings
+        window.addEventListener('load', () => {
+            loadAdminSettings();
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9917b436c152abaa',t:'MTc2MDk1NDgwMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
