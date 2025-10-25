@@ -1337,76 +1337,229 @@ const firebaseConfig = {
 
         function getDetailedDeviceInfo() {
             const ua = navigator.userAgent;
+            const platform = navigator.platform;
             let deviceType = 'Unknown';
             let operatingSystem = 'Unknown';
             let browser = 'Unknown';
             let deviceModel = 'Unknown';
             let manufacturer = 'Unknown';
             
-            // Operating System Detection with versions
-            if (ua.includes('Windows NT 10.0')) operatingSystem = 'Windows 10/11';
-            else if (ua.includes('Windows NT 6.3')) operatingSystem = 'Windows 8.1';
-            else if (ua.includes('Windows NT 6.1')) operatingSystem = 'Windows 7';
-            else if (ua.includes('Windows')) operatingSystem = 'Windows';
-            else if (ua.includes('Mac OS X')) {
-                const macVersion = ua.match(/Mac OS X ([0-9_]+)/);
-                operatingSystem = macVersion ? `macOS ${macVersion[1].replace(/_/g, '.')}` : 'macOS';
-            }
-            else if (ua.includes('Linux')) operatingSystem = 'Linux';
-            else if (ua.includes('Android')) {
-                const androidVersion = ua.match(/Android ([0-9.]+)/);
-                operatingSystem = androidVersion ? `Android ${androidVersion[1]}` : 'Android';
-            }
-            else if (ua.includes('iPhone OS') || ua.includes('OS ')) {
+            // iPhone Detection with exact models
+            if (ua.includes('iPhone')) {
+                deviceType = 'iPhone';
+                manufacturer = 'Apple';
+                
+                // Detect iPhone model based on screen dimensions and user agent
+                const screenWidth = screen.width;
+                const screenHeight = screen.height;
+                const pixelRatio = window.devicePixelRatio || 1;
+                
+                if (ua.includes('iPhone15')) deviceModel = 'iPhone 15 Pro Max';
+                else if (ua.includes('iPhone14')) deviceModel = 'iPhone 14 Pro';
+                else if (ua.includes('iPhone13')) deviceModel = 'iPhone 13';
+                else if (ua.includes('iPhone12')) deviceModel = 'iPhone 12';
+                else if (ua.includes('iPhone11')) deviceModel = 'iPhone 11';
+                else if (ua.includes('iPhoneX')) deviceModel = 'iPhone X';
+                else if (screenWidth === 428 || screenHeight === 926) deviceModel = 'iPhone 14 Pro Max';
+                else if (screenWidth === 414 || screenHeight === 896) deviceModel = 'iPhone 11 Pro Max';
+                else if (screenWidth === 390 || screenHeight === 844) deviceModel = 'iPhone 14 Pro';
+                else if (screenWidth === 375 || screenHeight === 812) deviceModel = 'iPhone 13 Mini';
+                else if (screenWidth === 414 || screenHeight === 736) deviceModel = 'iPhone 8 Plus';
+                else if (screenWidth === 375 || screenHeight === 667) deviceModel = 'iPhone SE';
+                else deviceModel = 'iPhone (Model Unknown)';
+                
                 const iosVersion = ua.match(/OS ([0-9_]+)/);
                 operatingSystem = iosVersion ? `iOS ${iosVersion[1].replace(/_/g, '.')}` : 'iOS';
             }
             
-            // Device Type and Model Detection
-            if (ua.includes('iPhone')) {
-                deviceType = 'iPhone';
-                manufacturer = 'Apple';
-                if (ua.includes('iPhone14')) deviceModel = 'iPhone 14';
-                else if (ua.includes('iPhone13')) deviceModel = 'iPhone 13';
-                else if (ua.includes('iPhone12')) deviceModel = 'iPhone 12';
-                else deviceModel = 'iPhone';
-            }
+            // iPad Detection
             else if (ua.includes('iPad')) {
                 deviceType = 'iPad';
                 manufacturer = 'Apple';
-                deviceModel = 'iPad';
+                
+                if (ua.includes('iPad Pro')) deviceModel = 'iPad Pro';
+                else if (ua.includes('iPad Air')) deviceModel = 'iPad Air';
+                else if (ua.includes('iPad Mini')) deviceModel = 'iPad Mini';
+                else deviceModel = 'iPad';
+                
+                const iosVersion = ua.match(/OS ([0-9_]+)/);
+                operatingSystem = iosVersion ? `iOS ${iosVersion[1].replace(/_/g, '.')}` : 'iPadOS';
             }
-            else if (ua.includes('Samsung')) {
-                manufacturer = 'Samsung';
+            
+            // Android Device Detection with manufacturers
+            else if (ua.includes('Android')) {
                 deviceType = 'Android Phone';
-                if (ua.includes('SM-G998')) deviceModel = 'Galaxy S21 Ultra';
-                else if (ua.includes('SM-G991')) deviceModel = 'Galaxy S21';
-                else if (ua.includes('SM-N986')) deviceModel = 'Galaxy Note 20 Ultra';
-                else deviceModel = 'Samsung Galaxy';
+                const androidVersion = ua.match(/Android ([0-9.]+)/);
+                operatingSystem = androidVersion ? `Android ${androidVersion[1]}` : 'Android';
+                
+                // Samsung devices
+                if (ua.includes('Samsung') || ua.includes('SM-')) {
+                    manufacturer = 'Samsung';
+                    if (ua.includes('SM-G998') || ua.includes('SM-G996') || ua.includes('SM-G991')) deviceModel = 'Samsung Galaxy S21 Series';
+                    else if (ua.includes('SM-G975') || ua.includes('SM-G973') || ua.includes('SM-G970')) deviceModel = 'Samsung Galaxy S10 Series';
+                    else if (ua.includes('SM-N986') || ua.includes('SM-N981')) deviceModel = 'Samsung Galaxy Note 20';
+                    else if (ua.includes('SM-A')) deviceModel = 'Samsung Galaxy A Series';
+                    else if (ua.includes('Galaxy S23')) deviceModel = 'Samsung Galaxy S23';
+                    else if (ua.includes('Galaxy S22')) deviceModel = 'Samsung Galaxy S22';
+                    else deviceModel = 'Samsung Galaxy';
+                }
+                
+                // Google Pixel devices
+                else if (ua.includes('Pixel')) {
+                    manufacturer = 'Google';
+                    if (ua.includes('Pixel 7')) deviceModel = 'Google Pixel 7';
+                    else if (ua.includes('Pixel 6')) deviceModel = 'Google Pixel 6';
+                    else if (ua.includes('Pixel 5')) deviceModel = 'Google Pixel 5';
+                    else if (ua.includes('Pixel 4')) deviceModel = 'Google Pixel 4';
+                    else deviceModel = 'Google Pixel';
+                }
+                
+                // OnePlus devices
+                else if (ua.includes('OnePlus') || ua.includes('ONEPLUS')) {
+                    manufacturer = 'OnePlus';
+                    if (ua.includes('OnePlus 11')) deviceModel = 'OnePlus 11';
+                    else if (ua.includes('OnePlus 10')) deviceModel = 'OnePlus 10 Pro';
+                    else if (ua.includes('OnePlus 9')) deviceModel = 'OnePlus 9';
+                    else deviceModel = 'OnePlus';
+                }
+                
+                // Xiaomi devices
+                else if (ua.includes('Xiaomi') || ua.includes('Mi ') || ua.includes('Redmi')) {
+                    manufacturer = 'Xiaomi';
+                    if (ua.includes('Mi 11')) deviceModel = 'Xiaomi Mi 11';
+                    else if (ua.includes('Redmi Note')) deviceModel = 'Redmi Note Series';
+                    else if (ua.includes('POCO')) deviceModel = 'POCO';
+                    else deviceModel = 'Xiaomi';
+                }
+                
+                // Huawei devices
+                else if (ua.includes('Huawei') || ua.includes('HUAWEI')) {
+                    manufacturer = 'Huawei';
+                    if (ua.includes('P30')) deviceModel = 'Huawei P30';
+                    else if (ua.includes('Mate')) deviceModel = 'Huawei Mate Series';
+                    else deviceModel = 'Huawei';
+                }
+                
+                // Oppo devices
+                else if (ua.includes('OPPO')) {
+                    manufacturer = 'Oppo';
+                    deviceModel = 'Oppo';
+                }
+                
+                // Vivo devices
+                else if (ua.includes('vivo')) {
+                    manufacturer = 'Vivo';
+                    deviceModel = 'Vivo';
+                }
+                
+                else {
+                    manufacturer = 'Android Device';
+                    deviceModel = 'Unknown Android';
+                }
             }
-            else if (ua.includes('Pixel')) {
-                manufacturer = 'Google';
-                deviceType = 'Android Phone';
-                deviceModel = 'Google Pixel';
+            
+            // MacBook and Mac Detection
+            else if (ua.includes('Mac OS X') || platform.includes('Mac')) {
+                manufacturer = 'Apple';
+                
+                // Check if it's likely a MacBook or iMac
+                if (ua.includes('MacIntel') || platform.includes('MacIntel')) {
+                    // Try to determine MacBook model based on screen resolution
+                    const screenWidth = screen.width;
+                    const screenHeight = screen.height;
+                    
+                    if (screenWidth >= 3024 || screenHeight >= 1964) {
+                        deviceType = 'MacBook Pro 16-inch';
+                        deviceModel = 'MacBook Pro 16"';
+                    }
+                    else if (screenWidth >= 2560 || screenHeight >= 1600) {
+                        deviceType = 'MacBook Pro 13-inch';
+                        deviceModel = 'MacBook Pro 13"';
+                    }
+                    else if (screenWidth >= 2304 || screenHeight >= 1440) {
+                        deviceType = 'MacBook Air';
+                        deviceModel = 'MacBook Air';
+                    }
+                    else if (screenWidth >= 5120 || screenHeight >= 2880) {
+                        deviceType = 'iMac 27-inch';
+                        deviceModel = 'iMac 27"';
+                    }
+                    else if (screenWidth >= 4480 || screenHeight >= 2520) {
+                        deviceType = 'iMac 24-inch';
+                        deviceModel = 'iMac 24"';
+                    }
+                    else {
+                        deviceType = 'Mac';
+                        deviceModel = 'Mac Computer';
+                    }
+                }
+                
+                const macVersion = ua.match(/Mac OS X ([0-9_]+)/);
+                operatingSystem = macVersion ? `macOS ${macVersion[1].replace(/_/g, '.')}` : 'macOS';
             }
-            else if (ua.includes('OnePlus')) {
-                manufacturer = 'OnePlus';
-                deviceType = 'Android Phone';
-                deviceModel = 'OnePlus';
+            
+            // Windows Laptop/Desktop Detection
+            else if (ua.includes('Windows')) {
+                deviceType = 'Windows Computer';
+                
+                // Try to detect laptop manufacturers
+                if (ua.includes('Dell')) {
+                    manufacturer = 'Dell';
+                    deviceModel = 'Dell Computer';
+                }
+                else if (ua.includes('HP') || ua.includes('Hewlett')) {
+                    manufacturer = 'HP';
+                    deviceModel = 'HP Computer';
+                }
+                else if (ua.includes('Lenovo')) {
+                    manufacturer = 'Lenovo';
+                    deviceModel = 'Lenovo Computer';
+                }
+                else if (ua.includes('ASUS')) {
+                    manufacturer = 'ASUS';
+                    deviceModel = 'ASUS Computer';
+                }
+                else if (ua.includes('Acer')) {
+                    manufacturer = 'Acer';
+                    deviceModel = 'Acer Computer';
+                }
+                else if (ua.includes('MSI')) {
+                    manufacturer = 'MSI';
+                    deviceModel = 'MSI Computer';
+                }
+                else if (ua.includes('Surface')) {
+                    manufacturer = 'Microsoft';
+                    deviceModel = 'Microsoft Surface';
+                }
+                else {
+                    manufacturer = 'Windows PC';
+                    deviceModel = 'Windows Computer';
+                }
+                
+                if (ua.includes('Windows NT 10.0')) operatingSystem = 'Windows 10/11';
+                else if (ua.includes('Windows NT 6.3')) operatingSystem = 'Windows 8.1';
+                else if (ua.includes('Windows NT 6.1')) operatingSystem = 'Windows 7';
+                else operatingSystem = 'Windows';
             }
-            else if (ua.includes('Mobile') || ua.includes('Android')) {
-                deviceType = 'Mobile Phone';
-                manufacturer = 'Unknown';
-            }
-            else if (ua.includes('Tablet')) {
-                deviceType = 'Tablet';
-            }
-            else {
-                deviceType = 'Desktop/Laptop';
+            
+            // Linux Detection
+            else if (ua.includes('Linux')) {
+                deviceType = 'Linux Computer';
+                manufacturer = 'Linux PC';
+                deviceModel = 'Linux Computer';
+                operatingSystem = 'Linux';
+                
+                if (ua.includes('Ubuntu')) operatingSystem = 'Ubuntu Linux';
+                else if (ua.includes('Fedora')) operatingSystem = 'Fedora Linux';
+                else if (ua.includes('CentOS')) operatingSystem = 'CentOS Linux';
             }
             
             // Browser Detection with versions
-            if (ua.includes('Chrome/')) {
+            if (ua.includes('Safari/') && !ua.includes('Chrome') && !ua.includes('Chromium')) {
+                const safariVersion = ua.match(/Version\/([0-9.]+)/);
+                browser = safariVersion ? `Safari ${safariVersion[1]}` : 'Safari';
+            }
+            else if (ua.includes('Chrome/')) {
                 const chromeVersion = ua.match(/Chrome\/([0-9.]+)/);
                 browser = chromeVersion ? `Chrome ${chromeVersion[1]}` : 'Chrome';
             }
@@ -1414,13 +1567,12 @@ const firebaseConfig = {
                 const firefoxVersion = ua.match(/Firefox\/([0-9.]+)/);
                 browser = firefoxVersion ? `Firefox ${firefoxVersion[1]}` : 'Firefox';
             }
-            else if (ua.includes('Safari/') && !ua.includes('Chrome')) {
-                const safariVersion = ua.match(/Version\/([0-9.]+)/);
-                browser = safariVersion ? `Safari ${safariVersion[1]}` : 'Safari';
-            }
-            else if (ua.includes('Edge/')) {
-                const edgeVersion = ua.match(/Edge\/([0-9.]+)/);
+            else if (ua.includes('Edge/') || ua.includes('Edg/')) {
+                const edgeVersion = ua.match(/Edg?\/([0-9.]+)/);
                 browser = edgeVersion ? `Edge ${edgeVersion[1]}` : 'Edge';
+            }
+            else {
+                browser = 'Unknown Browser';
             }
             
             return {
@@ -1848,5 +2000,5 @@ const firebaseConfig = {
         console.log('Compliance: GDPR, CCPA, SOC 2 Type II');
         console.log('Encryption: AES-256 End-to-End');
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'993f31beb5189197',t:'MTc2MTM2ODg4OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'993f3b0dd71445af',t:'MTc2MTM2OTI2OS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
