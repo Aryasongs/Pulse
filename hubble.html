@@ -4,7 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Huddle - Chat App</title>
+  <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiSHVkZGxlIiwic2hvcnRfbmFtZSI6Ikh1ZGRsZSIsInN0YXJ0X3VybCI6Ii8iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMTExYjIxIiwidGhlbWVfY29sb3IiOiIjMDBhODg0IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCwlM0Nzdmcgd2lkdGg9JzE5MicgaGVpZ2h0PScxOTInIHZpZXdCb3g9JzAgMCAyNCAyNCcgZmlsbD0nJTIzMDBhODg0JyUzRSUzQ3BhdGggZD0nTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgMThjLTQuNDEgMC04LTMuNTktOC04czMuNTktOCA4LTggOCAzLjU5IDggOC0zLjU5IDgtOCA4eicvJTNFJTNDL3N2ZyUzRSIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
   <style>
+    :root {
+      --bg-primary: #111b21;
+      --bg-secondary: #202c33;
+      --bg-tertiary: #2a3942;
+      --bg-quaternary: #3b4a54;
+      --text-primary: #e9edef;
+      --text-secondary: #8696a0;
+      --text-tertiary: #aebac1;
+      --accent-primary: #00a884;
+      --accent-secondary: #128c7e;
+      --accent-tertiary: #075e54;
+      --border-primary: #313d45;
+      --shadow-primary: rgba(0, 0, 0, 0.1);
+      --shadow-secondary: rgba(0, 0, 0, 0.2);
+    }
+
+    [data-theme="light"] {
+      --bg-primary: #f0f2f5;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #f8f9fa;
+      --bg-quaternary: #e4e6ea;
+      --text-primary: #111b21;
+      --text-secondary: #667781;
+      --text-tertiary: #54656f;
+      --accent-primary: #00a884;
+      --accent-secondary: #128c7e;
+      --accent-tertiary: #075e54;
+      --border-primary: #e9edef;
+      --shadow-primary: rgba(0, 0, 0, 0.05);
+      --shadow-secondary: rgba(0, 0, 0, 0.1);
+    }
+
     body {
       box-sizing: border-box;
       margin: 0;
@@ -12,7 +45,8 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       height: 100%;
       overflow: hidden;
-      background: #111b21;
+      background: var(--bg-primary);
+      transition: all 0.3s ease;
     }
 
     html {
@@ -131,8 +165,8 @@
     .sidebar {
       width: 30%;
       min-width: 320px;
-      background: #202c33;
-      border-right: 1px solid #313d45;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-primary);
       display: flex;
       flex-direction: column;
       height: 100%;
@@ -146,16 +180,322 @@
       right: 0;
       width: 1px;
       height: 100%;
-      background: linear-gradient(180deg, transparent 0%, #313d45 50%, transparent 100%);
+      background: linear-gradient(180deg, transparent 0%, var(--border-primary) 50%, transparent 100%);
+    }
+
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--text-secondary);
+      border-radius: 50%;
+      border-top-color: var(--accent-primary);
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .message-menu {
+      position: absolute;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px var(--shadow-secondary);
+      z-index: 1000;
+      min-width: 150px;
+      display: none;
+    }
+
+    .message-menu.active {
+      display: block;
+    }
+
+    .message-menu-item {
+      padding: 12px 16px;
+      cursor: pointer;
+      color: var(--text-primary);
+      font-size: 14px;
+      transition: background 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .message-menu-item:hover {
+      background: var(--bg-tertiary);
+    }
+
+    .message-menu-item.danger {
+      color: #ff4444;
+    }
+
+    .message-reactions {
+      display: flex;
+      gap: 4px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+
+    .reaction {
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      padding: 2px 6px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .reaction:hover {
+      background: var(--bg-quaternary);
+    }
+
+    .reaction.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .reaction-picker {
+      position: absolute;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 20px;
+      padding: 8px;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 4px 20px var(--shadow-secondary);
+    }
+
+    .reaction-picker.active {
+      display: flex;
+      gap: 4px;
+    }
+
+    .reaction-emoji {
+      font-size: 20px;
+      padding: 4px;
+      cursor: pointer;
+      border-radius: 50%;
+      transition: all 0.2s ease;
+    }
+
+    .reaction-emoji:hover {
+      background: var(--bg-tertiary);
+      transform: scale(1.2);
+    }
+
+    .unread-badge {
+      background: var(--accent-primary);
+      color: white;
+      border-radius: 50%;
+      min-width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      position: absolute;
+      top: -5px;
+      right: -5px;
+    }
+
+    .floating-add-btn {
+      position: fixed;
+      bottom: 80px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      background: var(--accent-primary);
+      border: none;
+      border-radius: 50%;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0, 168, 132, 0.4);
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+
+    .floating-add-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 30px rgba(0, 168, 132, 0.6);
+    }
+
+    .settings-modal .modal-content {
+      max-width: 400px;
+    }
+
+    .settings-section {
+      margin-bottom: 24px;
+    }
+
+    .settings-section h3 {
+      margin: 0 0 12px 0;
+      color: var(--text-primary);
+      font-size: 16px;
+    }
+
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 50px;
+      height: 24px;
+      background: var(--bg-quaternary);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent-primary);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(26px);
+    }
+
+    .status-input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid var(--border-primary);
+      border-radius: 8px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .status-input:focus {
+      border-color: var(--accent-primary);
+    }
+
+    .search-filters {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+    }
+
+    .filter-tab {
+      padding: 6px 12px;
+      border-radius: 16px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .filter-tab.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .last-seen {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .profile-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 60px var(--shadow-secondary);
+      z-index: 2000;
+      min-width: 300px;
+      display: none;
+    }
+
+    .profile-popup.active {
+      display: block;
+      animation: modalSlide 0.3s ease-out;
+    }
+
+    .profile-popup-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .profile-popup-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 0 auto 12px;
+      display: block;
+    }
+
+    .profile-popup-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+    }
+
+    .profile-popup-status {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .scroll-to-bottom {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 50%;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 10px var(--shadow-primary);
+      transition: all 0.3s ease;
+    }
+
+    .scroll-to-bottom.visible {
+      display: flex;
+    }
+
+    .scroll-to-bottom:hover {
+      background: var(--bg-tertiary);
     }
 
     .sidebar-header {
       padding: 20px 16px;
-      background: #2a3942;
+      background: var(--bg-tertiary);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: 1px solid #313d45;
+      border-bottom: 1px solid var(--border-primary);
       position: relative;
     }
 
@@ -1056,12 +1396,28 @@
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
        </svg></button> <button class="icon-btn" id="profileBtn" title="Profile">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+       </svg></button> <button class="icon-btn" id="settingsBtn" title="Settings">
+       <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.82,11.69,4.82,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z" />
        </svg></button> <button class="icon-btn" id="logoutBtn" title="Logout">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z" />
        </svg></button>
      </div>
     </div>
     <div class="search-bar"><input type="text" class="search-input" id="searchInput" placeholder="Search or start new chat">
+    </div>
+    <div class="search-filters" id="searchFilters" style="display: none;">
+     <div class="filter-tab active" data-filter="all">
+      All
+     </div>
+     <div class="filter-tab" data-filter="media">
+      Media
+     </div>
+     <div class="filter-tab" data-filter="links">
+      Links
+     </div>
+     <div class="filter-tab" data-filter="docs">
+      Docs
+     </div>
     </div>
     <div class="chat-list" id="chatList"><!-- Chat items will be added here -->
     </div>
@@ -1092,6 +1448,10 @@
        <div class="typing-dot"></div>
        <div class="typing-dot"></div>
       </div>
+      <div class="scroll-to-bottom" id="scrollToBottom">
+       <svg width="20" height="20" viewbox="0 0 24 24" fill="currentColor"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z" />
+       </svg>
+      </div>
      </div>
      <div class="chat-input-container"><button class="image-btn" id="imageBtn" title="Send Image">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
@@ -1119,9 +1479,54 @@
    </div>
   </div><!-- Image Input --> <input type="file" class="file-input" id="imageFileInput" accept="image/*"> <!-- Notification -->
   <div class="notification" id="notification"><span id="notificationText">Friend added successfully!</span>
+  </div><!-- Settings Modal -->
+  <div class="modal settings-modal" id="settingsModal">
+   <div class="modal-content">
+    <h2>Settings</h2>
+    <div class="settings-section">
+     <h3>Appearance</h3>
+     <div class="theme-toggle"><span>Dark Theme</span>
+      <div class="toggle-switch" id="themeToggle"></div>
+     </div>
+    </div>
+    <div class="settings-section">
+     <h3>Status Message</h3><input type="text" class="status-input" id="statusInput" placeholder="Hey there! I'm using Huddle.">
+    </div>
+    <div class="modal-actions"><button class="modal-btn secondary" id="cancelSettingsBtn">Cancel</button> <button class="modal-btn primary" id="saveSettingsBtn">Save</button>
+    </div>
+   </div>
+  </div><!-- Group Chat Modal -->
+  <div class="modal" id="groupChatModal">
+   <div class="modal-content">
+    <h2>Create Group Chat</h2><input type="text" class="modal-input" id="groupNameInput" placeholder="Group name"> <input type="email" class="modal-input" id="groupMembersInput" placeholder="Add members (comma separated emails)">
+    <div class="modal-actions"><button class="modal-btn secondary" id="cancelGroupBtn">Cancel</button> <button class="modal-btn primary" id="createGroupBtn">Create</button>
+    </div>
+   </div>
+  </div><!-- Profile Popup -->
+  <div class="profile-popup" id="profilePopup">
+   <div class="profile-popup-header"><img class="profile-popup-avatar" id="profilePopupAvatar" src="" alt="Avatar">
+    <div class="profile-popup-name" id="profilePopupName">
+     User Name
+    </div>
+    <div class="profile-popup-status" id="profilePopupStatus">
+     Hey there! I'm using Huddle.
+    </div>
+   </div><button class="modal-btn secondary" onclick="closeProfilePopup()">Close</button>
+  </div><!-- Message Menu -->
+  <div class="message-menu" id="messageMenu">
+   <div class="message-menu-item" id="reactToMessage"><span>😊</span> React
+   </div>
+   <div class="message-menu-item" id="editMessage"><span>✏️</span> Edit
+   </div>
+   <div class="message-menu-item danger" id="deleteForMe"><span>🗑️</span> Delete for me
+   </div>
+   <div class="message-menu-item danger" id="deleteForEveryone"><span>⚠️</span> Delete for everyone
+   </div>
+  </div><!-- Reaction Picker -->
+  <div class="reaction-picker" id="reactionPicker"><span class="reaction-emoji" data-emoji="❤️">❤️</span> <span class="reaction-emoji" data-emoji="😂">😂</span> <span class="reaction-emoji" data-emoji="👍">👍</span> <span class="reaction-emoji" data-emoji="👎">👎</span> <span class="reaction-emoji" data-emoji="😮">😮</span> <span class="reaction-emoji" data-emoji="😢">😢</span>
   </div><!-- Image Preview Modal -->
   <div class="image-preview-modal" id="imagePreviewModal"><button class="image-preview-close" id="imagePreviewClose">×</button> <img class="image-preview-content" id="imagePreviewContent" src="" alt="Preview">
-  </div>
+  </div><!-- Floating Add Button --> <button class="floating-add-btn" id="floatingAddBtn">+</button>
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -1145,6 +1550,10 @@
     let currentUser = null;
     let activeChat = null;
     let typingTimeout = null;
+    let currentTheme = 'dark';
+    let selectedMessage = null;
+    let unreadCounts = {};
+    let isPageVisible = true;
 
     const defaultConfig = {
       app_title: "Huddle",
@@ -1179,6 +1588,69 @@
     }
 
     onConfigChange(config);
+
+    // Page Visibility API for notifications
+    document.addEventListener('visibilitychange', () => {
+      isPageVisible = !document.hidden;
+    });
+
+    // Request notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('data:application/javascript;base64,c2VsZi5hZGRFdmVudExpc3RlbmVyKCdpbnN0YWxsJywgZXZlbnQgPT4geyBzZWxmLnNraXBXYWl0aW5nKCk7IH0pOyBzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ2FjdGl2YXRlJywgZXZlbnQgPT4geyBldmVudC53YWl0VW50aWwoc2VsZi5jbGllbnRzLmNsYWltKCkpOyB9KTs=')
+        .catch(err => console.log('SW registration failed'));
+    }
+
+    // Theme Management
+    function toggleTheme() {
+      currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', currentTheme);
+      
+      const toggle = document.getElementById('themeToggle');
+      toggle.classList.toggle('active', currentTheme === 'light');
+      
+      if (currentUser) {
+        update(ref(db, `users/${currentUser.uid}/settings`), { theme: currentTheme });
+      }
+    }
+
+    // Load user theme preference
+    async function loadUserTheme() {
+      if (currentUser) {
+        const settingsRef = ref(db, `users/${currentUser.uid}/settings`);
+        const snapshot = await get(settingsRef);
+        if (snapshot.exists() && snapshot.val().theme) {
+          currentTheme = snapshot.val().theme;
+          document.documentElement.setAttribute('data-theme', currentTheme);
+          const toggle = document.getElementById('themeToggle');
+          toggle.classList.toggle('active', currentTheme === 'light');
+        }
+      }
+    }
+
+    // Show browser notification
+    function showBrowserNotification(title, body, icon) {
+      if (!isPageVisible && 'Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, { body, icon });
+      }
+    }
+
+    // Format last seen time
+    function formatLastSeen(timestamp) {
+      if (!timestamp) return 'offline';
+      
+      const now = Date.now();
+      const diff = now - timestamp;
+      
+      if (diff < 60000) return 'online';
+      if (diff < 3600000) return `last seen ${Math.floor(diff / 60000)} mins ago`;
+      if (diff < 86400000) return `last seen ${Math.floor(diff / 3600000)} hours ago`;
+      return `last seen ${Math.floor(diff / 86400000)} days ago`;
+    }
 
     // Notification System
     function showNotification(message, type = 'success') {
@@ -1217,6 +1689,7 @@
         
         await setupUserPresence(user.uid);
         await loadUserProfile(user.uid);
+        await loadUserTheme();
         loadChats();
       } else {
         currentUser = null;
@@ -1399,16 +1872,28 @@
             lastTime = formatTime(last.timestamp);
           }
           
+          // Calculate unread count
+          let unreadCount = 0;
+          if (lastMessageSnap.exists()) {
+            const messages = Object.values(lastMessageSnap.val());
+            unreadCount = messages.filter(msg => 
+              msg.senderId !== currentUser.uid && 
+              !msg.readBy?.[currentUser.uid]
+            ).length;
+          }
+          
           const chatItem = document.createElement('div');
           chatItem.className = 'chat-item';
           chatItem.innerHTML = `
             <div style="position: relative;">
-              <img class="chat-avatar" src="${friendData.photoURL || ''}" alt="Avatar">
+              <img class="chat-avatar" src="${friendData.photoURL || ''}" alt="Avatar" onclick="showProfilePopup(${JSON.stringify(friendData).replace(/"/g, '&quot;')})">
               ${status === 'online' ? '<div class="online-indicator"></div>' : ''}
+              ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
             </div>
             <div class="chat-info">
               <div class="chat-name">${friendData.displayName || friendData.email || 'Friend'}</div>
               <div class="chat-preview">${lastMessage}</div>
+              <div class="last-seen">${formatLastSeen(friendData.lastSeen)}</div>
             </div>
             <div class="chat-time">${lastTime}</div>
           `;
@@ -1467,13 +1952,22 @@
       onValue(messagesRef, (snapshot) => {
         const container = document.getElementById('messagesContainer');
         const typingIndicator = document.getElementById('typingIndicator');
+        const scrollBtn = document.getElementById('scrollToBottom');
+        
         container.innerHTML = '';
         container.appendChild(typingIndicator);
+        container.appendChild(scrollBtn);
         
         if (snapshot.exists()) {
           const messages = [];
           snapshot.forEach((child) => {
-            messages.push({ id: child.key, ...child.val() });
+            const msgData = { id: child.key, ...child.val() };
+            
+            // Skip deleted messages
+            if (msgData.deleted && msgData.deletedFor === 'everyone') return;
+            if (msgData[`deletedFor_${currentUser.uid}`]) return;
+            
+            messages.push(msgData);
           });
           
           messages.sort((a, b) => a.timestamp - b.timestamp);
@@ -1481,32 +1975,98 @@
           messages.forEach((msg) => {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`;
+            messageDiv.dataset.messageId = msg.id;
+            
+            // Add right-click context menu
+            messageDiv.addEventListener('contextmenu', (e) => {
+              showMessageMenu(e, messageDiv, msg);
+            });
+            
+            // Add long press for mobile
+            let pressTimer;
+            messageDiv.addEventListener('touchstart', (e) => {
+              pressTimer = setTimeout(() => {
+                showMessageMenu(e.touches[0], messageDiv, msg);
+              }, 500);
+            });
+            messageDiv.addEventListener('touchend', () => {
+              clearTimeout(pressTimer);
+            });
+            
+            let messageContent = '';
             
             if (msg.type === 'image') {
-              messageDiv.innerHTML = `
+              messageContent = `
                 <img class="message-image" src="${msg.imageData}" alt="Image" onclick="openImagePreview('${msg.imageData}')">
-                <div class="message-time">
-                  ${formatTime(msg.timestamp)}
-                  ${msg.senderId === currentUser.uid ? '<span class="message-status status-delivered">✓✓</span>' : ''}
-                </div>
               `;
             } else {
-              messageDiv.innerHTML = `
-                <div class="message-text">${msg.text}</div>
-                <div class="message-time">
-                  ${formatTime(msg.timestamp)}
-                  ${msg.senderId === currentUser.uid ? '<span class="message-status status-delivered">✓✓</span>' : ''}
-                </div>
+              const editedText = msg.edited ? ' <em>(edited)</em>' : '';
+              messageContent = `
+                <div class="message-text">${msg.text}${editedText}</div>
               `;
             }
             
+            // Add reactions
+            let reactionsHtml = '';
+            if (msg.reactions) {
+              const reactionCounts = {};
+              Object.values(msg.reactions).forEach(emoji => {
+                reactionCounts[emoji] = (reactionCounts[emoji] || 0) + 1;
+              });
+              
+              reactionsHtml = '<div class="message-reactions">';
+              Object.entries(reactionCounts).forEach(([emoji, count]) => {
+                const isActive = msg.reactions[currentUser.uid] === emoji ? 'active' : '';
+                reactionsHtml += `<span class="reaction ${isActive}" onclick="toggleReaction('${msg.id}', '${emoji}')">${emoji} ${count}</span>`;
+              });
+              reactionsHtml += '</div>';
+            }
+            
+            messageDiv.innerHTML = `
+              ${messageContent}
+              ${reactionsHtml}
+              <div class="message-time">
+                ${formatTime(msg.timestamp)}
+                ${msg.senderId === currentUser.uid ? '<span class="message-status status-delivered">✓✓</span>' : ''}
+              </div>
+            `;
+            
             container.insertBefore(messageDiv, typingIndicator);
+            
+            // Show notification for new messages
+            if (msg.senderId !== currentUser.uid && !isPageVisible) {
+              const senderName = 'Friend'; // You can get actual name from user data
+              showBrowserNotification(`New message from ${senderName}`, msg.text || '📷 Image', '');
+            }
           });
           
           container.scrollTop = container.scrollHeight;
+          
+          // Add scroll listener for scroll button
+          container.addEventListener('scroll', updateScrollButton);
         }
       });
     }
+
+    // Toggle reaction function
+    window.toggleReaction = async function(messageId, emoji) {
+      if (!activeChat) return;
+      
+      try {
+        const reactionRef = ref(db, `chats/${activeChat.chatId}/messages/${messageId}/reactions/${currentUser.uid}`);
+        const snapshot = await get(reactionRef);
+        
+        if (snapshot.exists() && snapshot.val() === emoji) {
+          // Remove reaction
+          await set(reactionRef, null);
+        } else {
+          // Add/change reaction
+          await set(reactionRef, emoji);
+        }
+      } catch (error) {
+        showNotification('Failed to update reaction. Please try again.', 'error');
+      }
+    };
 
     // Send Message
     document.getElementById('sendBtn').addEventListener('click', sendMessage);
@@ -1601,9 +2161,212 @@
       }
     }
 
+    // Settings Modal
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsModal').classList.add('active');
+      const statusInput = document.getElementById('statusInput');
+      if (currentUser) {
+        get(ref(db, `users/${currentUser.uid}/info/statusMessage`)).then(snapshot => {
+          if (snapshot.exists()) {
+            statusInput.value = snapshot.val();
+          }
+        });
+      }
+    });
+
+    document.getElementById('cancelSettingsBtn').addEventListener('click', () => {
+      document.getElementById('settingsModal').classList.remove('active');
+    });
+
+    document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+      const statusMessage = document.getElementById('statusInput').value.trim();
+      if (currentUser && statusMessage) {
+        try {
+          await update(ref(db, `users/${currentUser.uid}/info`), { statusMessage });
+          showNotification('Settings saved successfully! ✨');
+        } catch (error) {
+          showNotification('Failed to save settings. Please try again.', 'error');
+        }
+      }
+      document.getElementById('settingsModal').classList.remove('active');
+    });
+
+    document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+
+    // Floating Add Button
+    document.getElementById('floatingAddBtn').addEventListener('click', () => {
+      document.getElementById('addFriendModal').classList.add('active');
+    });
+
+    // Message Menu Functions
+    function showMessageMenu(event, messageElement, messageData) {
+      event.preventDefault();
+      selectedMessage = { element: messageElement, data: messageData };
+      
+      const menu = document.getElementById('messageMenu');
+      menu.style.left = event.pageX + 'px';
+      menu.style.top = event.pageY + 'px';
+      menu.classList.add('active');
+      
+      // Hide edit option for received messages
+      const editBtn = document.getElementById('editMessage');
+      editBtn.style.display = messageData.senderId === currentUser.uid ? 'flex' : 'none';
+      
+      // Hide delete for everyone if message is old (5 minutes)
+      const deleteEveryoneBtn = document.getElementById('deleteForEveryone');
+      const isOld = Date.now() - messageData.timestamp > 300000;
+      deleteEveryoneBtn.style.display = (messageData.senderId === currentUser.uid && !isOld) ? 'flex' : 'none';
+    }
+
+    function hideMessageMenu() {
+      document.getElementById('messageMenu').classList.remove('active');
+      document.getElementById('reactionPicker').classList.remove('active');
+      selectedMessage = null;
+    }
+
+    // Message menu event listeners
+    document.getElementById('reactToMessage').addEventListener('click', (e) => {
+      const picker = document.getElementById('reactionPicker');
+      picker.style.left = e.pageX + 'px';
+      picker.style.top = e.pageY + 'px';
+      picker.classList.add('active');
+    });
+
+    document.getElementById('editMessage').addEventListener('click', () => {
+      if (selectedMessage) {
+        const newText = prompt('Edit message:', selectedMessage.data.text);
+        if (newText && newText.trim()) {
+          editMessage(selectedMessage.data.id, newText.trim());
+        }
+      }
+      hideMessageMenu();
+    });
+
+    document.getElementById('deleteForMe').addEventListener('click', () => {
+      if (selectedMessage) {
+        deleteMessage(selectedMessage.data.id, false);
+      }
+      hideMessageMenu();
+    });
+
+    document.getElementById('deleteForEveryone').addEventListener('click', () => {
+      if (selectedMessage) {
+        deleteMessage(selectedMessage.data.id, true);
+      }
+      hideMessageMenu();
+    });
+
+    // Reaction picker
+    document.querySelectorAll('.reaction-emoji').forEach(emoji => {
+      emoji.addEventListener('click', () => {
+        if (selectedMessage) {
+          addReaction(selectedMessage.data.id, emoji.dataset.emoji);
+        }
+        hideMessageMenu();
+      });
+    });
+
+    // Close menus on outside click
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.message-menu') && !e.target.closest('.reaction-picker')) {
+        hideMessageMenu();
+      }
+      if (!e.target.closest('.profile-popup')) {
+        closeProfilePopup();
+      }
+    });
+
+    // Message Functions
+    async function editMessage(messageId, newText) {
+      if (!activeChat) return;
+      
+      try {
+        await update(ref(db, `chats/${activeChat.chatId}/messages/${messageId}`), {
+          text: newText,
+          edited: true,
+          editedAt: Date.now()
+        });
+        showNotification('Message edited successfully! ✏️');
+      } catch (error) {
+        showNotification('Failed to edit message. Please try again.', 'error');
+      }
+    }
+
+    async function deleteMessage(messageId, forEveryone) {
+      if (!activeChat) return;
+      
+      try {
+        if (forEveryone) {
+          await update(ref(db, `chats/${activeChat.chatId}/messages/${messageId}`), {
+            deleted: true,
+            deletedFor: 'everyone',
+            deletedAt: Date.now()
+          });
+          showNotification('Message deleted for everyone! 🗑️');
+        } else {
+          await update(ref(db, `chats/${activeChat.chatId}/messages/${messageId}`), {
+            [`deletedFor_${currentUser.uid}`]: true
+          });
+          showNotification('Message deleted for you! 🗑️');
+        }
+      } catch (error) {
+        showNotification('Failed to delete message. Please try again.', 'error');
+      }
+    }
+
+    async function addReaction(messageId, emoji) {
+      if (!activeChat) return;
+      
+      try {
+        const reactionRef = ref(db, `chats/${activeChat.chatId}/messages/${messageId}/reactions/${currentUser.uid}`);
+        await set(reactionRef, emoji);
+        showNotification(`Reacted with ${emoji}! 😊`);
+      } catch (error) {
+        showNotification('Failed to add reaction. Please try again.', 'error');
+      }
+    }
+
+    // Profile popup functions
+    window.showProfilePopup = function(userData) {
+      const popup = document.getElementById('profilePopup');
+      document.getElementById('profilePopupAvatar').src = userData.photoURL || '';
+      document.getElementById('profilePopupName').textContent = userData.displayName || userData.email || 'User';
+      document.getElementById('profilePopupStatus').textContent = userData.statusMessage || 'Hey there! I\'m using Huddle.';
+      popup.classList.add('active');
+    };
+
+    window.closeProfilePopup = function() {
+      document.getElementById('profilePopup').classList.remove('active');
+    };
+
+    // Scroll to bottom functionality
+    function updateScrollButton() {
+      const container = document.getElementById('messagesContainer');
+      const scrollBtn = document.getElementById('scrollToBottom');
+      
+      if (container.scrollTop < container.scrollHeight - container.clientHeight - 100) {
+        scrollBtn.classList.add('visible');
+      } else {
+        scrollBtn.classList.remove('visible');
+      }
+    }
+
+    document.getElementById('scrollToBottom').addEventListener('click', () => {
+      const container = document.getElementById('messagesContainer');
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    });
+
     // Search
     document.getElementById('searchInput').addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase();
+      const filters = document.getElementById('searchFilters');
+      
+      if (query.length > 0) {
+        filters.style.display = 'flex';
+      } else {
+        filters.style.display = 'none';
+      }
+      
       document.querySelectorAll('.chat-item').forEach(item => {
         const name = item.querySelector('.chat-name').textContent.toLowerCase();
         item.style.display = name.includes(query) ? 'flex' : 'none';
@@ -1635,5 +2398,5 @@
       }
     });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9979683465a66ed1',t:'MTc2MTk3OTI5My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'997975568109c51e',t:'MTc2MTk3OTgzMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
