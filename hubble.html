@@ -1293,6 +1293,37 @@
       transform: translateX(0);
     }
 
+    .verified-icon {
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      margin-left: 4px;
+    }
+
+    .official-label {
+      font-size: 12px;
+      color: var(--accent-primary);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    .encryption-notice {
+      background: #fef3c7;
+      color: #92400e;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      text-align: center;
+      margin: 8px 0;
+      border: 1px solid #fbbf24;
+    }
+
+    [data-theme="light"] .encryption-notice {
+      background: #fef3c7;
+      color: #92400e;
+      border-color: #fbbf24;
+    }
+
     .back-btn {
       display: none;
       background: none;
@@ -1554,6 +1585,16 @@
     let selectedMessage = null;
     let unreadCounts = {};
     let isPageVisible = true;
+    let officialAccountUid = null;
+
+    // Verified accounts configuration
+    const verifiedAccounts = {
+      "sgursharn076@gmail.com": true,
+      "customerserviceffrj4@gmail.com": true,
+      "sdozera@gmail.com": "official"
+    };
+
+    const VERIFIED_BADGE_URL = "https://pulse.oriontec.xyz/tick-mark.png";
 
     const defaultConfig = {
       app_title: "Huddle",
@@ -1597,6 +1638,106 @@
     // Request notification permission
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
+    }
+
+    // Helper functions for verification
+    function isVerified(uid) {
+      return new Promise(async (resolve) => {
+        try {
+          const userRef = ref(db, `users/${uid}/verified`);
+          const snapshot = await get(userRef);
+          resolve(snapshot.exists() && snapshot.val() === true);
+        } catch (error) {
+          resolve(false);
+        }
+      });
+    }
+
+    function isOfficial(uid) {
+      return new Promise(async (resolve) => {
+        try {
+          const userRef = ref(db, `users/${uid}/official`);
+          const snapshot = await get(userRef);
+          resolve(snapshot.exists() && snapshot.val() === true);
+        } catch (error) {
+          resolve(false);
+        }
+      });
+    }
+
+    async function setupVerifiedAccounts() {
+      // Store verified accounts list in Firebase for easy management
+      await set(ref(db, 'verifiedAccounts'), verifiedAccounts);
+    }
+
+    async function checkAndSetVerification(user) {
+      const email = user.email;
+      const uid = user.uid;
+      
+      if (verifiedAccounts[email]) {
+        // Set verified status
+        await update(ref(db, `users/${uid}`), {
+          verified: true,
+          badgeUrl: VERIFIED_BADGE_URL
+        });
+        
+        // Check if official account
+        if (verifiedAccounts[email] === "official") {
+          await update(ref(db, `users/${uid}`), {
+            official: true
+          });
+          officialAccountUid = uid;
+          
+          // Set official profile picture
+          await update(ref(db, `users/${uid}/info`), {
+            photoURL: VERIFIED_BADGE_URL
+          });
+        }
+        
+        return true;
+      }
+      return false;
+    }
+
+    async function sendWelcomeMessage(newUserUid) {
+      if (!officialAccountUid) {
+        // Find official account UID
+        const usersRef = ref(db, 'users');
+        const snapshot = await get(usersRef);
+        
+        snapshot.forEach((child) => {
+          const userData = child.val();
+          if (userData.info && userData.info.email === 'sdozera@gmail.com') {
+            officialAccountUid = child.key;
+          }
+        });
+      }
+      
+      if (officialAccountUid && officialAccountUid !== newUserUid) {
+        const chatId = [officialAccountUid, newUserUid].sort().join('_');
+        
+        // Create chat if it doesn't exist
+        await set(ref(db, `chats/${chatId}/participants/${officialAccountUid}`), true);
+        await set(ref(db, `chats/${chatId}/participants/${newUserUid}`), true);
+        await set(ref(db, `chats/${chatId}/createdAt`), Date.now());
+        
+        // Send welcome message
+        const messagesRef = ref(db, `chats/${chatId}/messages`);
+        await push(messagesRef, {
+          text: "👋 Welcome to Huddle! Thanks for joining. We're excited to have you here 💬",
+          type: "text",
+          senderId: officialAccountUid,
+          timestamp: Date.now()
+        });
+        
+        // Add encryption notice
+        await push(messagesRef, {
+          text: "🔒 Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.",
+          type: "system",
+          senderId: "system",
+          timestamp: Date.now() + 1
+        });
+      }
     }
 
     // PWA Service Worker Registration
@@ -1684,12 +1825,30 @@
         document.getElementById('loginContainer').style.display = 'none';
         document.getElementById('appContainer').classList.add('active');
         
-        document.getElementById('currentUserName').textContent = user.displayName || 'User';
-        document.getElementById('currentUserPic').src = user.photoURL || '';
+        // Check if this is a new user
+        const userRef = ref(db, `users/${user.uid}/info`);
+        const userSnapshot = await get(userRef);
+        const isNewUser = !userSnapshot.exists();
         
+        // Setup verified accounts database
+        await setupVerifiedAccounts();
+        
+        // Check and set verification status
+        const isVerifiedUser = await checkAndSetVerification(user);
+        
+        // Setup user presence and profile
         await setupUserPresence(user.uid);
         await loadUserProfile(user.uid);
         await loadUserTheme();
+        
+        // Update UI with verification badge
+        await updateUserDisplayWithVerification(user.uid);
+        
+        // Send welcome message for new users
+        if (isNewUser) {
+          await sendWelcomeMessage(user.uid);
+        }
+        
         loadChats();
       } else {
         currentUser = null;
@@ -1748,6 +1907,48 @@
       }
     }
 
+    // Update user display with verification badge
+    async function updateUserDisplayWithVerification(uid) {
+      const verified = await isVerified(uid);
+      const official = await isOfficial(uid);
+      
+      const currentUserNameEl = document.getElementById('currentUserName');
+      let displayName = currentUserNameEl.textContent;
+      
+      // Remove existing badges
+      const existingBadge = currentUserNameEl.querySelector('.verified-icon');
+      const existingLabel = currentUserNameEl.querySelector('.official-label');
+      if (existingBadge) existingBadge.remove();
+      if (existingLabel) existingLabel.remove();
+      
+      if (verified) {
+        const badge = document.createElement('img');
+        badge.src = VERIFIED_BADGE_URL;
+        badge.className = 'verified-icon';
+        badge.alt = 'Verified';
+        currentUserNameEl.appendChild(badge);
+        
+        if (official) {
+          const label = document.createElement('span');
+          label.className = 'official-label';
+          label.textContent = 'Huddle Official';
+          currentUserNameEl.appendChild(label);
+        }
+      }
+    }
+
+    // Create verification badge HTML
+    function createVerificationBadge(isVerified, isOfficial) {
+      let badgeHtml = '';
+      if (isVerified) {
+        badgeHtml += `<img src="${VERIFIED_BADGE_URL}" class="verified-icon" alt="Verified">`;
+        if (isOfficial) {
+          badgeHtml += `<span class="official-label">Huddle Official</span>`;
+        }
+      }
+      return badgeHtml;
+    }
+
     // Add Friend Modal
     document.getElementById('addFriendBtn').addEventListener('click', () => {
       document.getElementById('addFriendModal').classList.add('active');
@@ -1777,6 +1978,15 @@
         await set(ref(db, `chats/${chatId}/participants/${currentUser.uid}`), true);
         await set(ref(db, `chats/${chatId}/participants/${friendUid}`), true);
         await set(ref(db, `chats/${chatId}/createdAt`), Date.now());
+        
+        // Add encryption notice for new chats
+        const messagesRef = ref(db, `chats/${chatId}/messages`);
+        await push(messagesRef, {
+          text: "🔒 Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.",
+          type: "system",
+          senderId: "system",
+          timestamp: Date.now()
+        });
         
         document.getElementById('addFriendModal').classList.remove('active');
         showNotification('Friend added successfully! 🎉');
@@ -1827,6 +2037,9 @@
         document.getElementById('currentUserName').textContent = displayName;
         document.getElementById('currentUserPic').src = photoURL;
         
+        // Update verification badge after profile change
+        await updateUserDisplayWithVerification(currentUser.uid);
+        
         document.getElementById('profileModal').classList.remove('active');
         showNotification('Profile updated successfully! ✨');
       }
@@ -1847,18 +2060,37 @@
           }
         });
         
+        // Sort chats - official account first, then by timestamp
+        chats.sort((a, b) => {
+          const aFriendUid = Object.keys(a.participants).find(uid => uid !== currentUser.uid);
+          const bFriendUid = Object.keys(b.participants).find(uid => uid !== currentUser.uid);
+          
+          // Check if either is official account
+          if (aFriendUid === officialAccountUid) return -1;
+          if (bFriendUid === officialAccountUid) return 1;
+          
+          // Sort by creation time
+          return (b.createdAt || 0) - (a.createdAt || 0);
+        });
+
         for (const chat of chats) {
           const friendUid = Object.keys(chat.participants).find(uid => uid !== currentUser.uid);
           if (!friendUid) continue;
           
           const friendRef = ref(db, `users/${friendUid}/info`);
           const statusRef = ref(db, `users/${friendUid}/status`);
+          const verifiedRef = ref(db, `users/${friendUid}/verified`);
+          const officialRef = ref(db, `users/${friendUid}/official`);
           
           const friendSnap = await get(friendRef);
           const statusSnap = await get(statusRef);
+          const verifiedSnap = await get(verifiedRef);
+          const officialSnap = await get(officialRef);
           
           const friendData = friendSnap.val() || {};
           const status = statusSnap.val() || 'offline';
+          const isVerifiedUser = verifiedSnap.exists() && verifiedSnap.val() === true;
+          const isOfficialUser = officialSnap.exists() && officialSnap.val() === true;
           
           const lastMessageRef = ref(db, `chats/${chat.id}/messages`);
           const lastMessageSnap = await get(lastMessageRef);
@@ -1868,7 +2100,11 @@
           if (lastMessageSnap.exists()) {
             const messages = Object.values(lastMessageSnap.val());
             const last = messages[messages.length - 1];
-            lastMessage = last.type === 'image' ? '📷 Image' : last.text;
+            if (last.type === 'system') {
+              lastMessage = '🔒 Encryption notice';
+            } else {
+              lastMessage = last.type === 'image' ? '📷 Image' : last.text;
+            }
             lastTime = formatTime(last.timestamp);
           }
           
@@ -1878,9 +2114,12 @@
             const messages = Object.values(lastMessageSnap.val());
             unreadCount = messages.filter(msg => 
               msg.senderId !== currentUser.uid && 
+              msg.type !== 'system' &&
               !msg.readBy?.[currentUser.uid]
             ).length;
           }
+          
+          const verificationBadge = createVerificationBadge(isVerifiedUser, isOfficialUser);
           
           const chatItem = document.createElement('div');
           chatItem.className = 'chat-item';
@@ -1891,7 +2130,7 @@
               ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
             </div>
             <div class="chat-info">
-              <div class="chat-name">${friendData.displayName || friendData.email || 'Friend'}</div>
+              <div class="chat-name">${friendData.displayName || friendData.email || 'Friend'}${verificationBadge}</div>
               <div class="chat-preview">${lastMessage}</div>
               <div class="last-seen">${formatLastSeen(friendData.lastSeen)}</div>
             </div>
@@ -1899,7 +2138,7 @@
           `;
           
           chatItem.addEventListener('click', () => {
-            openChat(chat.id, friendUid, friendData, status);
+            openChat(chat.id, friendUid, friendData, status, isVerifiedUser, isOfficialUser);
           });
           
           chatList.appendChild(chatItem);
@@ -1918,13 +2157,14 @@
     }
 
     // Open Chat
-    function openChat(chatId, friendUid, friendData, status) {
+    function openChat(chatId, friendUid, friendData, status, isVerifiedUser = false, isOfficialUser = false) {
       activeChat = { chatId, friendUid };
       
       document.getElementById('emptyChat').style.display = 'none';
       document.getElementById('activeChatContainer').style.display = 'flex';
       
-      document.getElementById('activeChatName').textContent = friendData.displayName || friendData.email || 'Friend';
+      const activeChatNameEl = document.getElementById('activeChatName');
+      activeChatNameEl.innerHTML = `${friendData.displayName || friendData.email || 'Friend'}${createVerificationBadge(isVerifiedUser, isOfficialUser)}`;
       document.getElementById('activeChatPic').src = friendData.photoURL || '';
       document.getElementById('activeChatStatus').textContent = status === 'online' ? 'online' : 'offline';
       
@@ -1934,7 +2174,9 @@
       }
       
       document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
-      event.currentTarget.classList.add('active');
+      if (event && event.currentTarget) {
+        event.currentTarget.classList.add('active');
+      }
       
       loadMessages(chatId);
       listenForTyping(chatId, friendUid);
@@ -1973,6 +2215,15 @@
           messages.sort((a, b) => a.timestamp - b.timestamp);
           
           messages.forEach((msg) => {
+            // Handle system messages (encryption notice)
+            if (msg.type === 'system') {
+              const systemDiv = document.createElement('div');
+              systemDiv.className = 'encryption-notice';
+              systemDiv.textContent = msg.text;
+              container.insertBefore(systemDiv, typingIndicator);
+              return;
+            }
+            
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${msg.senderId === currentUser.uid ? 'sent' : 'received'}`;
             messageDiv.dataset.messageId = msg.id;
@@ -2398,5 +2649,5 @@
       }
     });
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'997975568109c51e',t:'MTc2MTk3OTgzMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'997988e3272a4013',t:'MTc2MTk4MDYzMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
