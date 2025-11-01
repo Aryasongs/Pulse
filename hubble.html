@@ -1980,13 +1980,13 @@
 
     // Firebase Configuration
     const firebaseConfig = {
-      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-      authDomain: "pulse2-92372.firebaseapp.com",
-      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-      projectId: "pulse2-92372",
-      storageBucket: "pulse2-92372.firebasestorage.app",
-      messagingSenderId: "276235725177",
-      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+      apiKey: "AIzaSyBvOkBwRdltuuv-M6amir14eQJFB0i5CAc",
+      authDomain: "sample-firebase-ai-app.firebaseapp.com",
+      databaseURL: "https://sample-firebase-ai-app-default-rtdb.firebaseio.com",
+      projectId: "sample-firebase-ai-app",
+      storageBucket: "sample-firebase-ai-app.appspot.com",
+      messagingSenderId: "448618578101",
+      appId: "1:448618578101:web:0b650e0cae14902caa7c0c"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -2005,15 +2005,7 @@
     let allUsers = {};
     let offlineQueue = [];
 
-    // Verified Accounts Configuration
-    const VERIFIED_ACCOUNTS = {
-      'sgursharn076@gmail.com': 'verified',
-      'customerserviceffrj4@gmail.com': 'verified',
-      'sdozera@gmail.com': 'official'
-    };
-    
-    const VERIFIED_BADGE_URL = 'https://pulse.oriontec.xyz/tick-mark.png';
-    const OFFICIAL_ACCOUNT_EMAIL = 'sdozera@gmail.com';
+    // Simple user system without verification
     let officialAccountUid = null;
 
     // Element SDK Configuration
@@ -2075,45 +2067,13 @@
       overlay.style.display = 'flex';
     }
 
-    // Verification Helper Functions
-    function isVerified(uid) {
-      return allUsers[uid]?.verified === true;
-    }
-
-    function isOfficial(uid) {
-      return allUsers[uid]?.official === true;
-    }
-
+    // Simple helper functions
     function getVerifiedBadgeHtml(uid) {
-      if (!isVerified(uid)) return '';
-      return `<img src="${VERIFIED_BADGE_URL}" class="verified-icon" alt="Verified">`;
+      return '';
     }
 
     function getOfficialLabelHtml(uid) {
-      if (!isOfficial(uid)) return '';
-      return `<span class="official-label">Huddle Official</span>`;
-    }
-
-    async function setupVerifiedAccounts() {
-      try {
-        // Set up verified accounts list in Firebase
-        await set(ref(db, 'verifiedAccounts'), VERIFIED_ACCOUNTS);
-        
-        // Find and store official account UID
-        const usersRef = ref(db, 'users');
-        const snapshot = await get(usersRef);
-        
-        if (snapshot.exists()) {
-          snapshot.forEach(child => {
-            const userData = child.val();
-            if (userData.info && userData.info.email === OFFICIAL_ACCOUNT_EMAIL) {
-              officialAccountUid = child.key;
-            }
-          });
-        }
-      } catch (error) {
-        console.error('Error setting up verified accounts:', error);
-      }
+      return '';
     }
 
     function hideLoading() {
@@ -2256,12 +2216,9 @@
         
         try {
           await setupUserPresence(user.uid);
-          await checkAndSetupVerification(user);
           await loadUserProfile(user.uid);
           await loadUserTheme();
-          await setupVerifiedAccounts();
           await startUserSync();
-          await checkFirstTimeUser(user);
           
           document.getElementById('loginContainer').style.display = 'none';
           document.getElementById('appContainer').classList.add('active');
@@ -2327,98 +2284,7 @@
       }
     }
 
-    async function checkAndSetupVerification(user) {
-      try {
-        const userEmail = user.email;
-        const verificationStatus = VERIFIED_ACCOUNTS[userEmail];
-        
-        if (verificationStatus) {
-          const userRef = ref(db, `users/${user.uid}`);
-          const updates = {
-            verified: true,
-            badgeUrl: VERIFIED_BADGE_URL
-          };
-          
-          if (verificationStatus === 'official') {
-            updates.official = true;
-            updates.info = {
-              email: userEmail,
-              displayName: 'Huddle Official',
-              photoURL: VERIFIED_BADGE_URL,
-              lastSeen: Date.now()
-            };
-            officialAccountUid = user.uid;
-          }
-          
-          await update(userRef, updates);
-        }
-      } catch (error) {
-        console.error('Error setting up verification:', error);
-      }
-    }
 
-    async function checkFirstTimeUser(user) {
-      try {
-        const userRef = ref(db, `users/${user.uid}/firstLogin`);
-        const snapshot = await get(userRef);
-        
-        if (!snapshot.exists()) {
-          // Mark as not first time anymore
-          await set(userRef, false);
-          
-          // Send welcome message from official account
-          if (officialAccountUid && user.uid !== officialAccountUid) {
-            await sendWelcomeMessage(user.uid);
-          }
-        }
-      } catch (error) {
-        console.error('Error checking first time user:', error);
-      }
-    }
-
-    async function sendWelcomeMessage(newUserUid) {
-      try {
-        if (!officialAccountUid) return;
-        
-        const chatId = [officialAccountUid, newUserUid].sort().join('_');
-        
-        // Create chat if it doesn't exist
-        await set(ref(db, `chats/${chatId}/participants/${officialAccountUid}`), true);
-        await set(ref(db, `chats/${chatId}/participants/${newUserUid}`), true);
-        await set(ref(db, `chats/${chatId}/createdAt`), Date.now());
-        
-        // Send encryption notice first
-        const messagesRef = ref(db, `chats/${chatId}/messages`);
-        await push(messagesRef, {
-          text: "Messages and calls are end-to-end encrypted. Only people in this chat can read, listen to, or share them.",
-          type: "system",
-          senderId: "system",
-          timestamp: Date.now()
-        });
-        
-        // Send welcome message
-        await push(messagesRef, {
-          text: "Welcome to Huddle! Thanks for joining. We're excited to have you here",
-          type: "text",
-          senderId: officialAccountUid,
-          timestamp: Date.now() + 1000
-        });
-        
-        // Update chat metadata
-        await update(ref(db, `chats/${chatId}`), {
-          lastMessage: {
-            text: "Welcome to Huddle! Thanks for joining. We're excited to have you here",
-            timestamp: Date.now() + 1000,
-            senderId: officialAccountUid,
-            type: "text"
-          },
-          lastActivity: Date.now() + 1000
-        });
-        
-      } catch (error) {
-        console.error('Error sending welcome message:', error);
-      }
-    }
 
     async function loadUserProfile(uid) {
       try {
@@ -2430,8 +2296,7 @@
             document.getElementById('currentUserPic').src = data.photoURL;
           }
           if (data.displayName) {
-            const nameElement = document.getElementById('currentUserName');
-            nameElement.innerHTML = data.displayName + getVerifiedBadgeHtml(uid) + getOfficialLabelHtml(uid);
+            document.getElementById('currentUserName').textContent = data.displayName;
           }
         }
       } catch (error) {
@@ -2466,10 +2331,8 @@
       if (activeChat && allUsers[activeChat.friendUid]) {
         const userData = allUsers[activeChat.friendUid];
         const displayName = userData.info?.displayName || userData.info?.email || 'Friend';
-        const verifiedBadge = getVerifiedBadgeHtml(activeChat.friendUid);
-        const officialLabel = getOfficialLabelHtml(activeChat.friendUid);
         
-        document.getElementById('activeChatName').innerHTML = displayName + verifiedBadge + officialLabel;
+        document.getElementById('activeChatName').textContent = displayName;
         document.getElementById('activeChatPic').src = userData.info?.photoURL || '';
       }
     }
@@ -2478,13 +2341,10 @@
       const nameEl = chatItem.querySelector('.chat-name');
       const avatarEl = chatItem.querySelector('.chat-avatar');
       const lastSeenEl = chatItem.querySelector('.last-seen');
-      const friendUid = chatItem.dataset.friendUid;
       
       if (nameEl && userData.info) {
         const displayName = userData.info.displayName || userData.info.email || 'Friend';
-        const verifiedBadge = getVerifiedBadgeHtml(friendUid);
-        const officialLabel = getOfficialLabelHtml(friendUid);
-        nameEl.innerHTML = displayName + verifiedBadge + officialLabel;
+        nameEl.textContent = displayName;
       }
       
       if (avatarEl && userData.info?.photoURL) {
@@ -2774,22 +2634,8 @@
             }
           });
           
-          // Sort chats with official account always at top
+          // Sort chats by activity
           chats.sort((a, b) => {
-            // Check if either chat involves the official account
-            const aHasOfficial = officialAccountUid && (
-              (a.participants && a.participants[officialAccountUid]) ||
-              Object.keys(a.participants || {}).some(uid => allUsers[uid]?.official)
-            );
-            const bHasOfficial = officialAccountUid && (
-              (b.participants && b.participants[officialAccountUid]) ||
-              Object.keys(b.participants || {}).some(uid => allUsers[uid]?.official)
-            );
-            
-            if (aHasOfficial && !bHasOfficial) return -1;
-            if (!aHasOfficial && bHasOfficial) return 1;
-            
-            // If both or neither have official, sort by activity
             return (b.lastActivity || b.createdAt || 0) - (a.lastActivity || a.createdAt || 0);
           });
 
@@ -2861,8 +2707,6 @@
       chatItem.dataset.friendUid = friendUid;
       
       const displayName = friendData.displayName || friendData.email || 'Friend';
-      const verifiedBadge = getVerifiedBadgeHtml(friendUid);
-      const officialLabel = getOfficialLabelHtml(friendUid);
       
       chatItem.innerHTML = `
         <div class="chat-avatar-container">
@@ -2871,7 +2715,7 @@
           ${unreadCount > 0 ? `<div class="unread-badge">${unreadCount}</div>` : ''}
         </div>
         <div class="chat-info">
-          <div class="chat-name">${displayName}${verifiedBadge}${officialLabel}</div>
+          <div class="chat-name">${displayName}</div>
           <div class="chat-preview">${lastMessage}</div>
           <div class="last-seen">${formatLastSeen(friendData.lastSeen)}</div>
         </div>
@@ -2965,10 +2809,8 @@
       document.getElementById('floatingAddBtn').style.display = 'none';
       
       const displayName = friendData.displayName || friendData.email || 'Friend';
-      const verifiedBadge = friendUid ? getVerifiedBadgeHtml(friendUid) : '';
-      const officialLabel = friendUid ? getOfficialLabelHtml(friendUid) : '';
       
-      document.getElementById('activeChatName').innerHTML = displayName + verifiedBadge + officialLabel;
+      document.getElementById('activeChatName').textContent = displayName;
       document.getElementById('activeChatPic').src = friendData.photoURL || '';
       
       if (chatType === 'group') {
@@ -3835,5 +3677,5 @@
       }
     }
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9979cf75944b795c',t:'MTc2MTk4MzUyMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9979d8bd268c6ed1',t:'MTc2MTk4MzkwMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
