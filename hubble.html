@@ -815,8 +815,12 @@
     }
 
     .message-status {
-      font-size: 16px;
+      font-size: 14px;
       line-height: 1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-left: 4px;
     }
 
     .status-sent {
@@ -829,6 +833,17 @@
 
     .status-read {
       color: #53bdeb;
+    }
+
+    .status-sending {
+      color: rgba(255, 255, 255, 0.4);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    .status-failed {
+      color: var(--error-color);
+      cursor: pointer;
+      title: "Click to retry";
     }
 
     /* Verified Icon */
@@ -946,35 +961,68 @@
       background: var(--bg-secondary);
       display: flex;
       gap: 12px;
-      align-items: center;
+      align-items: flex-end;
       position: relative;
       z-index: 2;
+      border-top: 1px solid var(--border-primary);
+    }
+
+    .input-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      background: var(--bg-tertiary);
+      border-radius: 24px;
+      padding: 4px;
+      transition: all 0.3s ease;
+    }
+
+    .input-container:focus-within {
+      background: var(--bg-quaternary);
+      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.3);
     }
 
     .chat-input {
       flex: 1;
-      padding: 14px 20px;
+      padding: 14px 16px;
       border: none;
-      border-radius: 24px;
+      border-radius: 20px;
       font-size: 15px;
       outline: none;
-      background: var(--bg-tertiary);
+      background: transparent;
       color: var(--text-primary);
-      transition: all 0.3s ease;
       resize: none;
       max-height: 120px;
+      min-height: 48px;
+      line-height: 1.4;
     }
 
     .chat-input::placeholder {
       color: var(--text-secondary);
     }
 
-    .chat-input:focus {
-      background: var(--bg-quaternary);
-      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.3);
+    .emoji-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 4px;
     }
 
-    .send-btn, .image-btn {
+    .emoji-btn:hover {
+      background: var(--bg-quaternary);
+      color: var(--accent-primary);
+      transform: scale(1.1);
+    }
+
+    .send-btn, .image-btn, .voice-btn {
       border: none;
       color: white;
       width: 48px;
@@ -1003,19 +1051,19 @@
       transform: scale(0.95);
     }
 
-    .image-btn {
+    .image-btn, .voice-btn {
       background: var(--bg-quaternary);
       color: var(--text-tertiary);
     }
 
-    .image-btn:hover {
+    .image-btn:hover, .voice-btn:hover {
       background: var(--accent-primary);
       color: white;
       transform: scale(1.1);
       box-shadow: 0 4px 20px rgba(0, 168, 132, 0.4);
     }
 
-    .image-btn:active {
+    .image-btn:active, .voice-btn:active {
       transform: scale(0.95);
     }
 
@@ -1325,6 +1373,87 @@
       transform: scale(1.2);
     }
 
+    /* Emoji Picker */
+    .emoji-picker {
+      position: absolute;
+      bottom: 70px;
+      right: 20px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-primary);
+      border-radius: 16px;
+      padding: 16px;
+      display: none;
+      z-index: 1000;
+      box-shadow: 0 8px 40px var(--shadow-secondary);
+      max-width: 320px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .emoji-picker.active {
+      display: block;
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .emoji-categories {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--border-primary);
+      padding-bottom: 8px;
+    }
+
+    .emoji-category {
+      padding: 6px 12px;
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      color: var(--text-secondary);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .emoji-category.active {
+      background: var(--accent-primary);
+      color: white;
+    }
+
+    .emoji-category:hover:not(.active) {
+      background: var(--bg-quaternary);
+    }
+
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+    }
+
+    .emoji-item {
+      font-size: 20px;
+      padding: 8px;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .emoji-item:hover {
+      background: var(--bg-tertiary);
+      transform: scale(1.2);
+    }
+
     /* Floating Add Button */
     .floating-add-btn {
       position: fixed;
@@ -1332,7 +1461,7 @@
       right: 20px;
       width: 56px;
       height: 56px;
-      background: var(--accent-primary);
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
       border: none;
       border-radius: 50%;
       color: white;
@@ -1341,15 +1470,38 @@
       box-shadow: 0 4px 20px rgba(0, 168, 132, 0.4);
       transition: all 0.3s ease;
       z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(10px);
+      border: 2px solid rgba(255, 255, 255, 0.1);
     }
 
     .floating-add-btn:hover {
-      transform: scale(1.1);
-      box-shadow: 0 6px 30px rgba(0, 168, 132, 0.6);
+      transform: scale(1.1) rotate(90deg);
+      box-shadow: 0 8px 40px rgba(0, 168, 132, 0.6);
+      background: linear-gradient(135deg, var(--accent-secondary) 0%, var(--accent-tertiary) 100%);
     }
 
     .floating-add-btn:active {
-      transform: scale(0.95);
+      transform: scale(0.95) rotate(90deg);
+    }
+
+    .floating-add-btn::before {
+      content: '';
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+      border-radius: 50%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
     }
 
     /* Scroll to Bottom Button */
@@ -1535,6 +1687,463 @@
       margin-left: 4px;
     }
 
+    /* Status Section Styles */
+    .status-section {
+      display: none;
+      height: 100%;
+      background: var(--bg-primary);
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .status-section.active {
+      display: flex;
+    }
+
+    .status-header {
+      padding: 20px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border-primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .status-header h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-back-btn {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      transition: all 0.3s ease;
+      margin-right: 8px;
+    }
+
+    .status-back-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--accent-primary);
+    }
+
+    .status-content {
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .my-status-section {
+      padding: 16px;
+      border-bottom: 8px solid var(--bg-tertiary);
+    }
+
+    .my-status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .my-status-item:hover {
+      transform: translateX(2px);
+    }
+
+    .status-avatar-container {
+      position: relative;
+    }
+
+    .status-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      background: var(--bg-quaternary);
+      border: 3px solid var(--accent-primary);
+      transition: all 0.3s ease;
+    }
+
+    .status-avatar.no-status {
+      border-color: var(--border-primary);
+      background: var(--bg-quaternary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: var(--text-secondary);
+    }
+
+    .status-avatar:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px rgba(0, 168, 132, 0.3);
+    }
+
+    .add-status-icon {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 20px;
+      height: 20px;
+      background: var(--accent-primary);
+      border: 3px solid var(--bg-primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
+    .status-info {
+      flex: 1;
+    }
+
+    .status-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 16px;
+      margin-bottom: 2px;
+    }
+
+    .status-time {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .status-updates-section {
+      padding: 16px;
+    }
+
+    .status-updates-header {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 0;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+
+    .status-item::before {
+      content: '';
+      position: absolute;
+      left: -16px;
+      top: 0;
+      bottom: 0;
+      width: 0;
+      background: var(--accent-primary);
+      transition: width 0.3s ease;
+    }
+
+    .status-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateX(4px);
+    }
+
+    .status-item:hover::before {
+      width: 3px;
+    }
+
+    .status-item.seen .status-avatar {
+      border-color: var(--bg-quaternary);
+      opacity: 0.7;
+    }
+
+    .status-item.seen .status-name,
+    .status-item.seen .status-time {
+      opacity: 0.7;
+    }
+
+    .status-count {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    /* Status Viewer */
+    .status-viewer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 2000;
+    }
+
+    .status-viewer.active {
+      display: flex;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .status-viewer-header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+      z-index: 2001;
+    }
+
+    .status-progress-container {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 16px;
+    }
+
+    .status-progress-bar {
+      flex: 1;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .status-progress-fill {
+      height: 100%;
+      background: white;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .status-progress-fill.active {
+      animation: progressFill 5s linear forwards;
+    }
+
+    @keyframes progressFill {
+      from { width: 0%; }
+      to { width: 100%; }
+    }
+
+    .status-viewer-user {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: white;
+    }
+
+    .status-viewer-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .status-viewer-name {
+      font-weight: 600;
+      font-size: 16px;
+    }
+
+    .status-viewer-time {
+      font-size: 13px;
+      opacity: 0.8;
+    }
+
+    .status-viewer-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s ease;
+      z-index: 2001;
+    }
+
+    .status-viewer-close:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .status-viewer-content {
+      position: relative;
+      max-width: 90%;
+      max-height: 80%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-viewer-image {
+      max-width: 100%;
+      max-height: 100%;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .status-viewer-text {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      padding: 40px;
+      border-radius: 16px;
+      font-size: 24px;
+      text-align: center;
+      max-width: 400px;
+      line-height: 1.4;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .status-viewer-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(255, 255, 255, 0.2);
+      border: none;
+      color: white;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+    }
+
+    .status-viewer-nav:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-50%) scale(1.1);
+    }
+
+    .status-viewer-nav.prev {
+      left: 20px;
+    }
+
+    .status-viewer-nav.next {
+      right: 20px;
+    }
+
+    .status-viewer-nav:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+    }
+
+    .status-viewer-nav:disabled:hover {
+      transform: translateY(-50%) scale(1);
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Add Status Modal */
+    .add-status-modal .modal-content {
+      max-width: 500px;
+    }
+
+    .status-upload-options {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .status-upload-btn {
+      flex: 1;
+      padding: 16px;
+      border: 2px dashed var(--border-primary);
+      border-radius: 12px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .status-upload-btn:hover {
+      border-color: var(--accent-primary);
+      background: var(--bg-quaternary);
+      transform: translateY(-2px);
+    }
+
+    .status-upload-btn.active {
+      border-color: var(--accent-primary);
+      background: rgba(0, 168, 132, 0.1);
+    }
+
+    .status-preview {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .status-preview-image {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-preview-text {
+      background: var(--bg-quaternary);
+      padding: 20px;
+      border-radius: 12px;
+      font-size: 18px;
+      color: var(--text-primary);
+      min-height: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .status-text-input {
+      width: 100%;
+      min-height: 100px;
+      padding: 16px;
+      border: 1px solid var(--border-primary);
+      border-radius: 12px;
+      font-size: 16px;
+      resize: vertical;
+      outline: none;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      transition: all 0.3s ease;
+    }
+
+    .status-text-input::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .status-text-input:focus {
+      border-color: var(--accent-primary);
+      background: var(--bg-quaternary);
+      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2);
+    }
+
     /* Mobile Responsive */
     @media (max-width: 768px) {
       .sidebar {
@@ -1558,6 +2167,19 @@
 
       .sidebar.hidden {
         display: none;
+      }
+
+      .status-section {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 100;
+      }
+
+      .status-back-btn {
+        display: block;
       }
 
       .message {
@@ -1586,6 +2208,25 @@
       .floating-add-btn {
         bottom: 20px;
         right: 16px;
+      }
+
+      .status-viewer-content {
+        max-width: 95%;
+        max-height: 70%;
+      }
+
+      .status-viewer-nav {
+        width: 40px;
+        height: 40px;
+        font-size: 16px;
+      }
+
+      .status-viewer-nav.prev {
+        left: 10px;
+      }
+
+      .status-viewer-nav.next {
+        right: 10px;
       }
     }
 
@@ -1644,7 +2285,9 @@
     <div class="sidebar-header">
      <div class="user-info" onclick="showUserProfile()"><img class="profile-pic" id="currentUserPic" src="" alt="Profile"> <span class="user-name" id="currentUserName">User</span>
      </div>
-     <div class="header-actions"><button class="icon-btn" id="addFriendBtn" title="Add Friend">
+     <div class="header-actions"><button class="icon-btn" id="statusBtn" title="Status">
+       <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+       </svg></button> <button class="icon-btn" id="addFriendBtn" title="Add Friend">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
        </svg></button> <button class="icon-btn" id="profileBtn" title="Profile">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
@@ -1672,6 +2315,51 @@
      </div>
     </div>
     <div class="chat-list" id="chatList"><!-- Chat items will be added here -->
+    </div>
+   </div><!-- Status Section -->
+   <div class="status-section" id="statusSection">
+    <div class="status-header">
+     <h2><button class="status-back-btn" id="statusBackBtn">
+       <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+       </svg></button>
+      <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+      </svg> Status</h2>
+    </div>
+    <div class="status-content">
+     <div class="my-status-section">
+      <div class="my-status-item" id="myStatusItem">
+       <div class="status-avatar-container">
+        <div class="status-avatar no-status" id="myStatusAvatar">
+         📷
+        </div>
+        <div class="add-status-icon">
+         +
+        </div>
+       </div>
+       <div class="status-info">
+        <div class="status-name">
+         My Status
+        </div>
+        <div class="status-time" id="myStatusTime">
+         Tap to add status update
+        </div>
+       </div>
+      </div>
+     </div>
+     <div class="status-updates-section">
+      <div class="status-updates-header">
+       Recent Updates
+      </div>
+      <div id="recentStatusList"><!-- Recent status updates will be added here -->
+      </div>
+     </div>
+     <div class="status-updates-section">
+      <div class="status-updates-header">
+       Viewed Updates
+      </div>
+      <div id="viewedStatusList"><!-- Viewed status updates will be added here -->
+      </div>
+     </div>
     </div>
    </div><!-- Main Chat Area -->
    <div class="main-chat" id="mainChat">
@@ -1707,12 +2395,55 @@
      </div>
      <div class="chat-input-container"><button class="image-btn" id="imageBtn" title="Send Image">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-       </svg></button> <textarea class="chat-input" id="chatInput" placeholder="Type a message" rows="1"></textarea> <button class="send-btn" id="sendBtn">
+       </svg></button> <button class="voice-btn" id="voiceBtn" title="Voice Message" style="display: none;">
+       <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72h-1.7z" />
+       </svg></button>
+      <div class="input-container"><textarea class="chat-input" id="chatInput" placeholder="Type a message" rows="1"></textarea> <button class="emoji-btn" id="emojiBtn" title="Emoji">
+        <svg width="20" height="20" viewbox="0 0 24 24" fill="currentColor"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm3.5-9c.83 0 1.5-.67 1.5-1.5S16.33 8 15.5 8 14 8.67 14 9.5s.67 1.5 1.5 1.5zm-7 0c.83 0 1.5-.67 1.5-1.5S9.33 8 8.5 8 7 8.67 7 9.5 7.67 11 8.5 11zm3.5 6.5c2.33 0 4.31-1.46 5.11-3.5H6.89c.8 2.04 2.78 3.5 5.11 3.5z" />
+        </svg></button>
+      </div><button class="send-btn" id="sendBtn">
        <svg width="24" height="24" viewbox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
        </svg></button>
      </div>
     </div>
    </div>
+  </div><!-- Add Status Modal -->
+  <div class="modal add-status-modal" id="addStatusModal">
+   <div class="modal-content">
+    <h2>Add Status</h2>
+    <div class="status-upload-options">
+     <div class="status-upload-btn" id="imageUploadBtn">
+      <svg width="32" height="32" viewbox="0 0 24 24" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
+      </svg> Upload Image
+     </div>
+     <div class="status-upload-btn" id="textStatusBtn">
+      <svg width="32" height="32" viewbox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" />
+      </svg> Text Status
+     </div>
+    </div>
+    <div class="status-preview" id="statusPreview" style="display: none;"><!-- Preview will be shown here -->
+    </div><textarea class="status-text-input" id="statusTextInput" placeholder="What's on your mind?" style="display: none;"></textarea>
+    <div class="modal-actions"><button class="modal-btn secondary" id="cancelStatusBtn">Cancel</button> <button class="modal-btn primary" id="uploadStatusBtn"> <span class="loading-spinner" style="display: none; margin-right: 8px;"></span> Share </button>
+    </div>
+   </div>
+  </div><!-- Status Viewer -->
+  <div class="status-viewer" id="statusViewer">
+   <div class="status-viewer-header">
+    <div class="status-progress-container" id="statusProgressContainer"><!-- Progress bars will be added here -->
+    </div>
+    <div class="status-viewer-user"><img class="status-viewer-avatar" id="statusViewerAvatar" src="" alt="Avatar">
+     <div>
+      <div class="status-viewer-name" id="statusViewerName">
+       User
+      </div>
+      <div class="status-viewer-time" id="statusViewerTime">
+       2 hours ago
+      </div>
+     </div>
+    </div>
+   </div><button class="status-viewer-close" id="statusViewerClose">×</button>
+   <div class="status-viewer-content" id="statusViewerContent"><!-- Status content will be shown here -->
+   </div><button class="status-viewer-nav prev" id="statusViewerPrev">‹</button> <button class="status-viewer-nav next" id="statusViewerNext">›</button>
   </div><!-- Add Friend Modal -->
   <div class="modal" id="addFriendModal">
    <div class="modal-content">
@@ -1776,9 +2507,39 @@
   <div class="reaction-picker" id="reactionPicker"><span class="reaction-emoji" data-emoji="❤️">❤️</span> <span class="reaction-emoji" data-emoji="😂">😂</span> <span class="reaction-emoji" data-emoji="👍">👍</span> <span class="reaction-emoji" data-emoji="👎">👎</span> <span class="reaction-emoji" data-emoji="😮">😮</span> <span class="reaction-emoji" data-emoji="😢">😢</span>
   </div><!-- Image Preview Modal -->
   <div class="image-preview-modal" id="imagePreviewModal"><button class="image-preview-close" id="imagePreviewClose">×</button> <img class="image-preview-content" id="imagePreviewContent" src="" alt="Preview">
-  </div><!-- Floating Add Button --> <button class="floating-add-btn" id="floatingAddBtn">+</button> <!-- Notification -->
+  </div><!-- Floating Add Button --> <button class="floating-add-btn" id="floatingAddBtn">+</button> <!-- Emoji Picker -->
+  <div class="emoji-picker" id="emojiPicker">
+   <div class="emoji-categories">
+    <div class="emoji-category active" data-category="smileys">
+     😊
+    </div>
+    <div class="emoji-category" data-category="people">
+     👋
+    </div>
+    <div class="emoji-category" data-category="nature">
+     🌸
+    </div>
+    <div class="emoji-category" data-category="food">
+     🍕
+    </div>
+    <div class="emoji-category" data-category="activities">
+     ⚽
+    </div>
+    <div class="emoji-category" data-category="travel">
+     ✈️
+    </div>
+    <div class="emoji-category" data-category="objects">
+     💡
+    </div>
+    <div class="emoji-category" data-category="symbols">
+     ❤️
+    </div>
+   </div>
+   <div class="emoji-grid" id="emojiGrid"><!-- Emojis will be populated here -->
+   </div>
+  </div><!-- Notification -->
   <div class="notification" id="notification"><span id="notificationText">Notification</span>
-  </div><!-- File Inputs --> <input type="file" class="file-input" id="imageFileInput" accept="image/*">
+  </div><!-- File Inputs --> <input type="file" class="file-input" id="imageFileInput" accept="image/*"> <input type="file" class="file-input" id="statusImageInput" accept="image/*">
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
     import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
@@ -1810,6 +2571,12 @@
     let isPageVisible = true;
     let allUsers = {};
     let offlineQueue = [];
+    let currentStatusUploadType = null;
+    let currentStatusData = null;
+    let statusViewerData = null;
+    let statusViewerIndex = 0;
+    let statusViewerTimer = null;
+    let allStatuses = {};
 
     // Verified Accounts Configuration
     const VERIFIED_ACCOUNTS = {
@@ -2898,12 +3665,25 @@
               reactionsHtml += '</div>';
             }
             
+            let statusIcon = '';
+            if (msg.senderId === currentUser.uid) {
+              if (msg.status === 'sending') {
+                statusIcon = '<span class="message-status status-sending">⏳</span>';
+              } else if (msg.status === 'failed') {
+                statusIcon = '<span class="message-status status-failed" onclick="retryMessage(\'' + msg.id + '\')">⚠️</span>';
+              } else if (msg.readBy && Object.keys(msg.readBy).length > 1) {
+                statusIcon = '<span class="message-status status-read">✓✓</span>';
+              } else {
+                statusIcon = '<span class="message-status status-delivered">✓✓</span>';
+              }
+            }
+
             messageDiv.innerHTML = `
               ${messageContent}
               ${reactionsHtml}
               <div class="message-time">
                 ${formatTime(msg.timestamp)}
-                ${msg.senderId === currentUser.uid ? '<span class="message-status status-delivered">✓✓</span>' : ''}
+                ${statusIcon}
               </div>
             `;
             
@@ -3437,6 +4217,684 @@
       this.style.height = 'auto';
       this.style.height = Math.min(this.scrollHeight, 120) + 'px';
     });
+
+    // Emoji Picker Functionality
+    const emojiCategories = {
+      smileys: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕'],
+      people: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '👊', '✊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸'],
+      nature: ['🌸', '💮', '🏵️', '🌹', '🥀', '🌺', '🌻', '🌼', '🌷', '🌱', '🪴', '🌲', '🌳', '🌴', '🌵', '🌶️', '🍄', '🌾', '💐', '🌿', '🍀', '🍃', '🍂', '🍁', '🌊', '🌀', '🌈', '🌂', '☂️', '☔', '⛱️', '⚡', '❄️', '☃️', '⛄', '☄️', '🔥', '💧', '🌟', '⭐', '🌠', '☀️', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌒', '🌓', '🌔', '🌙', '🌎', '🌍', '🌏', '🪐', '💫', '⭐', '🌟', '✨', '⚡', '☄️', '💥', '🔥', '🌪️', '🌈', '☀️', '🌤️', '⛅', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '💧', '💦', '☔', '☂️', '🌊', '🌫️'],
+      food: ['🍕', '🍔', '🍟', '🌭', '🥪', '🌮', '🌯', '🥙', '🧆', '🥚', '🍳', '🥘', '🍲', '🥣', '🥗', '🍿', '🧈', '🧂', '🥨', '🥖', '🍞', '🥐', '🥯', '🧇', '🥞', '🍯', '🥜', '🌰', '🥥', '🥑', '🍆', '🥔', '🥕', '🌽', '🌶️', '🥒', '🥬', '🥦', '🧄', '🧅', '🍄', '🥭', '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥝', '🍅', '🫒', '🥥', '🥨', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉', '☕', '🍵', '🧃', '🥤', '🧋', '🍼', '🥛', '🍯', '🍮', '🍭', '🍬', '🍫', '🍰', '🧁', '🥧', '🍦', '🍨', '🍧', '🍡', '🥮', '🍢', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍤', '🍣', '🦪', '🍥', '🥠', '🥟', '🍩', '🍪'],
+      activities: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛷', '⛸️', '🥌', '🎿', '⛷️', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '🤼', '🤼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '🏊', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎫', '🎟️', '🎪', '🤹', '🤹‍♀️', '🤹‍♂️', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎵', '🎶', '🥁', '🪘', '🎹', '🎷', '🎺', '🪗', '🎸', '🪕', '🎻', '🎲', '♠️', '♥️', '♦️', '♣️', '♟️', '🃏', '🀄', '🎴', '🎯', '🎳'],
+      travel: ['✈️', '🛫', '🛬', '🪂', '💺', '🚁', '🚟', '🚠', '🚡', '🛰️', '🚀', '🛸', '🚂', '🚃', '🚄', '🚅', '🚆', '🚇', '🚈', '🚉', '🚊', '🚝', '🚞', '🚋', '🚌', '🚍', '🚎', '🚐', '🚑', '🚒', '🚓', '🚔', '🚕', '🚖', '🚗', '🚘', '🚙', '🛻', '🚚', '🚛', '🚜', '🏎️', '🏍️', '🛵', '🦽', '🦼', '🛴', '🚲', '🛺', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓', '⛵', '🛶', '🚤', '🛳️', '⛴️', '🛥️', '🚢', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏝️', '🏜️', '🌋', '⛰️', '🏔️', '🗻', '🏕️', '⛺', '🛖', '🏠', '🏡', '🏘️', '🏚️', '🏗️', '🏭', '🏢', '🏬', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏩', '💒', '🏛️', '⛪', '🕌', '🛕', '🕍', '⛩️', '🕋', '⛲', '⛱️', '🌁', '🌃', '🏙️', '🌄', '🌅', '🌆', '🌇', '🌉', '♨️', '🎠', '🎡', '🎢', '💈', '🎪'],
+      objects: ['💡', '🔦', '🕯️', '🪔', '🧯', '🛢️', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🔧', '🔨', '⚒️', '🛠️', '⛏️', '🪓', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓️', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡️', '⚔️', '🛡️', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳️', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠', '🧫', '🧪', '🌡️', '🧹', '🪣', '🧽', '🧴', '🛎️', '🔑', '🗝️', '🚪', '🪑', '🛋️', '🛏️', '🛌', '🧸', '🪆', '🖼️', '🪞', '🪟', '🛍️', '🛒', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅', '🎊', '🎉', '🎎', '🏮', '🎐', '🧧', '✉️', '📩', '📨', '📧', '💌', '📥', '📤', '📦', '🏷️', '🪧', '📪', '📫', '📬', '📭', '📮', '📯', '📜', '📃', '📄', '📑', '🧾', '📊', '📈', '📉', '🗒️', '🗓️', '📅', '📆', '📇', '🗃️', '🗳️', '🗄️', '📋', '📌', '📍', '📎', '🖇️', '📏', '📐', '✂️', '🗂️', '🗞️', '📰', '📓', '📔', '📒', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', '🧷', '🔗', '📎', '🖇️', '📐', '📏', '🧮', '📱', '📲', '☎️', '📞', '📟', '📠', '🔋', '🪫', '🔌', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '🖲️', '💽', '💾', '💿', '📀', '🧿', '🎥', '🎞️', '📽️', '🎬', '📺', '📷', '📸', '📹', '📼'],
+      symbols: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕', '🛑', '⛔', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧️', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '#️⃣', '*️⃣', '⏏️', '▶️', '⏸️', '⏯️', '⏹️', '⏺️', '⏭️', '⏮️', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '🟰', '♾️', '💲', '💱', '™️', '©️', '®️', '〰️', '➰', '➿', '🔚', '🔙', '🔛', '🔝', '🔜', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾', '◽', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛', '⬜', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '👁️‍🗨️', '💬', '💭', '🗯️', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧']
+    };
+
+    let currentEmojiCategory = 'smileys';
+
+    function initializeEmojiPicker() {
+      populateEmojiGrid(currentEmojiCategory);
+      
+      // Category switching
+      document.querySelectorAll('.emoji-category').forEach(category => {
+        category.addEventListener('click', () => {
+          document.querySelectorAll('.emoji-category').forEach(c => c.classList.remove('active'));
+          category.classList.add('active');
+          currentEmojiCategory = category.dataset.category;
+          populateEmojiGrid(currentEmojiCategory);
+        });
+      });
+    }
+
+    function populateEmojiGrid(category) {
+      const grid = document.getElementById('emojiGrid');
+      grid.innerHTML = '';
+      
+      emojiCategories[category].forEach(emoji => {
+        const emojiItem = document.createElement('div');
+        emojiItem.className = 'emoji-item';
+        emojiItem.textContent = emoji;
+        emojiItem.addEventListener('click', () => {
+          insertEmoji(emoji);
+          hideEmojiPicker();
+        });
+        grid.appendChild(emojiItem);
+      });
+    }
+
+    function insertEmoji(emoji) {
+      const input = document.getElementById('chatInput');
+      const start = input.selectionStart;
+      const end = input.selectionEnd;
+      const text = input.value;
+      
+      input.value = text.substring(0, start) + emoji + text.substring(end);
+      input.selectionStart = input.selectionEnd = start + emoji.length;
+      input.focus();
+    }
+
+    function showEmojiPicker() {
+      document.getElementById('emojiPicker').classList.add('active');
+    }
+
+    function hideEmojiPicker() {
+      document.getElementById('emojiPicker').classList.remove('active');
+    }
+
+    // Emoji button event listener
+    document.getElementById('emojiBtn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const picker = document.getElementById('emojiPicker');
+      if (picker.classList.contains('active')) {
+        hideEmojiPicker();
+      } else {
+        showEmojiPicker();
+      }
+    });
+
+    // Close emoji picker when clicking outside
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.emoji-picker') && !e.target.closest('.emoji-btn')) {
+        hideEmojiPicker();
+      }
+    });
+
+    // Initialize emoji picker
+    initializeEmojiPicker();
+
+    // Status System Functions
+    function openStatusSection() {
+      document.getElementById('statusSection').classList.add('active');
+      document.getElementById('sidebar').classList.add('hidden');
+      document.getElementById('mainChat').classList.remove('active');
+      
+      if (window.innerWidth <= 768) {
+        document.getElementById('statusSection').style.display = 'flex';
+      }
+      
+      loadStatuses();
+    }
+
+    function closeStatusSection() {
+      document.getElementById('statusSection').classList.remove('active');
+      document.getElementById('sidebar').classList.remove('hidden');
+      
+      if (window.innerWidth <= 768) {
+        document.getElementById('statusSection').style.display = 'none';
+      }
+    }
+
+    async function loadStatuses() {
+      try {
+        const statusesRef = ref(db, 'statuses');
+        onValue(statusesRef, (snapshot) => {
+          if (snapshot.exists()) {
+            allStatuses = snapshot.val();
+            updateStatusDisplay();
+          } else {
+            allStatuses = {};
+            updateStatusDisplay();
+          }
+        });
+      } catch (error) {
+        console.error('Error loading statuses:', error);
+        showNotification('Failed to load statuses. Please try again.', 'error');
+      }
+    }
+
+    function updateStatusDisplay() {
+      updateMyStatus();
+      updateFriendsStatuses();
+    }
+
+    function updateMyStatus() {
+      const myStatusAvatar = document.getElementById('myStatusAvatar');
+      const myStatusTime = document.getElementById('myStatusTime');
+      
+      const myStatuses = allStatuses[currentUser.uid];
+      if (myStatuses) {
+        const statusArray = Object.values(myStatuses).filter(status => 
+          Date.now() < status.expiresAt
+        ).sort((a, b) => b.timestamp - a.timestamp);
+        
+        if (statusArray.length > 0) {
+          const latestStatus = statusArray[0];
+          
+          if (latestStatus.imageBase64) {
+            myStatusAvatar.innerHTML = '';
+            myStatusAvatar.style.backgroundImage = `url(${latestStatus.imageBase64})`;
+            myStatusAvatar.style.backgroundSize = 'cover';
+            myStatusAvatar.style.backgroundPosition = 'center';
+            myStatusAvatar.classList.remove('no-status');
+          } else {
+            myStatusAvatar.innerHTML = '💭';
+            myStatusAvatar.style.backgroundImage = 'none';
+            myStatusAvatar.classList.remove('no-status');
+          }
+          
+          myStatusTime.textContent = `${statusArray.length} update${statusArray.length > 1 ? 's' : ''} • ${formatTime(latestStatus.timestamp)}`;
+          return;
+        }
+      }
+      
+      // No status
+      myStatusAvatar.innerHTML = '📷';
+      myStatusAvatar.style.backgroundImage = 'none';
+      myStatusAvatar.classList.add('no-status');
+      myStatusTime.textContent = 'Tap to add status update';
+    }
+
+    function updateFriendsStatuses() {
+      const recentList = document.getElementById('recentStatusList');
+      const viewedList = document.getElementById('viewedStatusList');
+      
+      recentList.innerHTML = '';
+      viewedList.innerHTML = '';
+      
+      const friendsWithStatuses = [];
+      
+      // Get all friends from chats
+      const friendUids = new Set();
+      Object.values(allStatuses).forEach((userStatuses, userId) => {
+        if (userId !== currentUser.uid) {
+          friendUids.add(userId);
+        }
+      });
+      
+      friendUids.forEach(friendUid => {
+        if (allUsers[friendUid] && allStatuses[friendUid]) {
+          const friendStatuses = Object.values(allStatuses[friendUid])
+            .filter(status => Date.now() < status.expiresAt)
+            .sort((a, b) => b.timestamp - a.timestamp);
+          
+          if (friendStatuses.length > 0) {
+            const hasUnseenStatus = friendStatuses.some(status => 
+              !status.views || !status.views[currentUser.uid]
+            );
+            
+            friendsWithStatuses.push({
+              uid: friendUid,
+              statuses: friendStatuses,
+              userData: allUsers[friendUid],
+              hasUnseen: hasUnseenStatus,
+              latestTimestamp: friendStatuses[0].timestamp
+            });
+          }
+        }
+      });
+      
+      // Sort by latest timestamp
+      friendsWithStatuses.sort((a, b) => b.latestTimestamp - a.latestTimestamp);
+      
+      friendsWithStatuses.forEach(friend => {
+        const statusItem = createStatusItem(friend);
+        
+        if (friend.hasUnseen) {
+          recentList.appendChild(statusItem);
+        } else {
+          viewedList.appendChild(statusItem);
+        }
+      });
+    }
+
+    function createStatusItem(friend) {
+      const statusItem = document.createElement('div');
+      statusItem.className = `status-item ${friend.hasUnseen ? '' : 'seen'}`;
+      
+      const latestStatus = friend.statuses[0];
+      const displayName = friend.userData.info?.displayName || friend.userData.info?.email || 'Friend';
+      const verifiedBadge = getVerifiedBadgeHtml(friend.uid);
+      const officialLabel = getOfficialLabelHtml(friend.uid);
+      
+      let avatarContent = '';
+      if (latestStatus.imageBase64) {
+        avatarContent = `<img class="status-avatar" src="${latestStatus.imageBase64}" alt="Status">`;
+      } else {
+        avatarContent = `<div class="status-avatar" style="background: linear-gradient(135deg, #00a884 0%, #128c7e 100%); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px;">💭</div>`;
+      }
+      
+      statusItem.innerHTML = `
+        <div class="status-avatar-container">
+          ${avatarContent}
+        </div>
+        <div class="status-info">
+          <div class="status-name">${displayName}${verifiedBadge}${officialLabel}</div>
+          <div class="status-time">${formatTime(latestStatus.timestamp)}</div>
+        </div>
+        <div class="status-count">${friend.statuses.length}</div>
+      `;
+      
+      statusItem.addEventListener('click', () => {
+        openStatusViewer(friend.uid, friend.statuses);
+      });
+      
+      return statusItem;
+    }
+
+    async function uploadStatus(type, data) {
+      if (!currentUser) return;
+      
+      try {
+        const statusId = 'status_' + Date.now();
+        const timestamp = Date.now();
+        const expiresAt = timestamp + (24 * 60 * 60 * 1000); // 24 hours
+        
+        const statusData = {
+          id: statusId,
+          timestamp,
+          expiresAt
+        };
+        
+        if (type === 'image') {
+          statusData.imageBase64 = data.image;
+          if (data.text) {
+            statusData.text = data.text;
+          }
+        } else if (type === 'text') {
+          statusData.text = data;
+        }
+        
+        const statusRef = ref(db, `statuses/${currentUser.uid}/${statusId}`);
+        await set(statusRef, statusData);
+        
+        showNotification('✅ Status uploaded successfully!', 'success');
+        closeModal('addStatusModal');
+        resetStatusModal();
+        
+      } catch (error) {
+        console.error('Error uploading status:', error);
+        showNotification('Failed to upload status. Please try again.', 'error');
+      }
+    }
+
+    function openStatusViewer(userId, statuses) {
+      statusViewerData = { userId, statuses };
+      statusViewerIndex = 0;
+      
+      const viewer = document.getElementById('statusViewer');
+      viewer.classList.add('active');
+      
+      updateStatusViewer();
+      startStatusTimer();
+    }
+
+    function updateStatusViewer() {
+      if (!statusViewerData || !statusViewerData.statuses[statusViewerIndex]) return;
+      
+      const status = statusViewerData.statuses[statusViewerIndex];
+      const userData = allUsers[statusViewerData.userId];
+      
+      // Update user info
+      document.getElementById('statusViewerAvatar').src = userData.info?.photoURL || '';
+      document.getElementById('statusViewerName').textContent = userData.info?.displayName || userData.info?.email || 'User';
+      document.getElementById('statusViewerTime').textContent = formatTime(status.timestamp);
+      
+      // Update progress bars
+      const progressContainer = document.getElementById('statusProgressContainer');
+      progressContainer.innerHTML = '';
+      
+      statusViewerData.statuses.forEach((_, index) => {
+        const progressBar = document.createElement('div');
+        progressBar.className = 'status-progress-bar';
+        
+        const progressFill = document.createElement('div');
+        progressFill.className = 'status-progress-fill';
+        
+        if (index < statusViewerIndex) {
+          progressFill.style.width = '100%';
+        } else if (index === statusViewerIndex) {
+          progressFill.classList.add('active');
+        }
+        
+        progressBar.appendChild(progressFill);
+        progressContainer.appendChild(progressBar);
+      });
+      
+      // Update content
+      const content = document.getElementById('statusViewerContent');
+      content.innerHTML = '';
+      
+      if (status.imageBase64) {
+        const img = document.createElement('img');
+        img.className = 'status-viewer-image';
+        img.src = status.imageBase64;
+        content.appendChild(img);
+        
+        if (status.text) {
+          const textDiv = document.createElement('div');
+          textDiv.className = 'status-viewer-text';
+          textDiv.textContent = status.text;
+          textDiv.style.position = 'absolute';
+          textDiv.style.bottom = '20px';
+          textDiv.style.left = '20px';
+          textDiv.style.right = '20px';
+          textDiv.style.background = 'rgba(0, 0, 0, 0.7)';
+          textDiv.style.color = 'white';
+          textDiv.style.padding = '16px';
+          textDiv.style.borderRadius = '12px';
+          content.appendChild(textDiv);
+        }
+      } else {
+        const textDiv = document.createElement('div');
+        textDiv.className = 'status-viewer-text';
+        textDiv.textContent = status.text;
+        content.appendChild(textDiv);
+      }
+      
+      // Update navigation buttons
+      document.getElementById('statusViewerPrev').disabled = statusViewerIndex === 0;
+      document.getElementById('statusViewerNext').disabled = statusViewerIndex === statusViewerData.statuses.length - 1;
+      
+      // Mark as viewed
+      markStatusViewed(statusViewerData.userId, status.id);
+    }
+
+    async function markStatusViewed(userId, statusId) {
+      if (!currentUser || userId === currentUser.uid) return;
+      
+      try {
+        const viewRef = ref(db, `statuses/${userId}/${statusId}/views/${currentUser.uid}`);
+        await set(viewRef, true);
+      } catch (error) {
+        console.error('Error marking status as viewed:', error);
+      }
+    }
+
+    function startStatusTimer() {
+      clearTimeout(statusViewerTimer);
+      statusViewerTimer = setTimeout(() => {
+        nextStatus();
+      }, 5000);
+    }
+
+    function nextStatus() {
+      if (!statusViewerData) return;
+      
+      if (statusViewerIndex < statusViewerData.statuses.length - 1) {
+        statusViewerIndex++;
+        updateStatusViewer();
+        startStatusTimer();
+      } else {
+        closeStatusViewer();
+      }
+    }
+
+    function prevStatus() {
+      if (!statusViewerData) return;
+      
+      if (statusViewerIndex > 0) {
+        statusViewerIndex--;
+        updateStatusViewer();
+        startStatusTimer();
+      }
+    }
+
+    function closeStatusViewer() {
+      document.getElementById('statusViewer').classList.remove('active');
+      clearTimeout(statusViewerTimer);
+      statusViewerData = null;
+      statusViewerIndex = 0;
+    }
+
+    function resetStatusModal() {
+      currentStatusUploadType = null;
+      currentStatusData = null;
+      
+      document.getElementById('statusPreview').style.display = 'none';
+      document.getElementById('statusTextInput').style.display = 'none';
+      document.getElementById('statusTextInput').value = '';
+      
+      document.querySelectorAll('.status-upload-btn').forEach(btn => {
+        btn.classList.remove('active');
+      });
+    }
+
+    // Status Event Listeners
+    document.getElementById('statusBtn').addEventListener('click', openStatusSection);
+    
+    document.getElementById('statusBackBtn').addEventListener('click', closeStatusSection);
+    
+    document.getElementById('myStatusItem').addEventListener('click', () => {
+      openModal('addStatusModal');
+      resetStatusModal();
+    });
+    
+    // Add Status Modal Events
+    document.getElementById('imageUploadBtn').addEventListener('click', () => {
+      currentStatusUploadType = 'image';
+      document.querySelectorAll('.status-upload-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('imageUploadBtn').classList.add('active');
+      document.getElementById('statusImageInput').click();
+    });
+    
+    document.getElementById('textStatusBtn').addEventListener('click', () => {
+      currentStatusUploadType = 'text';
+      document.querySelectorAll('.status-upload-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById('textStatusBtn').classList.add('active');
+      document.getElementById('statusTextInput').style.display = 'block';
+      document.getElementById('statusPreview').style.display = 'none';
+      document.getElementById('statusTextInput').focus();
+    });
+    
+    document.getElementById('statusImageInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          currentStatusData = { image: event.target.result };
+          
+          const preview = document.getElementById('statusPreview');
+          preview.innerHTML = `<img class="status-preview-image" src="${event.target.result}" alt="Preview">`;
+          preview.style.display = 'block';
+          document.getElementById('statusTextInput').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+    
+    document.getElementById('cancelStatusBtn').addEventListener('click', () => {
+      closeModal('addStatusModal');
+      resetStatusModal();
+    });
+    
+    document.getElementById('uploadStatusBtn').addEventListener('click', async () => {
+      const btn = document.getElementById('uploadStatusBtn');
+      const spinner = btn.querySelector('.loading-spinner');
+      
+      try {
+        btn.disabled = true;
+        spinner.style.display = 'inline-block';
+        
+        if (currentStatusUploadType === 'image' && currentStatusData) {
+          const textInput = document.getElementById('statusTextInput');
+          if (textInput.value.trim()) {
+            currentStatusData.text = textInput.value.trim();
+          }
+          await uploadStatus('image', currentStatusData);
+        } else if (currentStatusUploadType === 'text') {
+          const text = document.getElementById('statusTextInput').value.trim();
+          if (text) {
+            await uploadStatus('text', text);
+          } else {
+            showNotification('Please enter some text for your status.', 'error');
+            return;
+          }
+        } else {
+          showNotification('Please select an image or enter text.', 'error');
+          return;
+        }
+      } catch (error) {
+        console.error('Upload status error:', error);
+        showNotification('Failed to upload status. Please try again.', 'error');
+      } finally {
+        btn.disabled = false;
+        spinner.style.display = 'none';
+      }
+    });
+    
+    // Status Viewer Events
+    document.getElementById('statusViewerClose').addEventListener('click', closeStatusViewer);
+    
+    document.getElementById('statusViewerNext').addEventListener('click', () => {
+      clearTimeout(statusViewerTimer);
+      nextStatus();
+    });
+    
+    document.getElementById('statusViewerPrev').addEventListener('click', () => {
+      clearTimeout(statusViewerTimer);
+      prevStatus();
+    });
+    
+    // Click on sides to navigate
+    document.getElementById('statusViewer').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget || e.target.id === 'statusViewerContent') {
+        const rect = e.currentTarget.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const width = rect.width;
+        
+        clearTimeout(statusViewerTimer);
+        
+        if (clickX < width / 3) {
+          prevStatus();
+        } else if (clickX > (2 * width) / 3) {
+          nextStatus();
+        }
+      }
+    });
+
+    // Auto-cleanup expired statuses (runs every hour)
+    setInterval(async () => {
+      if (!currentUser) return;
+      
+      try {
+        const statusesRef = ref(db, 'statuses');
+        const snapshot = await get(statusesRef);
+        
+        if (snapshot.exists()) {
+          const now = Date.now();
+          const updates = {};
+          
+          snapshot.forEach(userChild => {
+            const userId = userChild.key;
+            const userStatuses = userChild.val();
+            
+            Object.entries(userStatuses).forEach(([statusId, status]) => {
+              if (now >= status.expiresAt) {
+                updates[`${userId}/${statusId}`] = null;
+              }
+            });
+          });
+          
+          if (Object.keys(updates).length > 0) {
+            await update(statusesRef, updates);
+          }
+        }
+      } catch (error) {
+        console.error('Error cleaning up expired statuses:', error);
+      }
+    }, 60 * 60 * 1000); // Run every hour
+
+    // Message retry functionality
+    window.retryMessage = async function(messageId) {
+      if (!activeChat) return;
+      
+      try {
+        const messageRef = ref(db, `chats/${activeChat.chatId}/messages/${messageId}`);
+        await update(messageRef, {
+          status: 'sending',
+          timestamp: Date.now()
+        });
+        
+        // Simulate retry delay
+        setTimeout(async () => {
+          try {
+            await update(messageRef, {
+              status: 'sent'
+            });
+            showNotification('Message sent successfully! ✅', 'success');
+          } catch (error) {
+            await update(messageRef, {
+              status: 'failed'
+            });
+            showNotification('Failed to send message. Tap to retry.', 'error');
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Retry message error:', error);
+        showNotification('Failed to retry message.', 'error');
+      }
+    };
+
+    // Enhanced message sending with status tracking
+    async function sendMessageWithStatus(messageData) {
+      if (!activeChat) return;
+      
+      const tempId = 'temp_' + Date.now();
+      messageData.id = tempId;
+      messageData.status = 'sending';
+      
+      try {
+        const messagesRef = ref(db, `chats/${activeChat.chatId}/messages`);
+        const messageRef = await push(messagesRef, messageData);
+        
+        // Update with real ID and sent status
+        await update(messageRef, {
+          status: 'sent'
+        });
+        
+        // Update chat metadata
+        await update(ref(db, `chats/${activeChat.chatId}`), {
+          lastMessage: {
+            text: messageData.text,
+            timestamp: messageData.timestamp,
+            senderId: messageData.senderId,
+            type: messageData.type
+          },
+          lastActivity: messageData.timestamp
+        });
+        
+      } catch (error) {
+        console.error('Send message error:', error);
+        
+        // Mark as failed
+        const failedMessageRef = ref(db, `chats/${activeChat.chatId}/messages/${tempId}`);
+        await update(failedMessageRef, {
+          status: 'failed'
+        });
+        
+        showNotification('Message failed to send. Tap to retry.', 'error');
+      }
+    }
+
+    // Update the original sendMessage function to use status tracking
+    async function sendMessage() {
+      if (!activeChat) return;
+      
+      const input = document.getElementById('chatInput');
+      const text = input.value.trim();
+      if (!text) return;
+      
+      const messageData = {
+        text,
+        type: 'text',
+        senderId: currentUser.uid,
+        timestamp: Date.now()
+      };
+      
+      input.value = '';
+      playMessageSound();
+      
+      if (navigator.onLine) {
+        await sendMessageWithStatus(messageData);
+        if (activeChat.chatType === 'private') {
+          await set(ref(db, `chats/${activeChat.chatId}/typing/${currentUser.uid}`), false);
+        }
+      } else {
+        messageData.chatId = activeChat.chatId;
+        queueMessage(messageData);
+      }
+    }
   </script>
- <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9979b59510c26ed1',t:'MTc2MTk4MjQ2Mi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9979c895821c795c',t:'MTc2MTk4MzI0MS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
