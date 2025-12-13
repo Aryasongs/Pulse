@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hype - Share Your Buzz</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1d9bf0;
+            --bg: #000000;
+            --surface: #16181c;
+            --text: #e7e9ea;
+            --text-sec: #71767b;
+            --border: #2f3336;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Layout */
+        .sidebar {
+            width: 250px;
+            padding: 20px;
+            border-right: 1px solid var(--border);
+            position: fixed;
+            height: 100%;
+        }
+
+        .main-feed {
+            margin-left: 250px;
+            width: 600px;
+            border-right: 1px solid var(--border);
+        }
+
+        .widgets {
+            width: 300px;
+            padding: 20px;
+            display: none; /* Hidden on small screens */
+        }
+
+        /* Elements */
+        .logo { font-size: 24px; font-weight: bold; margin-bottom: 20px; color: var(--text); }
+        .nav-item { display: block; padding: 15px; font-size: 20px; color: var(--text); text-decoration: none; border-radius: 30px; margin-bottom: 5px; cursor: pointer;}
+        .nav-item:hover { background-color: var(--surface); }
+        .nav-item i { margin-right: 15px; width: 25px; }
+
+        .btn-buzz {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            width: 90%;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        .compose-box {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: var(--border);
+            object-fit: cover;
+        }
+
+        textarea {
+            background: transparent;
+            border: none;
+            color: var(--text);
+            font-size: 20px;
+            width: 100%;
+            outline: none;
+            resize: none;
+            font-family: inherit;
+        }
+
+        .post-tools {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 10px;
+            color: var(--primary);
+        }
+
+        .file-input { display: none; }
+        .tool-icon { cursor: pointer; font-size: 18px; padding: 5px; }
+
+        /* Buzz Post Styling */
+        .buzz {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+        }
+        
+        .buzz-content { width: 100%; }
+        
+        .buzz-header { display: flex; gap: 5px; color: var(--text-sec); font-size: 15px; }
+        .user-name { color: var(--text); font-weight: bold; }
+        .verified { color: var(--primary); margin-left: 2px; }
+        
+        .buzz-text { margin-top: 5px; font-size: 15px; white-space: pre-wrap; }
+        .buzz-text span.hashtag { color: var(--primary); }
+        .buzz-text span.mention { color: var(--primary); }
+        
+        .buzz-img {
+            margin-top: 10px;
+            width: 100%;
+            border-radius: 15px;
+            border: 1px solid var(--border);
+            max-height: 400px;
+            object-fit: cover;
+        }
+
+        .buzz-actions {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            color: var(--text-sec);
+            max-width: 400px;
+        }
+        .action-item { cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        .action-item:hover { color: var(--primary); }
+        .action-item.liked { color: #f91880; }
+
+        /* Auth Screen */
+        #auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        .auth-box {
+            background: black; border: 1px solid var(--border);
+            padding: 40px; border-radius: 15px; text-align: center; width: 300px;
+        }
+        .google-btn {
+            background: white; color: black; padding: 10px 20px;
+            border-radius: 20px; border: none; font-weight: bold;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%;
+        }
+
+        #setup-modal { display: none; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-overlay">
+        <div class="auth-box" id="login-box">
+            <h1>Hype</h1>
+            <p>See what's buzzing right now.</p>
+            <button class="google-btn" onclick="signInWithGoogle()">
+                <i class="fab fa-google"></i> Sign in with Google
+            </button>
+        </div>
+        
+        <div class="auth-box" id="setup-modal">
+            <h2>Create Account</h2>
+            <input type="text" id="username-input" placeholder="Choose unique @username" 
+                   style="background: transparent; border: 1px solid var(--border); color: white; padding: 10px; margin: 10px 0; width: 90%;">
+            <button class="btn-buzz" onclick="finalizeAccount()">Start Hype</button>
+        </div>
+    </div>
+
+    <div class="sidebar">
+        <div class="logo"><i class="fas fa-bolt"></i> Hype</div>
+        <a class="nav-item"><i class="fas fa-home"></i> Home</a>
+        <a class="nav-item"><i class="fas fa-hashtag"></i> Explore</a>
+        <a class="nav-item"><i class="fas fa-bell"></i> Notifications</a>
+        <a class="nav-item"><i class="fas fa-envelope"></i> Messages</a>
+        <a class="nav-item"><i class="fas fa-user"></i> Profile</a>
+        <a class="nav-item"><i class="fas fa-cog"></i> Settings</a>
+        <button class="btn-buzz" onclick="document.getElementById('buzz-input').focus()">Buzz</button>
+        
+        <div style="position: absolute; bottom: 20px; display: flex; gap: 10px; align-items: center;">
+            <img id="current-user-img" src="" class="avatar">
+            <div>
+                <div id="current-user-name" style="font-weight: bold;"></div>
+                <div id="current-user-handle" style="color: var(--text-sec);"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-feed">
+        <div style="padding: 15px; border-bottom: 1px solid var(--border); font-weight: bold; font-size: 20px; position: sticky; top: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);">Home</div>
+        
+        <div class="compose-box">
+            <img id="composer-avatar" src="" class="avatar">
+            <div style="width: 100%;">
+                <textarea id="buzz-input" rows="2" placeholder="What is happening?!"></textarea>
+                
+                <div id="preview-container" style="display: none; position: relative;">
+                    <img id="image-preview" style="max-width: 100%; border-radius: 10px; margin-top: 10px;">
+                    <button onclick="clearImage()" style="position: absolute; top: 5px; right: 5px; background: rgba(0,0,0,0.7); color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer;">&times;</button>
+                </div>
+
+                <div class="post-tools">
+                    <div>
+                        <i class="far fa-image tool-icon" onclick="document.getElementById('file-upload').click()"></i>
+                        <input type="file" id="file-upload" class="file-input" accept="image/*" onchange="handleImageUpload(this)">
+                    </div>
+                    <button class="btn-buzz" style="width: auto; padding: 8px 20px; margin: 0;" onclick="postBuzz()">Buzz</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="feed">
+            </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getDatabase, ref, set, push, onChildAdded, get, update, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB2XeuTfHZ7FYKLoYb4epKp3upmVqG0fzE",
+            authDomain: "pulse-17f40.firebaseapp.com",
+            databaseURL: "https://pulse-17f40-default-rtdb.firebaseio.com",
+            projectId: "pulse-17f40",
+            storageBucket: "pulse-17f40.firebasestorage.app",
+            messagingSenderId: "259780854138",
+            appId: "1:259780854138:web:89c265fd22a34a7f1fd6c3"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+        const provider = new GoogleAuthProvider();
+
+        let currentUserData = null;
+        let base64Image = "";
+
+        // Global functions for HTML access
+        window.signInWithGoogle = () => {
+            signInWithPopup(auth, provider).then(async (result) => {
+                const user = result.user;
+                // Check if user exists in DB
+                const snapshot = await get(ref(db, 'users/' + user.uid));
+                if (snapshot.exists()) {
+                    document.getElementById('auth-overlay').style.display = 'none';
+                } else {
+                    document.getElementById('login-box').style.display = 'none';
+                    document.getElementById('setup-modal').style.display = 'block';
+                }
+            }).catch((error) => console.error(error));
+        };
+
+        window.finalizeAccount = async () => {
+            const username = document.getElementById('username-input').value.toLowerCase().replace(/\s/g, '');
+            const user = auth.currentUser;
+
+            if(username.length < 3) return alert("Username too short");
+
+            // Check username uniqueness
+            const uCheck = await get(ref(db, 'usernames/' + username));
+            if(uCheck.exists()) return alert("Username taken!");
+
+            // Create User Profile
+            const profileData = {
+                name: user.displayName,
+                email: user.email,
+                photoURL: user.photoURL, // Using Google Photo as default
+                username: username,
+                bio: "New to Hype",
+                verified: false,
+                uid: user.uid
+            };
+
+            // Atomic updates
+            const updates = {};
+            updates['/users/' + user.uid] = profileData;
+            updates['/usernames/' + username] = user.uid;
+
+            await update(ref(db), updates);
+            document.getElementById('auth-overlay').style.display = 'none';
+        };
+
+        window.handleImageUpload = (input) => {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    base64Image = e.target.result;
+                    document.getElementById('image-preview').src = base64Image;
+                    document.getElementById('preview-container').style.display = 'block';
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        };
+
+        window.clearImage = () => {
+            base64Image = "";
+            document.getElementById('file-upload').value = "";
+            document.getElementById('preview-container').style.display = 'none';
+        };
+
+        window.postBuzz = () => {
+            const text = document.getElementById('buzz-input').value;
+            if (!text && !base64Image) return;
+
+            const newBuzzRef = push(ref(db, 'buzzes'));
+            set(newBuzzRef, {
+                text: text,
+                image: base64Image,
+                uid: auth.currentUser.uid,
+                username: currentUserData.username,
+                displayName: currentUserData.name,
+                userPhoto: currentUserData.photoURL,
+                verified: currentUserData.verified || false,
+                timestamp: serverTimestamp(),
+                likes: 0
+            });
+
+            // Clear inputs
+            document.getElementById('buzz-input').value = "";
+            window.clearImage();
+        };
+
+        window.toggleLike = (buzzId) => {
+            // Simple client-side toggle simulation + DB update
+            // In a real app, use transactions to prevent race conditions
+            const likeRef = ref(db, `buzzes/${buzzId}/likes`);
+            get(likeRef).then((snap) => {
+                let current = snap.val() || 0;
+                set(likeRef, current + 1);
+            });
+        };
+
+        // Auth State Listener
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                const snapshot = await get(ref(db, 'users/' + user.uid));
+                if (snapshot.exists()) {
+                    currentUserData = snapshot.val();
+                    document.getElementById('auth-overlay').style.display = 'none';
+                    
+                    // Set Sidebar Info
+                    document.getElementById('current-user-img').src = currentUserData.photoURL;
+                    document.getElementById('current-user-name').textContent = currentUserData.name;
+                    document.getElementById('current-user-handle').textContent = "@" + currentUserData.username;
+                    document.getElementById('composer-avatar').src = currentUserData.photoURL;
+                }
+            } else {
+                document.getElementById('auth-overlay').style.display = 'flex';
+            }
+        });
+
+        // Realtime Feed Listener
+        const feedContainer = document.getElementById('feed');
+        const buzzRef = ref(db, 'buzzes');
+        
+        onChildAdded(buzzRef, (data) => {
+            const buzz = data.val();
+            const key = data.key;
+            
+            // Format Content (Hashtags/Mentions)
+            let formattedText = buzz.text
+                .replace(/#(\w+)/g, '<span class="hashtag">#$1</span>')
+                .replace(/@(\w+)/g, '<span class="mention">@$1</span>');
+
+            const buzzHTML = `
+                <div class="buzz" id="${key}">
+                    <img src="${buzz.userPhoto}" class="avatar">
+                    <div class="buzz-content">
+                        <div class="buzz-header">
+                            <span class="user-name">${buzz.displayName}</span>
+                            ${buzz.verified ? '<i class="fas fa-check-circle verified"></i>' : ''}
+                            <span>@${buzz.username}</span>
+                        </div>
+                        <div class="buzz-text">${formattedText}</div>
+                        ${buzz.image ? `<img src="${buzz.image}" class="buzz-img">` : ''}
+                        
+                        <div class="buzz-actions">
+                            <div class="action-item"><i class="far fa-comment"></i> 0</div>
+                            <div class="action-item"><i class="fas fa-retweet"></i> 0</div>
+                            <div class="action-item" onclick="toggleLike('${key}')">
+                                <i class="far fa-heart"></i> ${buzz.likes || 0}
+                            </div>
+                            <div class="action-item"><i class="far fa-bookmark"></i></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            feedContainer.insertAdjacentHTML('afterbegin', buzzHTML);
+        });
+    </script>
+</body>
+</html>
