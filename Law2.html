@@ -1,0 +1,2039 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1">
+  <title>Dozera Legal Affairs Portal</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&amp;family=Merriweather:wght@300;400;700&amp;display=swap" rel="stylesheet">
+  <style>
+    * {
+      touch-action: manipulation;
+      user-select: none;
+    }
+    
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: 'Merriweather', Georgia, serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+
+    #root {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 0;
+    }
+
+    .dozera-header {
+      background: linear-gradient(180deg, #1a2945 0%, #2d4a6e 100%);
+      border-bottom: 6px solid #d4a76a;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      color: white;
+      padding: 1rem;
+      flex-shrink: 0;
+    }
+
+    .dozera-seal {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #d4a76a, #b8860b);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      font-weight: bold;
+      color: #1a2945;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .case-container {
+      background: white;
+      border-left: 6px solid #2d4a6e;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      margin-bottom: 1.5rem;
+      padding: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .case-token {
+      font-family: 'Courier New', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #d4a76a;
+      letter-spacing: 1px;
+    }
+
+    .case-status {
+      display: inline-block;
+      padding: 0.4rem 0.8rem;
+      border-radius: 3px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-filed { background: #d1ecf1; color: #0c5460; }
+    .status-under-review { background: #e7d4f5; color: #5a2d82; }
+    .status-active { background: #d4edda; color: #155724; }
+    .status-resolved { background: #d4edda; color: #155724; }
+    .status-closed { background: #e2e3e5; color: #383d41; }
+    .status-withdrawn { background: #f8d7da; color: #721c24; }
+
+    .form-section {
+      background: #f8f9fa;
+      border-left: 4px solid #2d4a6e;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+
+    .form-section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a2945;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-field {
+      margin-bottom: 1rem;
+    }
+
+    .form-field label {
+      display: block;
+      font-weight: 600;
+      color: #2d4a6e;
+      margin-bottom: 0.4rem;
+      font-size: 0.95rem;
+    }
+
+    .form-field input,
+    .form-field textarea,
+    .form-field select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 2px solid #cbd5e1;
+      border-radius: 4px;
+      font-family: 'Merriweather', serif;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus,
+    .form-field select:focus {
+      outline: none;
+      border-color: #2d4a6e;
+      background: #f0f4f8;
+      box-shadow: 0 0 0 3px rgba(45, 74, 110, 0.1);
+    }
+
+    .form-field textarea {
+      resize: vertical;
+      min-height: 120px;
+    }
+
+    .required::after {
+      content: " *";
+      color: #dc2626;
+      font-weight: 700;
+    }
+
+    .button-primary {
+      background: linear-gradient(180deg, #2d4a6e 0%, #1a2945 100%);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Merriweather', serif;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .button-primary:hover {
+      background: linear-gradient(180deg, #1a2945 0%, #0f1a2e 100%);
+      box-shadow: 0 4px 12px rgba(45, 74, 110, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .button-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .button-secondary {
+      background: white;
+      color: #2d4a6e;
+      border: 2px solid #2d4a6e;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Merriweather', serif;
+    }
+
+    .button-danger {
+      background: #dc2626;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Merriweather', serif;
+    }
+
+    .button-success {
+      background: #059669;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: 'Merriweather', serif;
+    }
+
+    .step-indicator {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      color: #475569;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .step.active .step-number {
+      background: #2d4a6e;
+      color: white;
+      box-shadow: 0 0 0 4px rgba(45, 74, 110, 0.2);
+    }
+
+    .step.completed .step-number {
+      background: #059669;
+      color: white;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      overflow-y: auto;
+      padding: 1rem;
+    }
+
+    .modal-backdrop.active {
+      display: flex;
+    }
+
+    .modal {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      max-width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+      width: 100%;
+      margin: 2rem auto;
+    }
+
+    .modal-header {
+      background: linear-gradient(180deg, #1a2945 0%, #2d4a6e 100%);
+      color: white;
+      padding: 1.5rem;
+      border-bottom: 2px solid #d4a76a;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+    }
+
+    .modal-body {
+      padding: 2rem;
+    }
+
+    .chat-container {
+      background: #f0f4f8;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      height: 500px;
+      border: 2px solid #cbd5e1;
+    }
+
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      background: white;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .message {
+      margin-bottom: 1rem;
+      padding: 0.75rem;
+      border-radius: 3px;
+      font-size: 0.9rem;
+      word-wrap: break-word;
+    }
+
+    .message.user {
+      background: #e0e7ff;
+      border-left: 3px solid #2d4a6e;
+      margin-left: 1rem;
+    }
+
+    .message.lawyer {
+      background: #dbeafe;
+      border-left: 3px solid #0284c7;
+      margin-right: 1rem;
+    }
+
+    .message.system {
+      background: #f3f4f6;
+      border-left: 3px solid #6b7280;
+      margin: 0.5rem;
+      text-align: center;
+      font-size: 0.8rem;
+      font-style: italic;
+    }
+
+    .message-time {
+      font-size: 0.75rem;
+      color: #6b7280;
+      margin-top: 0.25rem;
+      font-family: 'Courier New', monospace;
+    }
+
+    .message-image {
+      max-width: 200px;
+      max-height: 200px;
+      border-radius: 3px;
+      margin-top: 0.5rem;
+      cursor: pointer;
+    }
+
+    .chat-input {
+      padding: 0.75rem;
+      border-top: 1px solid #e5e7eb;
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading-spinner {
+      border: 3px solid #cbd5e1;
+      border-top: 3px solid #2d4a6e;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: white;
+      border-left: 4px solid #2d4a6e;
+      padding: 1.5rem;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #d4a76a;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: #475569;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .pdf-watermark {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-45deg);
+      font-size: 120px;
+      opacity: 0.05;
+      pointer-events: none;
+      font-weight: 700;
+      color: #2d4a6e;
+    }
+
+    .lawyer-profile-card {
+      background: white;
+      border: 2px solid #d4a76a;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .lawyer-profile-header {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .lawyer-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2d4a6e, #d4a76a);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: white;
+      flex-shrink: 0;
+    }
+
+    .lawyer-info {
+      flex: 1;
+    }
+
+    .lawyer-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #1a2945;
+    }
+
+    .lawyer-badge {
+      display: inline-block;
+      background: #d4a76a;
+      color: #1a2945;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-top: 0.25rem;
+    }
+
+    .lawyer-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .lawyer-stat-item {
+      text-align: center;
+    }
+
+    .lawyer-stat-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2d4a6e;
+    }
+
+    .lawyer-stat-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+    }
+
+    @media (max-width: 768px) {
+      .modal {
+        max-width: 95%;
+        margin: 1rem;
+      }
+
+      .chat-container {
+        height: 300px;
+      }
+
+      .admin-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+  </style>
+  <style>@view-transition { navigation: auto; }</style>
+  <script src="/_sdk/data_sdk.js" type="text/javascript"></script>
+  <script src="/_sdk/element_sdk.js" type="text/javascript"></script>
+ </head>
+ <body class="bg-gray-100">
+  <div id="root" class="w-full h-full flex flex-col"><!-- Debug Panel -->
+   <div id="debug-panel" style="position: fixed; top: 60px; right: 10px; background: #1a1a1a; color: #00ff00; padding: 10px; border-radius: 4px; font-size: 11px; max-width: 250px; z-index: 9999; font-family: monospace; max-height: 150px; overflow-y: auto; border: 1px solid #00ff00;">
+    <div>
+     <strong>🔧 DEBUG INFO</strong>
+    </div>
+    <div id="debug-connection">
+     ⏳ Checking...
+    </div>
+    <div id="debug-cases">
+     Cases: --
+    </div><button onclick="testFirebase()" style="background: #00ff00; color: #000; border: none; padding: 4px 8px; border-radius: 2px; cursor: pointer; margin-top: 5px; font-size: 10px;">Test DB</button>
+   </div><!-- Header -->
+   <header class="dozera-header">
+    <div class="max-w-7xl mx-auto px-4">
+     <div class="flex items-center justify-between gap-4 flex-wrap">
+      <div class="flex items-center gap-3">
+       <div class="dozera-seal">
+        ⚖
+       </div>
+       <div>
+        <h1 class="text-xl font-bold tracking-wider">DOZERA LEGAL AFFAIRS PORTAL</h1>
+        <p class="text-xs text-gray-300">Case Management &amp; Law Enforcement System</p>
+       </div>
+      </div>
+      <nav class="flex gap-4 text-xs md:text-sm flex-wrap"><button onclick="navigateTo('home')" class="hover:text-yellow-300 transition font-semibold px-2 py-1">FILE CASE</button> <button onclick="navigateTo('track')" class="hover:text-yellow-300 transition font-semibold px-2 py-1">TRACK</button> <button onclick="navigateTo('lawyer-login')" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 rounded font-semibold transition text-xs">LAWYER</button> <button onclick="navigateTo('admin-login')" class="px-3 py-1 bg-red-600 hover:bg-red-700 rounded font-semibold transition text-xs">ADMIN</button>
+      </nav>
+     </div>
+    </div>
+   </header><!-- Main Content -->
+   <main class="flex-1 overflow-y-auto w-full">
+    <div class="max-w-6xl mx-auto px-4 py-6"><!-- HOME / FILE CASE VIEW -->
+     <section id="view-home" class="content-view">
+      <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-2">File a Legal Case</h2>
+      <p class="text-gray-600 mb-8">File cases against Dozera Group companies and their employees.</p>
+      <form id="case-form" class="space-y-6">
+       <div class="step-indicator" id="step-indicator"></div><!-- Step 1: Case Type -->
+       <div id="step-1-form" class="form-content">
+        <div class="form-section">
+         <div class="form-section-title">
+          Case Type
+         </div>
+         <div class="grid md:grid-cols-2 gap-6">
+          <div class="form-field"><label class="required">Case Type</label> <select id="case_type" required> <option value="">Select</option> <option value="FIR">First Information Report (FIR)</option> <option value="Civil Suit">Civil Suit</option> <option value="Criminal Case">Criminal Case</option> </select>
+          </div>
+          <div class="form-field"><label class="required">Nature</label> <select id="nature_of_case" required> <option value="">Select</option> <option value="Fraud">Fraud / Deception</option> <option value="Breach of Contract">Breach of Contract</option> <option value="Employment Dispute">Employment Dispute</option> <option value="Harassment">Harassment / Bullying</option> <option value="Property Dispute">Property Dispute</option> </select>
+          </div>
+          <div class="form-field"><label class="required">Company</label> <select id="respondent_company" required> <option value="">Select</option> <option value="Dozera Ltd">Dozera Ltd</option> <option value="Dozera Shop">Dozera Shop</option> <option value="Saint Soul">Saint Soul</option> <option value="Zynk">Zynk</option> <option value="Dozera Construction">Dozera Construction</option> <option value="Dozera Cloud &amp; Storage">Dozera Cloud &amp; Storage</option> <option value="Dozera Law Department">Dozera Law Department</option> <option value="Dozera F1">Dozera F1</option> <option value="Jet2 Airline">Jet2 Airline</option> <option value="Oriontec Inc">Oriontec Inc</option> </select>
+          </div>
+          <div class="form-field"><label class="required">Priority</label> <select id="priority_level" required> <option value="">Select</option> <option value="Low">Low</option> <option value="Medium">Medium</option> <option value="High">High</option> <option value="Critical">Critical</option> </select>
+          </div>
+          <div class="form-field"><label class="required">Incident Date</label> <input type="date" id="incident_date" required>
+          </div>
+          <div class="form-field"><label>Incident Time</label> <input type="time" id="incident_time">
+          </div>
+         </div>
+        </div>
+        <div class="flex justify-between mt-8"><button type="button" class="button-secondary hidden" id="btn-prev" onclick="previousStep()">Back</button> <button type="button" class="button-primary ml-auto" onclick="nextStep()">Next</button>
+        </div>
+       </div><!-- Step 2: Employee Information -->
+       <div id="step-2-form" class="form-content hidden">
+        <div class="form-section">
+         <div class="form-section-title">
+          Employee Information
+         </div>
+         <div class="grid md:grid-cols-2 gap-6">
+          <div class="form-field"><label class="required">Employee Name</label> <input type="text" id="respondent_name" required>
+          </div>
+          <div class="form-field"><label class="required">Employee ID</label> <input type="text" id="respondent_employee_id" required>
+          </div>
+          <div class="form-field"><label>Department</label> <input type="text" id="respondent_position">
+          </div>
+          <div class="form-field"><label>Contact</label> <input type="text" id="respondent_contact">
+          </div>
+         </div>
+        </div>
+        <div class="flex justify-between mt-8"><button type="button" class="button-secondary" onclick="previousStep()">Back</button> <button type="button" class="button-primary ml-auto" onclick="nextStep()">Next</button>
+        </div>
+       </div><!-- Step 3: Your Information -->
+       <div id="step-3-form" class="form-content hidden">
+        <div class="form-section">
+         <div class="form-section-title">
+          Your Information
+         </div>
+         <div class="grid md:grid-cols-2 gap-6">
+          <div class="form-field"><label class="required">Full Name</label> <input type="text" id="claimant_name" required>
+          </div>
+          <div class="form-field"><label class="required">Email</label> <input type="email" id="claimant_email" required>
+          </div>
+          <div class="form-field"><label class="required">Phone</label> <input type="tel" id="claimant_phone" required>
+          </div>
+          <div class="form-field"><label class="required">Date of Birth</label> <input type="date" id="claimant_dob" required>
+          </div>
+          <div class="form-field md:col-span-2"><label class="required">Address</label> <textarea id="claimant_address" required></textarea>
+          </div>
+         </div>
+        </div>
+        <div class="flex justify-between mt-8"><button type="button" class="button-secondary" onclick="previousStep()">Back</button> <button type="button" class="button-primary ml-auto" onclick="nextStep()">Next</button>
+        </div>
+       </div><!-- Step 4: Complaint Details -->
+       <div id="step-4-form" class="form-content hidden">
+        <div class="form-section">
+         <div class="form-section-title">
+          Complaint Details
+         </div>
+         <div class="form-field"><label class="required">Title</label> <input type="text" id="complaint_title" required>
+         </div>
+         <div class="form-field"><label class="required">Details</label> <textarea id="complaint_details" required placeholder="Detailed statement of facts"></textarea>
+         </div>
+         <div class="form-field"><label class="required">Relief Sought</label> <textarea id="relief_sought" required></textarea>
+         </div>
+         <div class="form-field"><label>Claim Amount</label> <input type="number" id="claim_amount" step="0.01">
+         </div>
+        </div>
+        <div class="flex justify-between mt-8"><button type="button" class="button-secondary" onclick="previousStep()">Back</button> <button type="button" class="button-primary ml-auto" onclick="nextStep()">Next</button>
+        </div>
+       </div><!-- Step 5: Review -->
+       <div id="step-5-form" class="form-content hidden">
+        <div class="form-section">
+         <div class="form-section-title">
+          Review Your Complaint
+         </div>
+         <div id="review-summary" class="space-y-4 mb-6"></div>
+        </div>
+        <div class="form-section bg-yellow-50"><label class="flex items-center gap-2"> <input type="checkbox" id="declaration_agree" required> <span class="text-sm font-semibold">I declare this information is true and complete</span> </label>
+        </div>
+        <div class="flex justify-between mt-8"><button type="button" class="button-secondary" onclick="previousStep()">Back</button> <button type="submit" class="button-primary ml-auto">Submit</button>
+        </div>
+       </div>
+      </form>
+     </section><!-- TRACK CASE VIEW -->
+     <section id="view-track" class="content-view hidden">
+      <h2 class="text-3xl font-bold text-gray-900 mb-8">Track Your Case</h2>
+      <div class="case-container"><input type="text" id="track-token" placeholder="Enter Case Token" class="w-full p-3 border-2 border-gray-300 rounded mb-4"> <button type="button" class="button-primary" onclick="trackCase()">Search</button>
+      </div>
+      <div id="track-result" class="hidden"></div>
+     </section><!-- LAWYER LOGIN VIEW -->
+     <section id="view-lawyer-login" class="content-view hidden">
+      <div class="max-w-md mx-auto">
+       <div class="case-container bg-blue-50">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Lawyer Portal</h2>
+        <form id="lawyer-login-form" onsubmit="loginLawyer(event)">
+         <div class="form-field"><label class="required">Lawyer ID</label> <input type="text" id="lawyer-id" placeholder="Enter ID" required>
+         </div>
+         <div class="form-field"><label class="required">Password</label> <input type="password" id="lawyer-password" placeholder="Enter password" required>
+         </div><button type="submit" class="button-primary w-full">Login</button>
+        </form>
+       </div>
+      </div>
+     </section><!-- ADMIN LOGIN VIEW -->
+     <section id="view-admin-login" class="content-view hidden">
+      <div class="max-w-md mx-auto">
+       <div class="case-container bg-red-50">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Admin Panel</h2>
+        <form id="admin-login-form" onsubmit="loginAdmin(event)">
+         <div class="form-field"><label class="required">Admin ID</label> <input type="text" id="admin-id" placeholder="Enter ID" required>
+         </div>
+         <div class="form-field"><label class="required">Password</label> <input type="password" id="admin-password" placeholder="Enter password" required>
+         </div><button type="submit" class="button-primary w-full">Access Admin</button>
+        </form>
+       </div>
+      </div>
+     </section><!-- LAWYER DASHBOARD VIEW -->
+     <section id="view-lawyer-dashboard" class="content-view hidden">
+      <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+       <h2 class="text-2xl md:text-3xl font-bold text-gray-900">Lawyer Dashboard</h2><button type="button" class="button-secondary text-sm" onclick="logoutLawyer()">Logout</button>
+      </div>
+      <div class="admin-grid">
+       <div class="stat-card">
+        <div class="stat-number" id="lawyer-stat-assigned">
+         0
+        </div>
+        <div class="stat-label">
+         Assigned
+        </div>
+       </div>
+       <div class="stat-card">
+        <div class="stat-number" id="lawyer-stat-active">
+         0
+        </div>
+        <div class="stat-label">
+         Active
+        </div>
+       </div>
+       <div class="stat-card">
+        <div class="stat-number" id="lawyer-stat-resolved">
+         0
+        </div>
+        <div class="stat-label">
+         Resolved
+        </div>
+       </div>
+      </div>
+      <div class="case-container">
+       <h3 class="text-xl font-bold mb-4">My Cases</h3>
+       <div id="lawyer-cases-list" class="space-y-3"></div>
+      </div>
+     </section><!-- ADMIN DASHBOARD VIEW -->
+     <section id="view-admin-dashboard" class="content-view hidden">
+      <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+       <h2 class="text-2xl md:text-3xl font-bold text-gray-900">Admin Dashboard</h2><button type="button" class="button-secondary text-sm" onclick="logoutAdmin()">Logout</button>
+      </div>
+      <div class="admin-grid">
+       <div class="stat-card">
+        <div class="stat-number" id="admin-stat-total">
+         0
+        </div>
+        <div class="stat-label">
+         Total Cases
+        </div>
+       </div>
+       <div class="stat-card">
+        <div class="stat-number" id="admin-stat-pending">
+         0
+        </div>
+        <div class="stat-label">
+         Pending
+        </div>
+       </div>
+       <div class="stat-card">
+        <div class="stat-number" id="admin-stat-active">
+         0
+        </div>
+        <div class="stat-label">
+         Active
+        </div>
+       </div>
+       <div class="stat-card">
+        <div class="stat-number" id="admin-stat-resolved">
+         0
+        </div>
+        <div class="stat-label">
+         Resolved
+        </div>
+       </div>
+      </div>
+      <div class="mb-8">
+       <div class="form-section">
+        <div class="form-section-title">
+         Automated Responses Management
+        </div>
+        <div class="grid md:grid-cols-2 gap-6">
+         <div class="form-field"><label>Question Template</label> <textarea id="auto-question" placeholder="Enter common question users ask"></textarea>
+         </div>
+         <div class="form-field"><label>AI Generated Answer</label> <textarea id="auto-answer" placeholder="Automatic response will be generated here"></textarea>
+         </div>
+        </div><button type="button" class="button-primary text-sm mt-4" onclick="generateAIResponse()">Generate AI Response</button> <button type="button" class="button-success text-sm mt-2 ml-2" onclick="saveAutoResponse()">Save Response</button>
+       </div>
+      </div>
+      <div class="case-container">
+       <h3 class="text-xl font-bold mb-4">All Cases</h3>
+       <div id="admin-cases-list" class="space-y-3"></div>
+      </div>
+     </section><!-- CASE DETAIL MODAL -->
+     <div id="case-detail-modal" class="modal-backdrop" style="display: none; opacity: 0; transition: opacity 0.3s ease;">
+      <div class="modal" style="max-width: 1000px;">
+       <div class="modal-header">
+        <h3 id="modal-title" class="text-xl font-bold">Case Details</h3><button type="button" class="modal-close" onclick="closeCaseModal()">✕</button>
+       </div>
+       <div class="modal-body">
+        <div id="case-detail-content"></div>
+       </div>
+      </div>
+     </div><!-- IMAGE PREVIEW MODAL -->
+     <div id="image-preview-modal" class="modal-backdrop">
+      <div class="modal" style="max-width: 600px;">
+       <div class="modal-header">
+        <h3 class="text-xl font-bold">Image Preview</h3><button type="button" class="modal-close" onclick="closeImagePreview()">✕</button>
+       </div>
+       <div class="modal-body"><img id="preview-image" src="" alt="Preview" style="max-width: 100%; border-radius: 4px;">
+       </div>
+      </div>
+     </div>
+    </div>
+   </main>
+  </div>
+  <script>
+    // Firebase Configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+      authDomain: "pulse2-92372.firebaseapp.com",
+      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+      projectId: "pulse2-92372",
+      storageBucket: "pulse2-92372.firebasestorage.app",
+      messagingSenderId: "276235725177",
+      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const db = firebase.database();
+
+    // Application State
+    let currentStep = 1;
+    let currentUser = null;
+    let userRole = null;
+    let allCases = [];
+    let currentCase = null;
+    let lawyerAssignedCases = [];
+    let allLawyers = [
+      { id: 'LAW001', name: 'Rajesh Kumar', qualification: 'B.A., LL.B', experience: 12, cases_won: 45, fees: 'Negotiable', specialization: 'Criminal Law' },
+      { id: 'LAW002', name: 'Priya Sharma', qualification: 'B.Com., LL.B', experience: 8, cases_won: 32, fees: '$150/hour', specialization: 'Civil & Contract Law' },
+      { id: 'LAW003', name: 'Amit Patel', qualification: 'B.Sc., LL.M', experience: 15, cases_won: 58, fees: '$200/hour', specialization: 'Employment Law' }
+    ];
+
+    // Initialize Step Indicator
+    function initializeStepIndicator() {
+      const steps = [
+        { num: 1, label: 'Case Type' },
+        { num: 2, label: 'Employee' },
+        { num: 3, label: 'Your Info' },
+        { num: 4, label: 'Complaint' },
+        { num: 5, label: 'Review' }
+      ];
+
+      const indicator = document.getElementById('step-indicator');
+      indicator.innerHTML = steps.map((s, i) => `
+        <div class="step ${i === 0 ? 'active' : ''}" data-step="${s.num}">
+          <div class="step-number">${s.num}</div>
+        </div>
+      `).join('');
+    }
+
+    // Navigation
+    function navigateTo(view) {
+      document.querySelectorAll('[id^="view-"]').forEach(el => {
+        el.classList.add('hidden');
+      });
+      const viewEl = document.getElementById('view-' + view);
+      if (viewEl) viewEl.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Step Management
+    function updateStepIndicator() {
+      document.querySelectorAll('.step-indicator .step').forEach(step => {
+        const stepNum = parseInt(step.dataset.step);
+        step.classList.remove('active', 'completed');
+        if (stepNum < currentStep) {
+          step.classList.add('completed');
+        } else if (stepNum === currentStep) {
+          step.classList.add('active');
+        }
+      });
+
+      document.querySelectorAll('.form-content').forEach(content => {
+        content.classList.add('hidden');
+      });
+      document.getElementById('step-' + currentStep + '-form').classList.remove('hidden');
+      document.getElementById('btn-prev').style.display = currentStep === 1 ? 'none' : 'block';
+    }
+
+    function nextStep() {
+      const currentForm = document.getElementById('step-' + currentStep + '-form');
+      const inputs = currentForm.querySelectorAll('[required]');
+      let isValid = true;
+
+      inputs.forEach(input => {
+        if (!input.value) {
+          input.style.borderColor = '#dc2626';
+          isValid = false;
+        } else {
+          input.style.borderColor = '';
+        }
+      });
+
+      if (!isValid) {
+        showNotification('Please fill all required fields', 'error');
+        return;
+      }
+
+      if (currentStep === 4) {
+        generateReviewSummary();
+      }
+
+      currentStep++;
+      if (currentStep > 5) currentStep = 5;
+      updateStepIndicator();
+    }
+
+    function previousStep() {
+      currentStep--;
+      if (currentStep < 1) currentStep = 1;
+      updateStepIndicator();
+    }
+
+    // Generate Case Token
+    function generateCaseToken() {
+      const date = new Date();
+      const year = date.getFullYear();
+      const random = Math.floor(Math.random() * 1000000).toString().padStart(6, '0');
+      return `CASE-${year}-${random}`;
+    }
+
+    // Generate QR Code
+    function generateQRCode(token) {
+      const qrContainer = document.createElement('div');
+      qrContainer.id = 'qr-code';
+      qrContainer.style.cssText = 'display: flex; justify-content: center; align-items: center; width: 150px; height: 150px; background: white; border: 2px solid #2d4a6e;';
+      
+      new QRCode(qrContainer, {
+        text: token,
+        width: 140,
+        height: 140,
+        colorDark: '#2d4a6e',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.H
+      });
+
+      return qrContainer.innerHTML;
+    }
+
+    // Generate Review Summary
+    function generateReviewSummary() {
+      const summary = `
+        <div class="space-y-4">
+          <div class="bg-white p-4 rounded border-l-4 border-l-gray-400">
+            <h4 class="font-bold mb-2">Case: ${document.getElementById('case_type').value}</h4>
+            <p class="text-sm">Company: ${document.getElementById('respondent_company').value}</p>
+            <p class="text-sm">Priority: ${document.getElementById('priority_level').value}</p>
+          </div>
+
+          <div class="bg-white p-4 rounded border-l-4 border-l-gray-400">
+            <h4 class="font-bold mb-2">Employee: ${document.getElementById('respondent_name').value}</h4>
+            <p class="text-sm">ID: ${document.getElementById('respondent_employee_id').value}</p>
+          </div>
+
+          <div class="bg-white p-4 rounded border-l-4 border-l-gray-400">
+            <h4 class="font-bold mb-2">Complainant: ${document.getElementById('claimant_name').value}</h4>
+            <p class="text-sm">Email: ${document.getElementById('claimant_email').value}</p>
+          </div>
+
+          <div class="bg-white p-4 rounded border-l-4 border-l-gray-400">
+            <h4 class="font-bold mb-2">${document.getElementById('complaint_title').value}</h4>
+            <p class="text-sm">${document.getElementById('complaint_details').value.substring(0, 100)}...</p>
+          </div>
+        </div>
+      `;
+      document.getElementById('review-summary').innerHTML = summary;
+    }
+
+    // Create Audit Entry
+    function createAuditEntry(action, details = '') {
+      return {
+        timestamp: new Date().toISOString(),
+        action,
+        details,
+        user: currentUser || 'SYSTEM'
+      };
+    }
+
+    // Submit Case Form
+    document.getElementById('case-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      if (!document.getElementById('declaration_agree').checked) {
+        showNotification('You must agree to the declaration', 'error');
+        return;
+      }
+
+      const token = generateCaseToken();
+      const now = new Date().toISOString();
+
+      const caseData = {
+        token,
+        case_type: document.getElementById('case_type').value,
+        nature_of_case: document.getElementById('nature_of_case').value,
+        respondent_company: document.getElementById('respondent_company').value,
+        respondent_name: document.getElementById('respondent_name').value,
+        respondent_employee_id: document.getElementById('respondent_employee_id').value,
+        status: 'Pending',
+        created_at: now,
+        updated_at: now,
+        claimant_name: document.getElementById('claimant_name').value,
+        claimant_email: document.getElementById('claimant_email').value,
+        claimant_phone: document.getElementById('claimant_phone').value,
+        claimant_address: document.getElementById('claimant_address').value,
+        complaint_title: document.getElementById('complaint_title').value,
+        complaint_details: document.getElementById('complaint_details').value,
+        relief_sought: document.getElementById('relief_sought').value,
+        priority_level: document.getElementById('priority_level').value,
+        incident_date: document.getElementById('incident_date').value,
+        assigned_lawyer: '',
+        assigned_officer: '',
+        chat_messages: JSON.stringify([]),
+        audit_trail: JSON.stringify([createAuditEntry('CASE_FILED', 'Complaint submitted')]),
+        withdrawal_request: '',
+        withdrawal_status: 'None'
+      };
+
+      try {
+        const submitBtn = e.target.querySelector('[type="submit"]');
+        submitBtn.disabled = true;
+        const originalText = submitBtn.textContent;
+        submitBtn.innerHTML = '<span class="loading-spinner"></span>';
+
+        await db.ref('cases/' + token).set(caseData).then(() => {
+          setTimeout(() => {
+            showSuccessModal(token);
+            document.getElementById('case-form').reset();
+            currentStep = 1;
+            updateStepIndicator();
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+          }, 500);
+        }).catch(err => {
+          throw err;
+        });
+      } catch (error) {
+        console.error('Firebase error:', error);
+        showNotification('Error: ' + error.message, 'error');
+        const submitBtn = e.target.querySelector('[type="submit"]');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit';
+      }
+    });
+
+    // Show Success Modal
+    function showSuccessModal(token) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-backdrop active';
+      modal.innerHTML = `
+        <div class="modal" style="max-width: 500px;">
+          <div class="modal-header">
+            <h3 class="text-xl font-bold">Complaint Submitted Successfully</h3>
+            <button type="button" class="modal-close" onclick="this.closest('.modal-backdrop').remove()">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="text-center mb-6">
+              <p class="text-gray-600 mb-6">Your legal complaint has been filed.</p>
+              
+              <div class="bg-gray-100 p-6 rounded mb-6">
+                <p class="text-xs text-gray-600 mb-3">Your Case Reference Token</p>
+                <p class="text-3xl font-bold text-gray-900 font-mono" style="letter-spacing: 2px;">${token}</p>
+                <p class="text-xs text-gray-500 mt-3">Save this token to track your case</p>
+              </div>
+
+              <div class="space-y-2">
+                <button type="button" class="button-primary w-full" onclick="downloadCasePDF('${token}'); this.closest('.modal-backdrop').remove();">Download Professional FIR PDF</button>
+                <button type="button" class="button-secondary w-full" onclick="navigateTo('track'); this.closest('.modal-backdrop').remove();">Track My Case</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // Track Case
+    function trackCase() {
+      const token = document.getElementById('track-token').value.trim().toUpperCase();
+      if (!token) {
+        showNotification('Please enter a case token', 'error');
+        return;
+      }
+
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          caseData.token = token;
+          displayCaseDetail(caseData, 'user');
+          document.getElementById('track-result').classList.remove('hidden');
+        } else {
+          document.getElementById('track-result').innerHTML = `
+            <div class="case-container bg-red-50">
+              <p class="text-red-700 font-semibold">Case not found. Check your token.</p>
+            </div>
+          `;
+          document.getElementById('track-result').classList.remove('hidden');
+        }
+      });
+    }
+
+    // Display Case Detail
+    function displayCaseDetail(caseData, viewMode = 'user') {
+      const auditTrail = JSON.parse(caseData.audit_trail || '[]');
+      const chatMessages = JSON.parse(caseData.chat_messages || '[]');
+
+      let lawyerInfo = '';
+      if (caseData.assigned_lawyer) {
+        const lawyer = allLawyers.find(l => l.id === caseData.assigned_lawyer);
+        if (lawyer) {
+          lawyerInfo = `
+            <div class="lawyer-profile-card">
+              <div class="lawyer-profile-header">
+                <div class="lawyer-avatar">⚖</div>
+                <div class="lawyer-info">
+                  <div class="lawyer-name">${lawyer.name}</div>
+                  <div class="lawyer-badge">${lawyer.specialization}</div>
+                  <p class="text-xs text-gray-600 mt-1">${lawyer.qualification}</p>
+                </div>
+              </div>
+              <div class="lawyer-stats">
+                <div class="lawyer-stat-item">
+                  <div class="lawyer-stat-value">${lawyer.experience}</div>
+                  <div class="lawyer-stat-label">Years Exp</div>
+                </div>
+                <div class="lawyer-stat-item">
+                  <div class="lawyer-stat-value">${lawyer.cases_won}</div>
+                  <div class="lawyer-stat-label">Cases Won</div>
+                </div>
+                <div class="lawyer-stat-item">
+                  <div class="lawyer-stat-value">${lawyer.fees}</div>
+                  <div class="lawyer-stat-label">Fees</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      let html = `
+        <div class="space-y-6">
+          <div class="flex justify-between items-start flex-wrap gap-4">
+            <div>
+              <p class="text-xs text-gray-600 mb-1">Case Token</p>
+              <p class="case-token">${caseData.token}</p>
+            </div>
+            <span class="case-status status-${caseData.status.toLowerCase().replace(/ /g, '-')}">${caseData.status}</span>
+          </div>
+
+          <div class="grid lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-6">
+              <!-- Case Summary -->
+              <div class="form-section">
+                <div class="form-section-title">Case Information</div>
+                <p class="text-sm mb-2"><strong>Type:</strong> ${caseData.case_type}</p>
+                <p class="text-sm mb-2"><strong>Nature:</strong> ${caseData.nature_of_case}</p>
+                <p class="text-sm mb-2"><strong>Company:</strong> ${caseData.respondent_company}</p>
+                <p class="text-sm mb-2"><strong>Priority:</strong> ${caseData.priority_level}</p>
+                <p class="text-sm"><strong>Filed:</strong> ${new Date(caseData.created_at).toLocaleString()}</p>
+              </div>
+
+              <!-- Respondent -->
+              <div class="form-section">
+                <div class="form-section-title">Respondent Employee</div>
+                <p class="text-sm mb-2"><strong>Name:</strong> ${caseData.respondent_name}</p>
+                <p class="text-sm"><strong>ID:</strong> ${caseData.respondent_employee_id}</p>
+              </div>
+
+              <!-- Complaint -->
+              <div class="form-section">
+                <div class="form-section-title">Complaint Details</div>
+                <p class="text-sm font-semibold mb-3">${caseData.complaint_title}</p>
+                <div class="bg-white p-4 rounded text-sm border-l-4 border-l-gray-400 mb-4">
+                  ${caseData.complaint_details}
+                </div>
+              </div>
+
+              <!-- History -->
+              <div class="form-section">
+                <div class="form-section-title">Case History</div>
+                <div class="space-y-2">
+                  ${auditTrail.map(entry => `
+                    <div class="bg-white p-2 rounded border-l-2 border-l-gray-400 text-xs">
+                      <p class="font-bold text-gray-900">${entry.action}</p>
+                      <p class="text-gray-600">${new Date(entry.timestamp).toLocaleString()}</p>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+
+            <div class="space-y-6">
+              ${lawyerInfo}
+
+              <!-- Chat -->
+              <div class="form-section">
+                <div class="form-section-title">💬 Chat with Lawyer</div>
+                <div class="chat-container">
+                  <div class="chat-messages" id="chat-${caseData.token}">
+                    ${chatMessages.length === 0 ? '<p class="text-center text-gray-500 text-xs p-2">No messages yet</p>' : ''}
+                    ${chatMessages.map(msg => `
+                      <div class="message ${msg.sender}">
+                        ${msg.image ? `<img src="data:image/jpeg;base64,${msg.image}" class="message-image" onclick="showImagePreview('data:image/jpeg;base64,${msg.image}')">` : ''}
+                        <p class="text-xs">${msg.text}</p>
+                        <p class="message-time">${new Date(msg.timestamp).toLocaleTimeString()}</p>
+                      </div>
+                    `).join('')}
+                  </div>
+                  <div class="chat-input gap-1">
+                    <input type="text" id="msg-${caseData.token}" placeholder="Type message..." class="flex-1 p-2 border rounded text-xs">
+                    <input type="file" id="img-${caseData.token}" accept="image/*" style="display: none;">
+                    <button type="button" class="button-primary text-xs px-2 py-1" onclick="document.getElementById('img-${caseData.token}').click()">📷</button>
+                    <button type="button" class="button-primary text-xs px-2 py-1" onclick="sendMessage('${caseData.token}')">Send</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="form-section">
+                <button type="button" class="button-primary w-full mb-2 text-sm" onclick="downloadCasePDF('${caseData.token}')">📄 Download FIR</button>
+                ${caseData.status !== 'Withdrawn' && caseData.status !== 'Closed' ? `
+                  <button type="button" class="button-danger w-full text-sm" onclick="requestWithdrawal('${caseData.token}')">⛔ Withdraw Case</button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('case-detail-content').innerHTML = html;
+      const modal = document.getElementById('case-detail-modal');
+      modal.style.display = 'flex';
+      setTimeout(() => { modal.style.opacity = '1'; }, 10);
+      currentCase = caseData;
+
+      // Setup image upload
+      document.getElementById('img-' + caseData.token).addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.size < 5000000) {
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            const base64 = event.target.result.split(',')[1];
+            document.getElementById('msg-' + caseData.token).dataset.image = base64;
+            showNotification('📸 Image attached', 'success');
+          };
+          reader.readAsDataURL(file);
+        } else {
+          showNotification('File too large (max 5MB)', 'error');
+        }
+      });
+    }
+
+    // Send Message
+    function sendMessage(token) {
+      const input = document.getElementById('msg-' + token);
+      const text = input.value.trim();
+      const imageData = input.dataset.image;
+
+      if (!text && !imageData) {
+        showNotification('Enter message', 'error');
+        return;
+      }
+
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const chatMessages = JSON.parse(caseData.chat_messages || '[]');
+
+          chatMessages.push({
+            sender: 'user',
+            text,
+            image: imageData || null,
+            timestamp: new Date().toISOString()
+          });
+
+          db.ref('cases/' + token).update({
+            chat_messages: JSON.stringify(chatMessages),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            input.value = '';
+            delete input.dataset.image;
+            displayCaseDetail(caseData, 'user');
+            showNotification('Message sent', 'success');
+          });
+        }
+      });
+    }
+
+    // Request Withdrawal
+    function requestWithdrawal(token) {
+      const reason = prompt('Reason for withdrawal:');
+      if (!reason) return;
+
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const auditTrail = JSON.parse(caseData.audit_trail || '[]');
+
+          auditTrail.push(createAuditEntry('WITHDRAWAL_REQUESTED', reason));
+
+          db.ref('cases/' + token).update({
+            withdrawal_request: reason,
+            withdrawal_status: 'Pending',
+            audit_trail: JSON.stringify(auditTrail),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            showNotification('Withdrawal request submitted', 'success');
+          });
+        }
+      });
+    }
+
+    // Lawyer Login
+    function loginLawyer(e) {
+      e.preventDefault();
+      const id = document.getElementById('lawyer-id').value;
+      const pass = document.getElementById('lawyer-password').value;
+
+      if (pass.length > 3) {
+        currentUser = id;
+        userRole = 'lawyer';
+        document.getElementById('lawyer-login-form').reset();
+        navigateTo('lawyer-dashboard');
+        loadLawyerDashboard();
+      } else {
+        showNotification('Invalid credentials', 'error');
+      }
+    }
+
+    // Load Lawyer Dashboard
+    function loadLawyerDashboard() {
+      db.ref('cases').on('value', (snapshot) => {
+        lawyerAssignedCases = [];
+        let assigned = 0, active = 0, resolved = 0;
+
+        snapshot.forEach((childSnapshot) => {
+          const caseData = childSnapshot.val();
+          caseData.token = childSnapshot.key;
+
+          if (caseData.assigned_lawyer === currentUser) {
+            lawyerAssignedCases.push(caseData);
+            assigned++;
+
+            if (caseData.status === 'Active') active++;
+            if (caseData.status === 'Resolved') resolved++;
+          }
+        });
+
+        document.getElementById('lawyer-stat-assigned').textContent = assigned;
+        document.getElementById('lawyer-stat-active').textContent = active;
+        document.getElementById('lawyer-stat-resolved').textContent = resolved;
+
+        displayLawyerCases();
+      });
+    }
+
+    // Display Lawyer Cases
+    function displayLawyerCases() {
+      const list = document.getElementById('lawyer-cases-list');
+      list.innerHTML = lawyerAssignedCases.length === 0 ? '<p class="text-gray-600 text-sm">No cases assigned</p>' : lawyerAssignedCases.map(c => `
+        <div class="case-container cursor-pointer hover:shadow-lg transition" onclick="openLawyerCaseDetail('${c.token}')">
+          <div class="flex justify-between items-start">
+            <div>
+              <p class="case-token text-sm">${c.token}</p>
+              <p class="text-xs text-gray-600 mb-1">${c.complaint_title}</p>
+              <p class="text-xs"><strong>Claimant:</strong> ${c.claimant_name}</p>
+            </div>
+            <span class="case-status status-${c.status.toLowerCase().replace(/ /g, '-')} text-xs">${c.status}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Open Lawyer Case Detail
+    function openLawyerCaseDetail(token) {
+      const caseData = lawyerAssignedCases.find(c => c.token === token);
+      if (!caseData) return;
+
+      const chatMessages = JSON.parse(caseData.chat_messages || '[]');
+
+      const html = `
+        <div class="grid lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="form-section">
+              <div class="form-section-title">Case</div>
+              <p class="text-sm mb-2"><strong>${caseData.case_type}</strong></p>
+              <p class="text-sm mb-2">Company: ${caseData.respondent_company}</p>
+              <p class="text-sm">Claimant: ${caseData.claimant_name}</p>
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title">Complaint</div>
+              <p class="text-sm">${caseData.complaint_details}</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="form-section">
+              <div class="form-section-title">Status</div>
+              <select id="lawyer-status" onchange="updateCaseStatus('${token}', this.value)" class="w-full p-2 border-2 border-gray-300 rounded text-sm">
+                <option value="Pending" ${caseData.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Filed" ${caseData.status === 'Filed' ? 'selected' : ''}>Filed</option>
+                <option value="Active" ${caseData.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Resolved" ${caseData.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+              <button type="button" class="button-primary w-full mt-2 text-sm" onclick="downloadCasePDF('${token}')">Download FIR</button>
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title">Chat</div>
+              <div class="chat-container">
+                <div class="chat-messages">
+                  ${chatMessages.map(msg => `
+                    <div class="message ${msg.sender}">
+                      ${msg.image ? `<img src="data:image/jpeg;base64,${msg.image}" class="message-image">` : ''}
+                      <p class="text-xs">${msg.text}</p>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="chat-input gap-1">
+                  <textarea id="lawyer-msg-${token}" placeholder="Message..." class="flex-1 p-2 border rounded text-xs resize-none" style="max-height: 60px;"></textarea>
+                  <button type="button" class="button-primary text-xs px-2 py-1" onclick="sendLawyerMessage('${token}')">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modal-title').textContent = `Case ${token}`;
+      document.getElementById('case-detail-content').innerHTML = html;
+      document.getElementById('case-detail-modal').classList.add('active');
+    }
+
+    // Send Lawyer Message
+    function sendLawyerMessage(token) {
+      const input = document.getElementById('lawyer-msg-' + token);
+      const text = input.value.trim();
+
+      if (!text) return;
+
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const chatMessages = JSON.parse(caseData.chat_messages || '[]');
+
+          chatMessages.push({
+            sender: 'lawyer',
+            text,
+            image: null,
+            timestamp: new Date().toISOString()
+          });
+
+          db.ref('cases/' + token).update({
+            chat_messages: JSON.stringify(chatMessages),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            input.value = '';
+            openLawyerCaseDetail(token);
+            showNotification('Message sent', 'success');
+          });
+        }
+      });
+    }
+
+    // Update Case Status
+    function updateCaseStatus(token, newStatus) {
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const auditTrail = JSON.parse(caseData.audit_trail || '[]');
+
+          auditTrail.push({
+            timestamp: new Date().toISOString(),
+            action: 'STATUS_CHANGED',
+            details: `Status: ${newStatus}`,
+            user: currentUser
+          });
+
+          db.ref('cases/' + token).update({
+            status: newStatus,
+            audit_trail: JSON.stringify(auditTrail),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            showNotification(`Status updated to ${newStatus}`, 'success');
+          });
+        }
+      });
+    }
+
+    // Admin Login
+    function loginAdmin(e) {
+      e.preventDefault();
+      const id = document.getElementById('admin-id').value;
+      const pass = document.getElementById('admin-password').value;
+
+      if (pass.length > 3) {
+        currentUser = id;
+        userRole = 'admin';
+        document.getElementById('admin-login-form').reset();
+        navigateTo('admin-dashboard');
+        loadAdminDashboard();
+      } else {
+        showNotification('Invalid credentials', 'error');
+      }
+    }
+
+    // Load Admin Dashboard
+    function loadAdminDashboard() {
+      db.ref('cases').on('value', (snapshot) => {
+        let total = 0, pending = 0, active = 0, resolved = 0;
+        allCases = [];
+
+        snapshot.forEach((childSnapshot) => {
+          const caseData = childSnapshot.val();
+          caseData.token = childSnapshot.key;
+          allCases.push(caseData);
+          total++;
+
+          if (caseData.status === 'Pending') pending++;
+          if (caseData.status === 'Active') active++;
+          if (caseData.status === 'Resolved') resolved++;
+        });
+
+        document.getElementById('admin-stat-total').textContent = total;
+        document.getElementById('admin-stat-pending').textContent = pending;
+        document.getElementById('admin-stat-active').textContent = active;
+        document.getElementById('admin-stat-resolved').textContent = resolved;
+
+        displayAdminCases();
+      });
+    }
+
+    // Display Admin Cases
+    function displayAdminCases() {
+      const list = document.getElementById('admin-cases-list');
+      list.innerHTML = allCases.length === 0 ? '<p class="text-gray-600 text-sm">No cases</p>' : allCases.map(c => `
+        <div class="case-container cursor-pointer hover:shadow-lg transition" onclick="openAdminCaseDetail('${c.token}')">
+          <div class="flex justify-between items-start flex-wrap gap-4">
+            <div class="flex-1">
+              <p class="case-token text-sm">${c.token}</p>
+              <p class="text-xs text-gray-600">${c.complaint_title}</p>
+              <p class="text-xs mt-1"><strong>Claimant:</strong> ${c.claimant_name}</p>
+            </div>
+            <span class="case-status status-${c.status.toLowerCase().replace(/ /g, '-')} text-xs">${c.status}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Open Admin Case Detail
+    function openAdminCaseDetail(token) {
+      const caseData = allCases.find(c => c.token === token);
+      if (!caseData) return;
+
+      const html = `
+        <div class="grid lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="form-section">
+              <div class="form-section-title">Case Details</div>
+              <p class="text-sm mb-2"><strong>Token:</strong> ${caseData.token}</p>
+              <p class="text-sm mb-2"><strong>Type:</strong> ${caseData.case_type}</p>
+              <p class="text-sm mb-2"><strong>Company:</strong> ${caseData.respondent_company}</p>
+              <p class="text-sm"><strong>Status:</strong> ${caseData.status}</p>
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title">Complaint</div>
+              <p class="text-sm">${caseData.complaint_details}</p>
+            </div>
+          </div>
+
+          <div class="space-y-6">
+            <div class="form-section">
+              <div class="form-section-title">Assign Lawyer</div>
+              <select id="admin-lawyer-select" class="w-full p-2 border-2 border-gray-300 rounded text-sm mb-2">
+                <option value="">Select Lawyer</option>
+                ${allLawyers.map(l => `<option value="${l.id}">${l.name}</option>`).join('')}
+              </select>
+              <button type="button" class="button-primary w-full text-sm" onclick="assignLawyer('${token}')">Assign</button>
+            </div>
+
+            <div class="form-section">
+              <div class="form-section-title">Change Status</div>
+              <select id="admin-status" onchange="adminUpdateStatus('${token}', this.value)" class="w-full p-2 border-2 border-gray-300 rounded text-sm">
+                <option value="Pending" ${caseData.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                <option value="Filed" ${caseData.status === 'Filed' ? 'selected' : ''}>Filed</option>
+                <option value="Active" ${caseData.status === 'Active' ? 'selected' : ''}>Active</option>
+                <option value="Resolved" ${caseData.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+              </select>
+            </div>
+
+            <div class="form-section">
+              <button type="button" class="button-primary w-full text-sm" onclick="downloadCasePDF('${token}')">Download FIR</button>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('modal-title').textContent = `Manage Case ${token}`;
+      document.getElementById('case-detail-content').innerHTML = html;
+      document.getElementById('case-detail-modal').classList.add('active');
+    }
+
+    // Assign Lawyer
+    function assignLawyer(token) {
+      const lawyerId = document.getElementById('admin-lawyer-select').value;
+      if (!lawyerId) {
+        showNotification('Select a lawyer', 'error');
+        return;
+      }
+
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const auditTrail = JSON.parse(caseData.audit_trail || '[]');
+
+          auditTrail.push({
+            timestamp: new Date().toISOString(),
+            action: 'LAWYER_ASSIGNED',
+            details: `Lawyer ${lawyerId} assigned`,
+            user: currentUser
+          });
+
+          db.ref('cases/' + token).update({
+            assigned_lawyer: lawyerId,
+            status: 'Filed',
+            audit_trail: JSON.stringify(auditTrail),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            showNotification('Lawyer assigned', 'success');
+            openAdminCaseDetail(token);
+          });
+        }
+      });
+    }
+
+    // Admin Update Status
+    function adminUpdateStatus(token, newStatus) {
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (snapshot.exists()) {
+          const caseData = snapshot.val();
+          const auditTrail = JSON.parse(caseData.audit_trail || '[]');
+
+          auditTrail.push({
+            timestamp: new Date().toISOString(),
+            action: 'STATUS_CHANGED',
+            details: `Status: ${newStatus}`,
+            user: currentUser
+          });
+
+          db.ref('cases/' + token).update({
+            status: newStatus,
+            audit_trail: JSON.stringify(auditTrail),
+            updated_at: new Date().toISOString()
+          }).then(() => {
+            showNotification(`Status: ${newStatus}`, 'success');
+          });
+        }
+      });
+    }
+
+    // Generate AI Response
+    function generateAIResponse() {
+      const question = document.getElementById('auto-question').value;
+      if (!question) {
+        showNotification('Enter a question', 'error');
+        return;
+      }
+
+      const aiResponses = {
+        'timeline': 'Your case is currently under review. You will receive updates within 5-7 business days.',
+        'hearing': 'Hearing dates will be scheduled by the assigned lawyer. Please wait for further communication.',
+        'documents': 'Please provide all supporting documents through the chat feature on your case page.',
+        'fees': 'Fees will be discussed directly with your assigned lawyer based on case complexity.',
+        'status': 'Current status is available on your case tracking page. Updates occur regularly.',
+        'lawyer': 'You can view your assigned lawyer profile on your case details page.',
+        'withdrawal': 'To withdraw your case, use the withdrawal request option on the case page.'
+      };
+
+      let answer = 'Thank you for your question. ';
+      const keywords = question.toLowerCase();
+      
+      for (const [key, value] of Object.entries(aiResponses)) {
+        if (keywords.includes(key)) {
+          answer += value;
+          break;
+        }
+      }
+
+      if (answer === 'Thank you for your question. ') {
+        answer += 'Please contact your assigned lawyer for detailed information about your case.';
+      }
+
+      document.getElementById('auto-answer').value = answer;
+    }
+
+    // Save Auto Response
+    function saveAutoResponse() {
+      const question = document.getElementById('auto-question').value;
+      const answer = document.getElementById('auto-answer').value;
+
+      if (!question || !answer) {
+        showNotification('Fill both fields', 'error');
+        return;
+      }
+
+      db.ref('auto_responses/' + Date.now()).set({
+        question,
+        answer,
+        created_by: currentUser,
+        created_at: new Date().toISOString()
+      }).then(() => {
+        showNotification('Response saved', 'success');
+        document.getElementById('auto-question').value = '';
+        document.getElementById('auto-answer').value = '';
+      });
+    }
+
+    // Download PDF
+    function downloadCasePDF(token) {
+      db.ref('cases/' + token).once('value', (snapshot) => {
+        if (!snapshot.exists()) return;
+
+        const caseData = snapshot.val();
+        const element = document.createElement('div');
+        element.style.cssText = 'position: absolute; left: -10000px;';
+        element.innerHTML = generatePDFContent(token, caseData);
+        document.body.appendChild(element);
+
+        const opt = {
+          margin: 0.5,
+          filename: `FIR-${token}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+        };
+
+        html2pdf().set(opt).from(element).save().then(() => {
+          document.body.removeChild(element);
+        });
+      });
+    }
+
+    // Generate PDF Content
+    function generatePDFContent(token, caseData) {
+      const lawyer = caseData.assigned_lawyer ? allLawyers.find(l => l.id === caseData.assigned_lawyer) : null;
+      const timestamp = new Date(caseData.created_at).toLocaleString();
+
+      return `
+        <div style="font-family: 'Merriweather', Georgia, serif; color: #1a2945; line-height: 1.6; width: 8.5in; padding: 0.75in; position: relative;">
+          <!-- Watermark -->
+          <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 100px; opacity: 0.08; font-weight: 700; color: #2d4a6e; z-index: 0; pointer-events: none;">FIR</div>
+
+          <div style="position: relative; z-index: 1;">
+            <!-- Government Header -->
+            <div style="text-align: center; border-bottom: 3px double #2d4a6e; padding-bottom: 15px; margin-bottom: 15px;">
+              <p style="font-weight: 700; letter-spacing: 3px; margin: 0; font-size: 14pt;">DOZERA LEGAL AFFAIRS PORTAL</p>
+              <p style="font-size: 11pt; font-weight: 700; margin: 8px 0;">FIRST INFORMATION REPORT (FIR)</p>
+              <p style="font-size: 9pt; color: #475569; margin: 5px 0;">Government Integrated Case Management System</p>
+            </div>
+
+            <!-- Case Token -->
+            <table style="width: 100%; margin-bottom: 15px;">
+              <tr>
+                <td style="width: 60%; font-size: 10pt;">
+                  <strong>CASE REFERENCE TOKEN:</strong><br>
+                  <span style="font-family: 'Courier New', monospace; font-size: 12pt; font-weight: 700; color: #d4a76a; letter-spacing: 2px;">${token}</span>
+                </td>
+                <td style="width: 40%; text-align: center; font-size: 9pt;">
+                  <strong>Generated:</strong><br>${timestamp}
+                </td>
+              </tr>
+            </table>
+
+            <!-- Case Information -->
+            <p style="background: #2d4a6e; color: white; padding: 8px 10px; margin: 15px 0 8px 0; font-weight: 700; font-size: 10pt; text-transform: uppercase;">CASE INFORMATION</p>
+            <table style="width: 100%; font-size: 10pt; margin-bottom: 15px; border-collapse: collapse;">
+              <tr>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Case Type:</strong> ${caseData.case_type}</td>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Status:</strong> ${caseData.status}</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Nature:</strong> ${caseData.nature_of_case}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Priority:</strong> ${caseData.priority_level}</td>
+              </tr>
+              <tr>
+                <td colspan="2" style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Target Company:</strong> ${caseData.respondent_company}</td>
+              </tr>
+            </table>
+
+            <!-- Complainant -->
+            <p style="background: #2d4a6e; color: white; padding: 8px 10px; margin: 15px 0 8px 0; font-weight: 700; font-size: 10pt; text-transform: uppercase;">COMPLAINANT</p>
+            <table style="width: 100%; font-size: 10pt; margin-bottom: 15px; border-collapse: collapse;">
+              <tr>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Name:</strong> ${caseData.claimant_name}</td>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Email:</strong> ${caseData.claimant_email}</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Phone:</strong> ${caseData.claimant_phone}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>DOB:</strong> ${caseData.claimant_dob || 'N/A'}</td>
+              </tr>
+            </table>
+
+            <!-- Respondent -->
+            <p style="background: #2d4a6e; color: white; padding: 8px 10px; margin: 15px 0 8px 0; font-weight: 700; font-size: 10pt; text-transform: uppercase;">RESPONDENT / ACCUSED EMPLOYEE</p>
+            <table style="width: 100%; font-size: 10pt; margin-bottom: 15px; border-collapse: collapse;">
+              <tr>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Name:</strong> ${caseData.respondent_name}</td>
+                <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Employee ID:</strong> ${caseData.respondent_employee_id}</td>
+              </tr>
+              <tr>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Department:</strong> ${caseData.respondent_position || 'N/A'}</td>
+                <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Company:</strong> ${caseData.respondent_company}</td>
+              </tr>
+            </table>
+
+            <!-- Complaint Details -->
+            <p style="background: #2d4a6e; color: white; padding: 8px 10px; margin: 15px 0 8px 0; font-weight: 700; font-size: 10pt; text-transform: uppercase;">COMPLAINT DETAILS</p>
+            <p style="font-size: 10pt; font-weight: 700; margin: 5px 0;"><u>${caseData.complaint_title}</u></p>
+            <p style="font-size: 10pt; margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 3px solid #2d4a6e; white-space: pre-wrap;">${caseData.complaint_details}</p>
+
+            <p style="font-size: 10pt; font-weight: 700; margin: 10px 0;"><u>Relief / Action Sought:</u></p>
+            <p style="font-size: 10pt; margin: 10px 0; padding: 10px; background: #f8f9fa; border-left: 3px solid #2d4a6e; white-space: pre-wrap;">${caseData.relief_sought}</p>
+
+            ${lawyer ? `
+              <!-- Assigned Lawyer -->
+              <p style="background: #2d4a6e; color: white; padding: 8px 10px; margin: 15px 0 8px 0; font-weight: 700; font-size: 10pt; text-transform: uppercase;">ASSIGNED LEGAL REPRESENTATIVE</p>
+              <table style="width: 100%; font-size: 10pt; margin-bottom: 15px; border-collapse: collapse;">
+                <tr>
+                  <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>Name:</strong> ${lawyer.name}</td>
+                  <td style="width: 50%; padding: 5px; border: 1px solid #cbd5e1;"><strong>ID:</strong> ${lawyer.id}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Specialization:</strong> ${lawyer.specialization}</td>
+                  <td style="padding: 5px; border: 1px solid #cbd5e1;"><strong>Experience:</strong> ${lawyer.experience} years</td>
+                </tr>
+              </table>
+            ` : ''}
+
+            <!-- Signature Block -->
+            <div style="margin-top: 30px; border-top: 2px solid #2d4a6e; padding-top: 15px;">
+              <table style="width: 100%; font-size: 9pt;">
+                <tr>
+                  <td style="width: 33%; text-align: center;">
+                    <p style="margin: 30px 0 5px 0;">__________________</p>
+                    <p style="margin: 0;">Complainant Signature</p>
+                  </td>
+                  <td style="width: 33%; text-align: center;">
+                    <p style="margin: 30px 0 5px 0;">__________________</p>
+                    <p style="margin: 0;">Officer/Lawyer</p>
+                  </td>
+                  <td style="width: 33%; text-align: center;">
+                    <p style="margin: 30px 0 5px 0;">__________________</p>
+                    <p style="margin: 0;">Authorized Officer</p>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Footer -->
+            <div style="margin-top: 20px; text-align: center; border-top: 1px solid #cbd5e1; padding-top: 10px; font-size: 8pt; color: #6b7280;">
+              <p style="margin: 0;">This is an official legal document issued by Dozera Legal Affairs Portal.</p>
+              <p style="margin: 5px 0;">Authenticity verified by system timestamp - No additional authentication required</p>
+              <p style="margin: 5px 0;">Page 1 of 1 | Generated: ${new Date().toLocaleString()}</p>
+              <p style="margin: 5px 0; font-weight: 700;">CONFIDENTIAL - FOR OFFICIAL USE ONLY</p>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Show Image Preview
+    function showImagePreview(src) {
+      document.getElementById('preview-image').src = src;
+      document.getElementById('image-preview-modal').classList.add('active');
+    }
+
+    // Close Image Preview
+    function closeImagePreview() {
+      document.getElementById('image-preview-modal').classList.remove('active');
+    }
+
+    // Close Case Modal
+    function closeCaseModal() {
+      const modal = document.getElementById('case-detail-modal');
+      modal.style.opacity = '0';
+      setTimeout(() => {
+        modal.style.display = 'none';
+      }, 300);
+      currentCase = null;
+    }
+
+    // Logout
+    function logoutLawyer() {
+      currentUser = null;
+      userRole = null;
+      navigateTo('home');
+      showNotification('Logged out', 'success');
+    }
+
+    function logoutAdmin() {
+      currentUser = null;
+      userRole = null;
+      navigateTo('home');
+      showNotification('Logged out', 'success');
+    }
+
+    // Show Notification
+    function showNotification(message, type = 'info') {
+      const notif = document.createElement('div');
+      notif.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        background: ${type === 'error' ? '#dc2626' : type === 'success' ? '#059669' : '#3b82f6'};
+        color: white;
+        border-radius: 4px;
+        z-index: 2000;
+        font-family: 'Merriweather', serif;
+        font-size: 0.9rem;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: slideIn 0.3s ease;
+        user-select: none;
+      `;
+      notif.textContent = message;
+      document.body.appendChild(notif);
+
+      setTimeout(() => {
+        notif.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notif.remove(), 300);
+      }, 3000);
+    }
+
+    // Initialize
+    initializeStepIndicator();
+    updateStepIndicator();
+
+    // Debug Functions
+    function testFirebase() {
+      const debugEl = document.getElementById('debug-connection');
+      debugEl.innerHTML = '🔄 Testing...';
+      
+      try {
+        // Step 1: Check if Firebase is loaded
+        if (!window.firebase) {
+          debugEl.innerHTML = '❌ Firebase SDK not loaded';
+          showNotification('Firebase SDK failed to load', 'error');
+          return;
+        }
+
+        // Step 2: Check database object
+        if (!db) {
+          debugEl.innerHTML = '❌ Database not initialized';
+          showNotification('Database initialization failed', 'error');
+          return;
+        }
+
+        // Step 3: Test connection
+        const testRef = db.ref('.info/connected');
+        
+        testRef.on('value', (snapshot) => {
+          const isConnected = snapshot.val() === true;
+          
+          if (isConnected) {
+            debugEl.innerHTML = '✅ CONNECTED';
+            
+            // Try to read data
+            db.ref('cases').once('value', (casesSnapshot) => {
+              const caseCount = casesSnapshot.exists() ? Object.keys(casesSnapshot.val()).length : 0;
+              document.getElementById('debug-cases').innerHTML = `Cases: ${caseCount}`;
+              showNotification(`✅ Connected! ${caseCount} cases found`, 'success');
+            }, (error) => {
+              document.getElementById('debug-cases').innerHTML = `Error: ${error.code}`;
+              showNotification(`Read error: ${error.message}`, 'error');
+            });
+          } else {
+            debugEl.innerHTML = '❌ DISCONNECTED';
+            showNotification('Not connected to Firebase', 'error');
+          }
+        }, (error) => {
+          debugEl.innerHTML = `❌ Error: ${error.code}`;
+          showNotification(`Connection error: ${error.message}`, 'error');
+        });
+
+      } catch (error) {
+        debugEl.innerHTML = `❌ ${error.message}`;
+        showNotification(`Error: ${error.message}`, 'error');
+      }
+    }
+
+    // Run test on page load
+    window.addEventListener('load', function() {
+      console.log('Page loaded, testing Firebase in 1 second...');
+      setTimeout(() => {
+        testFirebase();
+      }, 1000);
+    });
+
+    // Also test immediately when script runs
+    setTimeout(() => {
+      console.log('Firebase config:', firebaseConfig);
+      console.log('Firebase apps:', firebase.apps);
+    }, 100);
+
+    // Add animations
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes slideIn {
+        from { transform: translateX(400px); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(400px); opacity: 0; }
+      }
+    `;
+    document.head.appendChild(style);
+  </script>
+ <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9c265d8e826e8ad5',t:'MTc2OTE2MTYwMi4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
