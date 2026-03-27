@@ -3,143 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KING | Verification Portal</title>
+    <title>King Verification</title>
     <style>
-        :root {
-            --gold: #D4AF37;
-            --black: #111;
-            --white: #ffffff;
-        }
-
         body {
-            margin: 0;
+            background: #1a1a1a;
+            color: #f1c40f;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--black);
-            color: var(--white);
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            margin: 0;
         }
 
         .container {
-            text-align: center;
-            background: #1a1a1a;
-            padding: 40px;
+            background: #2c3e50;
+            padding: 30px;
             border-radius: 15px;
-            border: 1px solid var(--gold);
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-            width: 350px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5), 0 0 10px #f1c40f;
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
         }
 
-        h1 {
-            color: var(--gold);
-            letter-spacing: 5px;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        input[type="text"] {
-            width: 80%;
-            padding: 10px;
-            margin-bottom: 20px;
-            background: #222;
-            border: 1px solid #444;
-            color: white;
+        h1 { font-size: 2.5em; text-transform: uppercase; letter-spacing: 3px; }
+        
+        input, button {
+            padding: 12px;
+            margin: 10px 0;
             border-radius: 5px;
-            outline: none;
-        }
-
-        input[type="text"]:focus {
-            border-color: var(--gold);
-        }
-
-        .btn {
-            background-color: var(--gold);
-            color: black;
             border: none;
-            padding: 12px 25px;
+            width: 80%;
+        }
+
+        button {
+            background: #f1c40f;
+            color: #1a1a1a;
             font-weight: bold;
-            text-transform: uppercase;
             cursor: pointer;
-            border-radius: 5px;
             transition: 0.3s;
         }
 
-        .btn:hover {
-            background-color: #f1c40f;
-            transform: scale(1.05);
+        button:hover { background: #d4ac0d; }
+
+        #video-container, #mic-container { display: none; margin-top: 20px; }
+        
+        video {
+            width: 100%;
+            border: 3px solid #f1c40f;
+            border-radius: 10px;
+            transform: scaleX(-1); /* Mirror view */
         }
 
-        .step-box {
-            margin-top: 20px;
-            padding: 15px;
-            border: 1px dashed #444;
+        .status { margin: 15px 0; font-style: italic; color: #ecf0f1; }
+        
+        #final-message {
             display: none;
+            font-size: 1.5em;
+            color: #2ecc71;
+            animation: glow 1.5s infinite alternate;
         }
 
-        .active { display: block; }
+        @keyframes glow {
+            from { text-shadow: 0 0 10px #2ecc71; }
+            to { text-shadow: 0 0 20px #f1c40f; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="container" id="mainBox">
+<div class="container">
+    <div id="setup-step">
         <h1>KING</h1>
-        
-        <div id="step1" class="active">
-            <p>Enter your name to begin</p>
-            <input type="text" id="userName" placeholder="Your Name">
-            <br>
-            <button class="btn" onclick="startVerification()">Proceed</button>
-        </div>
-
-        <div id="step2" class="step-box">
-            <p><strong>Step 1: Visual Identity</strong></p>
-            <div style="background: #000; height: 150px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center;">
-                <span style="font-size: 12px; color: #666;">[Camera Frame]</span>
-            </div>
-            <p style="font-size: 12px;">Hold still for 7 seconds...</p>
-        </div>
-
-        <div id="step3" class="step-box">
-            <p><strong>Step 2: Voice Identity</strong></p>
-            <p style="color: var(--gold); font-style: italic;">"I am ready for the King."</p>
-            <button class="btn" style="font-size: 10px;">Click to Record</button>
-        </div>
-
-        <div id="step4" class="step-box">
-            <h2 style="color: var(--gold);">Verification Done!</h2>
-            <p id="finalMsg"></p>
-        </div>
+        <p>Enter your name to begin verification</p>
+        <input type="text" id="userName" placeholder="Your Royal Name...">
+        <br>
+        <button onclick="startFaceVerification()">Start Verification</button>
     </div>
 
-    <script>
-        function startVerification() {
-            let name = document.getElementById('userName').value;
-            if(name === "") {
-                alert("Please enter your name");
-                return;
-            }
+    <div id="video-container">
+        <h2>Face Verification</h2>
+        <p class="status" id="face-status">Scanning face... Keep steady for 7 seconds.</p>
+        <video id="video" autoplay muted playsinline></video>
+    </div>
 
-            // Simple transition logic
-            document.getElementById('step1').style.display = 'none';
-            document.getElementById('step2').style.display = 'block';
+    <div id="mic-container">
+        <h2>Voice Verification</h2>
+        <p>Read this aloud:</p>
+        <h3 style="color: white;">"I am ready to meet the King."</h3>
+        <p class="status" id="mic-status">Listening for your voice...</p>
+    </div>
 
-            // Simulate the 7 second scan
-            setTimeout(() => {
-                document.getElementById('step2').style.display = 'none';
-                document.getElementById('step3').style.display = 'block';
-                
-                // Finalize after voice "check"
-                setTimeout(() => {
-                    document.getElementById('step3').style.display = 'none';
-                    document.getElementById('step4').style.display = 'block';
-                    document.getElementById('finalMsg').innerText = name + ", King is waiting for you.";
-                }, 3000);
+    <div id="final-message">
+        <h2 id="welcome-text"></h2>
+    </div>
+</div>
 
-            }, 7000);
+<script>
+    let userName = "";
+    const video = document.getElementById('video');
+
+    async function startFaceVerification() {
+        userName = document.getElementById('userName').value;
+        if (!userName) return alert("Please enter a name first!");
+
+        document.getElementById('setup-step').style.display = 'none';
+        document.getElementById('video-container').style.display = 'block';
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+
+            // Timer for 7 seconds
+            let seconds = 7;
+            const interval = setInterval(() => {
+                seconds--;
+                document.getElementById('face-status').innerText = `Scanning... ${seconds}s remaining`;
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    stopStream(stream);
+                    startMicVerification();
+                }
+            }, 1000);
+
+        } catch (err) {
+            alert("Camera access denied or not found.");
         }
-    </script>
+    }
+
+    async function startMicVerification() {
+        document.getElementById('video-container').style.display = 'none';
+        document.getElementById('mic-container').style.display = 'block';
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaStreamSource(stream);
+            const processor = audioContext.createScriptProcessor(2048, 1, 1);
+
+            source.connect(processor);
+            processor.connect(audioContext.destination);
+
+            // Logic to detect sound level
+            processor.onaudioprocess = function(e) {
+                const input = e.inputBuffer.getChannelData(0);
+                let sum = 0;
+                for (let i = 0; i < input.length; i++) {
+                    sum += input[i] * input[i];
+                }
+                const volume = Math.sqrt(sum / input.length);
+
+                // If volume is high enough, consider it "reading"
+                if (volume > 0.1) { 
+                    document.getElementById('mic-status').innerText = "Voice detected! Finalizing...";
+                    setTimeout(() => {
+                        stopStream(stream);
+                        audioContext.close();
+                        showFinalMessage();
+                    }, 2000);
+                    processor.onaudioprocess = null; // Stop listening after success
+                }
+            };
+        } catch (err) {
+            alert("Microphone access denied.");
+        }
+    }
+
+    function showFinalMessage() {
+        document.getElementById('mic-container').style.display = 'none';
+        const final = document.getElementById('final-message');
+        final.style.display = 'block';
+        document.getElementById('welcome-text').innerText = `Verification Done! \n King is Waiting for you, ${userName}.`;
+    }
+
+    function stopStream(stream) {
+        stream.getTracks().forEach(track => track.stop());
+    }
+</script>
+
 </body>
 </html>
