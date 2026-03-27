@@ -3,206 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KING | The Final Reveal</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&display=swap" rel="stylesheet">
+    <title>KING | The Final Departure</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Montserrat:wght@300&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --gold: #d4af37;
+            --deep-black: #0a0a0a;
+            --royal-shadow: rgba(212, 175, 55, 0.2);
+        }
+
         body, html {
             margin: 0;
             padding: 0;
-            background: #000;
+            background-color: var(--deep-black);
+            color: white;
+            font-family: 'Montserrat', sans-serif;
             overflow: hidden;
             height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
+        }
+
+        /* Cinematic Background */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            z-index: -1;
+        }
+
+        .container {
+            text-align: center;
+            max-width: 800px;
+            padding: 20px;
+        }
+
+        .outro-title {
             font-family: 'Cinzel', serif;
+            font-size: 4rem;
+            letter-spacing: 20px;
+            color: var(--gold);
+            text-shadow: 0 0 30px var(--royal-shadow);
+            opacity: 0;
+            transform: scale(0.8);
+            transition: all 3s cubic-bezier(0.2, 0, 0.2, 1);
         }
 
-        #stage {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+        .message {
+            font-size: 1.2rem;
+            letter-spacing: 4px;
+            line-height: 2;
+            color: #888;
+            margin-top: 40px;
+            opacity: 0;
         }
 
-        canvas {
-            position: absolute;
+        /* The Gold Coin Animation */
+        #coin-container {
+            position: fixed;
             top: 0;
             left: 0;
+            width: 100%;
+            height: 100%;
             pointer-events: none;
         }
 
-        #king-title {
-            font-size: 8rem;
-            color: transparent;
-            background: linear-gradient(180deg, #fff 0%, #c5a059 50%, #846a32 100%);
-            -webkit-background-clip: text;
-            letter-spacing: 30px;
-            opacity: 0;
-            transform: scale(1.2);
-            filter: blur(10px);
-            transition: all 1.5s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 10;
+        /* Hidden Gift Styling */
+        #hidden-gift {
+            display: none;
+            margin-top: 50px;
+            cursor: pointer;
+            animation: breathe 3s infinite;
         }
 
-        .show-title {
-            opacity: 1 !important;
-            transform: scale(1) !important;
-            filter: blur(0) !important;
-            text-shadow: 0 0 50px rgba(197, 160, 89, 0.5);
+        .crest-icon {
+            font-size: 5rem;
+            color: var(--gold);
+            filter: drop-shadow(0 0 15px var(--gold));
         }
 
-        #btn-start {
-            padding: 20px 40px;
-            background: none;
-            border: 1px solid #c5a059;
-            color: #c5a059;
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.7; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+
+        button.exit-trigger {
+            background: transparent;
+            border: 1px solid var(--gold);
+            color: var(--gold);
+            padding: 15px 40px;
             font-family: 'Cinzel';
             letter-spacing: 5px;
             cursor: pointer;
-            z-index: 100;
+            margin-top: 50px;
             transition: 0.5s;
         }
 
-        #btn-start:hover {
-            background: #c5a059;
-            color: #000;
-            box-shadow: 0 0 40px #c5a059;
+        button.exit-trigger:hover {
+            background: var(--gold);
+            color: black;
+            box-shadow: 0 0 50px var(--royal-shadow);
         }
+
+        .fade-in { opacity: 1 !important; transform: scale(1) !important; }
     </style>
 </head>
 <body>
 
-<div id="stage">
-    <button id="btn-start" onclick="startCoinIntro()">DROP THE CURTAIN</button>
-    <h1 id="king-title">KING</h1>
-    <canvas id="coinCanvas"></canvas>
+<div class="overlay"></div>
+<div id="coin-container"></div>
+
+<div class="container">
+    <h1 id="outro-header" class="outro-title">DEPARTURE</h1>
+    
+    <div id="text-block" class="message">
+        <p id="line1">The shadows are calling, and empires never sleep.</p>
+        <p id="line2">My work here is done, but the legacy remains with you.</p>
+        <p id="line3" style="color: var(--gold); font-weight: bold;">ANMOL, THE KEYS TO THE REALM ARE NOW IN YOUR HANDS.</p>
+    </div>
+
+    <button class="exit-trigger" id="start-btn" onclick="triggerOutro()">SEAL THE VAULT</button>
+
+    <div id="hidden-gift" onclick="revealGift()">
+        <div class="crest-icon">𓇻</div>
+        <p style="color: var(--gold); font-size: 0.8rem; letter-spacing: 2px;">CLAIM YOUR REWARD</p>
+    </div>
 </div>
 
 <script>
-    const canvas = document.getElementById('coinCanvas');
-    const ctx = canvas.getContext('2d');
-    let audioCtx;
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    function initAudio() {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
+    // Premium Sound: Coin Drop Effect
     function playCoinSound() {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         
-        // Deep Metal Impact
         osc.type = 'triangle';
+        // Metallic high frequency
+        osc.frequency.setValueAtTime(2500 + Math.random() * 500, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(1000, audioCtx.currentTime + 0.1);
+
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.2);
+    }
+
+    // Deep Vault Closing Bass
+    function playVaultSound() {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
         osc.frequency.setValueAtTime(60, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.5);
-        
-        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.6);
-        
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1.5);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.6);
-
-        // High Metal Clink
-        const click = audioCtx.createOscillator();
-        const clickGain = audioCtx.createGain();
-        click.type = 'sine';
-        click.frequency.setValueAtTime(800, audioCtx.currentTime);
-        clickGain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-        clickGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-        click.connect(clickGain);
-        clickGain.connect(audioCtx.destination);
-        click.start();
-        click.stop(audioCtx.currentTime + 0.1);
+        osc.stop(audioCtx.currentTime + 1.5);
     }
 
-    let particles = [];
-    function createDust(x, y) {
-        for(let i = 0; i < 50; i++) {
-            particles.push({
-                x: x,
-                y: y,
-                vx: (Math.random() - 0.5) * 15,
-                vy: (Math.random() - 0.8) * 10,
-                alpha: 1,
-                size: Math.random() * 5 + 2
-            });
-        }
-    }
-
-    function drawParticles() {
-        particles.forEach((p, index) => {
-            p.x += p.vx;
-            p.y += p.vy;
-            p.alpha -= 0.02;
-            ctx.fillStyle = `rgba(197, 160, 89, ${p.alpha})`;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-            ctx.fill();
-            if(p.alpha <= 0) particles.splice(index, 1);
-        });
-    }
-
-    let coinY = -100;
-    let velocity = 0;
-    let gravity = 0.8;
-    let isDropped = false;
-
-    function startCoinIntro() {
-        document.getElementById('btn-start').style.display = 'none';
-        initAudio();
-        isDropped = true;
-        animate();
-    }
-
-    function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    async function triggerOutro() {
+        document.getElementById('start-btn').style.display = 'none';
         
-        if(isDropped) {
-            velocity += gravity;
-            coinY += velocity;
-
-            // Draw Coin (Gold Circle with highlight)
-            ctx.save();
-            ctx.translate(canvas.width/2, coinY);
-            
-            // Shimmering Gold Effect
-            let grad = ctx.createLinearGradient(-30, -30, 30, 30);
-            grad.addColorStop(0, '#846a32');
-            grad.addColorStop(0.5, '#c5a059');
-            grad.addColorStop(1, '#fff');
-            
-            ctx.fillStyle = grad;
-            ctx.beginPath();
-            ctx.ellipse(0, 0, 40, 40, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-            ctx.restore();
-
-            // Collision with "floor" (center of screen)
-            if(coinY > canvas.height/2 + 100) {
-                coinY = canvas.height/2 + 100;
-                if(velocity > 2) {
-                    playCoinSound();
-                    createDust(canvas.width/2, coinY);
-                    document.getElementById('king-title').classList.add('show-title');
-                }
-                velocity = -velocity * 0.3; // Bounce effect
-            }
+        // 1. Title Appears
+        document.getElementById('outro-header').classList.add('fade-in');
+        
+        // 2. Coin Sequence (Visual + Audio)
+        for(let i=0; i<12; i++) {
+            setTimeout(() => {
+                playCoinSound();
+                createVisualCoin();
+            }, i * 250);
         }
 
-        drawParticles();
-        requestAnimationFrame(animate);
+        // 3. Messages Sequence
+        setTimeout(() => document.getElementById('line1').style.opacity = "1", 2000);
+        setTimeout(() => document.getElementById('line2').style.opacity = "1", 4500);
+        setTimeout(() => {
+            document.getElementById('line3').style.opacity = "1";
+            playVaultSound(); // The Deep Bass
+        }, 7000);
+
+        // 4. Reveal Hidden Gift
+        setTimeout(() => {
+            document.getElementById('hidden-gift').style.display = "block";
+        }, 10000);
+    }
+
+    function createVisualCoin() {
+        const coin = document.createElement('div');
+        coin.style.position = 'fixed';
+        coin.style.left = Math.random() * 100 + 'vw';
+        coin.style.top = '-50px';
+        coin.style.width = '15px';
+        coin.style.height = '15px';
+        coin.style.background = 'gold';
+        coin.style.borderRadius = '50%';
+        coin.style.boxShadow = '0 0 10px gold';
+        coin.style.transition = 'all 1.5s ease-in';
+        document.getElementById('coin-container').appendChild(coin);
+
+        setTimeout(() => {
+            coin.style.transform = `translateY(110vh) rotate(${Math.random() * 360}deg)`;
+            coin.style.opacity = '0';
+        }, 50);
+
+        setTimeout(() => coin.remove(), 2000);
+    }
+
+    function revealGift() {
+        alert("🎁 ROYAL GIFT UNLOCKED:\n\nAnmol, the King has granted you 'Permanent Access' to the Boardroom.\n\nCode: KING-MARCH-2026\nStatus: UNTOUCHABLE");
     }
 </script>
 
