@@ -1,193 +1,172 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KING'S ESCAPE | 2D TIME PASS</title>
+    <title>KING'S ESCAPE PRO | TURBO MODE</title>
     <style>
-        body {
-            margin: 0;
-            background: #050505;
-            color: #d4af37;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        canvas {
-            border: 2px solid #d4af37;
-            background: #000;
-            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
-            touch-action: none;
-        }
-        .info {
-            margin-top: 10px;
-            text-align: center;
-        }
-        #score { font-size: 24px; font-weight: bold; }
+        body { margin: 0; background: #050505; color: #d4af37; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        canvas { border: 2px solid #d4af37; background: #000; box-shadow: 0 0 30px rgba(212, 175, 55, 0.3); touch-action: none; }
+        #ui { width: 400px; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; letter-spacing: 2px; }
+        .power-status { font-size: 12px; color: #00ecff; }
     </style>
 </head>
 <body>
 
-    <div id="score">SCORE: 0</div>
+    <div id="ui">
+        <div id="score">SCORE: 0</div>
+        <div id="power-timer" class="power-status"></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     
-    <div class="info">
-        <p>USE <b>ARROW KEYS</b> OR <b>DRAG</b> TO MOVE</p>
-        <p style="color: #666; font-size: 12px;">Don't let the red blocks touch the King.</p>
+    <div style="margin-top: 15px; text-align: center; font-size: 12px;">
+        <span style="color: #0077ff;">🛡️ SHIELD</span> | <span style="color: #00ecff;">❄️ FREEZE</span> | <span style="color: #fff;">✨ BLAST</span>
     </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const scoreElement = document.getElementById("score");
+    const powerEl = document.getElementById("power-timer");
 
-    canvas.width = 400;
-    canvas.height = 500;
+    canvas.width = 400; canvas.height = 550;
 
     let score = 0;
     let gameActive = true;
-    const player = { x: 180, y: 400, size: 30, color: "#d4af37" };
+    let enemySpeed = 4;
+    let spawnRate = 0.05;
+    
+    const player = { x: 180, y: 450, size: 35, shield: false };
     const enemies = [];
     const coins = [];
-    let enemySpeed = 3;
+    const powers = [];
 
-    // Audio Context for the "Bass" feel when scoring
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playBeep(freq) {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+
+    function sound(f, d, v, type='sine') {
+        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+        o.type = type; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+        g.gain.setValueAtTime(v, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(); o.stop(audioCtx.currentTime + d);
     }
 
     // Input Handling
-    window.addEventListener("keydown", e => {
-        if (e.key === "ArrowLeft" && player.x > 0) player.x -= 25;
-        if (e.key === "ArrowRight" && player.x < canvas.width - player.size) player.x += 25;
-    });
-
     canvas.addEventListener("touchmove", e => {
-        let touch = e.touches[0];
         let rect = canvas.getBoundingClientRect();
-        player.x = touch.clientX - rect.left - player.size / 2;
-        // Boundary checks
+        player.x = e.touches[0].clientX - rect.left - player.size / 2;
+        if (player.x < 0) player.x = 0;
+        if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+    });
+    window.addEventListener("mousemove", e => {
+        let rect = canvas.getBoundingClientRect();
+        player.x = e.clientX - rect.left - player.size / 2;
         if (player.x < 0) player.x = 0;
         if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
     });
 
-    function spawnEnemy() {
-        if (Math.random() < 0.05) {
-            enemies.push({
-                x: Math.random() * (canvas.width - 20),
-                y: -20,
-                size: 20 + Math.random() * 20,
-                speed: enemySpeed + Math.random() * 2
-            });
-        }
-    }
-
-    function spawnCoin() {
-        if (Math.random() < 0.02) {
-            coins.push({
-                x: Math.random() * (canvas.width - 15),
-                y: -15,
-                size: 15
-            });
+    function createObj(list, rate, color, type) {
+        if (Math.random() < rate) {
+            list.push({ x: Math.random() * (canvas.width - 25), y: -30, size: 25, color: color, type: type });
         }
     }
 
     function update() {
         if (!gameActive) return;
 
-        spawnEnemy();
-        spawnCoin();
+        // Difficulty Progression
+        enemySpeed = 4 + (score / 150);
+        spawnRate = 0.05 + (score / 1000);
 
-        // Move enemies
-        enemies.forEach((enemy, index) => {
-            enemy.y += enemy.speed;
-            // Collision check
-            if (player.x < enemy.x + enemy.size &&
-                player.x + player.size > enemy.x &&
-                player.y < enemy.y + enemy.size &&
-                player.y + player.size > enemy.y) {
-                gameOver();
+        createObj(enemies, spawnRate, "#ff3333", "enemy");
+        createObj(coins, 0.03, "#ffd700", "coin");
+        if (Math.random() < 0.005) createObj(powers, 1, "#0077ff", "power");
+
+        // Process Enemies
+        enemies.forEach((en, i) => {
+            en.y += enemySpeed;
+            if (player.x < en.x + en.size && player.x + player.size > en.x && player.y < en.y + en.size && player.y + player.size > en.y) {
+                if (!player.shield) gameOver();
+                else { enemies.splice(i, 1); sound(200, 0.1, 0.1); }
             }
-            if (enemy.y > canvas.height) enemies.splice(index, 1);
+            if (en.y > canvas.height) enemies.splice(i, 1);
         });
 
-        // Move coins
-        coins.forEach((coin, index) => {
-            coin.y += 2;
-            if (player.x < coin.x + coin.size &&
-                player.x + player.size > coin.x &&
-                player.y < coin.y + coin.size &&
-                player.y + player.size > coin.y) {
-                coins.splice(index, 1);
-                score += 10;
+        // Process Coins
+        coins.forEach((c, i) => {
+            c.y += 3;
+            if (player.x < c.x + c.size && player.x + player.size > c.x && player.y < c.y + c.size && player.y + player.size > c.y) {
+                coins.splice(i, 1); score += 10;
                 scoreElement.innerText = "SCORE: " + score;
-                playBeep(100 + score); // Bass goes up with score
-                if (score % 50 === 0) enemySpeed += 0.5; // Difficulty increase
+                sound(400 + score, 0.2, 0.1);
             }
-            if (coin.y > canvas.height) coins.splice(index, 1);
         });
+
+        // Process Powers
+        powers.forEach((p, i) => {
+            p.y += 3;
+            if (player.x < p.x + p.size && player.x + player.size > p.x && player.y < p.y + p.size && player.y + player.size > p.y) {
+                powers.splice(i, 1);
+                applyPower();
+            }
+        });
+    }
+
+    function applyPower() {
+        const r = Math.random();
+        if (r < 0.4) { // SHIELD
+            player.shield = true;
+            powerEl.innerText = "🛡️ SHIELD ACTIVE!";
+            sound(600, 0.5, 0.2, 'sawtooth');
+            setTimeout(() => { player.shield = false; powerEl.innerText = ""; }, 5000);
+        } else if (r < 0.7) { // FREEZE
+            const oldSpeed = enemySpeed;
+            enemySpeed = 1;
+            powerEl.innerText = "❄️ TIME FROZEN!";
+            sound(800, 0.5, 0.1);
+            setTimeout(() => { enemySpeed = oldSpeed; powerEl.innerText = ""; }, 4000);
+        } else { // BLAST
+            enemies.length = 0;
+            powerEl.innerText = "✨ SCREEN CLEARED!";
+            sound(100, 0.8, 0.3, 'square');
+            setTimeout(() => { powerEl.innerText = ""; }, 2000);
+        }
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Draw Player (Chess King Silhouette)
-        ctx.fillStyle = player.color;
-        ctx.font = "30px serif";
-        ctx.fillText("♚", player.x, player.y + 25);
+        // Player
+        ctx.fillStyle = player.shield ? "#00ecff" : "#d4af37";
+        ctx.font = "40px serif";
+        ctx.fillText("♚", player.x, player.y + 35);
+        if (player.shield) {
+            ctx.strokeStyle = "#00ecff"; ctx.lineWidth = 2;
+            ctx.strokeRect(player.x - 5, player.y, player.size + 10, player.size + 5);
+        }
 
-        // Draw Enemies
-        ctx.fillStyle = "#ff4444";
-        enemies.forEach(enemy => {
-            ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
-        });
-
-        // Draw Coins
-        ctx.fillStyle = "#ffd700";
-        coins.forEach(coin => {
-            ctx.beginPath();
-            ctx.arc(coin.x + 7, coin.y + 7, 7, 0, Math.PI * 2);
-            ctx.fill();
+        enemies.forEach(en => { ctx.fillStyle = en.color; ctx.fillRect(en.x, en.y, en.size, en.size); });
+        coins.forEach(c => { ctx.fillStyle = c.color; ctx.beginPath(); ctx.arc(c.x+10, c.y+10, 10, 0, 7); ctx.fill(); });
+        powers.forEach(p => { 
+            ctx.fillStyle = "#0077ff"; ctx.font = "20px serif"; 
+            ctx.fillText("⚡", p.x, p.y + 20); 
         });
 
         if (!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.7)";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#d4af37";
-            ctx.font = "30px Courier New";
-            ctx.fillText("GAME OVER", 110, 250);
-            ctx.font = "15px Courier New";
-            ctx.fillText("CLICK TO RESTART", 130, 280);
+            ctx.fillStyle = "rgba(0,0,0,0.85)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#d4af37"; ctx.font = "30px Arial"; ctx.fillText("GAME OVER", 110, 250);
+            ctx.font = "15px Arial"; ctx.fillText("FINAL SCORE: " + score, 140, 280);
+            ctx.fillText("CLICK TO RESTART", 135, 320);
         }
-
-        update();
-        requestAnimationFrame(draw);
+        update(); requestAnimationFrame(draw);
     }
 
-    function gameOver() {
-        gameActive = false;
-        playBeep(50); // Deep death sound
-    }
+    function gameOver() { gameActive = false; sound(50, 1, 0.3, 'sawtooth'); }
 
     canvas.addEventListener("click", () => {
         if (!gameActive) {
-            score = 0;
-            enemySpeed = 3;
-            enemies.length = 0;
-            coins.length = 0;
-            player.x = 180;
-            scoreElement.innerText = "SCORE: 0";
-            gameActive = true;
+            score = 0; enemySpeed = 4; spawnRate = 0.05;
+            enemies.length = 0; coins.length = 0; powers.length = 0;
+            scoreElement.innerText = "SCORE: 0"; gameActive = true;
         }
     });
 
