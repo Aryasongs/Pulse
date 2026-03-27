@@ -1,273 +1,197 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>THE CAT & THE KING</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Montserrat:wght@100&display=swap" rel="stylesheet">
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-
+    <title>KING'S ESCAPE | 2D TIME PASS</title>
     <style>
-        :root {
-            --bg: #000;
-            --gold: #d4af37;
-            --aggressive-red: #ff3300;
-        }
-
-        body, html {
-            margin: 0; padding: 0;
-            width: 100%; height: 100%;
-            background: var(--bg);
+        body {
+            margin: 0;
+            background: #050505;
+            color: #d4af37;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
             overflow: hidden;
-            font-family: 'Montserrat', sans-serif;
-            color: white;
-            cursor: none; /* Hide standard cursor */
         }
-
-        /* --- Global VFX Overlays --- */
-        .vignette {
-            position: fixed; inset: 0;
-            background: radial-gradient(circle, transparent 20%, rgba(0,0,0,0.8) 100%);
-            z-index: 50; pointer-events: none;
-        }
-
-        #flash {
-            position: fixed; inset: 0;
-            background: white; opacity: 0;
-            z-index: 100; pointer-events: none;
-        }
-
-        /* --- Scene 1: Initial Screen --- */
-        #start-screen {
-            position: fixed; inset: 0;
+        canvas {
+            border: 2px solid #d4af37;
             background: #000;
-            display: flex; justify-content: center; align-items: center;
-            z-index: 200; cursor: pointer;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+            touch-action: none;
         }
-
-        .init-btn {
-            border: 1px solid var(--gold);
-            color: var(--gold);
-            font-family: 'Cinzel', serif;
-            padding: 20px 50px;
-            letter-spacing: 5px;
-            text-transform: uppercase;
+        .info {
+            margin-top: 10px;
+            text-align: center;
         }
-
-        /* --- Scene 2: The Cat --- */
-        #cat {
-            position: fixed;
-            width: 80px; height: 80px;
-            background: url('https://upload.wikimedia.org/wikipedia/commons/e/ec/Animal_cat_silhouette_%281%29.png') no-repeat center;
-            background-size: contain;
-            filter: drop-shadow(0 0 5px rgba(255,255,255,0.5));
-            transform-origin: center bottom;
-            z-index: 10;
-            will-change: transform;
-        }
-
-        /* --- Scene 3: Jin's Corner --- */
-        #jin-corner {
-            position: fixed;
-            bottom: 40px; right: 40px;
-            width: 150px; height: 150px;
-            display: flex; justify-content: center; align-items: center;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.02);
-            border: 2px dashed #444;
-            transition: 0.5s;
-            z-index: 5;
-        }
-
-        #jin-corner h2 {
-            font-family: 'Cinzel', serif;
-            color: #444; letter-spacing: 5px;
-            pointer-events: none;
-        }
-
-        #jin-corner:hover {
-            background: rgba(255, 51, 0, 0.05);
-            border-color: var(--aggressive-red);
-            box-shadow: 0 0 20px rgba(255, 51, 0, 0.2);
-        }
-
-        /* --- Scene 4: The Aggression (Final Reveal) --- */
-        #final-reveal {
-            position: fixed; inset: 0;
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            display: none; z-index: 110;
-        }
-
-        .title {
-            font-family: 'Cinzel', serif;
-            font-size: 5rem; font-weight: 900;
-            letter-spacing: 20px; color: var(--gold);
-            text-shadow: 0 0 50px rgba(212, 175, 55, 0.8);
-            transform: scale(0.8); opacity: 0;
-        }
-
-        /* Custom Touch Cursor (Golden Aura) */
-        #cursor-aura {
-            position: fixed;
-            width: 15px; height: 15px;
-            background: var(--gold);
-            border-radius: 50%;
-            box-shadow: 0 0 20px var(--gold);
-            pointer-events: none;
-            z-index: 100; opacity: 0.6;
-        }
-
+        #score { font-size: 24px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="vignette"></div>
-    <div id="flash"></div>
-    <div id="cursor-aura"></div>
-
-    <div id="start-screen" onclick="initializeWorld()">
-        <div class="init-btn">[ THE CAT & THE CROWN ]</div>
-    </div>
-
-    <div id="jin-corner" onmouseover="activateRageTrigger(true)" onmouseout="activateRageTrigger(false)">
-        <h2>JIN</h2>
-    </div>
-
-    <div id="cat"></div>
-
-    <div id="final-reveal">
-        <h1 id="king-text" class="title">KING IS HERE</h1>
-        <p style="letter-spacing: 5px; color: #aaa;">THE PATH IS FORGED. THE THRONE AWAITS.</p>
+    <div id="score">SCORE: 0</div>
+    <canvas id="gameCanvas"></canvas>
+    
+    <div class="info">
+        <p>USE <b>ARROW KEYS</b> OR <b>DRAG</b> TO MOVE</p>
+        <p style="color: #666; font-size: 12px;">Don't let the red blocks touch the King.</p>
     </div>
 
 <script>
-    const cat = document.getElementById('cat');
-    const aura = document.getElementById('cursor-aura');
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreElement = document.getElementById("score");
+
+    canvas.width = 400;
+    canvas.height = 500;
+
+    let score = 0;
+    let gameActive = true;
+    const player = { x: 180, y: 400, size: 30, color: "#d4af37" };
+    const enemies = [];
+    const coins = [];
+    let enemySpeed = 3;
+
+    // Audio Context for the "Bass" feel when scoring
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    let isRageActive = false;
-    let isTransformed = false;
-
-    // --- High-End Audio Engine ---
-    function playAudioFrequencies(freqStart, freqEnd, vol, duration) {
+    function playBeep(freq) {
         const osc = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
+        const gain = audioCtx.createGain();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(freqStart, audioCtx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(freqEnd, audioCtx.currentTime + duration);
-        g.gain.setValueAtTime(vol, audioCtx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(g); g.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.2);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 0.2);
     }
 
-    function playCinematicPeow() {
-        // Complex Peow: Layered synthetic sounds
-        playAudioFrequencies(1200, 300, 0.2, 0.5); // Meow
-        playAudioFrequencies(40, 10, 0.5, 3); // Sub-Bass Peow
-    }
+    // Input Handling
+    window.addEventListener("keydown", e => {
+        if (e.key === "ArrowLeft" && player.x > 0) player.x -= 25;
+        if (e.key === "ArrowRight" && player.x < canvas.width - player.size) player.x += 25;
+    });
 
-    function playAggressiveRoar() {
-        // Roar: Intense distortion and low rumble
-        playAudioFrequencies(80, 20, 0.7, 4); // The rumble
-        playAudioFrequencies(150, 50, 0.5, 1); // Secondary roar layer
-    }
+    canvas.addEventListener("touchmove", e => {
+        let touch = e.touches[0];
+        let rect = canvas.getBoundingClientRect();
+        player.x = touch.clientX - rect.left - player.size / 2;
+        // Boundary checks
+        if (player.x < 0) player.x = 0;
+        if (player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+    });
 
-    // --- Core Logic ---
-    function initializeWorld() {
-        // Hide start screen and activate browser audio context
-        gsap.to("#start-screen", { opacity: 0, duration: 1, onComplete: () => {
-            document.getElementById('start-screen').style.display = 'none';
-        }});
-        
-        // Setup initial cat position
-        gsap.set(cat, { x: window.innerWidth / 2, y: window.innerHeight / 2 });
-        playCinematicPeow();
-        
-        // Activate standard interaction listeners
-        window.addEventListener('mousemove', moveCat);
-        window.addEventListener('touchmove', handleTouchMove);
-        document.getElementById('jin-corner').addEventListener('click', startTransformation);
-        document.getElementById('jin-corner').addEventListener('touchend', startTransformation);
-    }
-
-    // Cat Movement following cursor/touch
-    function moveCat(e) {
-        if (isTransformed) return;
-        moveElements(e.clientX, e.clientY);
-    }
-
-    function handleTouchMove(e) {
-        if (isTransformed) return;
-        if (e.touches.length > 0) {
-            moveElements(e.touches[0].clientX, e.touches[0].clientY);
+    function spawnEnemy() {
+        if (Math.random() < 0.05) {
+            enemies.push({
+                x: Math.random() * (canvas.width - 20),
+                y: -20,
+                size: 20 + Math.random() * 20,
+                speed: enemySpeed + Math.random() * 2
+            });
         }
     }
 
-    function moveElements(x, y) {
-        // Move Aura Cursor
-        gsap.to(aura, { x: x, y: y, duration: 0.1 });
+    function spawnCoin() {
+        if (Math.random() < 0.02) {
+            coins.push({
+                x: Math.random() * (canvas.width - 15),
+                y: -15,
+                size: 15
+            });
+        }
+    }
 
-        // Move Cat: Using GSAP for smooth walking path
-        // Adjust cat direction based on movement
-        const currentX = gsap.getProperty(cat, "x");
-        const directionX = x > currentX ? -1 : 1; // Silhouette faces left by default
+    function update() {
+        if (!gameActive) return;
 
-        gsap.to(cat, {
-            x: x, y: y,
-            duration: 1.5,
-            ease: "power2.out",
-            scaleX: directionX, // Mirror cat when moving right
+        spawnEnemy();
+        spawnCoin();
+
+        // Move enemies
+        enemies.forEach((enemy, index) => {
+            enemy.y += enemy.speed;
+            // Collision check
+            if (player.x < enemy.x + enemy.size &&
+                player.x + player.size > enemy.x &&
+                player.y < enemy.y + enemy.size &&
+                player.y + player.size > enemy.y) {
+                gameOver();
+            }
+            if (enemy.y > canvas.height) enemies.splice(index, 1);
+        });
+
+        // Move coins
+        coins.forEach((coin, index) => {
+            coin.y += 2;
+            if (player.x < coin.x + coin.size &&
+                player.x + player.size > coin.x &&
+                player.y < coin.y + coin.size &&
+                player.y + player.size > coin.y) {
+                coins.splice(index, 1);
+                score += 10;
+                scoreElement.innerText = "SCORE: " + score;
+                playBeep(100 + score); // Bass goes up with score
+                if (score % 50 === 0) enemySpeed += 0.5; // Difficulty increase
+            }
+            if (coin.y > canvas.height) coins.splice(index, 1);
         });
     }
 
-    // Rage Trigger UI Feedback
-    function activateRageTrigger(active) {
-        if (isTransformed) return;
-        isRageActive = active;
-        if (active) {
-            gsap.to(aura, { background: "var(--aggressive-red)", boxShadow: "0 0 30px var(--aggressive-red)" });
-        } else {
-            gsap.to(aura, { background: "var(--gold)", boxShadow: "0 0 20px var(--gold)" });
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Player (Chess King Silhouette)
+        ctx.fillStyle = player.color;
+        ctx.font = "30px serif";
+        ctx.fillText("♚", player.x, player.y + 25);
+
+        // Draw Enemies
+        ctx.fillStyle = "#ff4444";
+        enemies.forEach(enemy => {
+            ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+        });
+
+        // Draw Coins
+        ctx.fillStyle = "#ffd700";
+        coins.forEach(coin => {
+            ctx.beginPath();
+            ctx.arc(coin.x + 7, coin.y + 7, 7, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        if (!gameActive) {
+            ctx.fillStyle = "rgba(0,0,0,0.7)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#d4af37";
+            ctx.font = "30px Courier New";
+            ctx.fillText("GAME OVER", 110, 250);
+            ctx.font = "15px Courier New";
+            ctx.fillText("CLICK TO RESTART", 130, 280);
         }
+
+        update();
+        requestAnimationFrame(draw);
     }
 
-    // --- Cinematic Transformation Sequence ---
-    async function startTransformation() {
-        if (isTransformed) return;
-        isTransformed = true;
-        
-        // Play Roar Sound & Pulse Cat
-        playAggressiveRoar();
-        gsap.to(cat, { scale: 1.5, filter: "drop-shadow(0 0 20px var(--aggressive-red)) saturate(5)", duration: 0.5 });
-        
-        await new Promise(r => setTimeout(r, 1000));
-
-        // 1. FLASH
-        gsap.to("#flash", { opacity: 1, duration: 0.1, onComplete: () => {
-            // Transform Visuals *during* flash
-            cat.style.background = "url('https://upload.wikimedia.org/wikipedia/commons/d/da/Lion_silhouette_%283%29.png') no-repeat center";
-            cat.style.backgroundSize = "contain";
-            cat.style.width = "250px"; cat.style.height = "250px";
-            gsap.set(cat, { xPercent: -50, yPercent: -50 }); // Center massive lion
-            cat.style.filter = "drop-shadow(0 0 50px var(--gold)) saturate(1)";
-
-            // Show Text
-            document.getElementById('final-reveal').style.display = 'flex';
-            gsap.to("#king-text", { opacity: 1, scale: 1, duration: 3, ease: "power4.out" });
-        }});
-
-        // 2. FADE FLASH
-        gsap.to("#flash", { opacity: 0, duration: 2, delay: 0.2 });
-
-        // Cleanup
-        window.removeEventListener('mousemove', moveCat);
-        window.removeEventListener('touchmove', handleTouchMove);
-        document.getElementById('jin-corner').style.display = 'none';
-        document.getElementById('cursor-aura').style.display = 'none';
+    function gameOver() {
+        gameActive = false;
+        playBeep(50); // Deep death sound
     }
+
+    canvas.addEventListener("click", () => {
+        if (!gameActive) {
+            score = 0;
+            enemySpeed = 3;
+            enemies.length = 0;
+            coins.length = 0;
+            player.x = 180;
+            scoreElement.innerText = "SCORE: 0";
+            gameActive = true;
+        }
+    });
+
+    draw();
 </script>
-
 </body>
 </html>
