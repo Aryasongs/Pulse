@@ -1,172 +1,397 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>KING'S ORDEAL | HARDCORE SURVIVAL</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduSlide | BSc Presentation Helper</title>
     <style>
-        body { margin: 0; background: #000; color: #d4af37; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        canvas { border: 5px solid #1a1a1a; background: #050505; box-shadow: 0 0 100px rgba(212, 175, 55, 0.1); touch-action: none; cursor: crosshair; }
-        #stats { width: 500px; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 900; font-size: 20px; text-transform: uppercase; }
-        #lives { letter-spacing: 5px; color: #ff0000; }
-        #warning { position: absolute; color: #ff0000; font-size: 50px; font-weight: 900; opacity: 0; pointer-events: none; text-shadow: 0 0 20px red; }
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f172a, #1e293b, #334155);
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --accent-blue: #38bdf8;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+            --card-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .light-mode {
+            --bg-gradient: linear-gradient(135deg, #f1f5f9, #e2e8f0, #cbd5e1);
+            --glass-bg: rgba(255, 255, 255, 0.7);
+            --glass-border: rgba(0, 0, 0, 0.1);
+            --accent-blue: #0284c7;
+            --text-main: #1e293b;
+            --text-dim: #475569;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            line-height: 1.6;
+            padding: 20px;
+        }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 0;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 10px;
+        }
+
+        /* --- Search Bar --- */
+        .search-container {
+            position: relative;
+            max-width: 600px;
+            margin: 20px auto;
+        }
+
+        #topicSearch {
+            width: 100%;
+            padding: 15px 25px;
+            border-radius: 30px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            color: var(--text-main);
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        #topicSearch:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+        }
+
+        /* --- Glass Cards --- */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: var(--card-shadow);
+            display: none; /* Hidden until search */
+            animation: slideUp 0.6s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- UI Elements --- */
+        .btn {
+            background: var(--accent-blue);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+            filter: brightness(1.1);
+        }
+
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 10px;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        .topic-image {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            border-radius: 16px;
+            margin: 20px 0;
+            background: #444;
+        }
+
+        .typing-text::after {
+            content: "|";
+            animation: blink 0.7s infinite;
+        }
+
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+
+        .ppt-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            height: 400px;
+            background: var(--bg-gradient);
+            border: 2px solid var(--accent-blue);
+            z-index: 2000;
+            border-radius: 20px;
+            padding: 40px;
+            overflow-y: auto;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1500;
+        }
+
+        .slide-box {
+            border-left: 4px solid var(--accent-blue);
+            padding-left: 15px;
+            margin-bottom: 30px;
+        }
+
+        .slide-title { color: var(--accent-blue); font-weight: bold; margin-bottom: 5px; }
+
+        /* Mobile Responsive */
+        @media (max-width: 600px) {
+            h1 { font-size: 1.8rem; }
+            .glass-card { padding: 20px; }
+        }
     </style>
 </head>
 <body>
 
-    <div id="stats">
-        <div id="score">SCORE: 0000</div>
-        <div id="lives">❤️❤️❤️</div>
+    <button class="mode-toggle" onclick="toggleTheme()">🌓</button>
+
+    <div class="container">
+        <header>
+            <h1>EduSlide <span style="color: var(--accent-blue);">Pro</span></h1>
+            <p style="color: var(--text-dim);">Smart Presentation Assistant for BSc Students</p>
+            
+            <div class="search-container">
+                <input type="text" id="topicSearch" placeholder="Try 'Photosynthesis' or 'Quantum Mechanics'..." onkeyup="handleEnter(event)">
+                <button class="btn" onclick="performSearch()">Generate Help</button>
+            </div>
+        </header>
+
+        <main id="mainContent" class="glass-card">
+            <h2 id="displayTitle" class="typing-text"></h2>
+            <hr style="opacity: 0.1; margin: 20px 0;">
+            
+            <div id="imageSection">
+                <img id="dynamicImg" src="" alt="Topic Image" class="topic-image">
+            </div>
+
+            <div id="explanation">
+                <h3>Overview</h3>
+                <p id="descText" style="margin-bottom: 20px;"></p>
+                
+                <h3>Key Presentation Points</h3>
+                <ul id="pointsList" style="margin-left: 20px; margin-bottom: 20px;"></ul>
+
+                <h3>Conclusion</h3>
+                <p id="conclusionText" style="font-style: italic; color: var(--text-dim);"></p>
+            </div>
+
+            <button class="btn" onclick="openPPT()">Generate PPT Slides</button>
+        </main>
     </div>
-    <div id="warning">WATCH OUT!</div>
-    <canvas id="gameCanvas"></canvas>
 
-<script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    const scoreEl = document.getElementById("score");
-    const livesEl = document.getElementById("lives");
-    const warnEl = document.getElementById("warning");
+    <div class="overlay" id="overlay" onclick="closePPT()"></div>
+    <div class="ppt-modal" id="pptModal">
+        <h2 style="margin-bottom: 20px;">Presentation Structure</h2>
+        <div id="pptContent"></div>
+        <button class="btn" onclick="closePPT()">Close Preview</button>
+    </div>
 
-    canvas.width = 500; canvas.height = 700;
+    <script>
+        // 1. DATABASE (10 Topics)
+        const db = {
+            "photosynthesis": {
+                title: "Photosynthesis",
+                desc: "The biological process by which cellular organisms convert light energy into chemical energy, primarily occurring in plants, algae, and cyanobacteria.",
+                points: ["Chloroplasts and Chlorophyll functions", "The Light-Dependent Reactions", "The Calvin Cycle (Light-Independent)", "Role of CO2 and H2O", "Energy storage in Glucose"],
+                conclusion: "Photosynthesis is the fundamental foundation of the Earth's food chain and atmospheric oxygen levels.",
+                img: "https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=800&q=80"
+            },
+            "quantum mechanics": {
+                title: "Quantum Mechanics",
+                desc: "A fundamental theory in physics that provides a description of the physical properties of nature at the scale of atoms and subatomic particles.",
+                points: ["Wave-Particle Duality", "The Uncertainty Principle", "Superposition and Entanglement", "Schrödinger's Wave Equation", "Quantum Tunneling"],
+                conclusion: "Quantum mechanics remains the most accurate description of the microscopic world, despite its counter-intuitive nature.",
+                img: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&w=800&q=80"
+            },
+            "cell division": {
+                title: "Cell Division (Mitosis & Meiosis)",
+                desc: "The process by which a parent cell divides into two or more daughter cells, essential for growth, repair, and reproduction.",
+                points: ["The Phases of Mitosis (PMAT)", "Meiosis and Genetic Variation", "DNA Replication in S-phase", "Cytokinesis mechanism", "Regulation and Cancer"],
+                conclusion: "Controlled cell division is vital for life, while errors lead to significant biological mutations.",
+                img: "https://images.unsplash.com/photo-1530026405186-ed1f139313f8?auto=format&fit=crop&w=800&q=80"
+            },
+            "thermodynamics": {
+                title: "Laws of Thermodynamics",
+                desc: "The branch of physics that deals with the relationships between heat and other forms of energy.",
+                points: ["First Law: Conservation of Energy", "Second Law: Concept of Entropy", "Third Law: Absolute Zero", "Heat Engines and Efficiency", "Systems and Surroundings"],
+                conclusion: "Thermodynamics governs everything from car engines to the ultimate fate of the universe.",
+                img: "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?auto=format&fit=crop&w=800&q=80"
+            },
+            "genetics": {
+                title: "Mendelian Genetics",
+                desc: "The study of heredity and the variation of inherited characteristics through generations.",
+                points: ["Mendel's Law of Segregation", "Independent Assortment", "Genotypes vs Phenotypes", "Punnett Squares", "Dominant and Recessive Alleles"],
+                conclusion: "Modern genetics explains how traits are passed down and the mechanisms behind evolution.",
+                img: "https://images.unsplash.com/photo-1530026186672-2cd00ffc50fe?auto=format&fit=crop&w=800&q=80"
+            },
+            "gravity": {
+                title: "Universal Gravitation",
+                desc: "A natural phenomenon by which all things with mass or energy are brought toward one another.",
+                points: ["Newton's Law of Universal Gravitation", "Einstein's General Relativity", "Gravitational Constant (G)", "Inverse Square Law", "Orbits and Escape Velocity"],
+                conclusion: "Gravity is the weakest of the four fundamental forces but dictates the structure of the cosmos.",
+                img: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80"
+            },
+            "organic chemistry": {
+                title: "Organic Chemistry",
+                desc: "The study of the structure, properties, composition, reactions, and preparation of carbon-containing compounds.",
+                points: ["Hybridization of Carbon", "Functional Groups (Alcohols, Ketones, etc.)", "Isomerism (Structural and Stereo)", "Nucleophilic Substitution", "Aromaticity and Benzene"],
+                conclusion: "Carbon's unique bonding ability allows for the immense complexity of life-sustaining molecules.",
+                img: "https://images.unsplash.com/photo-1532187896946-2f5f393b0c51?auto=format&fit=crop&w=800&q=80"
+            },
+            "evolution": {
+                title: "Theory of Evolution",
+                desc: "Change in the heritable characteristics of biological populations over successive generations.",
+                points: ["Natural Selection", "Genetic Drift and Mutation", "Speciation Processes", "The Fossil Record", "Common Ancestry"],
+                conclusion: "Evolution provides the central unifying framework for all of modern biology.",
+                img: "https://images.unsplash.com/photo-1539727393124-d11fa2aa7f82?auto=format&fit=crop&w=800&q=80"
+            },
+            "electromagnetism": {
+                title: "Electromagnetism",
+                desc: "A branch of physics involving the study of the electromagnetic force, a type of physical interaction that occurs between electrically charged particles.",
+                points: ["Maxwell's Equations", "Lorentz Force Law", "Electric and Magnetic Fields", "Faraday's Law of Induction", "Electromagnetic Waves"],
+                conclusion: "Electromagnetism is the foundation of modern technology, from power grids to smartphones.",
+                img: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80"
+            },
+            "ecology": {
+                title: "Ecology & Ecosystems",
+                desc: "The study of the relationships between living organisms, including humans, and their physical environment.",
+                points: ["Trophic Levels and Food Webs", "Biogeochemical Cycles", "Population Dynamics", "Biodiversity Importance", "Climate Change Impacts"],
+                conclusion: "Understanding ecology is essential for sustainable development and planetary health.",
+                img: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=800&q=80"
+            }
+        };
 
-    let score = 0;
-    let lives = 3;
-    let gameActive = true;
-    let frame = 0;
-    let difficultyMultiplier = 1;
+        let currentTopic = null;
 
-    const player = { x: 250, y: 600, size: 40, invul: 0 };
-    const enemies = [];
-    const coins = [];
+        // 2. SEARCH LOGIC
+        function handleEnter(e) { if (e.key === "Enter") performSearch(); }
 
-    // Sound Logic
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function playSfx(f, d, v, t='sine') {
-        const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
-        o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
-        g.gain.setValueAtTime(v, audioCtx.currentTime);
-        g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
-        o.connect(g); g.connect(audioCtx.destination);
-        o.start(); o.stop(audioCtx.currentTime + d);
-    }
+        function performSearch() {
+            const query = document.getElementById('topicSearch').value.toLowerCase().trim();
+            const result = db[query];
+            const displayCard = document.getElementById('mainContent');
 
-    // High Precision Movement
-    const move = (clientX) => {
-        const rect = canvas.getBoundingClientRect();
-        player.x = (clientX - rect.left) - player.size/2;
-        player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
-    };
-    window.addEventListener("mousemove", e => move(e.clientX));
-    window.addEventListener("touchmove", e => { move(e.touches[0].clientX); e.preventDefault(); });
+            if (result) {
+                currentTopic = result;
+                displayCard.style.display = 'block';
+                
+                // Typing Animation
+                typeText(result.title, 'displayTitle');
+                
+                document.getElementById('descText').innerText = result.desc;
+                document.getElementById('dynamicImg').src = result.img;
+                document.getElementById('conclusionText').innerText = result.conclusion;
 
-    function update() {
-        if(!gameActive) return;
-        frame++;
-        difficultyMultiplier = 1 + (score / 500);
-
-        // Dynamic Spawning based on difficulty
-        if(frame % Math.max(5, Math.floor(20 / difficultyMultiplier)) === 0) {
-            const type = Math.random() > 0.8 ? 'ZIGZAG' : 'FALLER';
-            enemies.push({
-                x: Math.random() * (canvas.width - 30),
-                y: -50,
-                s: 25 + Math.random() * 20,
-                spd: (4 + Math.random() * 3) * difficultyMultiplier,
-                type: type,
-                angle: 0
-            });
+                const list = document.getElementById('pointsList');
+                list.innerHTML = "";
+                result.points.forEach(p => {
+                    let li = document.createElement('li');
+                    li.innerText = p;
+                    list.appendChild(li);
+                });
+            } else {
+                alert("Topic not found in local database. Try 'Photosynthesis' or 'Gravity'.");
+            }
         }
 
-        if(frame % 100 === 0) coins.push({x: Math.random()*(canvas.width-20), y: -30, s: 20});
-
-        // Object Logic
-        enemies.forEach((en, i) => {
-            en.y += en.spd;
-            if(en.type === 'ZIGZAG') {
-                en.angle += 0.1;
-                en.x += Math.sin(en.angle) * 5;
-            }
-
-            // Collision
-            if(player.x < en.x+en.s && player.x+player.size > en.x && player.y < en.y+en.s && player.y+player.size > en.y) {
-                if(player.invul <= 0) {
-                    lives--; playSfx(80, 0.4, 0.3, 'sawtooth');
-                    player.invul = 60;
-                    livesEl.innerText = "❤️".repeat(lives);
-                    enemies.splice(i, 1);
-                    if(lives <= 0) gameOver();
-                }
-            }
-            if(en.y > canvas.height) {
-                enemies.splice(i, 1);
-                score += 5; // Survival points
-                scoreEl.innerText = "SCORE: " + score.toString().padStart(4, '0');
-            }
-        });
-
-        coins.forEach((c, i) => {
-            c.y += 5;
-            if(player.x < c.x+c.s && player.x+player.size > c.x && player.y < c.y+c.s && player.y+player.size > c.y) {
-                coins.splice(i, 1); score += 50; 
-                playSfx(600 + (score/2), 0.1, 0.1);
-            }
-            if(c.y > canvas.height) coins.splice(i, 1);
-        });
-
-        if(player.invul > 0) player.invul--;
-    }
-
-    function draw() {
-        ctx.fillStyle = "#050505";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Scanning Line VFX
-        ctx.strokeStyle = "rgba(212, 175, 55, 0.05)";
-        ctx.beginPath(); ctx.moveTo(0, (frame*2)%canvas.height); ctx.lineTo(canvas.width, (frame*2)%canvas.height); ctx.stroke();
-
-        // Player (The King)
-        if(player.invul % 6 < 3) {
-            ctx.shadowBlur = 15; ctx.shadowColor = (lives === 1) ? "red" : "#d4af37";
-            ctx.fillStyle = (lives === 1) ? "#ff0000" : "#d4af37";
-            ctx.font = "50px serif";
-            ctx.fillText("♚", player.x, player.y + 45);
-            ctx.shadowBlur = 0;
+        // 3. TYPING EFFECT
+        function typeText(text, elementId) {
+            const el = document.getElementById(elementId);
+            el.innerText = "";
+            let i = 0;
+            const interval = setInterval(() => {
+                el.innerText += text[i];
+                i++;
+                if (i >= text.length) clearInterval(interval);
+            }, 50);
         }
 
-        // Enemies
-        enemies.forEach(en => {
-            ctx.fillStyle = en.type === 'ZIGZAG' ? "#ff00ff" : "#ff3333";
-            ctx.fillRect(en.x, en.y, en.s, en.s);
-            // Trails for Zigzag assassins
-            if(en.type === 'ZIGZAG') {
-                ctx.strokeStyle = "rgba(255, 0, 255, 0.3)";
-                ctx.strokeRect(en.x - 2, en.y - 5, en.s + 4, en.s);
-            }
-        });
+        // 4. PPT GENERATION
+        function openPPT() {
+            if (!currentTopic) return;
+            const content = document.getElementById('pptContent');
+            const slides = [
+                { t: "Slide 1: Title", c: currentTopic.title },
+                { t: "Slide 2: Introduction", c: currentTopic.desc },
+                { t: "Slide 3: Key Concept A", c: currentTopic.points[0] + " & " + currentTopic.points[1] },
+                { t: "Slide 4: Key Concept B", c: currentTopic.points[2] + " & " + currentTopic.points[3] },
+                { t: "Slide 5: Visual Summary", c: "Reviewing " + currentTopic.points[4] },
+                { t: "Slide 6: Conclusion", c: currentTopic.conclusion }
+            ];
 
-        // Coins
-        ctx.fillStyle = "#ffd700";
-        coins.forEach(c => { ctx.beginPath(); ctx.arc(c.x+10, c.y+10, 10, 0, 7); ctx.fill(); });
+            content.innerHTML = slides.map(s => `
+                <div class="slide-box">
+                    <div class="slide-title">${s.t}</div>
+                    <p>${s.c}</p>
+                </div>
+            `).join('');
 
-        if(!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.95)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#d4af37"; ctx.font = "50px Montserrat"; ctx.fillText("WASTED", 140, 320);
-            ctx.font = "20px Montserrat"; ctx.fillText("FINAL SCORE: " + score, 170, 370);
-            ctx.font = "15px Montserrat"; ctx.fillText("CLICK TO ATTEMPT AGAIN", 160, 420);
+            document.getElementById('overlay').style.display = 'block';
+            document.getElementById('pptModal').style.display = 'block';
         }
 
-        update(); requestAnimationFrame(draw);
-    }
-
-    function gameOver() { gameActive = false; playSfx(40, 1.5, 0.4, 'sawtooth'); }
-
-    canvas.addEventListener("click", () => {
-        if(!gameActive) {
-            score = 0; lives = 3; gameActive = true; enemies.length = 0; coins.length = 0;
-            livesEl.innerText = "❤️❤️❤️"; scoreEl.innerText = "SCORE: 0000";
+        function closePPT() {
+            document.getElementById('overlay').style.display = 'none';
+            document.getElementById('pptModal').style.display = 'none';
         }
-    });
 
-    draw();
-</script>
+        // 5. THEME TOGGLE
+        function toggleTheme() {
+            document.body.classList.toggle('light-mode');
+        }
+    </script>
 </body>
 </html>
