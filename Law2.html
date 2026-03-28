@@ -1,22 +1,22 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>KING'S SURVIVAL | STRATEGY & RISK</title>
+    <title>KING'S ORDEAL | HARDCORE SURVIVAL</title>
     <style>
-        body { margin: 0; background: #050505; color: #d4af37; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        canvas { border: 4px solid #1a1a1a; background: #000; box-shadow: 0 0 50px rgba(0,0,0,1); touch-action: none; cursor: none; }
-        #ui { width: 450px; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; }
-        .heart { color: #ff3333; font-size: 20px; text-shadow: 0 0 10px #ff3333; }
-        #wave-info { position: absolute; top: 20%; font-size: 40px; opacity: 0; transition: 1s; font-family: 'serif'; pointer-events: none; }
+        body { margin: 0; background: #000; color: #d4af37; font-family: 'Montserrat', sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        canvas { border: 5px solid #1a1a1a; background: #050505; box-shadow: 0 0 100px rgba(212, 175, 55, 0.1); touch-action: none; cursor: crosshair; }
+        #stats { width: 500px; display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: 900; font-size: 20px; text-transform: uppercase; }
+        #lives { letter-spacing: 5px; color: #ff0000; }
+        #warning { position: absolute; color: #ff0000; font-size: 50px; font-weight: 900; opacity: 0; pointer-events: none; text-shadow: 0 0 20px red; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div id="score">SCORE: 0</div>
+    <div id="stats">
+        <div id="score">SCORE: 0000</div>
         <div id="lives">❤️❤️❤️</div>
     </div>
-    <div id="wave-info">NEW WAVE: THE STORM</div>
+    <div id="warning">WATCH OUT!</div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -24,23 +24,23 @@
     const ctx = canvas.getContext("2d");
     const scoreEl = document.getElementById("score");
     const livesEl = document.getElementById("lives");
-    const waveEl = document.getElementById("wave-info");
+    const warnEl = document.getElementById("warning");
 
-    canvas.width = 450; canvas.height = 600;
+    canvas.width = 500; canvas.height = 700;
 
     let score = 0;
     let lives = 3;
     let gameActive = true;
-    let baseSpeed = 4;
-    let waveMode = "NORMAL"; // NORMAL, REST, STORM
+    let frame = 0;
+    let difficultyMultiplier = 1;
 
-    const player = { x: 225, y: 500, size: 35, invul: 0 };
+    const player = { x: 250, y: 600, size: 40, invul: 0 };
     const enemies = [];
     const coins = [];
-    const items = [];
 
+    // Sound Logic
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    function sfx(f, d, v, t='sine') {
+    function playSfx(f, d, v, t='sine') {
         const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
         o.type = t; o.frequency.setValueAtTime(f, audioCtx.currentTime);
         g.gain.setValueAtTime(v, audioCtx.currentTime);
@@ -49,133 +49,120 @@
         o.start(); o.stop(audioCtx.currentTime + d);
     }
 
-    // Input
-    const handleMove = (x) => {
-        let rect = canvas.getBoundingClientRect();
-        player.x = x - rect.left - player.size/2;
-        if(player.x < 0) player.x = 0;
-        if(player.x > canvas.width - player.size) player.x = canvas.width - player.size;
+    // High Precision Movement
+    const move = (clientX) => {
+        const rect = canvas.getBoundingClientRect();
+        player.x = (clientX - rect.left) - player.size/2;
+        player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
     };
-    canvas.addEventListener("mousemove", e => handleMove(e.clientX));
-    canvas.addEventListener("touchmove", e => { handleMove(e.touches[0].clientX); e.preventDefault(); });
+    window.addEventListener("mousemove", e => move(e.clientX));
+    window.addEventListener("touchmove", e => { move(e.touches[0].clientX); e.preventDefault(); });
 
     function update() {
         if(!gameActive) return;
+        frame++;
+        difficultyMultiplier = 1 + (score / 500);
 
-        // Wave Logic
-        if (score > 0 && score % 400 < 100) {
-            if(waveMode !== "REST") { waveMode = "REST"; showWave("RECOVERY ZONE"); }
-            baseSpeed = 3;
-        } else if (score % 400 >= 300) {
-            if(waveMode !== "STORM") { waveMode = "STORM"; showWave("THE STORM"); }
-            baseSpeed = 6 + (score/200);
-        } else {
-            waveMode = "NORMAL";
-            baseSpeed = 4 + (score/400);
+        // Dynamic Spawning based on difficulty
+        if(frame % Math.max(5, Math.floor(20 / difficultyMultiplier)) === 0) {
+            const type = Math.random() > 0.8 ? 'ZIGZAG' : 'FALLER';
+            enemies.push({
+                x: Math.random() * (canvas.width - 30),
+                y: -50,
+                s: 25 + Math.random() * 20,
+                spd: (4 + Math.random() * 3) * difficultyMultiplier,
+                type: type,
+                angle: 0
+            });
         }
 
-        // Spawn logic
-        if(Math.random() < (waveMode === "STORM" ? 0.08 : 0.04)) 
-            enemies.push({x: Math.random()*(canvas.width-30), y: -30, s: 25 + Math.random()*15, spd: baseSpeed + Math.random()*2});
-        
-        if(Math.random() < 0.02) coins.push({x: Math.random()*(canvas.width-20), y: -20, s: 15});
-        if(Math.random() < 0.003) items.push({x: Math.random()*(canvas.width-20), y: -20, type: "LIFE"});
+        if(frame % 100 === 0) coins.push({x: Math.random()*(canvas.width-20), y: -30, s: 20});
 
-        // Move & Collide
+        // Object Logic
         enemies.forEach((en, i) => {
             en.y += en.spd;
-            // Near Miss Check
-            if(Math.abs(player.x - en.x) < 40 && Math.abs(player.y - en.y) < 40 && !en.missed) {
-                score += 5; en.missed = true; // Bonus for risk
+            if(en.type === 'ZIGZAG') {
+                en.angle += 0.1;
+                en.x += Math.sin(en.angle) * 5;
             }
+
             // Collision
             if(player.x < en.x+en.s && player.x+player.size > en.x && player.y < en.y+en.s && player.y+player.size > en.y) {
                 if(player.invul <= 0) {
-                    lives--; sfx(100, 0.5, 0.2, 'sawtooth');
-                    player.invul = 100; // Blink frames
-                    updateLivesUI();
+                    lives--; playSfx(80, 0.4, 0.3, 'sawtooth');
+                    player.invul = 60;
+                    livesEl.innerText = "❤️".repeat(lives);
                     enemies.splice(i, 1);
                     if(lives <= 0) gameOver();
                 }
             }
-            if(en.y > canvas.height) enemies.splice(i, 1);
+            if(en.y > canvas.height) {
+                enemies.splice(i, 1);
+                score += 5; // Survival points
+                scoreEl.innerText = "SCORE: " + score.toString().padStart(4, '0');
+            }
         });
 
         coins.forEach((c, i) => {
-            c.y += 4;
+            c.y += 5;
             if(player.x < c.x+c.s && player.x+player.size > c.x && player.y < c.y+c.s && player.y+player.size > c.y) {
-                coins.splice(i, 1); score += 10; sfx(500 + score/2, 0.1, 0.1);
-                scoreEl.innerText = "SCORE: " + score;
+                coins.splice(i, 1); score += 50; 
+                playSfx(600 + (score/2), 0.1, 0.1);
             }
-        });
-
-        items.forEach((it, i) => {
-            it.y += 3;
-            if(player.x < it.x+20 && player.x+player.size > it.x && player.y < it.y+20 && player.y+player.size > it.y) {
-                if(lives < 5) lives++; updateLivesUI();
-                items.splice(i, 1); sfx(800, 0.3, 0.2);
-            }
+            if(c.y > canvas.height) coins.splice(i, 1);
         });
 
         if(player.invul > 0) player.invul--;
     }
 
     function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Grid Effect
-        ctx.strokeStyle = "#111"; ctx.lineWidth = 1;
-        for(let i=0; i<canvas.width; i+=40) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,600); ctx.stroke(); }
+        ctx.fillStyle = "#050505";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Player
-        if(player.invul % 10 < 5) {
-            ctx.fillStyle = (lives === 1) ? "#ff3333" : "#d4af37";
-            ctx.font = "45px serif";
-            ctx.fillText("♚", player.x, player.y + 40);
+        // Scanning Line VFX
+        ctx.strokeStyle = "rgba(212, 175, 55, 0.05)";
+        ctx.beginPath(); ctx.moveTo(0, (frame*2)%canvas.height); ctx.lineTo(canvas.width, (frame*2)%canvas.height); ctx.stroke();
+
+        // Player (The King)
+        if(player.invul % 6 < 3) {
+            ctx.shadowBlur = 15; ctx.shadowColor = (lives === 1) ? "red" : "#d4af37";
+            ctx.fillStyle = (lives === 1) ? "#ff0000" : "#d4af37";
+            ctx.font = "50px serif";
+            ctx.fillText("♚", player.x, player.y + 45);
+            ctx.shadowBlur = 0;
         }
 
+        // Enemies
         enemies.forEach(en => {
-            ctx.fillStyle = (waveMode === "STORM") ? "#ff0000" : "#551111";
-            ctx.shadowBlur = (waveMode === "STORM") ? 15 : 0;
-            ctx.shadowColor = "red";
+            ctx.fillStyle = en.type === 'ZIGZAG' ? "#ff00ff" : "#ff3333";
             ctx.fillRect(en.x, en.y, en.s, en.s);
-            ctx.shadowBlur = 0;
+            // Trails for Zigzag assassins
+            if(en.type === 'ZIGZAG') {
+                ctx.strokeStyle = "rgba(255, 0, 255, 0.3)";
+                ctx.strokeRect(en.x - 2, en.y - 5, en.s + 4, en.s);
+            }
         });
 
-        coins.forEach(c => { 
-            ctx.fillStyle = "#ffd700"; ctx.beginPath(); ctx.arc(c.x+10, c.y+10, 10, 0, 7); ctx.fill(); 
-        });
-
-        items.forEach(it => {
-            ctx.fillStyle = "#ff3333"; ctx.font = "20px Arial"; ctx.fillText("❤️", it.x, it.y+20);
-        });
+        // Coins
+        ctx.fillStyle = "#ffd700";
+        coins.forEach(c => { ctx.beginPath(); ctx.arc(c.x+10, c.y+10, 10, 0, 7); ctx.fill(); });
 
         if(!gameActive) {
-            ctx.fillStyle = "rgba(0,0,0,0.9)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "#d4af37"; ctx.font = "40px Montserrat"; ctx.fillText("DEFEATED", 120, 280);
-            ctx.font = "20px Montserrat"; ctx.fillText("SCORE: " + score, 180, 320);
-            ctx.font = "15px Montserrat"; ctx.fillText("TAP TO REGAIN THE CROWN", 125, 380);
+            ctx.fillStyle = "rgba(0,0,0,0.95)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = "#d4af37"; ctx.font = "50px Montserrat"; ctx.fillText("WASTED", 140, 320);
+            ctx.font = "20px Montserrat"; ctx.fillText("FINAL SCORE: " + score, 170, 370);
+            ctx.font = "15px Montserrat"; ctx.fillText("CLICK TO ATTEMPT AGAIN", 160, 420);
         }
 
         update(); requestAnimationFrame(draw);
     }
 
-    function updateLivesUI() {
-        livesEl.innerHTML = "❤️".repeat(lives);
-    }
-
-    function showWave(name) {
-        waveEl.innerText = name; waveEl.style.opacity = 1;
-        setTimeout(() => waveEl.style.opacity = 0, 2000);
-        sfx(200, 1, 0.2, 'square');
-    }
-
-    function gameOver() { gameActive = false; }
+    function gameOver() { gameActive = false; playSfx(40, 1.5, 0.4, 'sawtooth'); }
 
     canvas.addEventListener("click", () => {
         if(!gameActive) {
-            score = 0; lives = 3; gameActive = true; enemies.length = 0;
-            updateLivesUI(); scoreEl.innerText = "SCORE: 0";
+            score = 0; lives = 3; gameActive = true; enemies.length = 0; coins.length = 0;
+            livesEl.innerText = "❤️❤️❤️"; scoreEl.innerText = "SCORE: 0000";
         }
     });
 
