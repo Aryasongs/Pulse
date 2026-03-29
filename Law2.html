@@ -1,328 +1,387 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI Hospital Assistant</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediPulse AI | Advanced Clinical Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --primary: #007AFF;
+            --primary-light: #E5F1FF;
+            --success: #34C759;
+            --warning: #FF9F0A;
+            --danger: #FF3B30;
+            --bg: #F2F2F7;
+            --card: rgba(255, 255, 255, 0.8);
+            --text: #1C1C1E;
+            --text-sec: #8E8E93;
+            --transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            --emergency-overlay: transparent;
+        }
 
-<style>
-/* GLOBAL */
-body {
-  margin:0;
-  font-family: -apple-system, BlinkMacSystemFont;
-  background: linear-gradient(135deg,#eaf3ff,#f8fbff);
-  color:#222;
-}
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background: var(--bg); color: var(--text); overflow-x: hidden; transition: background 0.5s ease; }
+        body.emergency-mode { background: var(--danger) !important; --card: rgba(255,255,255,0.1); --text: #fff; --text-sec: #eee; }
 
-.container {
-  max-width:900px;
-  margin:auto;
-  padding:20px;
-}
+        /* --- PRELOADER --- */
+        #loader { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.8s; }
+        .pulse-ring { width: 80px; height: 80px; border: 4px solid var(--primary-light); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
 
-.glass {
-  background: rgba(255,255,255,0.6);
-  backdrop-filter: blur(20px);
-  border-radius:20px;
-  padding:20px;
-  box-shadow:0 10px 40px rgba(0,0,0,0.1);
-}
+        /* --- UI COMPONENTS --- */
+        .glass { background: var(--card); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.3); border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
+        .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
+        .btn { padding: 16px 32px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 10px; font-size: 1rem; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,122,255,0.3); }
+        .hidden { display: none !important; }
 
-h1 {
-  text-align:center;
-}
+        /* --- NAVIGATION --- */
+        nav { position: fixed; top: 0; width: 100%; padding: 20px 6%; display: flex; justify-content: space-between; align-items: center; z-index: 1000; transition: 0.3s; }
+        nav.scrolled { background: var(--card); backdrop-filter: blur(15px); padding: 15px 6%; box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
+        .logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
 
-button {
-  padding:12px 18px;
-  border:none;
-  border-radius:12px;
-  background:#007aff;
-  color:white;
-  font-size:16px;
-  cursor:pointer;
-  transition:0.3s;
-}
+        /* --- WIZARD STEPS --- */
+        .wizard-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 100px 0; }
+        .step-card { width: 100%; padding: 50px; animation: slideIn 0.6s ease-out; }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
 
-button:hover {
-  transform:scale(1.05);
-}
+        /* --- SYMPTOM GRID --- */
+        .symptom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 30px 0; max-height: 400px; overflow-y: auto; padding-right: 10px; }
+        .sym-item { padding: 20px; text-align: center; cursor: pointer; border-radius: 20px; border: 1px solid #ddd; background: #fff; transition: 0.3s; }
+        .sym-item i { font-size: 1.8rem; color: var(--primary); margin-bottom: 10px; display: block; }
+        .sym-item.active { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05); }
+        .sym-item.active i { color: white; }
 
-input, select {
-  width:100%;
-  padding:12px;
-  margin:10px 0;
-  border-radius:10px;
-  border:1px solid #ccc;
-}
+        /* --- RISK METER --- */
+        .risk-container { margin: 30px 0; text-align: center; }
+        .risk-bar-bg { height: 12px; background: #eee; border-radius: 10px; overflow: hidden; margin: 15px 0; }
+        .risk-fill { height: 100%; width: 0%; transition: 1.5s cubic-bezier(0.1, 0, 0.1, 1); }
 
-/* STEP UI */
-.step {
-  display:none;
-}
-.active {
-  display:block;
-}
+        /* --- BP METER --- */
+        .bp-gauge { height: 150px; width: 150px; border-radius: 50%; border: 10px solid #eee; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; }
+        .bp-needle { position: absolute; width: 4px; height: 60px; background: var(--primary); bottom: 50%; transform-origin: bottom; transition: 1s; }
 
-/* CATEGORY GRID */
-.grid {
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
-  gap:10px;
-}
+        /* --- CHATBOT --- */
+        .chat-btn { position: fixed; bottom: 30px; right: 30px; width: 65px; height: 65px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; }
+        .chat-box { position: fixed; bottom: 110px; right: 30px; width: 380px; height: 500px; z-index: 1001; display: flex; flex-direction: column; overflow: hidden; }
+        .chat-header { background: var(--primary); color: white; padding: 20px; font-weight: 700; }
+        .chat-msgs { flex: 1; padding: 20px; overflow-y: auto; background: #f9f9f9; font-size: 0.9rem; }
+        .chat-input { padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; gap: 10px; }
 
-.card {
-  padding:12px;
-  background:white;
-  border-radius:12px;
-  text-align:center;
-  cursor:pointer;
-  transition:0.3s;
-}
-.card:hover {
-  background:#007aff;
-  color:white;
-}
+        /* --- EMERGENCY SCREEN --- */
+        .emergency-notice { text-align: center; padding: 100px 20px; color: white; }
+        .emergency-notice h1 { font-size: 4rem; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-/* EMERGENCY */
-.emergency {
-  background:red !important;
-  color:white;
-  animation:flash 0.6s infinite;
-}
+        /* --- PRINT STYLES --- */
+        @media print {
+            nav, .chat-btn, .btn, footer, .symptom-grid { display: none !important; }
+            .step-card { border: none !important; box-shadow: none !important; background: white !important; color: black !important; }
+            .hidden-print { display: block !important; }
+        }
 
-@keyframes flash {
-  0%{opacity:1}
-  50%{opacity:0.5}
-  100%{opacity:1}
-}
-
-/* BP Meter */
-.meter {
-  height:20px;
-  border-radius:20px;
-  background:linear-gradient(to right,blue,green,red);
-  margin-top:10px;
-}
-
-/* IMAGE */
-.hero-img {
-  width:100%;
-  border-radius:20px;
-  margin:10px 0;
-}
-
-/* FOOTER */
-footer {
-  text-align:center;
-  margin-top:40px;
-  font-size:14px;
-  color:#555;
-}
-</style>
+        /* --- FOOTER --- */
+        footer { background: #fff; padding: 60px 0 30px; border-top: 1px solid #eee; }
+        .sharan-credit { text-align: center; margin-top: 40px; font-weight: 800; color: #ccc; letter-spacing: 3px; font-size: 0.8rem; }
+    </style>
 </head>
-
 <body>
 
-<div class="container">
+    <div id="loader"><div class="pulse-ring"></div><p style="margin-top:20px; font-weight:600;">System Initializing...</p></div>
+    <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
 
-<h1>🏥 AI Hospital Assistant</h1>
+    <nav id="navbar">
+        <div class="logo"><i class="fas fa-microchip"></i> MEDIPULSE AI</div>
+        <div style="font-weight:700; font-size:0.8rem; color:var(--text-sec);">AI CLINICAL UNIT v2.0</div>
+    </nav>
 
-<img class="hero-img" src="https://images.unsplash.com/photo-1588776814546-ec7e6c3f2c9c">
+    <div class="wizard-container container">
+        
+        <section id="step1" class="step-card glass">
+            <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Welcome, I am your Health Assistant.</h1>
+            <p style="color:var(--text-sec); margin-bottom: 40px;">Please provide your basic details to start the analysis.</p>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div class="input-group">
+                    <label style="display:block; margin-bottom:8px; font-weight:600;">Patient Name</label>
+                    <input type="text" id="pName" placeholder="Enter full name">
+                </div>
+                <div class="input-group">
+                    <label style="display:block; margin-bottom:8px; font-weight:600;">Age (Years)</label>
+                    <input type="number" id="pAge" placeholder="e.g. 25">
+                </div>
+            </div>
+            
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
+                <div class="input-group">
+                    <label style="display:block; margin-bottom:8px; font-weight:600;">Fever (°F)</label>
+                    <input type="number" id="pFever" placeholder="e.g. 98.6">
+                </div>
+                <div class="input-group">
+                    <label style="display:block; margin-bottom:8px; font-weight:600;">Weight (kg)</label>
+                    <input type="number" id="pWeight" placeholder="Optional">
+                </div>
+            </div>
 
-<!-- STEP 1 -->
-<div class="glass step active" id="step1">
-<h2>Step 1: Basic Info</h2>
-<input id="age" type="number" placeholder="Age (Required)">
-<input id="weight" type="number" placeholder="Weight (Optional)">
-<input id="fever" type="number" placeholder="Fever °C (Optional)">
-<select id="gender">
-<option>Gender (Optional)</option>
-<option>Male</option>
-<option>Female</option>
-</select>
-<button onclick="nextStep(2)">Next</button>
-</div>
+            <button onclick="navStep(2)" class="btn btn-primary" style="width:100%; justify-content:center;">Next: Select Symptoms <i class="fas fa-arrow-right"></i></button>
+        </section>
 
-<!-- STEP 2 -->
-<div class="glass step" id="step2">
-<h2>Select Problem</h2>
+        <section id="step2" class="step-card glass hidden">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <h2>What are you feeling?</h2>
+                <button onclick="startVoice()" class="btn" style="background:var(--primary-light); color:var(--primary); padding:10px 20px;"><i class="fas fa-microphone"></i> Voice Input</button>
+            </div>
+            <p style="color:var(--text-sec);">Select all that apply. (At least 1 required)</p>
 
-<div class="grid">
-<div class="card" onclick="selectProblem('fever')">Fever</div>
-<div class="card" onclick="selectProblem('cold')">Cold & Cough</div>
-<div class="card" onclick="selectProblem('headache')">Headache</div>
-<div class="card" onclick="selectProblem('chest')">Chest Pain</div>
-<div class="card" onclick="selectProblem('heart')">Heart Attack</div>
-<div class="card" onclick="selectProblem('bp')">BP Issues</div>
-<div class="card" onclick="selectProblem('stomach')">Stomach Pain</div>
-<div class="card" onclick="selectProblem('vomit')">Vomiting</div>
-<div class="card" onclick="selectProblem('weak')">Weakness</div>
-<div class="card" onclick="selectProblem('injury')">Injury</div>
-<div class="card" onclick="selectProblem('breath')">Breathing</div>
-<div class="card" onclick="selectProblem('infection')">Infection</div>
-<div class="card">Dizziness</div>
-<div class="card">Skin Issue</div>
-<div class="card">Back Pain</div>
-<div class="card">Eye Pain</div>
-<div class="card">Tooth Pain</div>
-<div class="card">Allergy</div>
-<div class="card">Diarrhea</div>
-<div class="card">Constipation</div>
-</div>
+            <div class="symptom-grid" id="symGrid">
+                </div>
 
-</div>
+            <div style="display:flex; gap:15px;">
+                <button onclick="navStep(1)" class="btn" style="background:#eee;">Back</button>
+                <button onclick="runAnalysis()" class="btn btn-primary" style="flex:1; justify-content:center;">Generate AI Analysis <i class="fas fa-brain"></i></button>
+            </div>
+        </section>
 
-<!-- STEP 3 -->
-<div class="glass step" id="step3">
-<h2>Symptom Details</h2>
+        <section id="step3" class="step-card glass hidden">
+            <div id="normalResult">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                        <h1 id="resName">Patient Report</h1>
+                        <span id="riskLabel" style="font-weight:700; text-transform:uppercase; font-size:0.8rem;">Analyzing Risk...</span>
+                    </div>
+                    <div style="text-align:right;">
+                        <button onclick="window.print()" class="btn" style="background:var(--primary-light); color:var(--primary);"><i class="fas fa-file-pdf"></i> Download PDF Report</button>
+                    </div>
+                </div>
 
-<div id="dynamicQuestions"></div>
+                <div class="risk-container">
+                    <div class="risk-bar-bg"><div id="riskFill" class="risk-fill"></div></div>
+                    <p id="riskScoreText" style="font-weight:800; font-size:1.2rem;"></p>
+                </div>
 
-<button onclick="analyze()">Analyze</button>
-</div>
+                <div id="aiSummary" style="background:#fff; padding:25px; border-radius:20px; border:1px solid #eee; margin-bottom:30px;">
+                    </div>
 
-<!-- RESULT -->
-<div class="glass step" id="result">
-<h2>AI Analysis Result</h2>
-<div id="output"></div>
+                <div id="medicationSection" style="margin-top:20px;">
+                    <h3 style="margin-bottom:15px;"><i class="fas fa-pills" style="color:var(--primary);"></i> Comfort Guidance</h3>
+                    <div id="medList"></div>
+                    <p style="font-size:0.8rem; color:var(--danger); margin-top:10px; font-weight:700;">⚠ DISCLAIMER: Consult a doctor before taking any medicine. No exact dosage provided.</p>
+                </div>
 
-<button onclick="window.print()">Print Report</button>
-</div>
+                <div id="bpSection" class="hidden" style="margin-top:40px; text-align:center;">
+                    <h3>BP Guide System</h3>
+                    <div class="bp-gauge">
+                        <div class="bp-needle" id="bpNeedle"></div>
+                        <span id="bpValue" style="font-weight:800; font-size:1.5rem;">120/80</span>
+                    </div>
+                    <p style="margin-top:15px; font-size:0.9rem; color:var(--text-sec);">Keep arm at heart level while testing.</p>
+                </div>
 
-<!-- BP GUIDE -->
-<div class="glass">
-<h3>BP Guide</h3>
-<p>Normal: 120/80</p>
-<p>High: 140+</p>
-<div class="meter"></div>
-</div>
+                <button onclick="location.reload()" class="btn" style="width:100%; justify-content:center; margin-top:40px; background:#eee;">Start New Assessment</button>
+            </div>
 
-<!-- IMAGES -->
-<img class="hero-img" src="https://images.unsplash.com/photo-1579154204601-01588f351e67">
-<img class="hero-img" src="https://images.unsplash.com/photo-1582719478250-c89cae4dc85b">
-<img class="hero-img" src="https://images.unsplash.com/photo-1538108149393-fbbd81895907">
+            <div id="emergencyResult" class="hidden">
+                <div class="emergency-notice">
+                    <i class="fas fa-exclamation-triangle" style="font-size:5rem; margin-bottom:20px;"></i>
+                    <h1>GO TO HOSPITAL IMMEDIATELY</h1>
+                    <p style="font-size:1.5rem; margin-top:20px;">Critical indicators detected. Every second counts.</p>
+                    <a href="tel:108" class="btn btn-primary" style="background:white; color:var(--danger); margin-top:40px; font-size:1.5rem; padding:25px 50px;"><i class="fas fa-phone"></i> CALL EMERGENCY (108)</a>
+                    <br><br>
+                    <button onclick="location.reload()" style="background:none; border:1px solid white; color:white; padding:10px; cursor:pointer; border-radius:10px;">Dismiss Alert</button>
+                </div>
+            </div>
+        </section>
+    </div>
 
-<footer>
-<p>⚠️ This is not a medical service. Always consult a doctor.</p>
-<p>Emergency: Call 112</p>
-<p>Website designed by Sharan Pooni</p>
-</footer>
+    <div class="chat-btn" onclick="toggleChat()"><i class="fas fa-comment-medical"></i></div>
+    <div class="chat-box glass hidden" id="chatBox">
+        <div class="chat-header">MediPulse Assistant</div>
+        <div class="chat-msgs" id="chatMsgs">
+            <div style="background:#fff; padding:10px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">Hello! I am here to help you understand your symptoms. How are you feeling today?</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chatIn" style="flex:1; border:none; outline:none;" placeholder="Type a symptom...">
+            <button onclick="sendChat()" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        </div>
+    </div>
 
-</div>
+    <footer>
+        <div class="container">
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px;">
+                <div>
+                    <div class="logo">MEDIPULSE AI</div>
+                    <p style="margin-top:15px; color:var(--text-sec); font-size:0.9rem;">The leading digital triage assistant for modern healthcare facilities.</p>
+                </div>
+                <div>
+                    <h4 style="margin-bottom:15px;">Emergency Contacts</h4>
+                    <p style="color:var(--danger); font-weight:700;">Ambulance: 108</p>
+                    <p>Police: 100</p>
+                </div>
+                <div>
+                    <h4 style="margin-bottom:15px;">Safety Notice</h4>
+                    <p style="font-size:0.8rem; color:var(--text-sec);">Always seek the advice of your physician with any questions you may have regarding a medical condition.</p>
+                </div>
+            </div>
+            <div class="sharan-credit">DESIGNED BY SHARAN POONI</div>
+        </div>
+    </footer>
 
-<script>
-let problem = "";
+    <script>
+        const symptoms = [
+            { id: 'fever', name: 'Fever', icon: 'fa-temperature-high', emergency: false },
+            { id: 'chest', name: 'Chest Pain', icon: 'fa-heart-circle-exclamation', emergency: true },
+            { id: 'heart', name: 'Heart Symptoms', icon: 'fa-stethoscope', emergency: true },
+            { id: 'breath', name: 'Breathing Problem', icon: 'fa-wind', emergency: true },
+            { id: 'bp', name: 'BP Issues', icon: 'fa-gauge-high', emergency: false },
+            { id: 'stomach', name: 'Stomach Pain', icon: 'fa-user-injured', emergency: false },
+            { id: 'vomit', name: 'Vomiting', icon: 'fa-frown', emergency: false },
+            { id: 'headache', name: 'Headache', icon: 'fa-head-side-virus', emergency: false },
+            { id: 'weak', name: 'Weakness', icon: 'fa-bed', emergency: false },
+            { id: 'cough', name: 'Cold & Cough', icon: 'fa-box-tissue', emergency: false },
+            { id: 'injury', name: 'Injury', icon: 'fa-crutches', emergency: true },
+            { id: 'infection', name: 'Infection', icon: 'fa-biohazard', emergency: false },
+            { id: 'dizzy', name: 'Dizziness', icon: 'fa-arrows-spin', emergency: false },
+            { id: 'nausea', name: 'Nausea', icon: 'fa-face-frown-slight', emergency: false },
+            { id: 'joint', name: 'Joint Pain', icon: 'fa-bone', emergency: false }
+        ];
 
-/* STEP NAVIGATION */
-function nextStep(step){
-  document.querySelectorAll('.step').forEach(s=>s.classList.remove('active'));
-  document.getElementById('step'+step).classList.add('active');
-}
+        // Fill up to 30 categories
+        const extraNames = ["Skin Allergy", "Vision Blur", "Numbness", "Back Pain", "Ear Infection", "Throat Pain", "Eye Redness", "Seizures", "Burn", "Anxiety", "Sleep Loss", "Weight Loss", "Mouth Ulcers", "Urination Pain", "Fainting"];
+        extraNames.forEach(name => symptoms.push({ id: name.toLowerCase().replace(' ',''), name, icon: 'fa-circle-dot', emergency: name === "Seizures" || name === "Fainting" }));
 
-/* SELECT PROBLEM */
-function selectProblem(p){
-  problem = p;
-  nextStep(3);
+        let selectedSymptoms = [];
 
-  let q = document.getElementById("dynamicQuestions");
+        window.onload = () => {
+            const grid = document.getElementById('symGrid');
+            symptoms.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'sym-item';
+                div.innerHTML = `<i class="fas ${s.icon}"></i><span>${s.name}</span>`;
+                div.onclick = () => {
+                    div.classList.toggle('active');
+                    if(div.classList.contains('active')) selectedSymptoms.push(s);
+                    else selectedSymptoms = selectedSymptoms.filter(item => item.id !== s.id);
+                };
+                grid.appendChild(div);
+            });
+            setTimeout(() => { document.getElementById('loader').style.opacity = '0'; setTimeout(() => document.getElementById('loader').style.display = 'none', 800); }, 1500);
+        };
 
-  if(p==="fever"){
-    q.innerHTML = `
-    <input id="days" placeholder="Fever since how many days?">
-    `;
-  }
-  else if(p==="chest"){
-    q.innerHTML = `
-    <select id="painType">
-      <option>Sharp Pain</option>
-      <option>Pressure</option>
-      <option>Burning</option>
-    </select>
-    `;
-  }
-  else if(p==="breath"){
-    q.innerHTML = `
-    <select id="level">
-      <option>Mild</option>
-      <option>Moderate</option>
-      <option>Severe</option>
-    </select>
-    `;
-  }
-  else {
-    q.innerHTML = `<p>No extra details needed</p>`;
-  }
-}
+        function navStep(n) {
+            if(n === 2 && !document.getElementById('pName').value) return alert("Please enter patient name.");
+            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('step' + n).classList.remove('hidden');
+            window.scrollTo(0,0);
+        }
 
-/* AI ANALYSIS */
-function analyze(){
+        function runAnalysis() {
+            if(selectedSymptoms.length === 0) return alert("Please select at least one symptom.");
+            
+            const age = parseInt(document.getElementById('pAge').value);
+            const fever = parseFloat(document.getElementById('pFever').value);
+            const alarm = document.getElementById('alarm');
+            
+            navStep(3);
+            
+            let isEmergency = selectedSymptoms.some(s => s.emergency) || fever >= 103;
+            
+            if(isEmergency) {
+                document.body.classList.add('emergency-mode');
+                document.getElementById('normalResult').classList.add('hidden');
+                document.getElementById('emergencyResult').classList.remove('hidden');
+                alarm.play();
+                setTimeout(() => alarm.pause(), 5000);
+            } else {
+                document.getElementById('resName').innerText = "Medical Report: " + document.getElementById('pName').value;
+                calculateRisk(age, fever);
+                generateAIAdvice(age, fever);
+            }
+        }
 
-  let age = document.getElementById("age").value;
-  let fever = document.getElementById("fever").value;
+        function calculateRisk(age, fever) {
+            let risk = 20;
+            if(fever >= 101) risk += 30;
+            if(age >= 60 || age < 5) risk += 20;
+            if(selectedSymptoms.length > 3) risk += 20;
+            
+            const fill = document.getElementById('riskFill');
+            const label = document.getElementById('riskLabel');
+            const score = document.getElementById('riskScoreText');
 
-  let level = "Mild";
-  let advice = "";
+            fill.style.width = risk + '%';
+            if(risk < 40) { fill.background = 'var(--success)'; label.innerText = "Risk Level: Low"; label.style.color = 'var(--success)'; }
+            else if(risk < 70) { fill.background = 'var(--warning)'; label.innerText = "Risk Level: Moderate"; label.style.color = 'var(--warning)'; }
+            else { fill.background = 'var(--danger)'; label.innerText = "Risk Level: High"; label.style.color = 'var(--danger)'; }
+            
+            score.innerText = risk + "% AI Risk Score";
+        }
 
-  /* BASIC AI LOGIC */
+        function generateAIAdvice(age, fever) {
+            const summary = document.getElementById('aiSummary');
+            const medList = document.getElementById('medList');
+            const bp = document.getElementById('bpSection');
+            
+            let advice = `Patient is experiencing <b>${selectedSymptoms.map(s => s.name).join(', ')}</b>. `;
+            if(fever) advice += `Fever of ${fever}°F noted. `;
+            
+            if(age < 13) {
+                advice += `<br><br><b>Child Health Notice:</b> Pediatric systems are delicate. Do not administer adult medicine. Monitor breathing and activity levels.`;
+                medList.innerHTML = `<p>✔ Use Hydration (ORS)<br>✔ Tepid Sponge Bath<br>✔ Strict Pediatric Consultation</p>`;
+            } else if(age >= 60) {
+                advice += `<br><br><b>Senior Care Notice:</b> High risk for complications. Monitor vitals and consult your doctor even for mild symptoms.`;
+                medList.innerHTML = `<p>✔ Rest and Warmth<br>✔ Professional Medical Review Required</p>`;
+            } else {
+                advice += `<br><br><b>General Advice:</b> Symptoms appear stable but require monitoring. Rest and fluid intake are primary steps.`;
+                medList.innerHTML = `<p>✔ Paracetamol (for fever/pain relief)<br>✔ Plenty of fluids<br>✔ Rest</p>`;
+            }
 
-  if(problem==="heart" || problem==="chest"){
-    level = "Emergency";
-  }
+            if(selectedSymptoms.some(s => s.id === 'bp')) {
+                bp.classList.remove('hidden');
+                document.getElementById('bpNeedle').style.transform = 'rotate(45deg)';
+            }
 
-  if(problem==="breath"){
-    let lvl = document.getElementById("level").value;
-    if(lvl==="Severe") level="Emergency";
-    else level="Moderate";
-  }
+            summary.innerHTML = advice;
+        }
 
-  if(fever > 39){
-    level="Moderate";
-  }
+        function startVoice() {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.onstart = () => { alert("Listening for symptoms..."); };
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript.toLowerCase();
+                symptoms.forEach(s => {
+                    if(transcript.includes(s.name.toLowerCase())) {
+                        const items = document.querySelectorAll('.sym-item');
+                        items.forEach(item => { if(item.innerText === s.name) item.click(); });
+                    }
+                });
+            };
+            recognition.start();
+        }
 
-  if(age > 60 && level !== "Mild"){
-    level="Emergency";
-  }
-
-  /* OUTPUT */
-
-  let output = document.getElementById("output");
-
-  if(level==="Emergency"){
-    document.body.classList.add("emergency");
-
-    let audio = new Audio("https://www.soundjay.com/button/beep-07.wav");
-    audio.play();
-
-    output.innerHTML = `
-    <h1>⚠️ EMERGENCY</h1>
-    <p>Go to nearest hospital immediately</p>
-    <button onclick="call()">Call Emergency</button>
-    `;
-  }
-  else if(level==="Moderate"){
-    output.innerHTML = `
-    <h3>Doctor Visit Recommended</h3>
-    <p>Consult doctor soon</p>
-    <p>Stay hydrated, rest</p>
-    `;
-  }
-  else {
-    output.innerHTML = `
-    <h3>Mild Condition</h3>
-    <p>Rest, hydration</p>
-    <p>Possible: Paracetamol, ORS</p>
-    <p>Consult doctor before taking medicine</p>
-    `;
-  }
-
-  nextStep("result");
-}
-
-/* CALL BUTTON */
-function call(){
-  window.location.href="tel:112";
-}
-</script>
-
+        function toggleChat() { document.getElementById('chatBox').classList.toggle('hidden'); }
+        
+        function sendChat() {
+            const input = document.getElementById('chatIn');
+            const msgs = document.getElementById('chatMsgs');
+            if(!input.value) return;
+            
+            msgs.innerHTML += `<div style="text-align:right; margin-bottom:10px;"><span style="background:var(--primary); color:white; padding:8px; border-radius:10px; display:inline-block;">${input.value}</span></div>`;
+            
+            const query = input.value.toLowerCase();
+            setTimeout(() => {
+                let response = "I understand. Please select this symptom in the wizard for a full report.";
+                if(query.includes('fever')) response = "Fever is often a sign of infection. Adults sometimes use Paracetamol for relief, but monitor your temperature closely.";
+                if(query.includes('heart')) response = "If you have chest pain, please click the 'Heart Symptoms' icon immediately or call 108.";
+                
+                msgs.innerHTML += `<div style="background:#fff; padding:10px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">${response}</div>`;
+                msgs.scrollTop = msgs.scrollHeight;
+            }, 800);
+            input.value = "";
+        }
+    </script>
 </body>
 </html>
