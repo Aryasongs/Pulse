@@ -3,384 +3,164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MediPulse AI | Advanced Clinical Assistant</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <title>Merry Christmas | Elf City</title>
     <style>
-        :root {
-            --primary: #007AFF;
-            --primary-light: #E5F1FF;
-            --success: #34C759;
-            --warning: #FF9F0A;
-            --danger: #FF3B30;
-            --bg: #F2F2F7;
-            --card: rgba(255, 255, 255, 0.8);
-            --text: #1C1C1E;
-            --text-sec: #8E8E93;
-            --transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            --emergency-overlay: transparent;
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
-        body { background: var(--bg); color: var(--text); overflow-x: hidden; transition: background 0.5s ease; }
-        body.emergency-mode { background: var(--danger) !important; --card: rgba(255,255,255,0.1); --text: #fff; --text-sec: #eee; }
-
-        /* --- PRELOADER --- */
-        #loader { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: 0.8s; }
-        .pulse-ring { width: 80px; height: 80px; border: 4px solid var(--primary-light); border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* --- UI COMPONENTS --- */
-        .glass { background: var(--card); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px); border: 1px solid rgba(255,255,255,0.3); border-radius: 28px; box-shadow: 0 20px 40px rgba(0,0,0,0.05); }
-        .container { max-width: 1100px; margin: 0 auto; padding: 0 20px; }
-        .btn { padding: 16px 32px; border-radius: 16px; border: none; font-weight: 700; cursor: pointer; transition: var(--transition); display: inline-flex; align-items: center; gap: 10px; font-size: 1rem; }
-        .btn-primary { background: var(--primary); color: white; }
-        .btn-primary:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,122,255,0.3); }
-        .hidden { display: none !important; }
-
-        /* --- NAVIGATION --- */
-        nav { position: fixed; top: 0; width: 100%; padding: 20px 6%; display: flex; justify-content: space-between; align-items: center; z-index: 1000; transition: 0.3s; }
-        nav.scrolled { background: var(--card); backdrop-filter: blur(15px); padding: 15px 6%; box-shadow: 0 10px 30px rgba(0,0,0,0.03); }
-        .logo { font-size: 1.5rem; font-weight: 800; color: var(--primary); letter-spacing: -1px; }
-
-        /* --- WIZARD STEPS --- */
-        .wizard-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 100px 0; }
-        .step-card { width: 100%; padding: 50px; animation: slideIn 0.6s ease-out; }
-        @keyframes slideIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* --- SYMPTOM GRID --- */
-        .symptom-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px; margin: 30px 0; max-height: 400px; overflow-y: auto; padding-right: 10px; }
-        .sym-item { padding: 20px; text-align: center; cursor: pointer; border-radius: 20px; border: 1px solid #ddd; background: #fff; transition: 0.3s; }
-        .sym-item i { font-size: 1.8rem; color: var(--primary); margin-bottom: 10px; display: block; }
-        .sym-item.active { background: var(--primary); color: white; border-color: var(--primary); transform: scale(1.05); }
-        .sym-item.active i { color: white; }
-
-        /* --- RISK METER --- */
-        .risk-container { margin: 30px 0; text-align: center; }
-        .risk-bar-bg { height: 12px; background: #eee; border-radius: 10px; overflow: hidden; margin: 15px 0; }
-        .risk-fill { height: 100%; width: 0%; transition: 1.5s cubic-bezier(0.1, 0, 0.1, 1); }
-
-        /* --- BP METER --- */
-        .bp-gauge { height: 150px; width: 150px; border-radius: 50%; border: 10px solid #eee; margin: 0 auto; position: relative; display: flex; align-items: center; justify-content: center; }
-        .bp-needle { position: absolute; width: 4px; height: 60px; background: var(--primary); bottom: 50%; transform-origin: bottom; transition: 1s; }
-
-        /* --- CHATBOT --- */
-        .chat-btn { position: fixed; bottom: 30px; right: 30px; width: 65px; height: 65px; background: var(--primary); color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 1001; }
-        .chat-box { position: fixed; bottom: 110px; right: 30px; width: 380px; height: 500px; z-index: 1001; display: flex; flex-direction: column; overflow: hidden; }
-        .chat-header { background: var(--primary); color: white; padding: 20px; font-weight: 700; }
-        .chat-msgs { flex: 1; padding: 20px; overflow-y: auto; background: #f9f9f9; font-size: 0.9rem; }
-        .chat-input { padding: 15px; background: #fff; border-top: 1px solid #eee; display: flex; gap: 10px; }
-
-        /* --- EMERGENCY SCREEN --- */
-        .emergency-notice { text-align: center; padding: 100px 20px; color: white; }
-        .emergency-notice h1 { font-size: 4rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
-
-        /* --- PRINT STYLES --- */
-        @media print {
-            nav, .chat-btn, .btn, footer, .symptom-grid { display: none !important; }
-            .step-card { border: none !important; box-shadow: none !important; background: white !important; color: black !important; }
-            .hidden-print { display: block !important; }
+        /* Day to Night Animation */
+        .sky {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+            animation: dayNight 20s infinite alternate linear;
+            z-index: -2;
         }
 
-        /* --- FOOTER --- */
-        footer { background: #fff; padding: 60px 0 30px; border-top: 1px solid #eee; }
-        .sharan-credit { text-align: center; margin-top: 40px; font-weight: 800; color: #ccc; letter-spacing: 3px; font-size: 0.8rem; }
+        @keyframes dayNight {
+            0% { background: #87CEEB; } /* Day */
+            50% { background: #1a2a6c; } /* Twilight */
+            100% { background: #050505; } /* Night */
+        }
+
+        /* Ground Snow Accumulation */
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 100px;
+            background: white;
+            border-radius: 50% 50% 0 0 / 20px 20px 0 0;
+            z-index: 1;
+        }
+
+        /* Snowflakes Animation */
+        .snowflake {
+            position: fixed;
+            top: -10px;
+            color: white;
+            user-select: none;
+            z-index: 1000;
+            pointer-events: none;
+            animation: fall linear infinite;
+        }
+
+        @keyframes fall {
+            to { transform: translateY(105vh); }
+        }
+
+        /* Santa Walking */
+        .santa {
+            position: absolute;
+            bottom: 50px;
+            left: -200px;
+            width: 150px;
+            z-index: 5;
+            animation: walk 15s linear infinite;
+        }
+
+        @keyframes walk {
+            from { left: -200px; }
+            to { left: 110%; }
+        }
+
+        /* Elf City */
+        .elf-city {
+            position: absolute;
+            bottom: 80px;
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            z-index: 2;
+        }
+
+        .house {
+            width: 80px;
+            height: 80px;
+            background: #a52a2a;
+            position: relative;
+            border: 2px solid #5d2906;
+        }
+
+        .roof {
+            position: absolute;
+            top: -40px;
+            left: -10px;
+            width: 0;
+            height: 0;
+            border-left: 50px solid transparent;
+            border-right: 50px solid transparent;
+            border-bottom: 40px solid #2d5a27;
+        }
+
+        /* Overlay for Start */
+        #overlay {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            cursor: pointer;
+            font-size: 24px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="loader"><div class="pulse-ring"></div><p style="margin-top:20px; font-weight:600;">System Initializing...</p></div>
-    <audio id="alarm" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg"></audio>
+    <div id="overlay" onclick="startMusic()">🎄 Click to Enter Elf City 🎄</div>
 
-    <nav id="navbar">
-        <div class="logo"><i class="fas fa-microchip"></i> MEDIPULSE AI</div>
-        <div style="font-weight:700; font-size:0.8rem; color:var(--text-sec);">AI CLINICAL UNIT v2.0</div>
-    </nav>
-
-    <div class="wizard-container container">
-        
-        <section id="step1" class="step-card glass">
-            <h1 style="font-size: 2.5rem; margin-bottom: 10px;">Welcome, I am your Health Assistant.</h1>
-            <p style="color:var(--text-sec); margin-bottom: 40px;">Please provide your basic details to start the analysis.</p>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-                <div class="input-group">
-                    <label style="display:block; margin-bottom:8px; font-weight:600;">Patient Name</label>
-                    <input type="text" id="pName" placeholder="Enter full name">
-                </div>
-                <div class="input-group">
-                    <label style="display:block; margin-bottom:8px; font-weight:600;">Age (Years)</label>
-                    <input type="number" id="pAge" placeholder="e.g. 25">
-                </div>
-            </div>
-            
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px;">
-                <div class="input-group">
-                    <label style="display:block; margin-bottom:8px; font-weight:600;">Fever (°F)</label>
-                    <input type="number" id="pFever" placeholder="e.g. 98.6">
-                </div>
-                <div class="input-group">
-                    <label style="display:block; margin-bottom:8px; font-weight:600;">Weight (kg)</label>
-                    <input type="number" id="pWeight" placeholder="Optional">
-                </div>
-            </div>
-
-            <button onclick="navStep(2)" class="btn btn-primary" style="width:100%; justify-content:center;">Next: Select Symptoms <i class="fas fa-arrow-right"></i></button>
-        </section>
-
-        <section id="step2" class="step-card glass hidden">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <h2>What are you feeling?</h2>
-                <button onclick="startVoice()" class="btn" style="background:var(--primary-light); color:var(--primary); padding:10px 20px;"><i class="fas fa-microphone"></i> Voice Input</button>
-            </div>
-            <p style="color:var(--text-sec);">Select all that apply. (At least 1 required)</p>
-
-            <div class="symptom-grid" id="symGrid">
-                </div>
-
-            <div style="display:flex; gap:15px;">
-                <button onclick="navStep(1)" class="btn" style="background:#eee;">Back</button>
-                <button onclick="runAnalysis()" class="btn btn-primary" style="flex:1; justify-content:center;">Generate AI Analysis <i class="fas fa-brain"></i></button>
-            </div>
-        </section>
-
-        <section id="step3" class="step-card glass hidden">
-            <div id="normalResult">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                    <div>
-                        <h1 id="resName">Patient Report</h1>
-                        <span id="riskLabel" style="font-weight:700; text-transform:uppercase; font-size:0.8rem;">Analyzing Risk...</span>
-                    </div>
-                    <div style="text-align:right;">
-                        <button onclick="window.print()" class="btn" style="background:var(--primary-light); color:var(--primary);"><i class="fas fa-file-pdf"></i> Download PDF Report</button>
-                    </div>
-                </div>
-
-                <div class="risk-container">
-                    <div class="risk-bar-bg"><div id="riskFill" class="risk-fill"></div></div>
-                    <p id="riskScoreText" style="font-weight:800; font-size:1.2rem;"></p>
-                </div>
-
-                <div id="aiSummary" style="background:#fff; padding:25px; border-radius:20px; border:1px solid #eee; margin-bottom:30px;">
-                    </div>
-
-                <div id="medicationSection" style="margin-top:20px;">
-                    <h3 style="margin-bottom:15px;"><i class="fas fa-pills" style="color:var(--primary);"></i> Comfort Guidance</h3>
-                    <div id="medList"></div>
-                    <p style="font-size:0.8rem; color:var(--danger); margin-top:10px; font-weight:700;">⚠ DISCLAIMER: Consult a doctor before taking any medicine. No exact dosage provided.</p>
-                </div>
-
-                <div id="bpSection" class="hidden" style="margin-top:40px; text-align:center;">
-                    <h3>BP Guide System</h3>
-                    <div class="bp-gauge">
-                        <div class="bp-needle" id="bpNeedle"></div>
-                        <span id="bpValue" style="font-weight:800; font-size:1.5rem;">120/80</span>
-                    </div>
-                    <p style="margin-top:15px; font-size:0.9rem; color:var(--text-sec);">Keep arm at heart level while testing.</p>
-                </div>
-
-                <button onclick="location.reload()" class="btn" style="width:100%; justify-content:center; margin-top:40px; background:#eee;">Start New Assessment</button>
-            </div>
-
-            <div id="emergencyResult" class="hidden">
-                <div class="emergency-notice">
-                    <i class="fas fa-exclamation-triangle" style="font-size:5rem; margin-bottom:20px;"></i>
-                    <h1>GO TO HOSPITAL IMMEDIATELY</h1>
-                    <p style="font-size:1.5rem; margin-top:20px;">Critical indicators detected. Every second counts.</p>
-                    <a href="tel:108" class="btn btn-primary" style="background:white; color:var(--danger); margin-top:40px; font-size:1.5rem; padding:25px 50px;"><i class="fas fa-phone"></i> CALL EMERGENCY (108)</a>
-                    <br><br>
-                    <button onclick="location.reload()" style="background:none; border:1px solid white; color:white; padding:10px; cursor:pointer; border-radius:10px;">Dismiss Alert</button>
-                </div>
-            </div>
-        </section>
+    <div class="sky"></div>
+    
+    <div class="elf-city">
+        <div class="house"><div class="roof"></div></div>
+        <div class="house"><div class="roof"></div></div>
+        <div class="house" style="background: #2e7d32;"><div class="roof" style="border-bottom-color: #c62828;"></div></div>
+        <div class="house"><div class="roof"></div></div>
     </div>
 
-    <div class="chat-btn" onclick="toggleChat()"><i class="fas fa-comment-medical"></i></div>
-    <div class="chat-box glass hidden" id="chatBox">
-        <div class="chat-header">MediPulse Assistant</div>
-        <div class="chat-msgs" id="chatMsgs">
-            <div style="background:#fff; padding:10px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">Hello! I am here to help you understand your symptoms. How are you feeling today?</div>
-        </div>
-        <div class="chat-input">
-            <input type="text" id="chatIn" style="flex:1; border:none; outline:none;" placeholder="Type a symptom...">
-            <button onclick="sendChat()" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
-        </div>
-    </div>
+    <img src="https://media.giphy.com/media/VIs0n-UaTjKBDD7XlO/giphy.gif" class="santa" alt="Santa">
 
-    <footer>
-        <div class="container">
-            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px;">
-                <div>
-                    <div class="logo">MEDIPULSE AI</div>
-                    <p style="margin-top:15px; color:var(--text-sec); font-size:0.9rem;">The leading digital triage assistant for modern healthcare facilities.</p>
-                </div>
-                <div>
-                    <h4 style="margin-bottom:15px;">Emergency Contacts</h4>
-                    <p style="color:var(--danger); font-weight:700;">Ambulance: 108</p>
-                    <p>Police: 100</p>
-                </div>
-                <div>
-                    <h4 style="margin-bottom:15px;">Safety Notice</h4>
-                    <p style="font-size:0.8rem; color:var(--text-sec);">Always seek the advice of your physician with any questions you may have regarding a medical condition.</p>
-                </div>
-            </div>
-            <div class="sharan-credit">DESIGNED BY SHARAN POONI</div>
-        </div>
-    </footer>
+    <div class="ground"></div>
+
+    <audio id="bgMusic" loop>
+        <source src="https://aryasongs.github.io/oriontec-community/qMaIT6zjhhvGQtc.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
-        const symptoms = [
-            { id: 'fever', name: 'Fever', icon: 'fa-temperature-high', emergency: false },
-            { id: 'chest', name: 'Chest Pain', icon: 'fa-heart-circle-exclamation', emergency: true },
-            { id: 'heart', name: 'Heart Symptoms', icon: 'fa-stethoscope', emergency: true },
-            { id: 'breath', name: 'Breathing Problem', icon: 'fa-wind', emergency: true },
-            { id: 'bp', name: 'BP Issues', icon: 'fa-gauge-high', emergency: false },
-            { id: 'stomach', name: 'Stomach Pain', icon: 'fa-user-injured', emergency: false },
-            { id: 'vomit', name: 'Vomiting', icon: 'fa-frown', emergency: false },
-            { id: 'headache', name: 'Headache', icon: 'fa-head-side-virus', emergency: false },
-            { id: 'weak', name: 'Weakness', icon: 'fa-bed', emergency: false },
-            { id: 'cough', name: 'Cold & Cough', icon: 'fa-box-tissue', emergency: false },
-            { id: 'injury', name: 'Injury', icon: 'fa-crutches', emergency: true },
-            { id: 'infection', name: 'Infection', icon: 'fa-biohazard', emergency: false },
-            { id: 'dizzy', name: 'Dizziness', icon: 'fa-arrows-spin', emergency: false },
-            { id: 'nausea', name: 'Nausea', icon: 'fa-face-frown-slight', emergency: false },
-            { id: 'joint', name: 'Joint Pain', icon: 'fa-bone', emergency: false }
-        ];
-
-        // Fill up to 30 categories
-        const extraNames = ["Skin Allergy", "Vision Blur", "Numbness", "Back Pain", "Ear Infection", "Throat Pain", "Eye Redness", "Seizures", "Burn", "Anxiety", "Sleep Loss", "Weight Loss", "Mouth Ulcers", "Urination Pain", "Fainting"];
-        extraNames.forEach(name => symptoms.push({ id: name.toLowerCase().replace(' ',''), name, icon: 'fa-circle-dot', emergency: name === "Seizures" || name === "Fainting" }));
-
-        let selectedSymptoms = [];
-
-        window.onload = () => {
-            const grid = document.getElementById('symGrid');
-            symptoms.forEach(s => {
-                const div = document.createElement('div');
-                div.className = 'sym-item';
-                div.innerHTML = `<i class="fas ${s.icon}"></i><span>${s.name}</span>`;
-                div.onclick = () => {
-                    div.classList.toggle('active');
-                    if(div.classList.contains('active')) selectedSymptoms.push(s);
-                    else selectedSymptoms = selectedSymptoms.filter(item => item.id !== s.id);
-                };
-                grid.appendChild(div);
-            });
-            setTimeout(() => { document.getElementById('loader').style.opacity = '0'; setTimeout(() => document.getElementById('loader').style.display = 'none', 800); }, 1500);
-        };
-
-        function navStep(n) {
-            if(n === 2 && !document.getElementById('pName').value) return alert("Please enter patient name.");
-            document.querySelectorAll('section').forEach(s => s.classList.add('hidden'));
-            document.getElementById('step' + n).classList.remove('hidden');
-            window.scrollTo(0,0);
+        function startMusic() {
+            const music = document.getElementById('bgMusic');
+            music.play();
+            document.getElementById('overlay').style.display = 'none';
+            createSnow();
         }
 
-        function runAnalysis() {
-            if(selectedSymptoms.length === 0) return alert("Please select at least one symptom.");
-            
-            const age = parseInt(document.getElementById('pAge').value);
-            const fever = parseFloat(document.getElementById('pFever').value);
-            const alarm = document.getElementById('alarm');
-            
-            navStep(3);
-            
-            let isEmergency = selectedSymptoms.some(s => s.emergency) || fever >= 103;
-            
-            if(isEmergency) {
-                document.body.classList.add('emergency-mode');
-                document.getElementById('normalResult').classList.add('hidden');
-                document.getElementById('emergencyResult').classList.remove('hidden');
-                alarm.play();
-                setTimeout(() => alarm.pause(), 5000);
-            } else {
-                document.getElementById('resName').innerText = "Medical Report: " + document.getElementById('pName').value;
-                calculateRisk(age, fever);
-                generateAIAdvice(age, fever);
-            }
-        }
-
-        function calculateRisk(age, fever) {
-            let risk = 20;
-            if(fever >= 101) risk += 30;
-            if(age >= 60 || age < 5) risk += 20;
-            if(selectedSymptoms.length > 3) risk += 20;
-            
-            const fill = document.getElementById('riskFill');
-            const label = document.getElementById('riskLabel');
-            const score = document.getElementById('riskScoreText');
-
-            fill.style.width = risk + '%';
-            if(risk < 40) { fill.background = 'var(--success)'; label.innerText = "Risk Level: Low"; label.style.color = 'var(--success)'; }
-            else if(risk < 70) { fill.background = 'var(--warning)'; label.innerText = "Risk Level: Moderate"; label.style.color = 'var(--warning)'; }
-            else { fill.background = 'var(--danger)'; label.innerText = "Risk Level: High"; label.style.color = 'var(--danger)'; }
-            
-            score.innerText = risk + "% AI Risk Score";
-        }
-
-        function generateAIAdvice(age, fever) {
-            const summary = document.getElementById('aiSummary');
-            const medList = document.getElementById('medList');
-            const bp = document.getElementById('bpSection');
-            
-            let advice = `Patient is experiencing <b>${selectedSymptoms.map(s => s.name).join(', ')}</b>. `;
-            if(fever) advice += `Fever of ${fever}°F noted. `;
-            
-            if(age < 13) {
-                advice += `<br><br><b>Child Health Notice:</b> Pediatric systems are delicate. Do not administer adult medicine. Monitor breathing and activity levels.`;
-                medList.innerHTML = `<p>✔ Use Hydration (ORS)<br>✔ Tepid Sponge Bath<br>✔ Strict Pediatric Consultation</p>`;
-            } else if(age >= 60) {
-                advice += `<br><br><b>Senior Care Notice:</b> High risk for complications. Monitor vitals and consult your doctor even for mild symptoms.`;
-                medList.innerHTML = `<p>✔ Rest and Warmth<br>✔ Professional Medical Review Required</p>`;
-            } else {
-                advice += `<br><br><b>General Advice:</b> Symptoms appear stable but require monitoring. Rest and fluid intake are primary steps.`;
-                medList.innerHTML = `<p>✔ Paracetamol (for fever/pain relief)<br>✔ Plenty of fluids<br>✔ Rest</p>`;
-            }
-
-            if(selectedSymptoms.some(s => s.id === 'bp')) {
-                bp.classList.remove('hidden');
-                document.getElementById('bpNeedle').style.transform = 'rotate(45deg)';
-            }
-
-            summary.innerHTML = advice;
-        }
-
-        function startVoice() {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.onstart = () => { alert("Listening for symptoms..."); };
-            recognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript.toLowerCase();
-                symptoms.forEach(s => {
-                    if(transcript.includes(s.name.toLowerCase())) {
-                        const items = document.querySelectorAll('.sym-item');
-                        items.forEach(item => { if(item.innerText === s.name) item.click(); });
-                    }
-                });
-            };
-            recognition.start();
-        }
-
-        function toggleChat() { document.getElementById('chatBox').classList.toggle('hidden'); }
-        
-        function sendChat() {
-            const input = document.getElementById('chatIn');
-            const msgs = document.getElementById('chatMsgs');
-            if(!input.value) return;
-            
-            msgs.innerHTML += `<div style="text-align:right; margin-bottom:10px;"><span style="background:var(--primary); color:white; padding:8px; border-radius:10px; display:inline-block;">${input.value}</span></div>`;
-            
-            const query = input.value.toLowerCase();
-            setTimeout(() => {
-                let response = "I understand. Please select this symptom in the wizard for a full report.";
-                if(query.includes('fever')) response = "Fever is often a sign of infection. Adults sometimes use Paracetamol for relief, but monitor your temperature closely.";
-                if(query.includes('heart')) response = "If you have chest pain, please click the 'Heart Symptoms' icon immediately or call 108.";
+        function createSnow() {
+            setInterval(() => {
+                const snowflake = document.createElement('div');
+                snowflake.innerHTML = '❄';
+                snowflake.classList.add('snowflake');
+                snowflake.style.left = Math.random() * 100 + 'vw';
+                snowflake.style.animationDuration = (Math.random() * 3 + 2) + 's';
+                snowflake.style.opacity = Math.random();
+                snowflake.style.fontSize = Math.random() * 20 + 10 + 'px';
                 
-                msgs.innerHTML += `<div style="background:#fff; padding:10px; border-radius:10px; margin-bottom:10px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">${response}</div>`;
-                msgs.scrollTop = msgs.scrollHeight;
-            }, 800);
-            input.value = "";
+                document.body.appendChild(snowflake);
+
+                // Remove snowflake after it falls to clean up memory
+                setTimeout(() => {
+                    snowflake.remove();
+                }, 5000);
+            }, 100);
         }
     </script>
 </body>
