@@ -3,142 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AeroWorld Pro | Global Flight Hub</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Dozera Skills | Database Course</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        .map-container {
-            filter: grayscale(100%) invert(90%) contrast(90%);
-            border-radius: 20px;
-            overflow: hidden;
-        }
-        .stats-card {
-            background: linear-gradient(145deg, #1e293b, #0f172a);
-            box-shadow: 20px 20px 60px #0a0f1a, -20px -20px 60px #141e30;
-        }
+        :root { --primary: #1a73e8; --success: #28a745; --dark: #202124; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; margin: 0; padding: 20px; color: var(--dark); }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        /* Header & Progress */
+        header { border-bottom: 2px solid #eee; margin-bottom: 30px; padding-bottom: 20px; }
+        .progress-container { height: 8px; background: #e0e0e0; border-radius: 4px; margin: 20px 0; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: 0.5s; border-radius: 4px; }
+        
+        /* Lesson & Quiz UI */
+        .lesson-box, .quiz-box, .result-box, .cert-box { display: none; }
+        .active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .option-card { border: 2px solid #eee; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .option-card:hover { border-color: var(--primary); background: #f1f6ff; }
+        .selected { border-color: var(--primary); background: #f1f6ff; font-weight: bold; }
+        
+        input[type="text"] { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 8px; font-size: 16px; margin-top: 10px; }
+        
+        .btn { background: var(--primary); color: white; border: none; padding: 15px 30px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 20px; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* Certificate Style */
+        #certificate { border: 15px solid var(--primary); padding: 50px; text-align: center; background: white; position: relative; margin-top: 20px; }
+        #certificate h1 { font-size: 50px; margin: 10px 0; color: #1a237e; }
+        .cert-stamp { position: absolute; bottom: 30px; right: 50px; width: 120px; opacity: 0.8; }
     </style>
 </head>
-<body class="bg-slate-950 text-white font-sans">
+<body>
 
-    <!-- Navbar and Hero remain similar but with better glassmorphism -->
+<div class="container">
+    <header>
+        <h2 style="margin:0; color: var(--primary);">DOZERA SKILLS</h2>
+        <div class="progress-container"><div id="progressBar" class="progress-bar"></div></div>
+        <p id="stepIndicator">Lesson 1 of 8</p>
+    </header>
 
-    <!-- 1. LIVE FLIGHT TRACKER MAP -->
-    <section class="py-20 px-6 max-w-7xl mx-auto">
-        <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold">Live Global Traffic</h2>
-            <p class="text-blue-400">Track Air India, United, and IndiGo flights in real-time</p>
+    <!-- LESSONS SECTION -->
+    <div id="lessonArea" class="lesson-box active">
+        <h1 id="lessonTitle">Lesson 1: Database Fundamentals</h1>
+        <div id="lessonContent" style="font-size: 18px; line-height: 1.8;">
+            <!-- Content will be injected here -->
         </div>
+        <button class="btn" onclick="startQuiz()">Next: Take Lesson Quiz</button>
+    </div>
+
+    <!-- QUIZ SECTION -->
+    <div id="quizArea" class="quiz-box">
+        <h3 id="questionText">Question goes here?</h3>
+        <div id="optionsArea"></div>
+        <button id="nextQueBtn" class="btn" onclick="submitAnswer()">Next Question</button>
+    </div>
+
+    <!-- RESULT SECTION -->
+    <div id="resultArea" class="result-box">
+        <h1>Course Finished!</h1>
+        <p id="scoreDisplay" style="font-size: 24px;"></p>
+        <div id="passForm" class="hidden" style="display:none;">
+            <h3>Enter your Legal Name for the Certificate:</h3>
+            <input type="text" id="legalName" placeholder="Full Name (e.g. Sharan Pooni)">
+            <button class="btn" onclick="showCertificate()">Generate Certificate</button>
+        </div>
+        <button id="retryBtn" class="btn" onclick="location.reload()" style="display:none; background: #dc3545;">Retry Course</button>
+    </div>
+
+    <!-- CERTIFICATE VIEW -->
+    <div id="certArea" class="cert-box">
+        <div id="certificate">
+            <h3 style="letter-spacing: 5px;">CERTIFICATE OF COMPLETION</h3>
+            <p>This is to certify that</p>
+            <h1 id="certNameDisplay">SHARAN POONI</h1>
+            <p>has successfully passed the <b>Dozera Skills Database Course</b></p>
+            <p>with an aggregate score above 67%.</p>
+            <div style="margin-top: 50px; border-top: 1px solid #333; display: inline-block; padding: 10px 40px;">
+                Authorized by Dozera Skills
+            </div>
+        </div>
+        <button class="btn" onclick="window.print()">Print / Save PDF</button>
+    </div>
+</div>
+
+<script>
+    // Course Data
+    const lessons = [
+        { title: "Lesson 1: Intro to DB", content: "Databases are organized collections of data. DBMS (Database Management Systems) like MySQL, Oracle, and MongoDB help manage this data efficiently." },
+        { title: "Lesson 2: SQL vs NoSQL", content: "SQL is for structured data (Tables), NoSQL is for unstructured data (JSON/Documents)." },
+        { title: "Lesson 3: Tables & Keys", content: "Primary Key uniquely identifies a record. Foreign Key links two tables." },
+        { title: "Lesson 4: SELECT Queries", content: "Use SELECT * FROM TableName to fetch data." },
+        { title: "Lesson 5: Joins", content: "Joins combine rows from two or more tables based on a related column." },
+        { title: "Lesson 6: Normalization", content: "Process of organizing data to reduce redundancy." },
+        { title: "Lesson 7: Transactions", content: "ACID properties ensure database reliability (Atomicity, Consistency, Isolation, Durability)." },
+        { title: "Lesson 8: Security", content: "Data encryption and user permissions prevent unauthorized access." }
+    ];
+
+    // Dummy Questions (Total 70 for logic)
+    let questions = [];
+    for(let i=1; i<=70; i++) {
+        if(i % 5 === 0) {
+            questions.push({ type: 'fill', q: `Question ${i}: A ______ Key uniquely identifies a record.`, a: "Primary" });
+        } else {
+            questions.push({ type: 'mcq', q: `Database Question ${i}: What is SQL?`, options: ["Structured Query Language", "Simple Queue List", "Standard Quick Link"], a: 0 });
+        }
+    }
+
+    let currentLesson = 0;
+    let currentQuestion = 0;
+    let score = 0;
+    let userSelection = null;
+
+    // Load Initial Lesson
+    function loadLesson() {
+        document.getElementById('lessonTitle').innerText = lessons[currentLesson].title;
+        document.getElementById('lessonContent').innerText = lessons[currentLesson].content;
+        document.getElementById('stepIndicator').innerText = `Lesson ${currentLesson + 1} of 8`;
+        updateProgress();
+    }
+
+    function updateProgress() {
+        let percent = ((currentLesson) / 8) * 100;
+        if(currentQuestion > 0) percent = ((currentQuestion / 70) * 100);
+        document.getElementById('progressBar').style.width = percent + "%";
+    }
+
+    function startQuiz() {
+        document.getElementById('lessonArea').classList.remove('active');
+        document.getElementById('quizArea').classList.add('active');
+        loadQuestion();
+    }
+
+    function loadQuestion() {
+        const q = questions[currentQuestion];
+        document.getElementById('questionText').innerText = q.q;
+        const optionsArea = document.getElementById('optionsArea');
+        optionsArea.innerHTML = '';
+        userSelection = null;
+
+        if(q.type === 'mcq') {
+            q.options.forEach((opt, index) => {
+                const div = document.createElement('div');
+                div.className = 'option-card';
+                div.innerText = opt;
+                div.onclick = () => {
+                    document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+                    div.classList.add('selected');
+                    userSelection = index;
+                };
+                optionsArea.appendChild(div);
+            });
+        } else {
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.id = 'fillInput';
+            input.placeholder = 'Type your answer...';
+            optionsArea.appendChild(input);
+        }
+        document.getElementById('stepIndicator').innerText = `Question ${currentQuestion + 1} of 70`;
+        updateProgress();
+    }
+
+    function submitAnswer() {
+        const q = questions[currentQuestion];
+        if(q.type === 'mcq') {
+            if(userSelection === null) return alert("Select an option!");
+            if(userSelection === q.a) score++;
+        } else {
+            const val = document.getElementById('fillInput').value.trim();
+            if(!val) return alert("Please fill the blank!");
+            if(val.toLowerCase() === q.a.toLowerCase()) score++;
+        }
+
+        currentQuestion++;
+        if(currentQuestion < 70) {
+            loadQuestion();
+        } else {
+            finishCourse();
+        }
+    }
+
+    function finishCourse() {
+        document.getElementById('quizArea').classList.remove('active');
+        document.getElementById('resultArea').classList.add('active');
         
-        <div class="map-container h-[500px] w-full border border-slate-800 shadow-2xl">
-            <!-- Using FlightRadar24 embed as a placeholder for the map -->
-            <iframe 
-                src="https://www.flightradar24.com/simple_index.php?lat=20.5&lon=78.9&z=5" 
-                width="100%" 
-                height="100%" 
-                frameborder="0">
-            </iframe>
-        </div>
-    </section>
+        const percent = (score / 70) * 100;
+        const passed = percent >= 67;
+        
+        document.getElementById('scoreDisplay').innerHTML = `
+            Score: <b>${score}/70</b> (${percent.toFixed(1)}%) <br>
+            Status: <span style="color:${passed ? 'green' : 'red'}">${passed ? 'PASSED' : 'FAILED'}</span>
+        `;
 
-    <!-- 2. INTERACTIVE STATS -->
-    <section class="py-16 bg-blue-600">
-        <div class="max-w-6xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-            <div>
-                <h3 class="text-4xl font-black italic">500+</h3>
-                <p class="uppercase text-sm font-bold opacity-80">Daily Flights</p>
-            </div>
-            <div>
-                <h3 class="text-4xl font-black italic">120</h3>
-                <p class="uppercase text-sm font-bold opacity-80">Destinations</p>
-            </div>
-            <div>
-                <h3 class="text-4xl font-black italic">25M</h3>
-                <p class="uppercase text-sm font-bold opacity-80">Passengers/Year</p>
-            </div>
-            <div>
-                <h3 class="text-4xl font-black italic">09</h3>
-                <p class="uppercase text-sm font-bold opacity-80">Global Hubs</p>
-            </div>
-        </div>
-    </section>
+        if(passed) {
+            document.getElementById('passForm').style.display = 'block';
+        } else {
+            document.getElementById('retryBtn').style.display = 'block';
+        }
+    }
 
-    <!-- 3. AIRPORT SERVICES (The "Bahut Kush" Section) -->
-    <section class="py-20 px-6">
-        <div class="max-w-7xl mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                <img src="https://images.unsplash.com/photo-1569154941061-e231b4725ef1?q=80&w=1000" class="rounded-3xl shadow-2xl border-4 border-slate-800" alt="Lounge">
-                <div>
-                    <h2 class="text-5xl font-bold mb-6">World-Class <span class="text-blue-500">Lounges</span></h2>
-                    <p class="text-gray-400 mb-8 text-lg">Whether you are flying IndiGo's business class or United's Polaris, experience luxury before you even take off.</p>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800">
-                            <i class="fas fa-wifi text-blue-500 mb-2"></i>
-                            <h4 class="font-bold">Free High-Speed Wi-Fi</h4>
-                        </div>
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800">
-                            <i class="fas fa-utensils text-blue-500 mb-2"></i>
-                            <h4 class="font-bold">Gourmet Dining</h4>
-                        </div>
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800">
-                            <i class="fas fa-spa text-blue-500 mb-2"></i>
-                            <h4 class="font-bold">Spa & Wellness</h4>
-                        </div>
-                        <div class="p-4 bg-slate-900 rounded-xl border border-slate-800">
-                            <i class="fas fa-briefcase text-blue-500 mb-2"></i>
-                            <h4 class="font-bold">Business Centers</h4>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    function showCertificate() {
+        const name = document.getElementById('legalName').value;
+        if(!name) return alert("Please enter your name!");
+        document.getElementById('resultArea').classList.remove('active');
+        document.getElementById('certArea').classList.add('active');
+        document.getElementById('certNameDisplay').innerText = name.toUpperCase();
+    }
 
-    <!-- 4. DESTINATION CARDS -->
-    <section class="py-20 bg-slate-900/50">
-        <h3 class="text-center text-3xl font-bold mb-12">Popular Routes</h3>
-        <div class="flex overflow-x-auto gap-6 px-10 pb-10 scrollbar-hide">
-            <!-- Card 1 -->
-            <div class="min-w-[300px] h-[400px] relative rounded-2xl overflow-hidden group">
-                <img src="https://images.unsplash.com/photo-1546412414-e188526159ca?q=80&w=1000" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition duration-500">
-                <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-                <div class="absolute bottom-6 left-6">
-                    <h4 class="text-2xl font-bold">New York</h4>
-                    <p class="text-sm opacity-80 italic">via United Airlines</p>
-                </div>
-            </div>
-            <!-- Card 2 -->
-            <div class="min-w-[300px] h-[400px] relative rounded-2xl overflow-hidden group">
-                <img src="https://images.unsplash.com/photo-1587474260584-136574528ed5?q=80&w=1000" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition duration-500">
-                <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-                <div class="absolute bottom-6 left-6">
-                    <h4 class="text-2xl font-bold">New Delhi</h4>
-                    <p class="text-sm opacity-80 italic">via Air India</p>
-                </div>
-            </div>
-             <!-- Card 3 -->
-             <div class="min-w-[300px] h-[400px] relative rounded-2xl overflow-hidden group">
-                <img src="https://images.unsplash.com/photo-1524413840807-0c3cb6fa808d?q=80&w=1000" class="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition duration-500">
-                <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
-                <div class="absolute bottom-6 left-6">
-                    <h4 class="text-2xl font-bold">Tokyo</h4>
-                    <p class="text-sm opacity-80 italic">via IndiGo Connect</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- 5. NEWSLETTER SECTION -->
-    <section class="py-20 px-6">
-        <div class="max-w-4xl mx-auto stats-card p-12 rounded-[40px] text-center border border-white/10">
-            <h2 class="text-4xl font-bold mb-4">Get Special Fares</h2>
-            <p class="text-gray-400 mb-8">Join 100,000+ travelers and get notified about cheap tickets and new routes.</p>
-            <div class="flex flex-col md:flex-row gap-4">
-                <input type="email" placeholder="Enter your email" class="flex-1 bg-white/5 border border-white/20 p-4 rounded-2xl outline-none focus:border-blue-500">
-                <button class="bg-white text-black font-bold px-10 py-4 rounded-2xl hover:bg-blue-400 hover:text-white transition">Subscribe</button>
-            </div>
-        </div>
-    </section>
+    loadLesson();
+</script>
 
 </body>
 </html>
