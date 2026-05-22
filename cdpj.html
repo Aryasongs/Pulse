@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CDJP - Cockroach Destroyer Janta Party</title>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Inter:wght@300;400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --bg-dark: #050505;
+            --bg-card: #0d0d0d;
+            --primary-red: #ff1e27;
+            --neon-green: #39ff14;
+            --text-light: #f5f5f5;
+            --text-muted: #888;
+            --glitch-glow: 0 0 10px rgba(255, 30, 39, 0.5);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+            cursor: none; /* Custom spray cursor */
+        }
+
+        h1, h2, h3, .font-cyber {
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        .mono {
+            font-family: 'Share Tech Mono', monospace;
+        }
+
+        /* --- CUSTOM SPRAY CURSOR & ESCAPING ROACH --- */
+        #custom-cursor {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--neon-green);
+            border-radius: 50%;
+            position: fixed;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 9999;
+            transition: width 0.1s, height 0.1s;
+        }
+        #custom-cursor::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--primary-red);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .spray-cloud {
+            position: fixed;
+            width: 30px;
+            height: 30px;
+            background: rgba(57, 255, 20, 0.4);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            filter: blur(8px);
+            animation: sprayFade 0.4s ease-out forwards;
+        }
+        @keyframes sprayFade {
+            to { transform: scale(3); opacity: 0; }
+        }
+
+        #running-roach {
+            position: fixed;
+            width: 35px;
+            height: 35px;
+            font-size: 24px;
+            z-index: 9995;
+            transition: all 0.2s ease-out;
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* --- ATMOSPHERE & BACKGROUNDS --- */
+        .fog-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(13,13,13,0.3) 0%, rgba(5,5,5,1) 100%);
+            z-index: -2;
+        }
+        .siren-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(90deg, rgba(255,0,0,0.03) 0%, rgba(0,0,0,0) 50%, rgba(0,0,255,0.03) 100%);
+            pointer-events: none;
+            z-index: 999;
+            animation: sirenAlert 4s infinite alternate;
+        }
+        @keyframes sirenAlert {
+            0% { opacity: 0.3; }
+            100% { opacity: 0.8; }
+        }
+
+        /* --- TICKER & UTILITIES --- */
+        .ticker-wrap {
+            width: 100%; background: var(--primary-red);
+            color: #000; font-weight: bold;
+            padding: 8px 0; overflow: hidden;
+            border-bottom: 2px solid var(--neon-green);
+        }
+        .ticker {
+            display: inline-block; white-space: nowrap;
+            padding-right: 100%; animation: tickerMove 25s linear infinite;
+        }
+        @keyframes tickerMove {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-100%, 0, 0); }
+        }
+
+        /* --- CONTROL HUB (TOP BAR) --- */
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 20px 5%; background: rgba(5,5,5,0.85);
+            border-bottom: 1px solid #222; sticky: top; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .logo { font-size: 1.5rem; font-weight: 900; color: var(--primary-red); display: flex; align-items: center; gap: 10px;}
+        .logo span { color: var(--neon-green); }
+        .hud-controls { display: flex; gap: 20px; align-items: center;}
+        .hud-btn {
+            background: #111; border: 1px solid var(--neon-green);
+            color: var(--neon-green); padding: 8px 16px; border-radius: 4px;
+            font-family: 'Share Tech Mono', monospace; cursor: pointer; transition: 0.3s;
+        }
+        .hud-btn:hover { background: var(--neon-green); color: #000; box-shadow: 0 0 10px var(--neon-green); }
+
+        /* --- HERO SECTION --- */
+        .hero {
+            position: relative; min-height: 90vh; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center;
+            padding: 40px 20px; overflow: hidden;
+        }
+        .glitch-title {
+            font-size: 3.5rem; font-weight: 900; color: var(--text-light);
+            text-shadow: var(--glitch-glow); margin-bottom: 20px; max-width: 900px;
+            position: relative;
+        }
+        .glitch-title::before {
+            content: "THE WAR AGAINST THE INFESTATION HAS BEGUN.";
+            position: absolute; left: 2px; text-shadow: -1px 0 var(--neon-green);
+            top: 0; color: var(--text-light); background: var(--bg-dark); overflow: hidden;
+            clip: rect(0, 900px, 0, 0); animation: noise-1 3s infinite linear alternate-reverse;
+        }
+        @keyframes noise-1 {
+            0% { clip: rect(20px, 9999px, 66px, 0); }
+            100% { clip: rect(40px, 9999px, 42px, 0); }
+        }
+        .hero-sub { font-size: 1.2rem; color: var(--text-muted); max-width: 600px; margin-bottom: 40px; }
+        
+        .btn-container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; }
+        .btn {
+            padding: 15px 30px; font-weight: bold; border-radius: 0px; text-decoration: none;
+            transition: 0.3s; font-family: 'Orbitron', sans-serif; font-size: 0.9rem;
+        }
+        .btn-primary { background: var(--primary-red); color: white; border: 2px solid var(--primary-red); }
+        .btn-primary:hover { background: transparent; color: var(--primary-red); box-shadow: 0 0 15px var(--primary-red); }
+        .btn-secondary { background: transparent; color: var(--neon-green); border: 2px solid var(--neon-green); }
+        .btn-secondary:hover { background: var(--neon-green); color: black; box-shadow: 0 0 15px var(--neon-green); }
+
+        /* --- COUNTDOWN BOX --- */
+        .countdown-box {
+            margin-top: 50px; background: rgba(255, 30, 39, 0.05);
+            border: 1px dashed var(--primary-red); padding: 15px 30px;
+            display: inline-block; text-align: center;
+        }
+        .countdown-timer { font-size: 1.8rem; font-weight: bold; color: var(--primary-red); margin-top: 5px; }
+
+        /* --- SECTIONS COMMON --- */
+        section { padding: 100px 10%; position: relative; border-bottom: 1px solid #111; }
+        .section-title { font-size: 2.5rem; margin-bottom: 50px; text-align: center; position: relative;}
+        .section-title span { color: var(--primary-red); }
+        .section-title::after {
+            content: ''; display: block; width: 60px; height: 4px; background: var(--neon-green);
+            margin: 10px auto 0 auto;
+        }
+
+        /* --- ABOUT & STATS --- */
+        .about-container { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+        .about-text { font-size: 1.1rem; line-height: 1.8; color: #ccc; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .stat-card {
+            background: var(--bg-card); padding: 30px; border-left: 4px solid var(--neon-green);
+            text-align: left; transition: transform 0.3s;
+        }
+        .stat-card:hover { transform: translateY(-5px); background: #121212; }
+        .stat-num { font-size: 2rem; font-weight: bold; color: var(--text-light); font-family: 'Share Tech Mono', monospace; }
+        .stat-label { color: var(--text-muted); font-size: 0.9rem; margin-top: 5px; text-transform: uppercase; }
+
+        /* --- MANIFESTO CARDS --- */
+        .manifesto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; }
+        .manifesto-card {
+            background: var(--bg-card); border: 1px solid #222; padding: 40px 30px;
+            transition: all 0.3s ease; position: relative; overflow: hidden;
+        }
+        .manifesto-card::before {
+            content: ''; position: absolute; top:0; left:0; width:100%; height:3px;
+            background: var(--primary-red); transform: scaleX(0); transform-origin: left; transition: 0.3s;
+        }
+        .manifesto-card:hover::before { transform: scaleX(1); }
+        .manifesto-card:hover { border-color: var(--primary-red); transform: translateY(-5px); }
+        .manifesto-icon { font-size: 2.5rem; color: var(--neon-green); margin-bottom: 20px; }
+        .manifesto-card h3 { font-size: 1.3rem; margin-bottom: 15px; }
+        .manifesto-card p { color: var(--text-muted); line-height: 1.5; font-size: 0.95rem; }
+
+        /* --- EDUCATION SECTION --- */
+        .edu-container { display: grid; grid-template-columns: 1.5fr 1fr; gap: 50px; }
+        .edu-step { margin-bottom: 30px; display: flex; gap: 20px; }
+        .edu-num {
+            background: var(--neon-green); color: black; width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; flex-shrink: 0; font-family: 'Orbitron', sans-serif;
+        }
+        .edu-content h3 { font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+        .edu-content ul { list-style: none; }
+        .edu-content li { color: var(--text-muted); margin-bottom: 5px; position: relative; padding-left: 15px; }
+        .edu-content li::before { content: '»'; position: absolute; left: 0; color: var(--neon-green); }
+        
+        .warning-box {
+            background: rgba(255, 30, 39, 0.1); border: 2px dashed var(--primary-red);
+            padding: 30px; display: flex; gap: 20px; align-items: center; margin-top: 30px;
+        }
+        .warning-box i { font-size: 3rem; color: var(--primary-red); }
+        .warning-title { font-weight: bold; color: #fff; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px;}
+
+        /* --- MEME WAR ROOM --- */
+        .meme-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .meme-card { background: var(--bg-card); border: 1px solid #222; overflow: hidden; }
+        .meme-img-placeholder {
+            height: 250px; background: #151515; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; position: relative;
+            border-bottom: 1px solid #222; color: #333;
+        }
+        .meme-img-placeholder i { font-size: 4rem; color: #222; }
+        .meme-tag {
+            position: absolute; top: 15px; left: 15px; background: var(--primary-red);
+            color: white; padding: 4px 10px; font-size: 0.75rem; font-weight: bold;
+        }
+        .meme-overlay-text {
+            position: absolute; width: 90%; text-align: center; color: white;
+            font-family: 'Impact', sans-serif; font-size: 1.8rem; text-transform: uppercase;
+            letter-spacing: 1px; -webkit-text-stroke: 1px black;
+        }
+        .meme-overlay-top { top: 15px; }
+        .meme-overlay-bottom { bottom: 15px; }
+
+        .meme-comments { padding: 20px; font-size: 0.9rem; }
+        .comment { margin-bottom: 10px; border-bottom: 1px solid #151515; padding-bottom: 8px;}
+        .comment-user { color: var(--neon-green); font-weight: bold; margin-right: 5px; }
+        .comment-text { color: #ccc; }
+
+        /* --- SUPREME COMMANDER --- */
+        .leader-section { background: linear-gradient(180deg, var(--bg-dark) 0%, #0d0202 100%); text-align: center; }
+        .leader-avatar {
+            width: 200px; height: 200px; background: #222; border-radius: 50%; margin: 0 auto 30px auto;
+            border: 4px solid var(--primary-red); display: flex; align-items: center; justify-content: center;
+            position: relative; box-shadow: 0 0 30px rgba(255, 30, 39, 0.3);
+        }
+        .leader-avatar i { font-size: 5rem; color: #444; }
+        .leader-quote { font-size: 1.8rem; font-style: italic; max-width: 700px; margin: 0 auto 30px auto; color: #eee;}
+        .leader-meter-wrap { max-width: 400px; margin: 0 auto; background: #222; height: 12px; border-radius: 6px; overflow: hidden; border: 1px solid #444;}
+        .leader-meter { height: 100%; width: 98.4%; background: linear-gradient(90deg, var(--primary-red), var(--neon-green)); }
+        .leader-meter-text { margin-top: 10px; font-family: 'Share Tech Mono', monospace; color: var(--neon-green); }
+
+        /* --- MEMBERSHIP FORM --- */
+        .join-container { max-width: 600px; margin: 0 auto; background: var(--bg-card); padding: 40px; border: 1px solid #222;}
+        .form-group { margin-bottom: 20px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 8px; font-family: 'Share Tech Mono', monospace; color: var(--neon-green); }
+        .form-control {
+            width: 100%; background: #050505; border: 1px solid #333; padding: 12px;
+            color: white; font-family: 'Inter', sans-serif;
+        }
+        .form-control:focus { border-color: var(--primary-red); outline: none; }
+        .badge-animation {
+            display: none; background: rgba(57, 255, 20, 0.1); border: 2px solid var(--neon-green);
+            padding: 20px; margin-top: 20px; text-align: center; animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+            0% { box-shadow: 0 0 5px rgba(57,255,20,0.2); }
+            50% { box-shadow: 0 0 20px rgba(57,255,20,0.6); }
+            100% { box-shadow: 0 0 5px rgba(57,255,20,0.2); }
+        }
+
+        /* --- FLOATING CHATBOT --- */
+        .chat-widget {
+            position: fixed; bottom: 30px; right: 30px; width: 320px; background: var(--bg-card);
+            border: 2px solid var(--primary-red); z-index: 1000; display: none; flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .chat-header {
+            background: var(--primary-red); padding: 12px; font-family: 'Orbitron', sans-serif;
+            font-weight: bold; display: flex; justify-content: space-between; align-items: center; color: white;
+        }
+        .chat-logs { height: 250px; padding: 15px; overflow-y: auto; font-size: 0.85rem; display: flex; flex-direction: column; gap: 10px;}
+        .chat-msg { padding: 8px 12px; border-radius: 4px; max-width: 85%; line-height: 1.4; }
+        .chat-msg.bot { background: #1a1a1a; color: var(--neon-green); align-self: flex-start; border-left: 2px solid var(--neon-green); }
+        .chat-msg.user { background: var(--primary-red); color: white; align-self: flex-end; }
+        .chat-input-area { display: flex; border-top: 1px solid #222; }
+        .chat-input { flex-grow: 1; background: #000; border: none; padding: 10px; color: white; font-size: 0.85rem;}
+        .chat-input:focus { outline: none; }
+        .chat-send { background: #222; border: none; color: var(--neon-green); padding: 0 15px; cursor: pointer; }
+        
+        .chat-trigger {
+            position: fixed; bottom: 30px; right: 30px; background: var(--primary-red);
+            color: white; width: 60px; height: 60px; border-radius: 50%; display: flex;
+            align-items: center; justify-content: center; font-size: 1.5rem; z-index: 999;
+            box-shadow: 0 0 15px var(--primary-red); transition: transform 0.3s;
+        }
+        .chat-trigger:hover { transform: scale(1.1); }
+
+        /* --- FOOTER --- */
+        footer { background: #020202; padding: 50px 10%; border-top: 1px solid #111; text-align: center;}
+        .footer-links { display: flex; justify-content: center; gap: 30px; margin-bottom: 20px; flex-wrap: wrap;}
+        .footer-links a { color: var(--text-muted); text-decoration: none; font-size: 0.9rem; transition: 0.3s;}
+        .footer-links a:hover { color: var(--primary-red); }
+        .footer-text { color: #444; font-size: 0.8rem; margin-top: 20px; }
+
+        /* --- RESPONSIVE DESIGN --- */
+        @media (max-width: 768px) {
+            body { cursor: auto; } /* Disable custom cursor mechanics on mobile for compatibility */
+            #custom-cursor, #running-roach { display: none !important; }
+            .glitch-title { font-size: 2.2rem; }
+            .about-container, .edu-container { grid-template-columns: 1fr; gap: 30px; }
+            section { padding: 60px 5%; }
+            header { flex-direction: column; gap: 15px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- CUSTOM CURSOR ELEMENT -->
+    <div id="custom-cursor"></div>
+
+    <!-- EVADING COCKROACH TARGET -->
+    <div id="running-roach">🪳</div>
+
+    <!-- EMERGENCY SIREN EFFECTS -->
+    <div class="siren-overlay"></div>
+    <div class="fog-bg"></div>
+
+    <!-- BREAKING NEWS TICKER -->
+    <div class="ticker-wrap">
+        <div class="ticker mono">
+            ⚠️ EMERGENCY WARNING: HOSTEL KITCHEN OUTBREAK REPORTED IN ZONE 4 // TOTAL ROACHES ELIMINATED NATIONWIDE SURPASSES 5 MILLION // JOIN THE CDJP ARMY TODAY FOR FREE BUG SPRAY ELIGIBILITY // THIS IS NOT A DRILL ⚠️
+        </div>
+    </div>
+
+    <!-- HUD CONTROL HEADER -->
+    <header>
+        <div class="logo">
+            <i class="fa-solid fa-radiation"></i> CDJP <span>JANTA PARTY</span>
+        </div>
+        <div class="hud-controls">
+            <span class="mono" style="color: var(--neon-green); font-size: 0.9rem;">
+                SUPPORTERS: <span id="live-counter">24,152,891</span>
+            </span>
+            <button class="hud-btn" id="music-toggle"><i class="fa-solid fa-volume-xmark"></i> BATTLE AUDIO</button>
+        </div>
+    </header>
+
+    <!-- HERO SECTION -->
+    <section class="hero" id="home">
+        <h1 class="glitch-title">THE WAR AGAINST THE INFESTATION HAS BEGUN.</h1>
+        <p class="hero-sub">Cockroach Destroyer Janta Party stands for a cleaner future, stronger homes, and a roach-free nation.</p>
+        
+        <div class="btn-container">
+            <a href="#join" class="btn btn-primary">JOIN THE MOVEMENT</a>
+            <a href="#chat-anchor" onclick="openChat()" class="btn btn-secondary">REPORT A COCKROACH</a>
+            <a href="#manifesto" class="btn btn-secondary">VIEW MANIFESTO</a>
+        </div>
+
+        <div class="countdown-box">
+            <div class="mono" style="font-size: 0.8rem; color: var(--text-muted); letter-spacing: 2px;">ELECTION TO TOTAL CLEANSE COUNTDOWN</div>
+            <div class="countdown-timer mono" id="timer">00d : 00h : 00m : 00s</div>
+        </div>
+    </section>
+
+    <!-- ABOUT SECTION -->
+    <section id="about">
+        <h2 class="section-title">Who <span>Are We?</span></h2>
+        <div class="about-container">
+            <div class="about-text">
+                <p>Cockroach Destroyer Janta Party (CDJP) is a functional satirical movement dedicated to ending the reign of cockroaches across homes, hostels, kitchens, governments, and the internet.</p>
+                <br>
+                <p>We believe humanity deserves peace, hygiene, and meme-quality freedom. Whether they crawl behind refrigerator coils or propagate inside comment chains, no critter is hidden from our structural operations.</p>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-num">20M+</div>
+                    <div class="stat-label">Supporters Joined</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" style="color: var(--primary-red);">5M+</div>
+                    <div class="stat-label">Roaches Defeated</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">120+</div>
+                    <div class="stat-label">Cities Protected</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num" style="color: var(--neon-green);">24/7</div>
+                    <div class="stat-label">Task Force Active</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MANIFESTO SECTION -->
+    <section id="manifesto">
+        <h2 class="section-title">The CDJP <span>Manifesto</span></h2>
+        <div class="manifesto-grid">
+            <div class="manifesto-card">
+                <div class="manifesto-icon"><i class="fa-solid fa-house-shield"></i></div>
+                <h3>Clean Homes Mission</h3>
+                <p>Free global and localized awareness campaigns regarding foundational hygiene metrics and strategic pest prevention.</p>
+            </div>
+            <div class="manifesto-card">
+                <div class="manifesto-icon"><i class="fa-solid fa-truck-fast"></i></div>
+                <h3>Emergency Roach Response</h3>
+                <p>Deployment structural networks for rapid tactical response teams inside severe infestation infrastructure emergency clusters.</p>
+            </div>
+            <div class="manifesto-card">
+                <div class="manifesto-icon"><i class="fa-solid fa-circle-nodes"></i></div>
+                <h3>Internet Roach Control</h3>
+                <p>Exposing cringe-tier structural propaganda, spam loops, and bots infiltrating modern safe digital communication assets.</p>
+            </div>
+            <div class="manifesto-card">
+                <div class="manifesto-icon"><i class="fa-solid fa-崩"></i><i class="fa-solid fa-face-laugh-squint"></i></div>
+                <h3>Youth Against Roaches</h3>
+                <p>High-tier meme generation infrastructure and digital operations to make insect eradication visually compelling.</p>
+            </div>
+            <div class="manifesto-card">
+                <div class="manifesto-icon"><i class="fa-solid fa-spray-can"></i></div>
+                <h3>National Spray Program</h3>
+                <p>Subsidized structural deployment options ensuring affordable chemical countermeasure packages for every economic unit.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- HOW TO REMOVE COCKROACHES (EDUCATIONAL) -->
+    <section id="education">
+        <h2 class="section-title">Tactical <span>Eradication Protocol</span></h2>
+        <div class="edu-container">
+            <div>
+                <div class="edu-step">
+                    <div class="edu-num">01</div>
+                    <div class="edu-content">
+                        <h3>Keep Kitchen Clean</h3>
+                        <ul>
+                            <li>Never leave food uncovered overnight on counters.</li>
+                            <li>Wipe down localized crumbs, structural sugar residues, and dynamic grease spills instantly.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="edu-step">
+                    <div class="edu-num">02</div>
+                    <div class="edu-content">
+                        <h3>Seal Structural Entry Points</h3>
+                        <ul>
+                            <li>Seal open architectural fractures, floor fissures, and unmonitored drain access frameworks.</li>
+                            <li>Repair leaking plumbing mechanics to starve targets of standard moisture reserves.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="edu-step">
+                    <div class="edu-num">03</div>
+                    <div class="edu-content">
+                        <h3>Deploy Gel Baits & Traps</h3>
+                        <ul>
+                            <li>Place certified chemical matrix baits near high-probability target corners and unlit sectors.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="edu-step">
+                    <div class="edu-num">04</div>
+                    <div class="edu-content">
+                        <h3>Natural Preventative Remedies</h3>
+                        <ul>
+                            <li>Deploy baking soda mixed with sugar granular attractants for localized termination loops.</li>
+                            <li>Utilize targeted solutions of organic neem oil spray and dry bay leaves inside cabinets.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="edu-step">
+                    <div class="edu-num">05</div>
+                    <div class="edu-content">
+                        <h3>Professional Pest Control</h3>
+                        <ul>
+                            <li>Engage authorized tactical enterprise extermination services if infestation density breaks structural limits.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div class="warning-box">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <div>
+                        <div class="warning-title">CRITICAL HAZARD WARNING</div>
+                        <p style="color: #ccc; font-size: 0.9rem; line-height: 1.4;">Avoid unauthorized unsafe chemicals. Keep hazardous commercial termination elements strictly isolated from children and companion animals at all times.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MEME WAR ROOM -->
+    <section id="memes">
+        <h2 class="section-title">Meme <span>War Room</span></h2>
+        <div class="meme-grid">
+            <div class="meme-card">
+                <div class="meme-img-placeholder">
+                    <div class="meme-tag">PROPAGANDA</div>
+                    <div class="meme-overlay-text meme-overlay-top">ME SEEING A FLYING ROACH</div>
+                    <div class="meme-overlay-text meme-overlay-bottom">TIME TO BURN THE HOUSE NOW</div>
+                    <i class="fa-solid fa-ghost"></i>
+                </div>
+                <div class="meme-comments">
+                    <div class="comment"><span class="comment-user">@AlphaHunter:</span><span class="comment-text">Literally packed my bags last night. 😂</span></div>
+                    <div class="comment"><span class="comment-user">@HostelSurvivor:</span><span class="comment-text">They fly straight at your face bro, aimbot.</span></div>
+                </div>
+            </div>
+            <div class="meme-card">
+                <div class="meme-img-placeholder">
+                    <div class="meme-tag">ROACH OF THE WEEK</div>
+                    <div class="meme-overlay-text meme-overlay-top" style="color: var(--neon-green);">WANTED ALIVE OR SQUASHED</div>
+                    <div class="meme-overlay-text meme-overlay-bottom" style="font-size:1.2rem;">ALIAS: "THE MICROWAVE NINJA"</div>
+                    <i class="fa-solid fa-bug"></i>
+                </div>
+                <div class="meme-comments">
+                    <div class="comment"><span class="comment-user">@KitchenCommand:</span><span class="comment-text">Spotted him on the soup bowl yesterday!</span></div>
+                    <div class="comment"><span class="comment-user">@CDJP_Official:</span><span class="comment-text">Reward issued: 5 liters of premium spray.</span></div>
+                </div>
+            </div>
+            <div class="meme-card">
+                <div class="meme-img-placeholder">
+                    <div class="meme-tag">DEBATE MODE</div>
+                    <div class="meme-overlay-text meme-overlay-top">ROACH IN RESIDENCE: EXISTS</div>
+                    <div class="meme-overlay-text meme-overlay-bottom">CDJP ARMY: SO YOU CHOSE DEATH</div>
+                    <i class="fa-solid fa-skull-crossbones"></i>
+                </div>
+                <div class="meme-comments">
+                    <div class="comment"><span class="comment-user">@MemeGeneral:</span><span class="comment-text">The spray goes click-clack! 💥</span></div>
+                    <div class="comment"><span class="comment-user">@NoBugZone:</span><span class="comment-text">No negotiations with multi-legged intruders.</span></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SUPREME COMMANDER SECTION -->
+    <section class="leader-section">
+        <h2 class="section-title">Supreme <span>Commander</span></h2>
+        <div class="leader-avatar">
+            <i class="fa-solid fa-user-ninja"></i>
+        </div>
+        <p class="leader-quote">"If it crawls in darkness, we bring the light."</p>
+        <div style="font-family: 'Share Tech Mono', monospace; color: #aaa; margin-bottom: 10px;">POPULARITY MATRIX INDEX</div>
+        <div class="leader-meter-wrap">
+            <div class="leader-meter"></div>
+        </div>
+        <div class="leader-meter-text">98.4% APPROVAL RATING NATIONWIDE</div>
+    </section>
+
+    <!-- MEMBERSHIP SECTION -->
+    <section id="join">
+        <h2 class="section-title">Join <span>CDJP</span></h2>
+        <div class="join-container">
+            <form id="membershipForm" onsubmit="handleJoin(event)">
+                <div class="form-group">
+                    <label>IDENTIFICATION NAME</label>
+                    <input type="text" class="form-control" required placeholder="Ex: Hunter X">
+                </div>
+                <div class="form-group">
+                    <label>TARGET CITY</label>
+                    <input type="text" class="form-control" required placeholder="Ex: Sector 9 Sector">
+                </div>
+                <div class="form-group">
+                    <label>BIOLOGICAL AGE</label>
+                    <input type="number" class="form-control" required placeholder="Ex: 21">
+                </div>
+                <div class="form-group">
+                    <label>WHY DO YOU HATE COCKROACHES?</label>
+                    <textarea class="form-control" rows="3" required placeholder="State your structural operational grievances..."></textarea>
+                </div>
+                <div class="btn-container" style="justify-content: flex-start;">
+                    <button type="submit" class="btn btn-primary" style="cursor: none;">BECOME A DESTROYER</button>
+                </div>
+            </form>
+            <div class="badge-animation" id="badgeContainer">
+                <i class="fa-solid fa-id-badge" style="font-size: 3rem; color: var(--neon-green); margin-bottom: 10px;"></i>
+                <h3 style="color: var(--neon-green);">REGISTRATION SUCCESSFUL</h3>
+                <p class="mono" style="margin-top: 5px;">OFFICIAL ROACH HUNTER ID ASSIGNED</p>
+            </div>
+        </div>
+    </section>
+
+    <div id="chat-anchor"></div>
+
+    <!-- FLOATING AI CHATBOT TRIGGER -->
+    <div class="chat-trigger" onclick="toggleChat()"><i class="fa-solid fa-robot"></i></div>
+
+    <!-- AI CHATBOT WIDGET -->
+    <div class="chat-widget" id="chatWidget">
+        <div class="chat-header">
+            <span>ROACH DETECTOR AI v1.02</span>
+            <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="toggleChat()"></i>
+        </div>
+        <div class="chat-logs" id="chatLogs">
+            <div class="chat-msg bot">SYSTEM ONLINE: Welcome Cadet. Report your infestation status or type 'LOCATE' to activate automated scanning measures.</div>
+        </div>
+        <div class="chat-input-area">
+            <input type="text" class="chat-input" id="chatInput" placeholder="Type message to Intel Unit..." onkeydown="if(event.key === 'Enter') sendChatMessage()">
+            <button class="chat-send" onclick="sendChatMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="footer-links">
+            <a href="#home">HOME</a>
+            <a href="#manifesto">MANIFESTO</a>
+            <a href="#education">ANTI-ROACH NEWS</a>
+            <a href="#join">JOIN THE MOVEMENT</a>
+            <a href="#">PRIVACY INFRASTRUCTURE</a>
+        </div>
+        <div class="logo" style="justify-content: center; font-size: 1.1rem; margin-top: 20px;">
+            <i class="fa-solid fa-radiation"></i> CDJP — Eradicating infestations since Day One.
+        </div>
+        <p class="footer-text">© 2026 CDJP Satirical Operations. Developed for internet amusement parameters.</p>
+    </footer>
+
+    <!-- INTERACTIVE JAVASCRIPT LOGIC -->
+    <script>
+        // --- LIVE SUPPORTER SIMULATION ---
+        let baseCount = 24152891;
+        setInterval(() => {
+            baseCount += Math.floor(Math.random() * 4) + 1;
+            document.getElementById('live-counter').innerText = baseCount.toLocaleString();
+        }, 2000);
+
+        // --- FAKE ELECTION COUNTDOWN ---
+        const targetDate = new Date();
+        targetDate.setDate(targetDate.getDate() + 45); // Always set 45 days into future
+        function updateTimer() {
+            const now = new Date().getTime();
+            const difference = targetDate - now;
+            const days = Math.floor(difference / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((difference % (1000 * 60)) / 1000);
+            document.getElementById('timer').innerText = 
+                `${days}d : ${hours.toString().padStart(2, '0')}h : ${minutes.toString().padStart(2, '0')}m : ${seconds.toString().padStart(2, '0')}s`;
+        }
+        setInterval(updateTimer, 1000);
+
+        // --- MOUSE RADAR & CURSOR PARTICLES ---
+        const cursor = document.getElementById('custom-cursor');
+        document.addEventListener('mousemove', (e) => {
+            cursor.style.left = e.clientX + 'px';
+            cursor.style.top = e.clientY + 'px';
+        });
+
+        // Click spray particle deployment loop
+        document.addEventListener('click', (e) => {
+            for(let i=0; i<3; i++) {
+                const cloud = document.createElement('div');
+                cloud.classList.add('spray-cloud');
+                cloud.style.left = (e.clientX - 15) + (Math.random()*20 - 10) + 'px';
+                cloud.style.top = (e.clientY - 15) + (Math.random()*20 - 10) + 'px';
+                document.body.appendChild(cloud);
+                setTimeout(() => cloud.remove(), 400);
+            }
+        });
+
+        // --- RUNNING ROACH LOGIC (EVADES MOUSE) ---
+        const roach = document.getElementById('running-roach');
+        // Initial random configuration coordinates
+        let rx = Math.random() * (window.innerWidth - 100) + 50;
+        let ry = Math.random() * (window.innerHeight - 100) + 50;
+        roach.style.left = rx + 'px';
+        roach.style.top = ry + 'px';
+
+        document.addEventListener('mousemove', (e) => {
+            const mX = e.clientX;
+            const mY = e.clientY;
+            const dist = Math.hypot(mX - rx, mY - ry);
+
+            if (dist < 120) { // Bug flees if the pointer approaches within a 120px threshold
+                const angle = Math.atan2(ry - mY, rx - mX);
+                rx += Math.cos(angle) * 150;
+                ry += Math.sin(angle) * 150;
+
+                // Restrict escape coordinates within view borders
+                if (rx < 20) rx = 50;
+                if (rx > window.innerWidth - 50) rx = window.innerWidth - 100;
+                if (ry < 20) ry = 50;
+                if (ry > window.innerHeight - 50) ry = window.innerHeight - 100;
+
+                roach.style.transform = `rotate(${angle * (180 / Math.PI) - 90}deg)`;
+                roach.style.left = rx + 'px';
+                roach.style.top = ry + 'px';
+            }
+        });
+
+        // --- MEMBERSHIP CONVERSION BADGE ---
+        function handleJoin(event) {
+            event.preventDefault();
+            document.getElementById('membershipForm').style.display = 'none';
+            document.getElementById('badgeContainer').style.display = 'block';
+        }
+
+        // --- CHAT INTERFACE FUNCTIONALITIES ---
+        function toggleChat() {
+            const widget = document.getElementById('chatWidget');
+            widget.style.display = (widget.style.display === 'flex') ? 'none' : 'flex';
+        }
+        function openChat() {
+            document.getElementById('chatWidget').style.display = 'flex';
+        }
+        function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const val = input.value.trim();
+            if(!val) return;
+
+            const logs = document.getElementById('chatLogs');
+            
+            // Render user input
+            const uMsg = document.createElement('div');
+            uMsg.className = 'chat-msg user';
+            uMsg.innerText = val;
+            logs.appendChild(uMsg);
+            input.value = '';
+
+            // AI Procedural Answers Engine
+            setTimeout(() => {
+                const bMsg = document.createElement('div');
+                bMsg.className = 'chat-msg bot';
+                
+                let lower = val.toLowerCase();
+                if(lower.includes('locate') || lower.includes('report') || lower.includes('here')) {
+                    bMsg.innerText = "WARNING: Scanner processing system indicates trace anomalies nearby. We are deploying cyber-spray configurations to your browser coordinates.";
+                } else if(lower.includes('help') || lower.includes('kill')) {
+                    bMsg.innerText = "TACTICAL ADVICE: Refer immediately to Step 3 of our Eradication Protocol. Do not surrender clean real-estate parameters to biological elements.";
+                } else {
+                    bMsg.innerText = "INTEL ANALYSIS: Message logged into high command database system. Remain clean, remain structured. The CDJP Army is tracking this sector.";
+                }
+                logs.appendChild(bMsg);
+                logs.scrollTop = logs.scrollHeight;
+            }, 800);
+        }
+
+        // --- FAKE SYNTH AUDIO TOGGLE SYSTEM ---
+        const audioBtn = document.getElementById('music-toggle');
+        let audioCtx = null;
+        let oscillator = null;
+        let isPlaying = false;
+
+        audioBtn.addEventListener('click', () => {
+            if (!isPlaying) {
+                // Initialize modern Web Audio nodes dynamically due to browser autoplay constraints
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                
+                oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sawtooth'; // Cyberpunk operational frequency texture
+                oscillator.frequency.setValueAtTime(55, audioCtx.currentTime); // Low fundamental battle hum
+                
+                // Low-frequency modulations mimicking a digital battlefield
+                setInterval(() => {
+                    if(isPlaying) {
+                        oscillator.frequency.setValueAtTime(Math.random() * 40 + 40, audioCtx.currentTime);
+                    }
+                }, 150);
+
+                gainNode.gain.setValueAtTime(0.04, audioCtx.currentTime); // Keep output values faint and non-intrusive
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.start();
+                
+                audioBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i> SYSTEM SYNCED';
+                audioBtn.style.color = 'var(--primary-red)';
+                audioBtn.style.borderColor = 'var(--primary-red)';
+                isPlaying = true;
+            } else {
+                if (oscillator) {
+                    oscillator.stop();
+                    oscillator.disconnect();
+                }
+                audioBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i> BATTLE AUDIO';
+                audioBtn.style.color = 'var(--neon-green)';
+                audioBtn.style.borderColor = 'var(--neon-green)';
+                isPlaying = false;
+            }
+        });
+    </script>
+</body>
+</html>
