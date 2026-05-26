@@ -2059,27 +2059,47 @@ const emailPromises = recipients.map(async (recipient) => {
       try {
         let allEmails = [];
         
-        // Load received emails
-        const receivedQuery = database.ref('emails').orderByChild('to').equalTo(currentUser.email);
-        const receivedSnapshot = await receivedQuery.once('value');
-        
-        if (receivedSnapshot.exists()) {
-          receivedSnapshot.forEach(child => {
-            allEmails.push(child.val());
-          });
-        }
-        
-        // Load sent emails
-        const sentQuery = database.ref('emails').orderByChild('from').equalTo(currentUser.email);
-        const sentSnapshot = await sentQuery.once('value');
-        
-        if (sentSnapshot.exists()) {
-          sentSnapshot.forEach(child => {
-            const email = child.val();
-            email.isSent = true;
-            allEmails.push(email);
-          });
-        }
+        //// Load inbox + sent together (faster)
+
+const receivedQuery = database
+.ref('emails')
+.orderByChild('to')
+.equalTo(currentUser.email)
+.limitToLast(50);
+
+const sentQuery = database
+.ref('emails')
+.orderByChild('from')
+.equalTo(currentUser.email)
+.limitToLast(50);
+
+const [receivedSnapshot, sentSnapshot] =
+await Promise.all([
+receivedQuery.once('value'),
+sentQuery.once('value')
+]);
+
+if (receivedSnapshot.exists()) {
+
+  receivedSnapshot.forEach(child => {
+    allEmails.push(child.val());
+  });
+
+}
+
+if (sentSnapshot.exists()) {
+
+  sentSnapshot.forEach(child => {
+
+    const email = child.val();
+
+    email.isSent = true;
+
+    allEmails.push(email);
+
+  });
+
+}
        // Filter emails based on current folder
 emails = allEmails.filter(email => {
 
