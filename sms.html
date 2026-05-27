@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -31,6 +30,14 @@
             background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 0);
             background-size: 24px 24px;
         }
+        
+        /* Photo Editor Filters Engine Mappings */
+        .filter-normal { filter: none; }
+        .filter-vintage { filter: sepia(0.6) contrast(1.1) brightness(0.9); }
+        .filter-bw { filter: grayscale(1) contrast(1.2); }
+        .filter-emerald { filter: hue-rotate(60deg) saturate(1.4); }
+        .filter-cyber { filter: hue-rotate(240deg) saturate(1.8) contrast(1.1); }
+
         @keyframes slideIn {
             from { transform: translateY(-100%); opacity: 0; }
             to { transform: translateY(0); opacity: 1; }
@@ -50,6 +57,18 @@
     <div id="app-init-loader" class="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center z-200">
         <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p class="text-sm font-semibold text-gray-600">Securing Connection Layer...</p>
+    </div>
+
+    <div id="internal-permission-overlay" class="fixed inset-0 bg-black/80 hidden items-center justify-center p-4 z-250">
+        <div class="bg-white p-6 rounded-3xl max-w-sm w-full text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center text-3xl mx-auto">🔔</div>
+            <h3 class="text-lg font-bold text-gray-900">Enable Internal Notifications</h3>
+            <p class="text-xs text-gray-500">Pulse2 custom internal notification cluster network routes background push updates silently into your dashboard layout without native browser permission alerts.</p>
+            <div class="space-y-2 pt-2">
+                <button onclick="handleInternalPermissionChoice(true)" class="w-full bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs hover:bg-emerald-700 transition">Grant Network Permission</button>
+                <button onclick="handleInternalPermissionChoice(false)" class="w-full bg-gray-100 text-gray-600 font-medium py-2 rounded-xl text-xs hover:bg-gray-200 transition">Skip for Now</button>
+            </div>
+        </div>
     </div>
 
     <div id="push-notification-toast" class="fixed top-4 right-4 z-100 max-w-sm w-full bg-white rounded-xl shadow-2xl border-l-4 border-emerald-500 p-4 hidden animate-slide-in cursor-pointer">
@@ -198,13 +217,42 @@
     </div>
 
     <div id="post-create-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-100">
-        <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">📸 Share New Post</h3>
+        <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl relative max-h-[95vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-gray-800 mb-3">📸 Share New Post</h3>
             <div class="space-y-3">
                 <div>
                     <label class="text-xs font-semibold text-gray-600 block mb-1">Select Post Image</label>
-                    <input type="file" id="post-img-file" accept="image/*" class="w-full p-2 border rounded-xl text-xs text-gray-500 bg-gray-50">
+                    <input type="file" id="post-img-file" accept="image/*" onchange="loadPhotoEditorWorkspace(this)" class="w-full p-2 border rounded-xl text-xs text-gray-500 bg-gray-50">
                 </div>
+
+                <div id="photo-editor-workspace" class="hidden border border-gray-200 p-3 rounded-2xl bg-gray-50 space-y-3">
+                    <p class="text-[10px] font-bold text-emerald-700 tracking-wider uppercase">🎨 Pulse Creative Editor Workspace</p>
+                    
+                    <div id="cropper-frame-container" class="relative overflow-hidden mx-auto bg-black rounded-lg transition-all duration-200 flex items-center justify-center" style="width: 260px; height: 260px;">
+                        <img id="editor-preview-img" src="" class="filter-normal max-w-full max-h-full object-cover transition-all duration-200">
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 block">Aspect Ratio Layout Crop:</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setPostImageCropAspect('1:1')" class="bg-white border text-gray-700 text-[10px] font-bold py-1.5 rounded-lg hover:bg-emerald-50">1:1 Square</button>
+                            <button onclick="setPostImageCropAspect('4:5')" class="bg-white border text-gray-700 text-[10px] font-bold py-1.5 rounded-lg hover:bg-emerald-50">4:5 Portrait</button>
+                            <button onclick="setPostImageCropAspect('16:9')" class="bg-white border text-gray-700 text-[10px] font-bold py-1.5 rounded-lg hover:bg-emerald-50">16:9 Wide</button>
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 block">Select Style Filter Effect:</label>
+                        <div class="flex space-x-1.5 overflow-x-auto py-1">
+                            <button onclick="applyPhotoFilter('normal')" class="bg-white border text-gray-700 text-[9px] px-2.5 py-1 rounded-md font-medium whitespace-nowrap">Normal</button>
+                            <button onclick="applyPhotoFilter('vintage')" class="bg-white border text-gray-700 text-[9px] px-2.5 py-1 rounded-md font-medium whitespace-nowrap">Vintage</button>
+                            <button onclick="applyPhotoFilter('bw')" class="bg-white border text-gray-700 text-[9px] px-2.5 py-1 rounded-md font-medium whitespace-nowrap">B&W</button>
+                            <button onclick="applyPhotoFilter('emerald')" class="bg-white border text-gray-700 text-[9px] px-2.5 py-1 rounded-md font-medium whitespace-nowrap">Emerald</button>
+                            <button onclick="applyPhotoFilter('cyber')" class="bg-white border text-gray-700 text-[9px] px-2.5 py-1 rounded-md font-medium whitespace-nowrap">Cyberpunk</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <input type="text" id="post-caption" placeholder="Write a caption... Add #hashtags" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                 </div>
@@ -212,7 +260,7 @@
                     <input type="text" id="post-location" placeholder="📍 Add Location" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                 </div>
                 
-                <div class="border-t border-b border-gray-100 py-3">
+                <div class="border-t border-b border-gray-100 py-2">
                     <button onclick="toggleMusicSelectorTray()" class="w-full bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 p-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1">
                         <span>🎵</span> <span id="post-music-btn-label">Add Track Audio Music</span>
                     </button>
@@ -236,7 +284,7 @@
                     </div>
                 </div>
 
-                <div class="pt-2 flex space-x-2 justify-end text-xs">
+                <div class="pt-1 flex space-x-2 justify-end text-xs">
                     <button onclick="closeCreatePostModal()" class="px-4 py-2 bg-gray-200 rounded-xl font-medium text-gray-700">Cancel</button>
                     <button onclick="submitNewPostAction()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold shadow hover:bg-emerald-700">Publish Post</button>
                 </div>
@@ -299,7 +347,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // HARD-LOCKED FIXED SCALING ENGINE
+        // HARD-LOCKED APP VIEWS ENGINE
         document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
         let lastTouchTime = 0;
         document.addEventListener('touchend', function (e) {
@@ -332,6 +380,13 @@
         let blockedByThem = [];  
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
+
+        // Custom Notification internal permissions layout memory key status mapping
+        let internalPermissionGranted = localStorage.getItem("pulse_internal_push_enabled") === "true";
+
+        // Photo Editor runtime variables
+        let selectedEditorFilterClass = "filter-normal";
+        let activeEditorAspectStyle = "1:1";
 
         const songs = [
           {
@@ -397,6 +452,21 @@
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = error => reject(error);
             });
+        }
+
+        // INTERNAL NOTIFICATION RULES SYSTEM DIALOG FLOW (No browser notifications required)
+        function triggerInternalPermissionCheck() {
+            if(localStorage.getItem("pulse_internal_push_prompted") !== "true") {
+                document.getElementById('internal-permission-overlay').style.display = 'flex';
+            }
+        }
+
+        function handleInternalPermissionChoice(status) {
+            internalPermissionGranted = status;
+            localStorage.setItem("pulse_internal_push_enabled", status ? "true" : "false");
+            localStorage.setItem("pulse_internal_push_prompted", "true");
+            document.getElementById('internal-permission-overlay').style.display = 'none';
+            alert(status ? "Internal Notification Stream Activated!" : "Notifications muted inside application layout.");
         }
 
         function switchAppViewTab(tab) {
@@ -512,6 +582,7 @@
                         
                         syncPrivacyBlocks();
                         setupGlobalNotificationListener();
+                        triggerInternalPermissionCheck(); // Runs internally built dashboard checker
                     }
                 });
             } else {
@@ -557,7 +628,9 @@
                     db.ref(`chats/${combinedChatRoomKey}`).limitToLast(1).on('child_added', msgSnap => {
                         const msg = msgSnap.val();
                         if(!msg || msg.senderId === currentUserData.uid || msg.seen === true || msg.isDeleted) return;
-                        if(msg.senderId !== activeChatUserId && !blockedByMe.includes(msg.senderId) && !blockedByThem.includes(msg.senderId)) {
+                        
+                        // Condition check matching locally generated network push rule toggle flags
+                        if(msg.senderId !== activeChatUserId && internalPermissionGranted && !blockedByMe.includes(msg.senderId) && !blockedByThem.includes(msg.senderId)) {
                             showInAppPushToast(msg);
                         }
                     });
@@ -583,7 +656,7 @@
             if(!targetEmail || targetEmail === currentUserData.email) return alert("Enter valid email!");
             const safeEmailKey = targetEmail.replace(/\./g, ',');
             db.ref('emailToUid/' + safeEmailKey).once('value', snapshot => {
-                if(!snapshot.exists()) return alert("User destination endpoint routing failed!");
+                if(!snapshot.exists()) return alert("User destination failed!");
                 const targetUid = snapshot.val();
                 db.ref(`contacts/${currentUserData.uid}/${targetUid}`).set(true).then(() => {
                     db.ref(`contacts/${targetUid}/${currentUserData.uid}`).set(true);
@@ -710,6 +783,7 @@
             });
         }
 
+        document.getElementById('chat-message-input');
         function listenToMessages() {
             const container = document.getElementById('messages-container');
             if(activeChatListenerRef) db.ref(`chats/${activeChatKey}`).off('value', activeChatListenerRef);
@@ -760,6 +834,84 @@
         }
 
         // ==========================================
+        //  INTERNAL IMAGE EDITOR & FILTER CONTROLS
+        // ==========================================
+        async function loadPhotoEditorWorkspace(input) {
+            const file = input.files[0];
+            if(!file) return;
+            
+            const b64 = await getBase64(file);
+            const previewImg = document.getElementById('editor-preview-img');
+            
+            previewImg.src = b64;
+            // Reset to clean states defaults
+            applyPhotoFilter('normal');
+            setPostImageCropAspect('1:1');
+            
+            document.getElementById('photo-editor-workspace').classList.remove('hidden');
+        }
+
+        function setPostImageCropAspect(aspect) {
+            activeEditorAspectStyle = aspect;
+            const frame = document.getElementById('cropper-frame-container');
+            
+            if(aspect === '1:1') {
+                frame.style.width = "260px"; frame.style.height = "260px";
+            } else if(aspect === '4:5') {
+                frame.style.width = "240px"; frame.style.height = "300px";
+            } else if(aspect === '16:9') {
+                frame.style.width = "320px"; frame.style.height = "180px";
+            }
+        }
+
+        function applyPhotoFilter(filterName) {
+            const img = document.getElementById('editor-preview-img');
+            img.className = "max-w-full max-h-full object-cover transition-all duration-200"; // clear old
+            
+            selectedEditorFilterClass = `filter-${filterName}`;
+            img.classList.add(selectedEditorFilterClass);
+        }
+
+        // Helper framework to draw CSS web filter adjustments onto an internal offscreen HTML5 canvas element before push
+        function bakeFilteredImageCanvas(base64Src, filterClass, aspectStyle) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.src = base64Src;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let targetWidth = img.width;
+                    let targetHeight = img.height;
+                    
+                    // Match aspect dimension configurations maps
+                    if(aspectStyle === '1:1') {
+                        let size = Math.min(img.width, img.height);
+                        targetWidth = size; targetHeight = size;
+                    } else if(aspectStyle === '4:5') {
+                        targetHeight = img.height; targetWidth = img.height * (4/5);
+                        if(targetWidth > img.width) { targetWidth = img.width; targetHeight = img.width * (5/4); }
+                    } else if(aspectStyle === '16:9') {
+                        targetWidth = img.width; targetHeight = img.width * (9/16);
+                        if(targetHeight > img.height) { targetHeight = img.height; targetWidth = img.height * (16/9); }
+                    }
+
+                    canvas.width = targetWidth;
+                    canvas.height = targetHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Map visual engine classes matrix onto context canvas configurations filters strings
+                    if(filterClass === 'filter-vintage') ctx.filter = "sepia(0.6) contrast(1.1) brightness(0.9)";
+                    else if(filterClass === 'filter-bw') ctx.filter = "grayscale(1) contrast(1.2)";
+                    else if(filterClass === 'filter-emerald') ctx.filter = "hue-rotate(60deg) saturate(1.4)";
+                    else if(filterClass === 'filter-cyber') ctx.filter = "hue-rotate(240deg) saturate(1.8) contrast(1.1)";
+                    else ctx.filter = "none";
+                    
+                    ctx.drawImage(img, (img.width - targetWidth)/2, (img.height - targetHeight)/2, targetWidth, targetHeight, 0, 0, targetWidth, targetHeight);
+                    resolve(canvas.toDataURL('image/jpeg', 0.85));
+                };
+            });
+        }
+
+        // ==========================================
         //  INSTAGRAM-STYLE EXPLORER FEED ENGINE
         // ==========================================
         function openCreatePostModal() {
@@ -767,6 +919,8 @@
             document.getElementById('post-music-btn-label').innerText = "Add Track Audio Music";
             document.getElementById('music-selection-tray').classList.add('hidden');
             document.getElementById('active-trim-controls').classList.add('hidden');
+            document.getElementById('photo-editor-workspace').classList.add('hidden');
+            document.getElementById('post-img-file').value = "";
             previewAudioObj.pause(); isAudioPlaying = false;
             renderMusicGalleryItems();
             document.getElementById('post-create-modal').style.display = 'flex';
@@ -831,15 +985,20 @@
         }
 
         async function submitNewPostAction() {
-            const imgFile = document.getElementById('post-img-file').files[0];
+            const imgInput = document.getElementById('post-img-file');
             const caption = document.getElementById('post-caption').value.trim();
             const location = document.getElementById('post-location').value.trim();
-            if(!imgFile) return alert("Please select a post layout image!");
-            const imgBase64 = await getBase64(imgFile); const postRef = db.ref('posts').push();
+            if(!imgInput.files[0]) return alert("Please select a post layout image!");
             
+            const rawBase64 = await getBase64(imgInput.files[0]);
+            
+            // Render filter changes and aspect ratio onto baked data
+            const bakedFilterImgBase64 = await bakeFilteredImageCanvas(rawBase64, selectedEditorFilterClass, activeEditorAspectStyle);
+            
+            const postRef = db.ref('posts').push();
             postRef.set({
                 postId: postRef.key, uid: currentUserData.uid, authorName: currentUserData.name, authorAvatar: currentUserData.pfp,
-                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
+                image: bakedFilterImgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
                 alert("Post successfully published!"); closeCreatePostModal(); loadExplorerFeedPosts();
             });
@@ -903,7 +1062,7 @@
                             activeFeedAudioInstance.currentTime = startAt;
                             activeFeedAudioInstance.loop = true;
                             activeFeedAudioInstance.muted = feedMusicMutedState; 
-                            activeFeedAudioInstance.play().catch(e => console.log("Awaiting core interaction layer..."));
+                            activeFeedAudioInstance.play().catch(e => console.log("Awaiting core interaction..."));
                         } else if (!musicSrc || musicSrc === "null") {
                             if (activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; currentlyPlayingPostId = null; }
                         }
@@ -915,7 +1074,6 @@
             postCards.forEach(card => postObserverInstance.observe(card));
         }
 
-        // LIVE REAL-TIME OBSERVATION PATHWAY FOR VERIFIED SYSTEM BADGES IN EXPLORER FEED
         function loadExplorerFeedPosts() {
             const container = document.getElementById('feed-container');
             container.innerHTML = "";
@@ -1015,7 +1173,6 @@
                     `;
                     container.appendChild(card);
                     
-                    // TARGET LIVE SNAPSHOT INTERCEPTOR: Checks users path in real-time for verified status key boolean true
                     db.ref(`users/${post.uid}/verified`).on('value', verifiedSnap => {
                         const nameLabel = document.getElementById(`feed-author-name-lbl-${post.postId}`);
                         if(nameLabel) {
