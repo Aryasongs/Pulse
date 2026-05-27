@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
     <title>Pulse2 Premium Messaging App</title>
+    <!-- Tailwind CSS v4 -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
         html, body {
@@ -15,7 +17,7 @@
             width: 100%;
             height: 100%;
         }
-        #contacts-list, #messages-container, #feed-container, .overflow-y-auto {
+        #contacts-list, #messages-container, #feed-container, #music-gallery-list, .overflow-y-auto {
             touch-action: pan-y !important;
             overscroll-behavior-y: contain;
         }
@@ -35,15 +37,24 @@
             to { transform: translateY(0); opacity: 1; }
         }
         .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
+        
+        @keyframes heartPop {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+        .animate-heart-pop { animation: heartPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
     </style>
 </head>
 <body class="bg-gray-100 font-sans h-screen flex flex-col justify-between overflow-hidden m-0 relative">
 
+    <!-- INITIAL INITIALIZATION LOADING OVERLAY -->
     <div id="app-init-loader" class="fixed inset-0 bg-gray-50 flex flex-col items-center justify-center z-200">
         <div class="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-4"></div>
         <p class="text-sm font-semibold text-gray-600">Securing Connection Layer...</p>
     </div>
 
+    <!-- IN-APP PUSH NOTIFICATION TOAST POPUP -->
     <div id="push-notification-toast" class="fixed top-4 right-4 z-100 max-w-sm w-full bg-white rounded-xl shadow-2xl border-l-4 border-emerald-500 p-4 hidden animate-slide-in cursor-pointer">
         <div class="flex items-start space-x-3">
             <img id="notify-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
@@ -55,6 +66,7 @@
         </div>
     </div>
 
+    <!-- 1. AUTH SCREEN -->
     <div id="auth-screen" class="screen flex-col items-center justify-center h-full px-4">
         <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
             <h2 id="auth-title" class="text-3xl font-bold text-center text-emerald-600 mb-6">Pulse2 Login</h2>
@@ -64,6 +76,7 @@
                 <input type="email" id="auth-email" placeholder="Email Address" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 <input type="password" id="auth-pass" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                 
+                <!-- Signup Fields -->
                 <div id="signup-fields" class="hidden space-y-4">
                     <input type="text" id="auth-name" placeholder="Full Name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <input type="text" id="auth-about" placeholder="About Me (Status)" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -90,11 +103,14 @@
         </div>
     </div>
 
+    <!-- 2. MAIN APP SCREEN -->
     <div id="app-screen" class="screen flex-col h-full w-full hidden justify-between bg-gray-50">
         
         <div class="flex-1 flex flex-row overflow-hidden w-full h-full">
             
+            <!-- CHATS VIEW PANEL -->
             <div id="chats-view-panel" class="flex flex-1 flex-row w-full h-full">
+                <!-- Sidebar -->
                 <div id="sidebar" class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col h-full">
                     <div class="p-4 bg-emerald-600 text-white flex items-center justify-between shadow-md">
                         <div class="flex items-center space-x-3 cursor-pointer" onclick="openMyProfileModal()">
@@ -121,6 +137,7 @@
                     <div id="contacts-list" class="flex-1 overflow-y-auto divide-y divide-gray-100"></div>
                 </div>
 
+                <!-- Chat Room Window Area -->
                 <div id="chat-area" class="hidden md:flex flex-col flex-1 h-full">
                     <div class="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm z-10">
                         <div class="flex items-center space-x-3 cursor-pointer" onclick="openUserViewModal()">
@@ -136,7 +153,7 @@
                                 <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Privacy Controls</div>
                             </div>
                         </div>
-                        <div class="flex-shrink-0" id="chat-actions" class="hidden">
+                        <div class="flex-shrink-0 shadow" id="chat-actions" class="hidden">
                             <button id="block-btn" onclick="toggleBlockUser()" class="text-xs bg-gray-100 hover:bg-red-50 text-red-600 border border-red-200 font-medium px-3 py-1.5 rounded-full transition">
                                 Block User
                             </button>
@@ -166,6 +183,7 @@
                 </div>
             </div>
 
+            <!-- FEED VIEW PANEL -->
             <div id="feed-view-panel" class="hidden flex-1 flex-col w-full h-full bg-gray-50 overflow-hidden">
                 <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm">
                     <h1 class="text-xl font-black tracking-tight text-gray-800">Pulse Explorer Feed</h1>
@@ -176,6 +194,7 @@
 
         </div>
 
+        <!-- APP NAVIGATION BOTTOM BAR -->
         <div class="w-full bg-white border-t border-gray-200 py-2.5 px-6 flex justify-around items-center shadow-2xl z-50">
             <button onclick="switchAppViewTab('chats')" id="nav-btn-chats" class="flex flex-col items-center text-emerald-600 font-bold transition text-xs space-y-1">
                 <span>💬</span>
@@ -189,6 +208,7 @@
 
     </div>
 
+    <!-- CREATE POST PRESENTATION LAYER MODAL -->
     <div id="post-create-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-100">
         <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <h3 class="text-lg font-bold text-gray-800 mb-4">📸 Share New Post</h3>
@@ -204,23 +224,26 @@
                     <input type="text" id="post-location" placeholder="📍 Add Location" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
                 </div>
                 
+                <!-- Dynamic Interactive Music Picker Section -->
                 <div class="border-t border-b border-gray-100 py-3">
                     <button onclick="toggleMusicSelectorTray()" class="w-full bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 p-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1">
                         <span>🎵</span> <span id="post-music-btn-label">Add Track Audio Music</span>
                     </button>
                     
                     <div id="music-selection-tray" class="hidden mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                        <div class="flex items-center space-x-3 mb-2">
-                            <img src="https://aryasongs.github.io/Pulse/IMG_6103.jpeg" class="w-10 h-10 rounded-lg object-cover border">
-                            <div class="flex-1 min-w-0">
-                                <p class="text-xs font-bold text-gray-800">Waaka</p>
-                                <p class="text-[10px] text-gray-500">Nirvair Pannu</p>
+                        <p class="text-[11px] font-bold text-gray-500 mb-2">Select a track from music catalog:</p>
+                        
+                        <!-- Dynamic Music Gallery Stack List -->
+                        <div id="music-gallery-list" class="max-h-40 overflow-y-auto space-y-2 mb-3 pr-1"></div>
+                        
+                        <!-- Selected Track Settings Interface (Trimming Section) -->
+                        <div id="active-trim-controls" class="hidden border-t border-gray-200 pt-2 space-y-1">
+                            <div class="flex items-center justify-between text-xs font-bold text-emerald-700 mb-1">
+                                <span id="selected-track-display-title">No Track Focused</span>
+                                <button onclick="previewAudioTrack()" id="music-preview-btn" class="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded shadow">▶ Preview</button>
                             </div>
-                            <button onclick="previewAudioTrack()" id="music-preview-btn" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">▶ Play</button>
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[10px] font-bold text-gray-500 block">Trim 30s Part Start Interval:</label>
-                            <input type="range" id="audio-trim-slider" min="0" max="150" value="0" oninput="updateAudioTrimSnippet()" class="w-full accent-emerald-600 h-1 bg-gray-200 rounded-lg cursor-pointer">
+                            <label class="text-[10px] font-bold text-gray-400 block">Trim 30s Part Start Interval Slider:</label>
+                            <input type="range" id="audio-trim-slider" min="0" max="120" value="0" oninput="updateAudioTrimSnippet()" class="w-full accent-emerald-600 h-1 bg-gray-200 rounded-lg cursor-pointer">
                             <div class="flex justify-between text-[9px] text-gray-400 font-medium">
                                 <span id="trim-start-lbl">00:00</span>
                                 <span id="trim-end-lbl">00:30</span>
@@ -237,6 +260,7 @@
         </div>
     </div>
 
+    <!-- 3. PROFILE EDIT MODAL -->
     <div id="profile-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
             <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">⚙️ Edit Profile Settings</h3>
@@ -265,6 +289,7 @@
         </div>
     </div>
 
+    <!-- 4. VIEW OTHER USER PROFILE MODAL -->
     <div id="user-view-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center relative">
             <button onclick="closeUserViewModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
@@ -287,12 +312,13 @@
         </div>
     </div>
 
+    <!-- Firebase Script CDNs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // HARD-LOCKED APP VIEW FOR MOBILE DEVICES
+        // HARD-LOCKED FIXED SCALING ENGINE
         document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
         let lastTouchTime = 0;
         document.addEventListener('touchend', function (e) {
@@ -326,11 +352,50 @@
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
 
-        // Audio configurations
-        let previewAudioObj = new Audio("https://aryasongs.github.io/Pulse/dozera.mp3.mp3");
+        // Music Gallery Registry Array Node Matrix
+        const songs = [
+          {
+            title: "Barota",
+            artist: "Sidhu Moose Wala, The Kidd",
+            src: "https://aryasongs.github.io/Pulse/barota.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg"
+          },
+          {
+            title: "California Love",
+            artist: "Cheema Y, Gur Sidhu",
+            src: "https://aryasongs.github.io/Pulse/california%20.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg"
+          },
+          {
+            title: "Lovely",
+            artist: "Kanika Kapoor",
+            src: "https://aryasongs.github.io/Pulse/lovely.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6104.jpeg"
+          },
+          {
+            title: "Jackpot",
+            artist: "Cheema Y, Gur Sidhu",
+            src: "https://aryasongs.github.io/Pulse/jackpot.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6105.png"
+          },
+          {
+            title: "Waka Waka (This Time for Africa)",
+            artist: "Shakira",
+            src: "https://aryasongs.github.io/Pulse/shakira.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6108.jpeg"
+          },
+          {
+            title: "5-7",
+            artist: "Karan Aujla",
+            src: "https://aryasongs.github.io/Pulse/5-7.mp3",
+            cover: "https://aryasongs.github.io/Pulse/IMG_6109.jpeg"
+          }
+        ];
+
+        let previewAudioObj = new Audio();
         let isAudioPlaying = false;
         let selectedMusicState = null; 
-        let activeFeedAudioInstance = null; // Stores current autoplaying loop instance
+        let activeFeedAudioInstance = null; 
 
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
 
@@ -356,7 +421,6 @@
             const btnChats = document.getElementById('nav-btn-chats');
             const btnFeed = document.getElementById('nav-btn-feed');
             
-            // Clean up audio streams when navigating away
             if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
 
             if(tab === 'chats') {
@@ -712,15 +776,68 @@
         }
 
         // ==========================================
-        //  INSTAGRAM-STYLE EXPLORER FEED PARSING ENGINE
+        //  INSTAGRAM-STYLE EXPLORER FEED ENGINE
         // ==========================================
         function openCreatePostModal() {
             selectedMusicState = null;
             document.getElementById('post-music-btn-label').innerText = "Add Track Audio Music";
             document.getElementById('music-selection-tray').classList.add('hidden');
+            document.getElementById('active-trim-controls').classList.add('hidden');
             previewAudioObj.pause(); isAudioPlaying = false;
-            document.getElementById('music-preview-btn').innerText = "▶ Play";
+            
+            // Build dynamic music items from layout songs configuration
+            renderMusicGalleryItems();
             document.getElementById('post-create-modal').style.display = 'flex';
+        }
+
+        function renderMusicGalleryItems() {
+            const listContainer = document.getElementById('music-gallery-list');
+            listContainer.innerHTML = "";
+            
+            songs.forEach((song, idx) => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between p-2 hover:bg-gray-100 rounded-xl cursor-pointer border border-gray-100 bg-white transition";
+                row.onclick = () => focusTrackForPost(idx);
+                row.innerHTML = `
+                    <div class="flex items-center space-x-2.5 min-w-0">
+                        <img src="${song.cover}" class="w-9 h-9 rounded-lg object-cover border">
+                        <div class="min-w-0 text-left">
+                            <p class="text-xs font-bold text-gray-800 truncate">${song.title}</p>
+                            <p class="text-[10px] text-gray-500 truncate">${song.artist}</p>
+                        </div>
+                    </div>
+                    <span class="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md">Select</span>
+                `;
+                listContainer.appendChild(row);
+            });
+        }
+
+        function focusTrackForPost(idx) {
+            const track = songs[idx];
+            selectedMusicState = {
+                name: track.title,
+                artist: track.artist,
+                src: track.src,
+                cover: track.cover,
+                startAt: 0
+            };
+            
+            document.getElementById('post-music-btn-label').innerText = `🎵 ${track.title} Selected`;
+            document.getElementById('selected-track-display-title').innerText = `${track.title} - ${track.artist}`;
+            
+            // Update audio preview object configuration
+            previewAudioObj.pause();
+            previewAudioObj.src = track.src;
+            isAudioPlaying = false;
+            document.getElementById('music-preview-btn').innerText = "▶ Preview";
+            
+            // Reset sliders
+            const slider = document.getElementById('audio-trim-slider');
+            slider.value = 0;
+            document.getElementById('trim-start-lbl').innerText = "00:00";
+            document.getElementById('trim-end-lbl').innerText = "00:30";
+            
+            document.getElementById('active-trim-controls').classList.remove('hidden');
         }
 
         function closeCreatePostModal() {
@@ -731,23 +848,20 @@
         function toggleMusicSelectorTray() {
             const tray = document.getElementById('music-selection-tray');
             tray.classList.toggle('hidden');
-            if(!tray.classList.contains('hidden')) {
-                selectedMusicState = { name: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", startAt: 0 };
-                document.getElementById('post-music-btn-label').innerText = "🎵 Waaka Selected";
-            }
         }
 
         function previewAudioTrack() {
             const slider = document.getElementById('audio-trim-slider');
             const playBtn = document.getElementById('music-preview-btn');
             if(isAudioPlaying) {
-                previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Play";
+                previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Preview";
             } else {
+                if(!previewAudioObj.src) return;
                 previewAudioObj.currentTime = parseInt(slider.value);
                 previewAudioObj.play(); isAudioPlaying = true; playBtn.innerText = "⏸ Pause";
                 previewAudioObj.ontimeupdate = () => {
                     if (previewAudioObj.currentTime >= parseInt(slider.value) + 30) {
-                        previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Play";
+                        previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Preview";
                     }
                 };
             }
@@ -774,15 +888,60 @@
 
             const imgBase64 = await getBase64(imgFile);
             const postRef = db.ref('posts').push();
+            const isVerifiedUser = currentUserData.verified === true;
             
             postRef.set({
                 postId: postRef.key, uid: currentUserData.uid, authorName: currentUserData.name, authorAvatar: currentUserData.pfp,
-                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
+                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, 
+                isAuthorVerified: isVerifiedUser, timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
                 alert("Post successfully published!");
                 closeCreatePostModal();
                 loadExplorerFeedPosts();
             });
+        }
+
+        let postTapTimerTracker = {};
+
+        function handlePostInstagramGestures(event, postId) {
+            const now = new Date().getTime();
+            const lastTap = postTapTimerTracker[postId] || 0;
+            const delay = 300; 
+
+            if (now - lastTap < delay) {
+                clearTimeout(postTapTimerTracker[postId + "_timer"]);
+                triggerInstagramDoubleTapLike(event, postId);
+            } else {
+                postTapTimerTracker[postId + "_timer"] = setTimeout(() => {
+                    toggleFeedAudioMuteState();
+                }, delay);
+            }
+            postTapTimerTracker[postId] = now;
+        }
+
+        function toggleFeedAudioMuteState() {
+            if (activeFeedAudioInstance) {
+                activeFeedAudioInstance.muted = !activeFeedAudioInstance.muted;
+            }
+        }
+
+        function triggerInstagramDoubleTapLike(event, postId) {
+            likeFeedPostAction(postId);
+
+            const container = event.currentTarget;
+            const heart = document.createElement('span');
+            heart.className = "absolute text-6xl text-red-500 pointer-events-none z-40 select-none animate-heart-pop";
+            heart.innerHTML = "❤️";
+            
+            const rect = container.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            heart.style.left = `${x - 30}px`;
+            heart.style.top = `${y - 30}px`;
+            
+            container.appendChild(heart);
+            setTimeout(() => { heart.remove(); }, 600);
         }
 
         function loadExplorerFeedPosts() {
@@ -792,7 +951,7 @@
             db.ref('posts').orderByChild('timestamp').on('value', snapshot => {
                 container.innerHTML = "";
                 
-                // Absolute clean state check: No dummy or template demo code structures visible
+                // No template dummy data or pre-rendered elements layout parameters loaded
                 if(!snapshot.exists()) {
                     container.innerHTML = `<div class="text-center text-gray-400 text-xs py-20">No exploration feed items found. Create a post above!</div>`; 
                     if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
@@ -802,14 +961,13 @@
                 let postsArray = [];
                 snapshot.forEach(c => { postsArray.unshift(c.val()); }); 
 
-                // Automatic single loop music track instance mapping for topmost configuration
                 let topPostWithMusic = postsArray.find(p => p.music !== null);
                 if(topPostWithMusic) {
                     if(!activeFeedAudioInstance) {
                         activeFeedAudioInstance = new Audio(topPostWithMusic.music.src);
                         activeFeedAudioInstance.currentTime = topPostWithMusic.music.startAt;
-                        activeFeedAudioInstance.loop = true; // Loops indefinitely without manual interactions
-                        activeFeedAudioInstance.play().catch(e => console.log("Autoplay context tracking waiting for touch trigger"));
+                        activeFeedAudioInstance.loop = true; 
+                        activeFeedAudioInstance.play().catch(e => console.log("Autoplay context initialization pipeline..."));
                     }
                 } else {
                     if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
@@ -821,25 +979,30 @@
                     
                     let musicHeaderHtml = "";
                     if(post.music) {
+                        const trackArt = post.music.cover || 'https://via.placeholder.com/32';
                         musicHeaderHtml = `
                             <div class="bg-emerald-50 px-4 py-2 flex items-center justify-between border-b border-emerald-100">
                                 <div class="flex items-center space-x-2 min-w-0">
-                                    <span class="animate-bounce">🎵</span>
+                                    <img src="${trackArt}" class="w-5 h-5 rounded object-cover border border-emerald-200 animate-spin" style="animation-duration: 4s;">
                                     <p class="text-xs font-bold text-emerald-800 truncate">${post.music.name} <span class="font-normal text-emerald-600">- ${post.music.artist}</span></p>
                                 </div>
-                                <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">Autoplay Loop</span>
+                                <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">1-Tap Mute Control</span>
                             </div>
                         `;
                     }
 
-                    // Delete Post control activation condition logic
                     let deleteButtonHtml = "";
                     if(post.uid === currentUserData.uid) {
                         deleteButtonHtml = `
                             <button onclick="deleteFeedPostAction('${post.postId}')" class="text-xs font-bold text-red-500 hover:text-red-700 px-2 py-1 bg-red-50 rounded-xl transition">
-                                🗑️ Delete Post
+                                🗑️ Delete
                             </button>
                         `;
+                    }
+
+                    let authorVerifiedBadgeHtml = "";
+                    if (post.isAuthorVerified === true) {
+                        authorVerifiedBadgeHtml = `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline-block ml-1" alt="Verified Badge">`;
                     }
 
                     let commentsListHtml = "";
@@ -855,13 +1018,17 @@
                             <div class="flex items-center space-x-2.5 min-w-0">
                                 <img src="${post.authorAvatar || defaultBlankAvatar}" class="w-8 h-8 rounded-full object-cover">
                                 <div class="min-w-0">
-                                    <h4 class="text-xs font-bold text-gray-800 truncate">${post.authorName}</h4>
+                                    <h4 class="text-xs font-bold text-gray-800 flex items-center truncate">${post.authorName} ${authorVerifiedBadgeHtml}</h4>
                                     ${post.location ? `<p class="text-[10px] text-gray-400 truncate">📍 ${post.location}</p>` : ''}
                                 </div>
                             </div>
                             ${deleteButtonHtml}
                         </div>
-                        <img src="${post.image}" class="w-full object-cover max-h-80 bg-gray-50">
+                        
+                        <div class="relative overflow-hidden cursor-pointer" onclick="handlePostInstagramGestures(event, '${post.postId}')">
+                            <img src="${post.image}" class="w-full object-cover max-h-80 bg-gray-50 select-none pointer-events-none">
+                        </div>
+
                         <div class="p-3 space-y-2">
                             <div class="flex items-center space-x-4 text-sm">
                                 <button onclick="likeFeedPostAction('${post.postId}')" class="hover:scale-110 transition">❤️ Like Post</button>
@@ -884,7 +1051,6 @@
             });
         }
 
-        // Delete Post functionality route parameters execution
         function deleteFeedPostAction(postId) {
             if(confirm("Are you sure you want to permanently delete this post from the feed?")) {
                 db.ref(`posts/${postId}`).remove().then(() => {
@@ -900,7 +1066,6 @@
             db.ref(`posts/${postId}/comments`).push({ userName: currentUserData.name, text: input.value.trim(), timestamp: firebase.database.ServerValue.TIMESTAMP }).then(() => { input.value = ""; });
         }
 
-        // Modal configuration pathways
         function openMyProfileModal() { document.getElementById('edit-name').value = currentUserData.name; document.getElementById('edit-about').value = currentUserData.about || ""; document.getElementById('edit-dob').value = currentUserData.dob; document.getElementById('profile-modal').style.display = 'flex'; }
         function closeMyProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }
         async function saveProfileUpdates() {
