@@ -31,7 +31,7 @@
             background-size: 24px 24px;
         }
         
-        /* Photo Editor Filters Engine Mappings */
+        /* Photo Editor Workspace Effects Display Filters mapping */
         .filter-normal { filter: none; }
         .filter-vintage { filter: sepia(0.6) contrast(1.1) brightness(0.9); }
         .filter-bw { filter: grayscale(1) contrast(1.2); }
@@ -347,7 +347,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // HARD-LOCKED APP VIEWS ENGINE
+        // HARD-LOCKED FIXED SCALING ENGINE
         document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
         let lastTouchTime = 0;
         document.addEventListener('touchend', function (e) {
@@ -381,12 +381,11 @@
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
 
-        // Custom Notification internal permissions layout memory key status mapping
         let internalPermissionGranted = localStorage.getItem("pulse_internal_push_enabled") === "true";
 
-        // Photo Editor runtime variables
         let selectedEditorFilterClass = "filter-normal";
         let activeEditorAspectStyle = "1:1";
+        let uploadedRawImgB64 = null; // Cache to handle dynamic re-baking updates
 
         const songs = [
           {
@@ -454,7 +453,6 @@
             });
         }
 
-        // INTERNAL NOTIFICATION RULES SYSTEM DIALOG FLOW (No browser notifications required)
         function triggerInternalPermissionCheck() {
             if(localStorage.getItem("pulse_internal_push_prompted") !== "true") {
                 document.getElementById('internal-permission-overlay').style.display = 'flex';
@@ -466,7 +464,6 @@
             localStorage.setItem("pulse_internal_push_enabled", status ? "true" : "false");
             localStorage.setItem("pulse_internal_push_prompted", "true");
             document.getElementById('internal-permission-overlay').style.display = 'none';
-            alert(status ? "Internal Notification Stream Activated!" : "Notifications muted inside application layout.");
         }
 
         function switchAppViewTab(tab) {
@@ -582,7 +579,7 @@
                         
                         syncPrivacyBlocks();
                         setupGlobalNotificationListener();
-                        triggerInternalPermissionCheck(); // Runs internally built dashboard checker
+                        triggerInternalPermissionCheck(); 
                     }
                 });
             } else {
@@ -629,7 +626,6 @@
                         const msg = msgSnap.val();
                         if(!msg || msg.senderId === currentUserData.uid || msg.seen === true || msg.isDeleted) return;
                         
-                        // Condition check matching locally generated network push rule toggle flags
                         if(msg.senderId !== activeChatUserId && internalPermissionGranted && !blockedByMe.includes(msg.senderId) && !blockedByThem.includes(msg.senderId)) {
                             showInAppPushToast(msg);
                         }
@@ -783,7 +779,6 @@
             });
         }
 
-        document.getElementById('chat-message-input');
         function listenToMessages() {
             const container = document.getElementById('messages-container');
             if(activeChatListenerRef) db.ref(`chats/${activeChatKey}`).off('value', activeChatListenerRef);
@@ -834,17 +829,16 @@
         }
 
         // ==========================================
-        //  INTERNAL IMAGE EDITOR & FILTER CONTROLS
+        //  INTERNAL IMAGE EDITOR CORE CORRECTION ENGINE (100% CROP & FILTER ENFORCED)
         // ==========================================
         async function loadPhotoEditorWorkspace(input) {
             const file = input.files[0];
             if(!file) return;
             
-            const b64 = await getBase64(file);
+            uploadedRawImgB64 = await getBase64(file);
             const previewImg = document.getElementById('editor-preview-img');
             
-            previewImg.src = b64;
-            // Reset to clean states defaults
+            previewImg.src = uploadedRawImgB64;
             applyPhotoFilter('normal');
             setPostImageCropAspect('1:1');
             
@@ -866,56 +860,61 @@
 
         function applyPhotoFilter(filterName) {
             const img = document.getElementById('editor-preview-img');
-            img.className = "max-w-full max-h-full object-cover transition-all duration-200"; // clear old
+            img.className = "max-w-full max-h-full object-cover transition-all duration-200"; 
             
             selectedEditorFilterClass = `filter-${filterName}`;
             img.classList.add(selectedEditorFilterClass);
         }
 
-        // Helper framework to draw CSS web filter adjustments onto an internal offscreen HTML5 canvas element before push
+        // Fixed Canvas Generator - Renders both strict crop coordinates and CSS filter pixels permanently into image data stream
         function bakeFilteredImageCanvas(base64Src, filterClass, aspectStyle) {
             return new Promise((resolve) => {
                 const img = new Image();
                 img.src = base64Src;
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    let targetWidth = img.width;
-                    let targetHeight = img.height;
-                    
-                    // Match aspect dimension configurations maps
-                    if(aspectStyle === '1:1') {
-                        let size = Math.min(img.width, img.height);
-                        targetWidth = size; targetHeight = size;
-                    } else if(aspectStyle === '4:5') {
-                        targetHeight = img.height; targetWidth = img.height * (4/5);
-                        if(targetWidth > img.width) { targetWidth = img.width; targetHeight = img.width * (5/4); }
-                    } else if(aspectStyle === '16:9') {
-                        targetWidth = img.width; targetHeight = img.width * (9/16);
-                        if(targetHeight > img.height) { targetHeight = img.height; targetWidth = img.height * (16/9); }
-                    }
-
-                    canvas.width = targetWidth;
-                    canvas.height = targetHeight;
                     const ctx = canvas.getContext('2d');
                     
-                    // Map visual engine classes matrix onto context canvas configurations filters strings
-                    if(filterClass === 'filter-vintage') ctx.filter = "sepia(0.6) contrast(1.1) brightness(0.9)";
-                    else if(filterClass === 'filter-bw') ctx.filter = "grayscale(1) contrast(1.2)";
-                    else if(filterClass === 'filter-emerald') ctx.filter = "hue-rotate(60deg) saturate(1.4)";
-                    else if(filterClass === 'filter-cyber') ctx.filter = "hue-rotate(240deg) saturate(1.8) contrast(1.1)";
+                    let cropWidth = img.width;
+                    let cropHeight = img.height;
+                    
+                    if (aspectStyle === '1:1') {
+                        let size = Math.min(img.width, img.height);
+                        cropWidth = size; cropHeight = size;
+                    } else if (aspectStyle === '4:5') {
+                        cropHeight = img.height; cropWidth = img.height * (4 / 5);
+                        if (cropWidth > img.width) { cropWidth = img.width; cropHeight = img.width * (5 / 4); }
+                    } else if (aspectStyle === '16:9') {
+                        cropWidth = img.width; cropHeight = img.width * (9 / 16);
+                        if (cropHeight > img.height) { cropHeight = img.height; cropWidth = img.height * (16 / 9); }
+                    }
+
+                    canvas.width = cropWidth;
+                    canvas.height = cropHeight;
+                    
+                    // Bake structural pixel adjustments safely via context pipeline filters injection strings
+                    if (filterClass === 'filter-vintage') ctx.filter = "sepia(0.6) contrast(1.1) brightness(0.9)";
+                    else if (filterClass === 'filter-bw') ctx.filter = "grayscale(1) contrast(1.2)";
+                    else if (filterClass === 'filter-emerald') ctx.filter = "hue-rotate(60deg) saturate(1.4)";
+                    else if (filterClass === 'filter-cyber') ctx.filter = "hue-rotate(240deg) saturate(1.8) contrast(1.1)";
                     else ctx.filter = "none";
                     
-                    ctx.drawImage(img, (img.width - targetWidth)/2, (img.height - targetHeight)/2, targetWidth, targetHeight, 0, 0, targetWidth, targetHeight);
+                    // Center-crop drawing formula optimization mechanics
+                    let sourceX = (img.width - cropWidth) / 2;
+                    let sourceY = (img.height - cropHeight) / 2;
+                    
+                    ctx.drawImage(img, sourceX, sourceY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
                     resolve(canvas.toDataURL('image/jpeg', 0.85));
                 };
             });
         }
 
         // ==========================================
-        //  INSTAGRAM-STYLE EXPLORER FEED ENGINE
+        //  EXPLORER FEED STORAGE CORE PIPELINES
         // ==========================================
         function openCreatePostModal() {
             selectedMusicState = null;
+            uploadedRawImgB64 = null;
             document.getElementById('post-music-btn-label').innerText = "Add Track Audio Music";
             document.getElementById('music-selection-tray').classList.add('hidden');
             document.getElementById('active-trim-controls').classList.add('hidden');
@@ -985,15 +984,12 @@
         }
 
         async function submitNewPostAction() {
-            const imgInput = document.getElementById('post-img-file');
             const caption = document.getElementById('post-caption').value.trim();
             const location = document.getElementById('post-location').value.trim();
-            if(!imgInput.files[0]) return alert("Please select a post layout image!");
+            if(!uploadedRawImgB64) return alert("Please select a post layout image!");
             
-            const rawBase64 = await getBase64(imgInput.files[0]);
-            
-            // Render filter changes and aspect ratio onto baked data
-            const bakedFilterImgBase64 = await bakeFilteredImageCanvas(rawBase64, selectedEditorFilterClass, activeEditorAspectStyle);
+            // Core processing injection layer - permanent bake execution mapping
+            const bakedFilterImgBase64 = await bakeFilteredImageCanvas(uploadedRawImgB64, selectedEditorFilterClass, activeEditorAspectStyle);
             
             const postRef = db.ref('posts').push();
             postRef.set({
@@ -1074,12 +1070,14 @@
             postCards.forEach(card => postObserverInstance.observe(card));
         }
 
+        // FIXED REALTIME ARRAYS PACKING ENGINE FOR FEED RENDER VISUALS (Resolves ghost empty spaces)
         function loadExplorerFeedPosts() {
             const container = document.getElementById('feed-container');
-            container.innerHTML = "";
+            db.ref('posts').off(); // Detach old structural loops listeners safely
             
             db.ref('posts').orderByChild('timestamp').on('value', snapshot => {
                 container.innerHTML = "";
+                
                 if(!snapshot.exists()) {
                     container.innerHTML = `<div class="text-center text-gray-400 text-xs py-20">No exploration feed items found. Create a post above!</div>`; 
                     if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; currentlyPlayingPostId = null; }
@@ -1095,7 +1093,7 @@
                         activeFeedAudioInstance = new Audio(topPostWithMusic.music.src);
                         activeFeedAudioInstance.currentTime = topPostWithMusic.music.startAt;
                         activeFeedAudioInstance.loop = true; 
-                        activeFeedAudioInstance.play().catch(e => console.log("Context initialized."));
+                        activeFeedAudioInstance.play().catch(e => console.log("Context gesture synchronized."));
                     }
                 } else {
                     if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
@@ -1151,7 +1149,7 @@
                         </div>
                         
                         <div class="relative overflow-hidden cursor-pointer" onclick="handlePostInstagramGestures(event, '${post.postId}')">
-                            <img src="${post.image}" class="w-full object-cover max-h-80 bg-gray-50 select-none pointer-events-none">
+                            <img src="${post.image}" class="w-full object-contain bg-gray-50 select-none pointer-events-none">
                         </div>
 
                         <div class="p-3 space-y-2">
