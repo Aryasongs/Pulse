@@ -3,20 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pulse - Music App</title>
+  <title>Pulse - Apple Music Vibe</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .glass { background: rgba(255, 255, 255, 0.07); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+    body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    .glass { background: rgba(255, 255, 255, 0.08); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.1); }
     .apple-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
-    /* Hide scrollbar */
     ::-webkit-scrollbar { display: none; }
+    
+    /* Smooth Fullscreen Slide Animation */
+    #fullscreen-player {
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    #fullscreen-player.active {
+      transform: translateY(0%);
+    }
   </style>
 </head>
 <body class="flex justify-center items-center h-screen bg-neutral-950">
 
-  <div class="w-full max-w-md h-[92vh] bg-neutral-900 rounded-[40px] shadow-2xl border border-neutral-800 overflow-hidden flex flex-col relative">
+  <div class="w-full max-w-md h-[95vh] bg-neutral-900 rounded-[45px] shadow-2xl border border-neutral-800 overflow-hidden flex flex-col relative">
     
     <div id="auth-screen" class="absolute inset-0 bg-neutral-900 z-50 flex flex-col justify-center p-6 overflow-y-auto">
       <div class="text-center mb-8">
@@ -48,7 +56,7 @@
         </div>
         <input type="password" id="sign-password" placeholder="Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
         <div class="bg-neutral-800 p-3 rounded-xl border border-neutral-700 space-y-2">
-          <label class="text-xs text-pink-500 font-medium">Security Question (For Password Reset)</label>
+          <label class="text-xs text-pink-500 font-medium">Security Question</label>
           <p class="text-xs text-neutral-300">What is your childhood nickname?</p>
           <input type="text" id="sign-secret" placeholder="Your Answer" class="w-full p-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white text-sm">
         </div>
@@ -58,7 +66,6 @@
 
       <div id="forgot-box" class="space-y-4 hidden">
         <h2 class="text-xl font-semibold mb-2">Reset Password</h2>
-        <p class="text-xs text-neutral-400">Apna registered email aur secret answer daalein naya password set karne ke liye.</p>
         <input type="email" id="forgot-email" placeholder="Registered Email" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
         <input type="text" id="forgot-secret" placeholder="Your Secret Answer" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
         <input type="password" id="forgot-new-password" placeholder="Enter New Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
@@ -66,7 +73,6 @@
         <p class="text-xs text-center text-neutral-400 mt-2"><button onclick="toggleAuthBoxes('login')" class="text-pink-500 font-medium">Back to Login</button></p>
       </div>
     </div>
-
 
     <header class="p-5 flex justify-between items-center bg-neutral-900/80 sticky top-0 backdrop-blur-md z-10">
       <div>
@@ -80,34 +86,76 @@
 
     <main class="flex-1 overflow-y-auto px-5 pb-24">
       <h2 class="text-2xl font-bold tracking-tight mb-4 text-white">Browse Songs</h2>
-      
-      <div id="songs-container" class="space-y-3">
-        </div>
+      <div id="songs-container" class="space-y-3"></div>
     </main>
 
-
-    <div id="mini-player" class="absolute bottom-0 left-0 right-0 glass p-4 flex flex-col justify-between items-center border-t border-neutral-800 rounded-t-3xl" style="display: none;">
-      <div class="flex items-center justify-between w-full">
-        <div class="flex items-center space-x-3 cursor-pointer" id="mini-player-info">
+    <div id="mini-player" class="absolute bottom-0 left-0 right-0 glass p-4 flex flex-col justify-between items-center border-t border-neutral-800 rounded-t-3xl z-20" style="display: none;">
+      <div class="flex items-center justify-between w-full" id="mini-player-trigger">
+        <div class="flex items-center space-x-3 cursor-pointer flex-1">
           <img id="player-cover" src="" class="w-12 h-12 rounded-xl object-cover shadow-md">
           <div class="w-40 truncate">
             <h4 id="player-title" class="font-semibold text-sm text-white truncate">Song Title</h4>
             <p id="player-artist" class="text-xs text-neutral-400 truncate">Artist Name</p>
           </div>
         </div>
-        
-        <div class="flex items-center space-x-4">
-          <button id="btn-prev" class="text-neutral-400 hover:text-white text-lg"><i class="fa-solid fa-backward-step"></i></button>
-          <button id="btn-play-pause" class="w-10 h-10 rounded-full apple-gradient flex items-center justify-center text-white text-sm shadow-md shadow-pink-500/20"><i class="fa-solid fa-play"></i></button>
-          <button id="btn-next" class="text-neutral-400 hover:text-white text-lg"><i class="fa-solid fa-forward-step"></i></button>
+        <div class="flex items-center space-x-4" onclick="event.stopPropagation();">
+          <button id="btn-mini-play" class="text-white text-xl"><i class="fa-solid fa-play"></i></button>
+          <button id="btn-mini-next" class="text-neutral-400 hover:text-white text-lg"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="fullscreen-player" class="absolute inset-0 z-40 flex flex-col justify-between p-8 overflow-hidden select-none">
+      
+      <div id="dynamic-blur-bg" class="absolute inset-0 scale-125 blur-[45px] brightness-[0.45] saturate-[1.6] transition-all duration-700 bg-cover bg-center -z-10"></div>
+      
+      <div class="flex justify-between items-center w-full mt-4">
+        <button id="btn-close-fullscreen" class="text-white/60 hover:text-white text-xl transition p-2">
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Now Playing</span>
+        <button class="text-white/60 hover:text-white text-xl transition p-2">
+          <i class="fa-solid fa-ellipsis"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 flex flex-col justify-center items-center my-6">
+        <div class="w-68 h-68 max-w-[280px] aspect-square rounded-[24px] overflow-hidden shadow-[0_25px_50px_-12px_rgba(0,0,0,0.7)] transition-transform duration-500 scale-95" id="fs-art-wrapper">
+          <img id="fs-cover" src="" class="w-full h-full object-cover">
         </div>
       </div>
 
-      <div class="w-full flex items-center space-x-2 mt-3 px-1">
-        <span id="time-current" class="text-[10px] text-neutral-400 w-8">0:00</span>
-        <input type="range" id="seekbar" min="0" value="0" step="1" class="flex-1 h-1 bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-pink-500">
-        <span id="time-duration" class="text-[10px] text-neutral-400 w-8 text-right">0:00</span>
+      <div class="space-y-6 mb-4">
+        <div class="flex justify-between items-center">
+          <div class="w-full truncate pr-4">
+            <h2 id="fs-title" class="text-2xl font-bold tracking-tight text-white truncate">Song Title</h2>
+            <p id="fs-artist" class="text-lg text-white/60 truncate mt-0.5">Artist Name</p>
+          </div>
+          <button class="text-white/40 hover:text-pink-500 text-xl transition"><i class="fa-regular fa-heart"></i></button>
+        </div>
+
+        <div class="space-y-2">
+          <div class="relative w-full">
+            <input type="range" id="fs-seekbar" min="0" value="0" step="1" class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white transition hover:bg-white/30">
+          </div>
+          <div class="flex justify-between text-xs font-medium text-white/40 tracking-wider">
+            <span id="fs-time-current">0:00</span>
+            <span id="fs-time-duration">0:00</span>
+          </div>
+        </div>
+
+        <div class="flex justify-center items-center space-x-12 py-3">
+          <button id="btn-fs-prev" class="text-white/80 hover:text-white active:scale-90 text-3xl transition duration-200"><i class="fa-solid fa-backward-step"></i></button>
+          <button id="btn-fs-play-pause" class="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center text-3xl shadow-xl active:scale-95 transition-transform duration-200"><i class="fa-solid fa-play ml-1"></i></button>
+          <button id="btn-fs-next" class="text-white/80 hover:text-white active:scale-90 text-3xl transition duration-200"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+
+        <div class="flex justify-between items-center text-white/40 px-4 pt-2">
+          <i class="fa-solid fa-quote-left text-sm hover:text-white transition"></i>
+          <i class="fa-solid fa-list-ul text-sm hover:text-white transition"></i>
+        </div>
       </div>
+
     </div>
 
   </div>
@@ -119,7 +167,6 @@
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Your exact Firebase Configuration
     const firebaseConfig = {
       apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
       authDomain: "pulse2-92372.firebaseapp.com",
@@ -130,12 +177,10 @@
       appId: "1:276235725177:web:0f4e0789fae80a435927a8"
     };
 
-    // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Song List Data
     const songs = [
       { title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg" },
       { title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg" },
@@ -149,8 +194,8 @@
     let currentSongIndex = 0;
     let currentUser = null;
     const audio = document.getElementById('audio-player');
+    const fullscreenPlayer = document.getElementById('fullscreen-player');
 
-    // DOM Navigation Helpers
     window.toggleAuthBoxes = function(target) {
       document.getElementById('login-box').classList.add('hidden');
       document.getElementById('signup-box').classList.add('hidden');
@@ -158,9 +203,7 @@
       document.getElementById(`${target}-box`).classList.remove('hidden');
     }
 
-    // --- AUTHENTICATION FLOW ---
-
-    // 1. Sign Up User (Saves Extended Profile Info inside Firebase Database)
+    // AUTH PROCESS
     document.getElementById('btn-signup').addEventListener('click', () => {
       const name = document.getElementById('sign-name').value;
       const email = document.getElementById('sign-email').value;
@@ -170,97 +213,49 @@
 
       if(!name || !email || !dob || !password || !secretAns) return alert("Sari details bharein!");
 
-      createUserWithEmailAndPassword(auth, email, password)
-        .then((userCredential) => {
-          const uid = userCredential.user.uid;
-          // Database me user information and tracking parameters set karna
-          set(ref(db, 'users/' + uid), {
-            name: name,
-            email: email,
-            dob: dob,
-            secretQuestionAnswer: secretAns,
-            lastPlayedSong: "None",
-            registeredAt: new Date().toISOString()
-          }).then(() => {
-            alert("Account Successfully Create ho gaya!");
-            toggleAuthBoxes('login');
-          });
-        })
-        .catch((error) => alert(error.message));
+      createUserWithEmailAndPassword(auth, email, password).then((userCredential) => {
+        set(ref(db, 'users/' + userCredential.user.uid), {
+          name: name, email: email, dob: dob, secretQuestionAnswer: secretAns, lastPlayedSong: "None", registeredAt: new Date().toISOString()
+        }).then(() => { alert("Account created successfully!"); toggleAuthBoxes('login'); });
+      }).catch((e) => alert(e.message));
     });
 
-    // 2. Sign In User
     document.getElementById('btn-login').addEventListener('click', () => {
       const email = document.getElementById('login-email').value;
       const password = document.getElementById('login-password').value;
-
-      if(!email || !password) return alert("Email aur password dono bharein!");
-
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          document.getElementById('auth-screen').classList.add('hidden');
-        })
-        .catch((error) => alert(error.message));
+      if(!email || !password) return alert("Fields cannot be empty!");
+      signInWithEmailAndPassword(auth, email, password).catch((e) => alert(e.message));
     });
 
-    // 3. Secret Question Based Password Reset
-    document.getElementById('btn-reset').addEventListener('click', async () => {
-      const email = document.getElementById('forgot-email').value;
-      const secretAns = document.getElementById('forgot-secret').value.trim().toLowerCase();
-      const newPassword = document.getElementById('forgot-new-password').value;
-
-      if(!email || !secretAns || !newPassword) return alert("Kripya sabhi fields bharein!");
-
-      alert("Firebase standard client-side secure update processing...");
-      // Is workflow me security maintain karne ke liye, database verify kiya jata hai.
-      // Demo authentication bypass trick securely linked to data check:
-      try {
-        // Safe database validation logic can bypass via general node lookups.
-        alert("Password securely processed! (Aap direct email login update use kar sakte hain)");
-        toggleAuthBoxes('login');
-      } catch(e) {
-        alert("Error handling request.");
-      }
-    });
-
-    // 4. Sign Out User
     document.getElementById('btn-logout').addEventListener('click', () => {
       signOut(auth).then(() => {
+        fullscreenPlayer.classList.remove('active');
         document.getElementById('auth-screen').classList.remove('hidden');
         audio.pause();
         document.getElementById('mini-player').style.display = 'none';
       });
     });
 
-    // 5. Auth State Observer (Persistence check)
     onAuthStateChanged(auth, (user) => {
       if (user) {
         currentUser = user;
         document.getElementById('auth-screen').classList.add('hidden');
-        
-        // Database se profile data fetch karke display karna
-        get(child(ref(db), `users/${user.uid}`)).then((snapshot) => {
-          if (snapshot.exists()) {
-            document.getElementById('user-display-name').innerText = snapshot.val().name;
-          }
+        get(child(ref(db), `users/${user.uid}`)).then((snap) => {
+          if (snap.exists()) document.getElementById('user-display-name').innerText = snap.val().name;
         });
       } else {
         document.getElementById('auth-screen').classList.remove('hidden');
       }
     });
 
-
-    // --- MUSIC PLAYER & ACTIVITY TRACKING LOGIC ---
-
-    // Generate UI List elements
+    // RENDER INTERFACE SONGS
     const songsContainer = document.getElementById('songs-container');
     function renderSongs() {
       songsContainer.innerHTML = '';
-      songs.forEach((song, index) => {
+      songs.forEach((song, idx) => {
         const row = document.createElement('div');
         row.className = "flex items-center justify-between p-3 rounded-2xl bg-neutral-800/40 hover:bg-neutral-800 transition cursor-pointer group";
-        row.onclick = () => playSong(index);
-        
+        row.onclick = () => { playSong(idx); fullscreenPlayer.classList.add('active'); };
         row.innerHTML = `
           <div class="flex items-center space-x-3">
             <img src="${song.cover}" class="w-12 h-12 rounded-xl object-cover">
@@ -269,97 +264,96 @@
               <p class="text-xs text-neutral-400">${song.artist}</p>
             </div>
           </div>
-          <div class="text-neutral-500 group-hover:text-white transition p-2">
-            <i class="fa-solid fa-play text-xs"></i>
-          </div>
+          <div class="text-neutral-500 group-hover:text-white transition p-2"><i class="fa-solid fa-play text-xs"></i></div>
         `;
         songsContainer.appendChild(row);
       });
     }
 
-    // Play specific song
+    // PLAY LOGIC WITH DYNAMIC DESIGN UPDATES
     function playSong(index) {
       currentSongIndex = index;
       const song = songs[currentSongIndex];
-      
       audio.src = song.src;
       audio.play();
 
-      // UI Update elements
+      // Mini Player Synchronization
       document.getElementById('player-title').innerText = song.title;
       document.getElementById('player-artist').innerText = song.artist;
       document.getElementById('player-cover').src = song.cover;
       document.getElementById('mini-player').style.display = 'block';
-      document.getElementById('btn-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
+      document.getElementById('btn-mini-play').innerHTML = '<i class="fa-solid fa-pause"></i>';
 
-      // --- FIREBASE TRACKING SYSTEM ---
+      // Fullscreen Now Playing Setup (Dynamic Blur)
+      document.getElementById('fs-title').innerText = song.title;
+      document.getElementById('fs-artist').innerText = song.artist;
+      document.getElementById('fs-cover').src = song.cover;
+      document.getElementById('dynamic-blur-bg').style.backgroundImage = `url('${song.cover}')`;
+      
+      // iOS Core Scale Animation Effect
+      const artWrapper = document.getElementById('fs-art-wrapper');
+      artWrapper.classList.remove('scale-95');
+      artWrapper.classList.add('scale-100');
+      document.getElementById('btn-fs-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
+
+      // TRACK LOGS TO FIREBASE
       if(currentUser) {
-        const activityRef = ref(db, `users/${currentUser.uid}/activity/` + Date.now());
-        // Tracks complete timestamp based structure
-        set(activityRef, {
-          songTitle: song.title,
-          artist: song.artist,
-          action: "Played",
-          timestamp: new Date().toLocaleString()
+        set(ref(db, `users/${currentUser.uid}/activity/` + Date.now()), {
+          songTitle: song.title, artist: song.artist, action: "Played", timestamp: new Date().toLocaleString()
         });
-
-        // Set Last Played shortcut info node
-        update(ref(db, `users/${currentUser.uid}`), {
-          lastPlayedSong: song.title + " - " + song.artist
-        });
+        update(ref(db, `users/${currentUser.uid}`), { lastPlayedSong: `${song.title} - ${song.artist}` });
       }
     }
 
-    // Player controls
-    const playPauseBtn = document.getElementById('btn-play-pause');
-    playPauseBtn.addEventListener('click', () => {
+    // ACTION ELEMENT INTERACTION TRIGGERS
+    function togglePlayback() {
+      const fsPlayBtn = document.getElementById('btn-fs-play-pause');
+      const miniPlayBtn = document.getElementById('btn-mini-play');
+      const artWrapper = document.getElementById('fs-art-wrapper');
+
       if (audio.paused) {
         audio.play();
-        playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        fsPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        miniPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        artWrapper.classList.replace('scale-95', 'scale-100');
       } else {
         audio.pause();
-        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        fsPlayBtn.innerHTML = '<i class="fa-solid fa-play ml-1"></i>';
+        miniPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        artWrapper.classList.replace('scale-100', 'scale-95');
       }
-    });
+    }
 
-    document.getElementById('btn-next').addEventListener('click', () => {
-      let nextIndex = (currentSongIndex + 1) % songs.length;
-      playSong(nextIndex);
-    });
+    document.getElementById('btn-mini-play').addEventListener('click', togglePlayback);
+    document.getElementById('btn-fs-play-pause').addEventListener('click', togglePlayback);
 
-    document.getElementById('btn-prev').addEventListener('click', () => {
-      let prevIndex = (currentSongIndex - 1 + songs.length) % songs.length;
-      playSong(prevIndex);
-    });
+    document.getElementById('btn-fs-next').addEventListener('click', () => playSong((currentSongIndex + 1) % songs.length));
+    document.getElementById('btn-mini-next').addEventListener('click', () => playSong((currentSongIndex + 1) % songs.length));
+    document.getElementById('btn-fs-prev').addEventListener('click', () => playSong((currentSongIndex - 1 + songs.length) % songs.length));
 
-    // Time update for Seekbar and duration text layout
+    // Fullscreen Navigation Handling
+    document.getElementById('mini-player-trigger').addEventListener('click', () => fullscreenPlayer.classList.add('active'));
+    document.getElementById('btn-close-fullscreen').addEventListener('click', () => fullscreenPlayer.classList.remove('active'));
+
+    // TIME TRACKING & SEEKBAR MANAGEMENT
     audio.addEventListener('timeupdate', () => {
       if(isNaN(audio.duration)) return;
-      const seekbar = document.getElementById('seekbar');
-      const timeCurrent = document.getElementById('time-current');
-      const timeDuration = document.getElementById('time-duration');
+      const fsSeek = document.getElementById('fs-seekbar');
+      fsSeek.max = Math.floor(audio.duration);
+      fsSeek.value = Math.floor(audio.currentTime);
 
-      seekbar.max = Math.floor(audio.duration);
-      seekbar.value = Math.floor(audio.currentTime);
-
-      // Calculations
       let curMins = Math.floor(audio.currentTime / 60);
       let curSecs = Math.floor(audio.currentTime % 60);
       let durMins = Math.floor(audio.duration / 60);
       let durSecs = Math.floor(audio.duration % 60);
 
-      if(curSecs < 10) curSecs = "0" + curSecs;
-      if(durSecs < 10) durSecs = "0" + durSecs;
-
-      timeCurrent.innerText = `${curMins}:${curSecs}`;
-      timeDuration.innerText = `${durMins}:${durSecs}`;
+      document.getElementById('fs-time-current').innerText = `${curMins}:${curSecs < 10 ? '0'+curSecs : curSecs}`;
+      document.getElementById('fs-time-duration').innerText = `${durMins}:${durSecs < 10 ? '0'+durSecs : durSecs}`;
     });
 
-    document.getElementById('seekbar').addEventListener('input', (e) => {
-      audio.currentTime = e.target.value;
-    });
+    document.getElementById('fs-seekbar').addEventListener('input', (e) => audio.currentTime = e.target.value);
+    audio.addEventListener('ended', () => playSong((currentSongIndex + 1) % songs.length));
 
-    // Initial setup running inside modules
     renderSongs();
   </script>
 </body>
