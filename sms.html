@@ -46,8 +46,8 @@
             </div>
 
             <div class="mt-6 text-center text-sm text-gray-600 space-y-2">
-                <p id="toggle-signup">Naye user hain? <span onclick="switchAuthMode('signup')" class="text-emerald-600 cursor-pointer font-semibold underline">Register Karein</span></p>
-                <p id="toggle-login" class="hidden">Wapas <span onclick="switchAuthMode('login')" class="text-emerald-600 cursor-pointer font-semibold underline">Login Par Jayein</span></p>
+                <p id="toggle-signup">New user? <span onclick="switchAuthMode('signup')" class="text-emerald-600 cursor-pointer font-semibold underline">Create Account</span></p>
+                <p id="toggle-login" class="hidden">Back to <span onclick="switchAuthMode('login')" class="text-emerald-600 cursor-pointer font-semibold underline">Login Screen</span></p>
             </div>
         </div>
     </div>
@@ -63,7 +63,7 @@
                     </div>
                     <div class="min-w-0">
                         <div id="my-name" class="font-bold truncate max-w-[120px]">User Name</div>
-                        <div class="text-[10px] text-emerald-100 font-medium">✏️ Edit Profile & Privacy</div>
+                        <div class="text-[10px] text-emerald-100 font-medium">✏️ Edit Profile & Settings</div>
                     </div>
                 </div>
                 <button onclick="logout()" class="text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow">Logout</button>
@@ -92,7 +92,7 @@
                         <div class="flex items-center space-x-1">
                             <div id="chat-user-name" class="font-bold text-gray-800">Select a contact</div>
                         </div>
-                        <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Report</div>
+                        <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Privacy Controls</div>
                     </div>
                 </div>
                 <div id="chat-actions" class="hidden">
@@ -105,13 +105,13 @@
             <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 chat-custom-bg">
                 <div class="flex flex-col items-center justify-center h-full text-gray-500 text-center">
                     <span class="text-4xl mb-2">⚡</span>
-                    <p class="font-medium">Pulse2 Messaging App</p>
-                    <p class="text-xs max-w-xs mt-1">Kisi dost ko select karein ya email se add karke secure chatting shuru karein.</p>
+                    <p class="font-medium">Pulse2 Secure Hub</p>
+                    <p class="text-xs max-w-xs mt-1">Select an active contact or search via verified email routing paths to start secure chats.</p>
                 </div>
             </div>
 
             <div id="blocked-banner" class="hidden p-2 bg-red-100 text-red-700 text-center text-xs font-semibold">
-                Aapne is user ko block kiya hua hai. Message bhejna band hai.
+                Privacy Restrictions Active. Outgoing and incoming traffic is disabled.
             </div>
 
             <div id="input-bar" class="p-3 bg-gray-100 border-t border-gray-200 flex items-center space-x-2">
@@ -127,7 +127,7 @@
 
     <div id="profile-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl relative">
-            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">⚙️ Edit Settings & Privacy</h3>
+            <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center">⚙️ Edit Profile Settings</h3>
             <div class="space-y-4">
                 <div>
                     <label class="text-xs font-semibold text-gray-600 block mb-1">Full Name</label>
@@ -168,7 +168,7 @@
             </div>
 
             <div class="mt-5 pt-2 border-t border-gray-100 flex flex-col space-y-2">
-                <button onclick="reportUserAction()" class="w-full py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-sm font-semibold transition">
+                <button id="report-modal-btn" onclick="reportUserAction()" class="w-full py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-sm font-semibold transition">
                     🚨 Report This User
                 </button>
                 <button onclick="closeUserViewModal()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs transition">
@@ -200,11 +200,14 @@
         let currentAuthMode = 'login';
         let currentUserData = null;
         let activeChatUserId = null;
-        let activeChatUserData = null; // Storing active target full object for views
+        let activeChatUserData = null; 
         let activeChatKey = null;
-        let blockedUsersList = [];
+        
+        let blockedByMe = [];    // Users I have blocked
+        let blockedByThem = [];  // Users who have blocked me
 
-        // Base64 Converter Helper
+        const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
+
         function getBase64(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -214,7 +217,6 @@
             });
         }
 
-        // Auth UI Toggles
         function switchAuthMode(mode) {
             currentAuthMode = mode;
             document.getElementById('auth-alert').classList.add('hidden');
@@ -236,14 +238,13 @@
             }
         }
 
-        // Handle Login / Signup Action
         async function handleAuthAction() {
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-pass').value;
             const alertBox = document.getElementById('auth-alert');
             alertBox.classList.add('hidden');
 
-            if (!email || !password) { alertBox.innerText = "Saari Fields bharein!"; alertBox.classList.remove('hidden'); return; }
+            if (!email || !password) { alertBox.innerText = "All fields are required!"; alertBox.classList.remove('hidden'); return; }
 
             if (currentAuthMode === 'login') {
                 auth.signInWithEmailAndPassword(email, password)
@@ -256,10 +257,10 @@
                 const pfpFile = document.getElementById('auth-pfp').files[0];
 
                 if (!name || !dob || !question || !answer) {
-                    alertBox.innerText = "Kripya sabhi details bharein!"; alertBox.classList.remove('hidden'); return;
+                    alertBox.innerText = "Please fill all registration details!"; alertBox.classList.remove('hidden'); return;
                 }
 
-                let pfpBase64 = "https://via.placeholder.com/150";
+                let pfpBase64 = defaultBlankAvatar;
                 if (pfpFile) pfpBase64 = await getBase64(pfpFile);
 
                 auth.createUserWithEmailAndPassword(email, password)
@@ -270,33 +271,58 @@
                         });
                         const safeEmailKey = email.replace(/\./g, ',');
                         await db.ref('emailToUid/' + safeEmailKey).set(uid);
+                        
+                        // Automated verification welcome trigger by system Pulse bot account
+                        triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Your profile registration validation is verified. If you ever lose your profile sync key or password, respond here anytime to start automatic secure fallback procedures.");
                     })
                     .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
             }
         }
 
-        // Persistent Session Event Listener
+        // Pulse System Welcome / Verification Engine
+        function triggerPulseSystemMessage(targetUid, messageText) {
+            const systemBotId = "system_pulse";
+            const combinedKey = systemBotId < targetUid ? `${systemBotId}_${targetUid}` : `${targetUid}_${systemBotId}`;
+            
+            // Registering System contact node
+            db.ref(`contacts/${targetUid}/${systemBotId}`).set(true);
+            
+            db.ref(`chats/${combinedKey}`).push({
+                senderId: systemBotId,
+                type: 'text',
+                content: messageText,
+                seen: false,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        // Persistent Auth Sessions
         auth.onAuthStateChanged(user => {
             if (user) {
+                // Ensure system profile parameters exists globally for render lookups
+                db.ref('users/system_pulse').set({
+                    uid: "system_pulse",
+                    name: "Pulse",
+                    email: "pulse-bot@secure.network",
+                    dob: "2026-05-27",
+                    pfp: "https://aryasongs.github.io/Pulse/IMG_6101.png",
+                    verified: true
+                });
+
                 db.ref('users/' + user.uid).on('value', snapshot => {
                     currentUserData = snapshot.val();
                     if(currentUserData) {
                         document.getElementById('my-name').innerText = currentUserData.name;
-                        document.getElementById('my-avatar').src = currentUserData.pfp || "https://via.placeholder.com/40";
+                        document.getElementById('my-avatar').src = currentUserData.pfp || defaultBlankAvatar;
                         
-                        // Verification Check for self
                         const myBadge = document.getElementById('my-verified-badge');
-                        if(currentUserData.verified === true) {
-                            myBadge.classList.remove('hidden');
-                        } else {
-                            myBadge.classList.add('hidden');
-                        }
+                        if(currentUserData.verified === true) myBadge.classList.remove('hidden');
+                        else myBadge.classList.add('hidden');
 
                         document.getElementById('auth-screen').classList.remove('active');
                         document.getElementById('app-screen').classList.add('active');
                         
-                        loadBlockList();
-                        loadContactsList();
+                        syncPrivacyBlocks();
                     }
                 });
             } else {
@@ -308,74 +334,88 @@
 
         function logout() { auth.signOut(); }
 
-        // Privacy Sync Control
-        function loadBlockList() {
+        // Dual-directional block synchronizer rules
+        function syncPrivacyBlocks() {
+            // 1. Load users I have blocked
             db.ref(`blocks/${currentUserData.uid}`).on('value', snapshot => {
-                blockedUsersList = [];
+                blockedByMe = [];
                 if(snapshot.exists()) {
-                    snapshot.forEach(child => { if(child.val() === true) blockedUsersList.push(child.key); });
+                    snapshot.forEach(child => { if(child.val() === true) blockedByMe.push(child.key); });
                 }
-                if(activeChatUserId) checkBlockStatus(activeChatUserId);
+                
+                // 2. Load users who blocked me
+                db.ref(`blockedObservers/${currentUserData.uid}`).on('value', obsSnap => {
+                    blockedByThem = [];
+                    if(obsSnap.exists()) {
+                        obsSnap.forEach(child => { if(child.val() === true) blockedByThem.push(child.key); });
+                    }
+                    
+                    // Refresh current active view allocations
+                    if(activeChatUserId) renderChatInterfaceHeader(activeChatUserId);
+                    loadContactsSidebarList();
+                });
             });
         }
 
-        // Add Contact Action
         function addContact() {
             const emailInput = document.getElementById('search-email');
             const targetEmail = emailInput.value.trim().toLowerCase();
-            if(!targetEmail || targetEmail === currentUserData.email) return alert("Valid Email ID dalein!");
+            if(!targetEmail || targetEmail === currentUserData.email) return alert("Enter a valid target email address!");
 
             const safeEmailKey = targetEmail.replace(/\./g, ',');
             db.ref('emailToUid/' + safeEmailKey).once('value', snapshot => {
-                if(!snapshot.exists()) return alert("User nahi mila!");
+                if(!snapshot.exists()) return alert("User destination endpoint routing failed!");
                 const targetUid = snapshot.val();
                 
                 db.ref(`contacts/${currentUserData.uid}/${targetUid}`).set(true).then(() => {
                     db.ref(`contacts/${targetUid}/${currentUserData.uid}`).set(true);
-                    alert("Contact Add Ho Gaya!");
+                    alert("Contact integrated successfully!");
                     emailInput.value = "";
                 });
             });
         }
 
-        // Dynamic Contacts Listener
-        function loadContactsList() {
+        // Side view contact renderer
+        function loadContactsSidebarList() {
             db.ref(`contacts/${currentUserData.uid}`).on('value', snapshot => {
                 const container = document.getElementById('contacts-list');
                 container.innerHTML = "";
                 if(!snapshot.exists()) {
-                    container.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">No chats. Add someone above!</div>`;
+                    container.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">No active chats. Integration open.</div>`;
                     return;
                 }
                 snapshot.forEach(childSnapshot => {
                     const contactUid = childSnapshot.key;
                     
-                    // Listen to users path with real-time support for verified badge update dynamically
-                    db.ref(`users/${contactUid}`).on('value', userSnap => {
+                    db.ref(`users/${contactUid}`).once('value', userSnap => {
                         const uData = userSnap.val();
                         if(!uData) return;
                         
-                        // Check if item already rendered to prevent duplicates on single child update
                         let existingItem = document.getElementById(`sidebar-user-${uData.uid}`);
                         if(existingItem) existingItem.remove();
 
+                        const isHeBlockingMe = blockedByThem.includes(uData.uid);
+                        
+                        // Mask parameters if under blocking layout
+                        const displayName = isHeBlockingMe ? "Pulse User" : uData.name;
+                        const displayPfp = isHeBlockingMe ? defaultBlankAvatar : (uData.pfp || defaultBlankAvatar);
+                        
                         const item = document.createElement('div');
                         item.id = `sidebar-user-${uData.uid}`;
                         item.className = "contact-item flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 transition border-b border-gray-100";
-                        item.dataset.name = uData.name.toLowerCase();
+                        item.dataset.name = displayName.toLowerCase();
                         item.onclick = () => openChatWindow(uData);
 
-                        // Verified layout check
-                        let verifiedHtml = uData.verified === true ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
+                        let verifiedHtml = (uData.verified === true && !isHeBlockingMe) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
 
                         item.innerHTML = `
                             <div class="relative">
-                                <img src="${uData.pfp || 'https://via.placeholder.com/40'}" class="w-11 h-11 rounded-full object-cover">
-                                ${uData.verified === true ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
+                                <img src="${displayPfp}" class="w-11 h-11 rounded-full object-cover">
+                                ${(uData.verified === true && !isHeBlockingMe) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-900 flex items-center truncate">${uData.name} ${verifiedHtml}</p>
-                                <p class="text-xs text-gray-400 truncate">${uData.email}</p>
+                                <p class="text-sm font-semibold text-gray-900 flex items-center truncate">${displayName} ${verifiedHtml}</p>
+                                <p class="text-xs text-gray-400 truncate">${isHeBlockingMe ? 'Secure Network Session' : uData.email}</p>
                             </div>
                         `;
                         container.appendChild(item);
@@ -384,7 +424,6 @@
             });
         }
 
-        // Local Chat Filter Search
         function filterContacts() {
             const query = document.getElementById('chat-search').value.toLowerCase();
             const items = document.querySelectorAll('.contact-item');
@@ -394,20 +433,11 @@
             });
         }
 
-        // Open Selected Messaging Layout Room
+        // Open chat frame allocations
         function openChatWindow(targetUser) {
             activeChatUserId = targetUser.uid;
-            activeChatUserData = targetUser; // saving complete reference
+            activeChatUserData = targetUser;
             
-            document.getElementById('chat-user-name').innerText = targetUser.name;
-            document.getElementById('chat-avatar').src = targetUser.pfp || "https://via.placeholder.com/40";
-            document.getElementById('chat-actions').classList.remove('hidden');
-
-            // Dynamic header verified tick sync
-            const headerBadge = document.getElementById('chat-verified-badge');
-            if(targetUser.verified === true) headerBadge.classList.remove('hidden');
-            else headerBadge.classList.add('hidden');
-
             activeChatKey = currentUserData.uid < targetUser.uid ? 
                 `${currentUserData.uid}_${targetUser.uid}` : `${targetUser.uid}_${currentUserData.uid}`;
 
@@ -415,33 +445,51 @@
             document.getElementById('chat-area').classList.remove('hidden');
             document.getElementById('chat-area').classList.add('flex');
 
-            checkBlockStatus(targetUser.uid);
+            renderChatInterfaceHeader(targetUser.uid);
             listenToMessages();
         }
 
-        function backToSidebar() {
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('chat-area').classList.add('hidden');
-        }
-
-        // Privacy Controls
-        function toggleBlockUser() {
-            if(!activeChatUserId) return;
-            const isBlocked = blockedUsersList.includes(activeChatUserId);
-            db.ref(`blocks/${currentUserData.uid}/${activeChatUserId}`).set(!isBlocked).then(() => {
-                alert(isBlocked ? "User Unblocked Successfully!" : "User Blocked Successfully!");
-            });
-        }
-
-        function checkBlockStatus(targetUid) {
-            const isIBlocked = blockedUsersList.includes(targetUid);
+        // Custom privacy headers validation routing
+        function renderChatInterfaceHeader(targetUid) {
+            const isHeBlockingMe = blockedByThem.includes(targetUid);
+            const amIBlockingHim = blockedByMe.includes(targetUid);
+            
+            const nameField = document.getElementById('chat-user-name');
+            const avatarField = document.getElementById('chat-avatar');
+            const verifiedBadge = document.getElementById('chat-verified-badge');
+            const actionsBlock = document.getElementById('chat-actions');
             const blockBtn = document.getElementById('block-btn');
+            
             const blockedBanner = document.getElementById('blocked-banner');
             const inputBar = document.getElementById('input-bar');
 
-            blockBtn.innerText = isIBlocked ? "Unblock User" : "Block User";
-            
-            if(isIBlocked) {
+            // Set profile text modifications depending on state
+            if(isHeBlockingMe) {
+                nameField.innerText = "Pulse User";
+                avatarField.src = defaultBlankAvatar;
+                verifiedBadge.classList.add('hidden');
+            } else {
+                nameField.innerText = activeChatUserData.name;
+                avatarField.src = activeChatUserData.pfp || defaultBlankAvatar;
+                if(activeChatUserData.verified === true) verifiedBadge.classList.remove('hidden');
+                else verifiedBadge.classList.add('hidden');
+            }
+
+            // Exclude privacy operations option for official support bot account
+            if(targetUid === "system_pulse") {
+                actionsBlock.classList.add('hidden');
+                blockedBanner.classList.add('hidden');
+                inputBar.classList.remove('hidden');
+                document.getElementById('chat-user-status').innerText = "Verified Pulse Interactive Engine Channel";
+                return;
+            }
+
+            actionsBlock.classList.remove('hidden');
+            blockBtn.innerText = amIBlockingHim ? "Unblock User" : "Block User";
+            document.getElementById('chat-user-status').innerText = "ℹ️ Click to view profile / Context options";
+
+            // Blocked flow structural configuration
+            if(amIBlockingHim || isHeBlockingMe) {
                 blockedBanner.classList.remove('hidden');
                 inputBar.classList.add('hidden');
             } else {
@@ -450,19 +498,42 @@
             }
         }
 
-        // Live Chat Feed Logic with custom status ticks
+        function backToSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('chat-area').classList.add('hidden');
+        }
+
+        // Double block layout routing inside chat listeners
+        function toggleBlockUser() {
+            if(!activeChatUserId || activeChatUserId === "system_pulse") return;
+            const amIBlockingHim = blockedByMe.includes(activeChatUserId);
+            
+            // Set sync updates inside double directional pathways
+            db.ref(`blocks/${currentUserData.uid}/${activeChatUserId}`).set(!amIBlockingHim).then(() => {
+                db.ref(`blockedObservers/${activeChatUserId}/${currentUserData.uid}`).set(!amIBlockingHim).then(() => {
+                    alert(amIBlockingHim ? "User unblocked successfully!" : "User blocked successfully!");
+                });
+            });
+        }
+
+        // Live updates read operation parameters
         function listenToMessages() {
             const container = document.getElementById('messages-container');
             db.ref(`chats/${activeChatKey}`).on('value', snapshot => {
                 container.innerHTML = "";
                 if(!snapshot.exists()) {
-                    container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Safe encrypted chat engine room active.</div>`;
+                    container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Encrypted transmission pipeline established.</div>`;
                     return;
                 }
 
                 snapshot.forEach(child => {
                     const msg = child.val();
                     const isMe = msg.senderId === currentUserData.uid;
+
+                    // If user is blocking me, then do not process incoming messages to my side
+                    if(!isMe && blockedByMe.includes(msg.senderId)) {
+                        return; 
+                    }
 
                     if(!isMe && !msg.seen) {
                         db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true);
@@ -475,6 +546,14 @@
                     if(msg.type === 'text') contentHtml = `<p class="text-sm break-all">${msg.content}</p>`;
                     else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
                     else contentHtml = `<div class="flex items-center space-x-2 bg-black/5 p-2 rounded"><a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-xs underline font-medium text-emerald-700 truncate max-w-[150px]">${msg.fileName || 'View file'}</a></div>`;
+
+                    // Pulse support interactive processing controls inside welcome thread screen
+                    if(!isMe && msg.senderId === "system_pulse" && msg.isRecoveryPrompt === true) {
+                        contentHtml += `
+                        <div class="mt-2 pt-2 border-t border-emerald-300 flex flex-col space-y-1">
+                            <button onclick="handleBotRecoveryAction('pet')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded text-left hover:bg-emerald-700">Answer Secret Question</button>
+                        </div>`;
+                    }
 
                     let tickHtml = "";
                     if(isMe) {
@@ -501,10 +580,52 @@
             const txt = input.value.trim();
             if(!txt || !activeChatKey) return;
 
+            // If messaging to system pulse bot, handle internal intercept recovery questions workflow
+            if(activeChatUserId === "system_pulse" && (txt.toLowerCase().includes("password") || txt.toLowerCase().includes("reset") || txt.toLowerCase().includes("help"))) {
+                db.ref(`chats/${activeChatKey}`).push({
+                    senderId: currentUserData.uid, type: 'text', content: txt, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
+                });
+                
+                setTimeout(() => {
+                    db.ref(`chats/${activeChatKey}`).push({
+                        senderId: "system_pulse",
+                        type: 'text',
+                        content: "Initiating secure recovery engine. Please verify identity parameter node challenge: Please select button below to provide verification answer.",
+                        isRecoveryPrompt: true,
+                        seen: false,
+                        timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                }, 800);
+                input.value = "";
+                return;
+            }
+
             db.ref(`chats/${activeChatKey}`).push({
                 senderId: currentUserData.uid, type: 'text', content: txt, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
             });
             input.value = "";
+        }
+
+        // Fallback procedural answer checker
+        function handleBotRecoveryAction() {
+            const verifyAnswer = prompt("Please provide secret question verification answer configured during registration setup:");
+            if(!verifyAnswer) return;
+            
+            if(verifyAnswer.trim().toLowerCase() === currentUserData.answer.toLowerCase()) {
+                const newSecKey = prompt("Identity Challenge Cleared! Please type your absolute new safe password:");
+                if(!newSecKey || newSecKey.length < 6) return alert("Password must be minimum 6 characters long!");
+                
+                auth.currentUser.updatePassword(newSecKey).then(() => {
+                    db.ref(`chats/${activeChatKey}`).push({
+                        senderId: "system_pulse", type: 'text', content: "Success! Your authentication access core sync key password has been updated safely.", seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
+                    });
+                    triggerPulseSystemMessage(currentUserData.uid, "Security Alert Log: Profile access credential password updated successfully via automated Bot channel routing protection.");
+                }).catch(err => {
+                    alert("Session authentication expired. For core credentials rewrite, log out and request direct password link via Firebase client system: " + err.message);
+                });
+            } else {
+                alert("Security Verification failed. Access denied!");
+            }
         }
 
         async function sendFile() {
@@ -520,7 +641,6 @@
             fileInput.value = "";
         }
 
-        // Profile Modal Configurations (Self User Edit)
         function openMyProfileModal() {
             if(!currentUserData) return;
             document.getElementById('edit-name').value = currentUserData.name;
@@ -537,7 +657,7 @@
             const newDob = document.getElementById('edit-dob').value;
             const newPfpFile = document.getElementById('edit-pfp').files[0];
 
-            if(!newName || !newDob) return alert("Details blank nahi ho sakti!");
+            if(!newName || !newDob) return alert("Fields cannot be completely blank!");
             let updates = { name: newName, dob: newDob };
 
             if(newPfpFile) {
@@ -546,38 +666,62 @@
             }
 
             db.ref(`users/${currentUserData.uid}`).update(updates).then(() => {
-                alert("Profile settings updated!");
+                alert("Profile credentials updated!");
                 closeMyProfileModal();
+                
+                // Trigger security message update alert by official system channel
+                triggerPulseSystemMessage(currentUserData.uid, "Security update confirmation log: Profile name or configurations parameters modified successfully.");
             }).catch(err => alert("Error updating profile: " + err.message));
         }
 
-        // Open other user profile card & report interface
         function openUserViewModal() {
             if(!activeChatUserData) return;
+            const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
             
-            // Re-fetch latest snapshot from database before opening to verify changes
             db.ref(`users/${activeChatUserId}`).once('value', snap => {
                 const data = snap.val();
                 if(!data) return;
 
-                document.getElementById('view-user-pfp').src = data.pfp || "https://via.placeholder.com/96";
-                document.getElementById('view-user-name').innerText = data.name;
-                document.getElementById('view-user-email').innerText = data.email;
-                document.getElementById('view-user-uid').innerText = data.uid;
-                document.getElementById('view-user-dob').innerText = data.dob || "Not Provided";
-
+                const pfpElement = document.getElementById('view-user-pfp');
+                const nameElement = document.getElementById('view-user-name');
+                const emailElement = document.getElementById('view-user-email');
+                const uidElement = document.getElementById('view-user-uid');
+                const dobElement = document.getElementById('view-user-dob');
                 const verifiedBadge = document.getElementById('view-user-verified');
                 const vStatusText = document.getElementById('view-verification-status');
-                
-                if(data.verified === true) {
-                    verifiedBadge.classList.remove('hidden');
-                    vStatusText.innerText = "🌟 Verified Official Profile Account";
-                    vStatusText.className = "text-emerald-600 font-semibold";
-                } else {
+                const reportBtn = document.getElementById('report-modal-btn');
+
+                if(isHeBlockingMe) {
+                    // Force complete profile obfuscation layout masking
+                    pfpElement.src = defaultBlankAvatar;
+                    nameElement.innerText = "Pulse User";
+                    emailElement.innerText = "Secure Data Node Hidden";
+                    uidElement.innerText = "Hidden Encryption Key";
+                    dobElement.innerText = "Hidden Parameter";
                     verifiedBadge.classList.add('hidden');
-                    vStatusText.innerText = "Standard Account User";
-                    vStatusText.className = "text-gray-400 font-medium";
+                    vStatusText.innerText = "Privacy Protocol Active";
+                    vStatusText.className = "text-red-500 font-semibold";
+                    reportBtn.classList.add('hidden');
+                } else {
+                    pfpElement.src = data.pfp || defaultBlankAvatar;
+                    nameElement.innerText = data.name;
+                    emailElement.innerText = data.email;
+                    uidElement.innerText = data.uid;
+                    dobElement.innerText = data.dob || "Not Shared";
+                    reportBtn.classList.remove('hidden');
+
+                    if(data.verified === true) {
+                        verifiedBadge.classList.remove('hidden');
+                        vStatusText.innerText = "🌟 Verified Official Profile Account";
+                        vStatusText.className = "text-emerald-600 font-semibold";
+                    } else {
+                        verifiedBadge.classList.add('hidden');
+                        vStatusText.innerText = "Standard Pulse User Endpoint";
+                        vStatusText.className = "text-gray-400 font-medium";
+                    }
                 }
+
+                if(activeChatUserId === "system_pulse") reportBtn.classList.add('hidden');
 
                 document.getElementById('user-view-modal').style.display = 'flex';
             });
@@ -587,24 +731,21 @@
             document.getElementById('user-view-modal').style.display = 'none';
         }
 
-        // Report User Handler System 
         function reportUserAction() {
-            if(!activeChatUserId) return;
-            
-            const confirmation = confirm(`Kya aap sach mei ${document.getElementById('view-user-name').innerText} ko report karna chahte hain?`);
+            if(!activeChatUserId || activeChatUserId === "system_pulse") return;
+            const confirmation = confirm(`Are you sure you want to report this user segment node to management control rooms?`);
             if(!confirmation) return;
 
-            const reportRef = db.ref('reports').push();
-            reportRef.set({
+            db.ref('reports').push().set({
                 reportedByUid: currentUserData.uid,
                 reportedByEmail: currentUserData.email,
                 targetUid: activeChatUserId,
                 targetEmail: document.getElementById('view-user-email').innerText,
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
-                alert("User successfully reported. Administration review under process.");
+                alert("Incident report log logged under administrative processing queue.");
                 closeUserViewModal();
-            }).catch(err => alert("Reporting Error: " + err.message));
+            }).catch(err => alert("Reporting system failure: " + err.message));
         }
     </script>
 </body>
