@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimum-scale=1.0">
     <title>DLEA - Dozera Law Enforcement Agency</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -12,9 +12,11 @@
             font-family: 'Times New Roman', serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
+            /* Extra CSS safety layer to discourage selection/scaling glitches */
+            touch-action: pan-x pan-y;
         }
         .glass-panel {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.96);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
@@ -23,13 +25,19 @@
         .status-under-review { background: #9b59b6; color: white; }
         .status-resolved { background: #27ae60; color: white; }
         .status-closed { background: #95a5a6; color: white; }
+        
+        /* Smooth Custom Scrollbar for Chat Box */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
     </style>
 
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
         import { getDatabase, ref, set, get, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
 
-        // Provided Firebase Configuration
+        // Provided Firebase Configuration credentials mapping
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -40,19 +48,19 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
 
-        // Initialize Firebase
+        // Initialize App Connection
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // Make Firebase globally available for legacy functions
+        // Binding variables globally for script use
         window.firebaseDB = database;
         window.firebaseRefs = { ref, set, get, onValue, update };
-        console.log("DLEA Firebase connected successfully.");
+        console.log("DLEA Security Firebase Node Attached Successfully.");
     </script>
 </head>
-<body class="text-gray-800">
+<body class="text-gray-800 context-locked">
 
-    <header class="shadow-lg style bg-gradient-to-r from-red-800 to-red-600 text-white border-b-4 border-yellow-500">
+    <header class="shadow-lg bg-gradient-to-r from-red-800 to-red-600 text-white border-b-4 border-yellow-500">
         <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-4">
                 <div class="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-200 rounded-full flex items-center justify-center border-2 border-white shadow-md">
@@ -88,10 +96,10 @@
         <section id="section-track" class="space-y-6">
             <div class="glass-panel rounded-xl shadow-xl p-6 md:p-8">
                 <h2 class="text-xl font-bold text-red-700 border-b-2 border-yellow-400 pb-3 mb-4">
-                    <i class="fas fa-file-invoice mr-2"></i>Track Existing Legal Case
+                    <i class="fas fa-file-invoice mr-2"></i>Track Existing Legal Case File
                 </h2>
                 <p class="text-sm text-gray-600 mb-6 bg-blue-50 p-3 rounded border-l-4 border-blue-500">
-                    <strong>Notice:</strong> Naye complaints file karne ki suvidha is portal par uplabdh nahi hai. Aap apna purana case token darj karke live updates aur lawyer se sampark kar sakte hain.
+                    <strong>Notice:</strong> Naye complaints file karne ki suvidha is portal par disabled hai. Aap apna tracking token number darj karke live case details, lawyer details aur files trace kar sakte hain.
                 </p>
 
                 <div class="flex flex-col sm:flex-row gap-3">
@@ -108,58 +116,67 @@
                 <div class="lg:col-span-2 space-y-6">
                     <div class="glass-panel rounded-xl shadow-md p-6">
                         <div class="flex justify-between items-center border-b pb-3 mb-4">
-                            <h3 class="text-lg font-bold text-slate-800">Case Information</h3>
+                            <h3 class="text-lg font-bold text-slate-800">Case Metrics Profile</h3>
                             <span id="caseStatusBadge" class="px-4 py-1.5 rounded-full text-xs font-bold uppercase shadow-sm">PENDING</span>
                         </div>
                         
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Case Token:</strong> <span id="lblToken" class="font-mono text-red-600 font-bold ml-1"></span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Target Company:</strong> <span id="lblCompany" class="ml-1"></span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Accused Employee:</strong> <span id="lblEmployee" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Case Token ID:</strong> <span id="lblToken" class="font-mono text-red-600 font-bold ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Target Enterprise:</strong> <span id="lblCompany" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Accused Party:</strong> <span id="lblEmployee" class="ml-1"></span></p>
                             <p class="bg-slate-50 p-2.5 rounded"><strong>Complaint Type:</strong> <span id="lblType" class="capitalize ml-1"></span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Priority:</strong> <span id="lblPriority" class="capitalize ml-1"></span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Assigned Lawyer:</strong> <span id="lblLawyer" class="text-green-700 font-bold ml-1">Not Assigned Yet</span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Filed Date:</strong> <span id="lblDate" class="ml-1"></span></p>
-                            <p class="bg-slate-50 p-2.5 rounded"><strong>Complainant:</strong> <span id="lblComplainant" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Priority Metric:</strong> <span id="lblPriority" class="capitalize ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Assigned Counselor/Lawyer:</strong> <span id="lblLawyer" class="text-green-700 font-bold ml-1">Not Assigned Yet</span></p>
+                            <p class="bg-blue-50/50 p-2.5 rounded border border-blue-100"><strong>Complaint File Date:</strong> <span id="lblDate" class="ml-1 font-semibold text-slate-700"></span></p>
+                            <p class="bg-orange-50/50 p-2.5 rounded border border-orange-100"><strong>Last Processed Update:</strong> <span id="lblLastUpdate" class="ml-1 font-semibold text-slate-700"></span></p>
+                        </div>
+                        
+                        <div class="mt-3 bg-slate-50 p-2.5 rounded text-sm">
+                            <p><strong>Complainant:</strong> <span id="lblComplainant" class="ml-1"></span></p>
                         </div>
 
                         <div class="mt-4 bg-slate-50 p-3 rounded border">
-                            <strong class="text-sm block text-gray-700 mb-1">Incident Description:</strong>
-                            <p id="lblDescription" class="text-sm text-gray-600 italic"></p>
+                            <strong class="text-sm block text-gray-700 mb-1">Incident File Description Statement:</strong>
+                            <p id="lblDescription" class="text-sm text-gray-600 italic whitespace-pre-wrap"></p>
                         </div>
                     </div>
 
                     <div class="glass-panel rounded-xl shadow-md p-6">
-                        <h3 class="text-lg font-bold text-slate-800 border-b pb-2 mb-4"><i class="fas fa-history mr-2 text-blue-500"></i>Case Action Timeline</h3>
+                        <h3 class="text-lg font-bold text-slate-800 border-b pb-2 mb-4"><i class="fas fa-history mr-2 text-blue-500"></i>Case Action Enforcement Timeline</h3>
                         <div id="timelineContainer" class="space-y-3">
                             </div>
                     </div>
                 </div>
 
                 <div class="lg:col-span-1">
-                    <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[550px]">
+                    <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[580px]">
                         <div class="border-b pb-3 mb-3">
                             <h3 class="font-bold text-slate-800 flex items-center gap-2">
                                 <span class="w-3 h-3 bg-green-500 rounded-full animate-ping"></span>
-                                <i class="fas fa-comments text-red-600"></i> Lawyer Communication
+                                <i class="fas fa-comments text-red-600"></i> Encrypted Lawyer Chat
                             </h3>
-                            <p class="text-xs text-gray-500 mt-1">Direct contact with assigned officer/lawyer</p>
+                            <p class="text-xs text-gray-500 mt-1">Direct verification with images & records dispatch</p>
                         </div>
 
-                        <div id="chatMessagesBox" class="flex-grow overflow-y-auto space-y-3 p-2 bg-slate-50 border rounded-lg shadow-inner text-sm">
+                        <div id="chatMessagesBox" class="flex-grow overflow-y-auto space-y-3 p-2 bg-slate-100 border rounded-lg shadow-inner text-sm">
                             </div>
 
-                        <div id="chatInputArea" class="mt-3 hidden">
-                            <div class="flex gap-2">
+                        <div id="chatInputArea" class="mt-3 hidden space-y-2">
+                            <div class="flex items-center gap-2 bg-white p-1 rounded-lg border focus-within:border-red-600">
+                                <label class="cursor-pointer p-2 text-gray-500 hover:text-red-700 transition-colors" title="Upload Image File">
+                                    <i class="fas fa-image text-lg"></i>
+                                    <input type="file" id="chatImageFile" accept="image/*" class="hidden" onchange="handleImageConversion(this, 'user')">
+                                </label>
                                 <input type="text" id="chatTextInput" placeholder="Type message to lawyer..." 
-                                       class="flex-grow p-2.5 border rounded-lg text-sm focus:outline-none focus:border-red-600">
-                                <button onclick="sendMessageFromUser()" class="bg-red-700 hover:bg-red-800 text-white px-4 rounded-lg transition-colors">
+                                       class="flex-grow p-2 text-sm focus:outline-none bg-transparent">
+                                <button onclick="sendMessageFromUser()" class="bg-red-700 hover:bg-red-800 text-white p-2.5 rounded-lg transition-colors">
                                     <i class="fas fa-paper-plane"></i>
                                 </button>
                             </div>
+                            <div id="imageLoadingIndicator" class="hidden text-[11px] text-orange-600 animate-pulse text-center"><i class="fas fa-spinner class animate-spin mr-1"></i> Converting image file matrix to Base64...</div>
                         </div>
                         <div id="chatDisabledMessage" class="mt-3 text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-200">
-                            Chat will activate once a lawyer is assigned to your case.
+                            Chat feature activates once legal counsel/lawyer is assigned to this record.
                         </div>
                     </div>
                 </div>
@@ -171,13 +188,13 @@
             
             <div id="adminAuthPanel" class="max-w-md mx-auto glass-panel rounded-xl shadow-xl p-6 mt-12">
                 <h2 class="text-xl font-bold text-center text-red-700 mb-6">
-                    <i class="fas fa-shield-alt mr-2"></i>Secure Administrative Login
+                    <i class="fas fa-shield-alt mr-2"></i>Secure Administrative Control Gate
                 </h2>
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">Access Code</label>
-                        <input type="password" id="adminCodeField" placeholder="Enter administrative password" 
-                               class="w-full p-3 border rounded-lg focus:outline-none focus:border-red-600 text-center tracking-widest text-lg">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Access Control Code</label>
+                        <input type="password" id="adminCodeField" placeholder="Enter password token" 
+                               class="w-full p-3 border rounded-lg focus:outline-none focus:border-red-600 text-center tracking-widest text-lg font-bold">
                     </div>
                     <button onclick="processAdminLogin()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition-colors">
                         Access Control Center
@@ -188,64 +205,105 @@
             <div id="adminDashboardArea" class="hidden space-y-6">
                 <div class="glass-panel rounded-xl shadow-md p-4 flex justify-between items-center bg-slate-800 text-white">
                     <div>
-                        <h2 class="text-lg font-bold text-yellow-400">DLEA Central Management Dashboard</h2>
-                        <p class="text-xs text-gray-300">Live Case Tracking Database Node</p>
+                        <h2 class="text-lg font-bold text-yellow-400">DLEA Executive Control Center Node</h2>
+                        <p class="text-xs text-gray-300">Total Live Modification Rights Enabled</p>
                     </div>
                     <button onclick="processAdminLogout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-xs font-bold transition-colors">
-                        <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                        <i class="fas fa-sign-out-alt mr-1"></i>Logout Terminal
                     </button>
                 </div>
 
                 <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
                     
-                    <div class="xl:col-span-2 glass-panel rounded-xl shadow-md p-6 space-y-4">
+                    <div class="xl:col-span-1 glass-panel rounded-xl shadow-md p-6 space-y-4">
                         <h3 class="font-bold text-gray-800 border-b pb-2"><i class="fas fa-folder-open mr-2 text-yellow-600"></i>Active Case Records</h3>
-                        <div id="adminCaseContainer" class="space-y-4 max-h-[700px] overflow-y-auto pr-2">
+                        <div id="adminCaseContainer" class="space-y-4 max-h-[720px] overflow-y-auto pr-1">
                             </div>
                     </div>
 
-                    <div class="xl:col-span-1 space-y-6">
+                    <div class="xl:col-span-2 space-y-6">
                         <div class="glass-panel rounded-xl shadow-md p-6 bg-slate-50 border space-y-4">
-                            <h3 class="font-bold text-slate-800 border-b pb-2"><i class="fas fa-gavel mr-2 text-red-700"></i>Executive Operations</h3>
-                            <div id="adminOperationalContext" class="text-xs text-gray-500 bg-white p-3 rounded border italic">
-                                Select a specific case file from the active directory to initiate structural updates or intercept communications.
+                            <h3 class="font-bold text-slate-800 border-b pb-2"><i class="fas fa-edit mr-2 text-red-700"></i>Comprehensive Record Editor Mod Panel</h3>
+                            <div id="adminOperationalContext" class="text-xs text-gray-500 bg-white p-4 rounded border italic text-center">
+                                Select any case directory module block from the sidebar registry stream sequence to enable modifications.
                             </div>
                             
                             <div id="adminActionInterface" class="hidden space-y-4">
-                                <div class="p-3 bg-red-50 rounded border border-red-200 text-xs">
-                                    <strong>Selected Case ID:</strong> <span id="adminActiveTokenLabel" class="font-mono text-red-700 font-bold ml-1"></span>
+                                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div class="md:col-span-2 flex justify-between items-center border-b pb-2">
+                                        <p class="text-sm font-bold text-slate-700">Editing Token Target: <span id="adminActiveTokenLabel" class="font-mono text-red-600 font-bold ml-1"></span></p>
+                                        <span class="text-[11px] text-gray-400 italic">Live Update Changes Mode</span>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Complainant Registered Name</label>
+                                        <input type="text" id="adminFieldComplainant" class="w-full p-2 border text-xs rounded bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Target Enterprise Company</label>
+                                        <input type="text" id="adminFieldCompany" class="w-full p-2 border text-xs rounded bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Accused Party/Employee Profile</label>
+                                        <input type="text" id="adminFieldEmployee" class="w-full p-2 border text-xs rounded bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Assigned Lawyer Counselor</label>
+                                        <input type="text" id="adminFieldLawyer" class="w-full p-2 border text-xs rounded bg-white font-semibold text-green-700">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Processing Action Status</label>
+                                        <select id="adminStatusSelect" class="w-full p-2 border text-xs rounded bg-white font-bold">
+                                            <option value="pending">Pending Review</option>
+                                            <option value="under-review">Under Active Review</option>
+                                            <option value="active">Active Enforcement</option>
+                                            <option value="resolved">Case Resolved</option>
+                                            <option value="closed">Archived/Closed</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Priority Weights Matrix</label>
+                                        <select id="adminPrioritySelect" class="w-full p-2 border text-xs rounded bg-white">
+                                            <option value="low">Low Priority</option>
+                                            <option value="medium">Medium Priority</option>
+                                            <option value="high">High Priority</option>
+                                            <option value="critical">Critical Urgency</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Complaint File Date (ISO/String)</label>
+                                        <input type="text" id="adminFieldCreatedDate" class="w-full p-2 border text-xs rounded bg-gray-50">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Complaint Type Domain</label>
+                                        <input type="text" id="adminFieldType" class="w-full p-2 border text-xs rounded bg-white">
+                                    </div>
+                                    <div class="md:col-span-2">
+                                        <label class="block text-xs font-bold text-gray-600 mb-1">Incident File Statement Text</label>
+                                        <textarea id="adminFieldDescription" rows="3" class="w-full p-2 border text-xs rounded bg-white font-mono"></textarea>
+                                    </div>
                                 </div>
                                 
-                                <div class="space-y-2">
-                                    <label class="block text-xs font-bold text-gray-700">Modify Processing Status</label>
-                                    <select id="adminStatusSelect" class="w-full p-2 text-xs border rounded bg-white">
-                                        <option value="pending">Pending Review</option>
-                                        <option value="under-review">Under Active Review</option>
-                                        <option value="active">Active Enforcement</option>
-                                        <option value="resolved">Case Resolved</option>
-                                        <option value="closed">Archived/Closed</option>
-                                    </select>
-                                    <button onclick="commitStatusChange()" class="w-full bg-slate-800 text-white text-xs py-2 rounded font-semibold hover:bg-slate-900">
-                                        Apply Status Change
-                                    </button>
-                                </div>
-
-                                <div class="space-y-2 pt-2 border-t">
-                                    <label class="block text-xs font-bold text-gray-700">Assign/Transfer Legal Counsel</label>
-                                    <input type="text" id="adminLawyerField" placeholder="Enter Attorney Name" class="w-full p-2 text-xs border rounded">
-                                    <button onclick="commitLawyerAssignment()" class="w-full bg-green-700 text-white text-xs py-2 rounded font-semibold hover:bg-green-800">
-                                        Deploy Legal Counsel
+                                <div class="flex justify-end">
+                                    <button onclick="commitComprehensiveCaseEdit()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm px-6 py-3 rounded-lg shadow-md transition-colors">
+                                        <i class="fas fa-save mr-2"></i>Save Comprehensive Case Modifications
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <div id="adminChatInterceptBox" class="hidden glass-panel rounded-xl shadow-md p-4 flex flex-col h-[400px]">
-                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2"><i class="fas fa-user-secret mr-1"></i>Secure Intercept Console</h4>
-                            <div id="adminChatFeed" class="flex-grow overflow-y-auto p-2 bg-white border text-xs space-y-2 rounded"></div>
-                            <div class="mt-2 flex gap-1">
-                                <input type="text" id="adminChatTextInput" placeholder="Reply as Legal Department..." class="flex-grow p-2 text-xs border rounded">
-                                <button onclick="sendMessageFromAdmin()" class="bg-slate-800 text-white px-3 rounded text-xs"><i class="fas fa-paper-plane"></i></button>
+                        <div id="adminChatInterceptBox" class="hidden grid grid-cols-1 gap-4">
+                            <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[400px]">
+                                <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2"><i class="fas fa-user-secret mr-1"></i>Secure Intercept / Counsel Dispatch Desk</h4>
+                                <div id="adminChatFeed" class="flex-grow overflow-y-auto p-2 bg-white border text-xs space-y-2 rounded shadow-inner"></div>
+                                <div class="mt-2 flex items-center gap-2 bg-slate-50 p-1 border rounded-lg">
+                                    <label class="cursor-pointer p-2 text-gray-500 hover:text-slate-800 transition-colors" title="Send Image as Admin/Lawyer">
+                                        <i class="fas fa-camera text-base"></i>
+                                        <input type="file" id="adminChatImageFile" accept="image/*" class="hidden" onchange="handleImageConversion(this, 'lawyer')">
+                                    </label>
+                                    <input type="text" id="adminChatTextInput" placeholder="Reply as Legal Enforcement Counsel Desk..." class="flex-grow p-2 text-xs bg-transparent focus:outline-none">
+                                    <button onclick="sendMessageFromAdmin()" class="bg-slate-800 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-900"><i class="fas fa-paper-plane"></i></button>
+                                </div>
                             </div>
                         </div>
 
@@ -261,7 +319,7 @@
         let adminActiveToken = null;
         let globalCasesCache = {};
 
-        // Utility: Application Tab Controller
+        // Application Navigation State Swapper Engine
         function switchTab(target) {
             document.getElementById('section-track').classList.add('hidden');
             document.getElementById('section-admin').classList.add('hidden');
@@ -277,7 +335,7 @@
             }
         }
 
-        // Utility: Alert Notifications Banner
+        // Custom Overlay Notifications Dynamic Handler Banner
         function throwAlert(msg, type = 'info') {
             const alertBox = document.getElementById('alert-box');
             alertBox.textContent = msg;
@@ -288,31 +346,31 @@
             else alertBox.className += "bg-blue-100 text-blue-800 border-l-4 border-blue-600";
 
             window.scrollTo({ top: 0, behavior: 'smooth' });
-            setTimeout(() => alertBox.classList.add('hidden'), 6000);
+            setTimeout(() => alertBox.classList.add('hidden'), 5000);
         }
 
-        // ================= CLIENT CORE OPERATION LAYER =================
+        // ================= USER OPERATIONS & DECODER ENGINE =================
 
         async function processTrackCase() {
             const token = document.getElementById('caseTokenInput').value.trim().toUpperCase();
-            if(!token) return throwAlert("Kripya valid case tracking token number enter karein.", "error");
+            if(!token) return throwAlert("Kripya search box me genuine case token id enter karein.", "error");
 
             const { ref, get, onValue } = window.firebaseRefs;
             
             try {
-                // Checking standard path (cases node as requested)
                 let caseRef = ref(window.firebaseDB, 'cases');
                 let snapshot = await get(caseRef);
                 let caseData = null;
 
+                // Index search scan through prime database mapping string sequences
                 if (snapshot.exists()) {
-                    const rawData = snapshot.val();
-                    Object.keys(rawData).forEach(key => {
-                        if (rawData[key].token === token) caseData = rawData[key];
+                    const dataBlock = snapshot.val();
+                    Object.keys(dataBlock).forEach(key => {
+                        if (dataBlock[key].token === token) caseData = dataBlock[key];
                     });
                 }
 
-                // Fallback check if stored under legacy subkey node 'legal_cases'
+                // Subnode Fallback Architecture Strategy check sequence route values
                 if(!caseData) {
                     let fallbackRef = ref(window.firebaseDB, `legal_cases/${token}`);
                     let fallbackSnap = await get(fallbackRef);
@@ -321,49 +379,53 @@
 
                 if(!caseData) {
                     document.getElementById('caseDisplayArea').classList.add('hidden');
-                    return throwAlert("Case record nahi mila. Token verification check karein.", "error");
+                    return throwAlert("Case index directory me record nahi mila. Token entry check karein.", "error");
                 }
 
                 currentTrackedToken = token;
                 renderCaseView(caseData);
 
-                // Initialize Realtime Live Chat Tracking Bind
+                // Realtime Listener loop synchronization hook for base64 image strings messages feeds
                 const chatPath = caseData.chat_messages ? `legal_cases/${token}/chat_messages` : `chats/${token}/messages`;
                 onValue(ref(window.firebaseDB, chatPath), (chatSnapshot) => {
                     let msgList = [];
                     if(chatSnapshot.exists()) {
-                        let val = chatSnapshot.val();
-                        msgList = typeof val === 'string' ? JSON.parse(val) : Object.values(val);
+                        let rawVal = chatSnapshot.val();
+                        msgList = typeof rawVal === 'string' ? JSON.parse(rawVal) : Object.values(rawVal);
                     }
-                    renderChatWindow(msgList, 'chatMessagesBox', 'user');
+                    renderChatWindow(msgList, 'chatMessagesBox');
                 });
 
             } catch (err) {
                 console.error(err);
-                throwAlert("Database node query failure. Network connectivity inspect karein.", "error");
+                throwAlert("Data trace pipeline access error.", "error");
             }
         }
 
         function renderCaseView(data) {
             document.getElementById('caseDisplayArea').classList.remove('hidden');
             
-            // Text Label Injection
+            // Layout fields texts population mapping matrices attributes
             document.getElementById('lblToken').textContent = data.token;
-            document.getElementById('lblCompany').textContent = data.target_company || "Dozera Group";
-            document.getElementById('lblEmployee').textContent = `${data.employee_name || 'N/A'} (ID: ${data.employee_id || 'N/A'})`;
-            document.getElementById('lblType').textContent = (data.complaint_type || 'General Violation').replace('_', ' ');
-            document.getElementById('lblPriority').textContent = data.priority || 'Medium';
-            document.getElementById('lblLawyer').textContent = data.assigned_lawyer || "Enforcement Team Deploying...";
-            document.getElementById('lblDate').textContent = data.created_at ? new Date(data.created_at).toLocaleDateString() : 'N/A';
-            document.getElementById('lblComplainant').textContent = data.complainant_name || 'Anonymous';
-            document.getElementById('lblDescription').textContent = data.complaint_description || 'No description filed.';
+            document.getElementById('lblCompany').textContent = data.target_company || "Dozera Group Framework";
+            document.getElementById('lblEmployee').textContent = data.employee_name ? `${data.employee_name} (ID: ${data.employee_id || 'N/A'})` : "Under Verification Registry";
+            document.getElementById('lblType').textContent = (data.complaint_type || 'General Policy Violation').replace('_', ' ');
+            document.getElementById('lblPriority').textContent = data.priority || 'Medium Level';
+            document.getElementById('lblLawyer').textContent = data.assigned_lawyer || "Enforcement Team Deploying Counselor...";
+            
+            // Format Timestamps explicitly for UI view
+            document.getElementById('lblDate').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A / Initial Creation';
+            document.getElementById('lblLastUpdate').textContent = data.updated_at ? new Date(data.updated_at).toLocaleString() : 'No Post-creation Processing Recorded';
+            
+            document.getElementById('lblComplainant').textContent = data.complainant_name || 'Anonymous Identifier Filing';
+            document.getElementById('lblDescription').textContent = data.complaint_description || 'No formal written incident narrative filed.';
 
-            // Badge Treatment
+            // Badge Color Assignment Engine
             const badge = document.getElementById('caseStatusBadge');
             badge.className = `px-4 py-1.5 rounded-full text-xs font-bold uppercase shadow-sm status-${data.status || 'pending'}`;
             badge.textContent = data.status || 'PENDING';
 
-            // Communication Visibility Toggle
+            // Check if Lawyer presence validates active messaging permissions
             if(data.assigned_lawyer) {
                 document.getElementById('chatInputArea').classList.remove('hidden');
                 document.getElementById('chatDisabledMessage').classList.add('hidden');
@@ -372,127 +434,154 @@
                 document.getElementById('chatDisabledMessage').classList.remove('hidden');
             }
 
-            // Timeline Injections
+            // Timeline Trace Logs Node List Builder
             const timeline = document.getElementById('timelineContainer');
             timeline.innerHTML = '';
             
-            // Standard File Event
             let initEntry = document.createElement('div');
             initEntry.className = "p-3 bg-white border-l-4 border-yellow-500 rounded text-xs shadow-sm flex justify-between";
-            initEntry.innerHTML = `<div><i class="fas fa-check text-green-600 mr-2"></i>Complaint Registered Successfully</div>
-                                   <span class="text-gray-400 font-mono">${data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Initial'}</span>`;
+            initEntry.innerHTML = `<div><i class="fas fa-shield-alt text-red-600 mr-2"></i>Formal DLEA Complaint File Node Synchronized</div>
+                                   <span class="text-gray-400 font-mono">${data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Phase 0'}</span>`;
             timeline.appendChild(initEntry);
 
-            // Audit Parse Engine Loop
             if(data.audit_trail) {
-                let strings = data.audit_trail.split('\n');
-                strings.forEach(log => {
-                    if(!log.trim()) return;
-                    let el = document.createElement('div');
-                    el.className = "p-3 bg-white border-l-4 border-blue-500 rounded text-xs shadow-sm";
-                    el.textContent = log;
-                    timeline.appendChild(el);
+                let trackingLogsArray = data.audit_trail.split('\n');
+                trackingLogsArray.forEach(logLine => {
+                    if(!logLine.trim()) return;
+                    let nodeLogEl = document.createElement('div');
+                    nodeLogEl.className = "p-3 bg-white border-l-4 border-blue-500 rounded text-xs shadow-sm font-sans text-gray-700";
+                    nodeLogEl.textContent = logLine;
+                    timeline.appendChild(nodeLogEl);
                 });
             }
         }
 
-        function renderChatWindow(messages, containerId, identityScope) {
-            const box = document.getElementById(containerId);
-            box.innerHTML = '';
+        // Base64 Chat Layout Rendering Engine Block
+        function renderChatWindow(messages, containerId) {
+            const viewportBox = document.getElementById(containerId);
+            viewportBox.innerHTML = '';
 
             if(messages.length === 0) {
-                box.innerHTML = `<div class="text-center text-xs text-gray-400 italic my-auto py-8">No conversation history found.</div>`;
+                viewportBox.innerHTML = `<div class="text-center text-xs text-gray-400 italic my-auto py-12">No document logs or text message payloads exchanged.</div>`;
                 return;
             }
 
-            messages.forEach(m => {
-                let el = document.createElement('div');
-                let alignment = "flex flex-col ";
-                let bgStyle = "p-2.5 rounded-lg max-w-[85%] inline-block shadow-sm ";
+            messages.forEach(payload => {
+                let layoutRow = document.createElement('div');
+                let alignmentClass = "flex flex-col ";
+                let standardBubbleStyle = "p-2.5 rounded-xl max-w-[82%] inline-block shadow-sm text-xs font-sans ";
 
-                if(m.sender === 'user') {
-                    alignment += "items-end";
-                    bgStyle += "bg-blue-600 text-white rounded-br-none";
+                if(payload.sender === 'user') {
+                    alignmentClass += "items-end";
+                    standardBubbleStyle += "bg-blue-600 text-white rounded-br-none";
                 } else {
-                    alignment += "items-start";
-                    bgStyle += "bg-slate-200 text-gray-800 rounded-bl-none";
+                    alignmentClass += "items-start";
+                    standardBubbleStyle += "bg-white text-gray-800 border rounded-bl-none";
                 }
 
-                let tag = m.sender === 'user' ? 'You' : 'Officer/Lawyer';
-                el.className = alignment;
-                el.innerHTML = `<div class="${bgStyle}">
-                                    <strong class="block text-[10px] opacity-75">${tag}</strong>
-                                    <p class="mt-0.5">${m.text}</p>
-                                    <small class="block text-[9px] opacity-60 text-right mt-1">${m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</small>
+                let identityStringTag = payload.sender === 'user' ? 'Complainant Authenticator' : 'DLEA Officer/Lawyer Assigned';
+                
+                // Content evaluation logic: Message string vs Base64 Image Matrix
+                let contentRenderPayload = "";
+                if(payload.isImage || (payload.text && payload.text.startsWith('data:image'))) {
+                    contentRenderPayload = `<img src="${payload.text}" class="rounded-lg max-w-full h-auto max-h-[160px] object-contain border my-1 block cursor-pointer" onclick="window.open('${payload.text}')" title="Click to view full image resolution data">`;
+                } else {
+                    contentRenderPayload = `<p class="whitespace-pre-wrap leading-relaxed">${payload.text}</p>`;
+                }
+
+                layoutRow.className = alignmentClass;
+                layoutRow.innerHTML = `<div class="${standardBubbleStyle}">
+                                    <strong class="block text-[9px] uppercase tracking-wider opacity-75">${identityStringTag}</strong>
+                                    ${contentRenderPayload}
+                                    <small class="block text-[8px] opacity-60 text-right mt-1">${payload.timestamp ? new Date(payload.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</small>
                                 </div>`;
-                box.appendChild(el);
+                viewportBox.appendChild(layoutRow);
             });
-            box.scrollTop = box.scrollHeight;
+            viewportBox.scrollTop = viewportBox.scrollHeight;
+        }
+
+        // Handle Base64 Local Image Core Extraction Sequence conversion
+        function handleImageConversion(element, identityContext) {
+            const targetFile = element.files[0];
+            if(!targetFile) return;
+
+            // Maximum Payload size safety check (Limit to 1.5MB to preserve Firebase Realtime JSON performance speeds)
+            if(targetFile.size > 1500000) {
+                alert("File size bounds limit validation failed. Please upload compressed images smaller than 1.5MB.");
+                element.value = '';
+                return;
+            }
+
+            const loaderIndicator = document.getElementById('imageLoadingIndicator');
+            if(loaderIndicator) loaderIndicator.classList.remove('hidden');
+
+            const binaryStreamReader = new FileReader();
+            binaryStreamReader.onloadend = function() {
+                const computedBase64StringData = binaryStreamReader.result;
+                if(loaderIndicator) loaderIndicator.classList.add('hidden');
+                
+                // Forward generated context base64 directly to database transmission loops
+                dispatchChatPayloadMessage(computedBase64StringData, identityContext, true);
+                element.value = ''; // Clean field reference
+            }
+            binaryStreamReader.readAsDataURL(targetFile);
         }
 
         async function sendMessageFromUser() {
-            const textInput = document.getElementById('chatTextInput');
-            const messageText = textInput.value.trim();
-            if(!messageText || !currentTrackedToken) return;
-
-            const { ref, get, update } = window.firebaseRefs;
+            const inputField = document.getElementById('chatTextInput');
+            const coreText = inputField.value.trim();
+            if(!coreText) return;
             
+            await dispatchChatPayloadMessage(coreText, 'user', false);
+            inputField.value = '';
+        }
+
+        // Globalized Shared Core Master Engine logic function to stream logs across cases
+        async function dispatchChatPayloadMessage(contentString, senderIdentity, isImageFlag) {
+            const contextTokenTarget = (senderIdentity === 'user') ? currentTrackedToken : adminActiveToken;
+            if(!contextTokenTarget || !globalCasesCache[contextTokenTarget]) return;
+
+            const targetCaseObject = globalCasesCache[contextTokenTarget];
+            const { ref, get, update } = window.firebaseRefs;
+
             try {
-                // Determine destination data scheme block
-                let standardCaseRef = ref(window.firebaseDB, `cases`);
-                let snap = await get(standardCaseRef);
-                let targetKey = null;
-                let dataPayload = null;
-
-                if (snap.exists()) {
-                    let d = snap.val();
-                    Object.keys(d).forEach(k => { if(d[k].token === currentTrackedToken) { targetKey = k; dataPayload = d[k]; } });
+                let messageDataPayload = [];
+                if(targetCaseObject.chat_messages) {
+                    messageDataPayload = typeof targetCaseObject.chat_messages === 'string' ? JSON.parse(targetCaseObject.chat_messages) : Object.values(targetCaseObject.chat_messages);
                 }
 
-                if(targetKey) {
-                    // Modern array message push parsing format inside case object structure
-                    let msgList = [];
-                    if(dataPayload.chat_messages) msgList = JSON.parse(dataPayload.chat_messages);
-                    msgList.push({ sender: 'user', text: messageText, timestamp: new Date().toISOString() });
-                    
-                    await update(ref(window.firebaseDB, `cases/${targetKey}`), {
-                        chat_messages: JSON.stringify(msgList),
-                        updated_at: new Date().toISOString()
-                    });
-                } else {
-                    // Subnode architecture fallback model fallback
-                    let fallbackRef = ref(window.firebaseDB, `legal_cases/${currentTrackedToken}`);
-                    let fSnap = await get(fallbackRef);
-                    if(fSnap.exists()) {
-                        let fd = fSnap.val();
-                        let msgList = fd.chat_messages ? JSON.parse(fd.chat_messages) : [];
-                        msgList.push({ sender: 'user', text: messageText, timestamp: new Date().toISOString() });
-                        
-                        await update(fallbackRef, {
-                            chat_messages: JSON.stringify(msgList),
-                            updated_at: new Date().toISOString()
-                        });
-                    }
-                }
-                textInput.value = '';
+                messageDataPayload.push({
+                    sender: senderIdentity,
+                    text: contentString,
+                    isImage: isImageFlag,
+                    timestamp: new Date().toISOString()
+                });
+
+                let dataNodePath = targetCaseObject._dbNode === 'cases' ? `cases/${targetCaseObject._dbKey}` : `legal_cases/${targetCaseObject._dbKey}`;
+                
+                await update(ref(window.firebaseDB, dataNodePath), {
+                    chat_messages: JSON.stringify(messageDataPayload),
+                    updated_at: new Date().toISOString()
+                });
+
             } catch (err) {
                 console.error(err);
-                throwAlert("Message delivery failure.", "error");
+                throwAlert("Encrypted dispatch failure protocol warning.", "error");
             }
         }
 
 
-        // ================= MANAGEMENT BACKEND EXECUTIVE ENGINE =================
+        // ================= MAXIMUM ADMINISTRATIVE MANIPULATOR OPERATIONS ENGINE =================
 
         function processAdminLogin() {
-            const accessCode = document.getElementById('adminCodeField').value.trim();
-            if(accessCode === "7973804008") {
+            const challengeCodeInput = document.getElementById('adminCodeField').value.trim();
+            if(challengeCodeInput === "7973804008") {
                 document.getElementById('adminAuthPanel').classList.add('hidden');
                 document.getElementById('adminDashboardArea').classList.remove('hidden');
-                throwAlert("Administrative authorization verification successful.", "success");
-                syncAdminLiveRegistry();
+                throwAlert("Administrative validation status approved. Modification locks cleared.", "success");
+                attachAdminLiveRealtimeRegistrySync();
             } else {
-                throwAlert("Access code amanushik/invalid. Authentication blocked.", "error");
+                throwAlert("Invalid administrative credentials. Terminal sequence locked.", "error");
             }
         }
 
@@ -503,172 +592,164 @@
             adminActiveToken = null;
         }
 
-        function syncAdminLiveRegistry() {
+        function attachAdminLiveRealtimeRegistrySync() {
             const { ref, onValue } = window.firebaseRefs;
             
-            // Listening to full array metrics inside database pipeline structure
-            onValue(ref(window.firebaseDB), (snapshot) => {
-                if(!snapshot.exists()) return;
+            // Continuous open socket streaming channel monitoring matrix variables nodes maps
+            onValue(ref(window.firebaseDB), (streamSnapshot) => {
+                if(!streamSnapshot.exists()) return;
                 
-                let masterData = snapshot.val();
-                let consolidatedList = [];
-                globalCasesCache = {}; // Purging old storage map layout
+                let rawMasterDatabaseObject = streamSnapshot.val();
+                let flatCasesRegistryList = [];
+                globalCasesCache = {}; // Clear memory reference trace maps
 
-                // Process standard node block values mapping index mapping keys structures 
-                if(masterData.cases) {
-                    Object.keys(masterData.cases).forEach(k => {
-                        let c = masterData.cases[k];
-                        c._dbKey = k;
-                        c._dbNode = 'cases';
-                        consolidatedList.push(c);
-                        globalCasesCache[c.token] = c;
+                if(rawMasterDatabaseObject.cases) {
+                    Object.keys(rawMasterDatabaseObject.cases).forEach(uniqueKey => {
+                        let innerCaseData = rawMasterDatabaseObject.cases[uniqueKey];
+                        innerCaseData._dbKey = uniqueKey;
+                        innerCaseData._dbNode = 'cases';
+                        flatCasesRegistryList.push(innerCaseData);
+                        globalCasesCache[innerCaseData.token] = innerCaseData;
                     });
                 }
-                // Process fallback values mapping array layout patterns
-                if(masterData.legal_cases) {
-                    Object.keys(masterData.legal_cases).forEach(k => {
-                        let c = masterData.legal_cases[k];
-                        c._dbKey = k;
-                        c._dbNode = 'legal_cases';
-                        if(!globalCasesCache[c.token]) {
-                            consolidatedList.push(c);
-                            globalCasesCache[c.token] = c;
+                
+                if(rawMasterDatabaseObject.legal_cases) {
+                    Object.keys(rawMasterDatabaseObject.legal_cases).forEach(uniqueKey => {
+                        let innerCaseData = rawMasterDatabaseObject.legal_cases[uniqueKey];
+                        innerCaseData._dbKey = uniqueKey;
+                        innerCaseData._dbNode = 'legal_cases';
+                        if(!globalCasesCache[innerCaseData.token]) {
+                            flatCasesRegistryList.push(innerCaseData);
+                            globalCasesCache[innerCaseData.token] = innerCaseData;
                         }
                     });
                 }
-                renderAdminTable(consolidatedList);
+                renderAdminSidebarDirectory(flatCasesRegistryList);
             });
         }
 
-        function renderAdminTable(cases) {
-            const box = document.getElementById('adminCaseContainer');
-            box.innerHTML = '';
+        function renderAdminSidebarDirectory(casesList) {
+            const sidebarContainerElement = document.getElementById('adminCaseContainer');
+            sidebarContainerElement.innerHTML = '';
 
-            if(cases.length === 0) {
-                box.innerHTML = '<p class="text-sm text-center py-8 text-gray-500 italic">No historical data available inside target registry strings.</p>';
+            if(casesList.length === 0) {
+                sidebarContainerElement.innerHTML = '<p class="text-xs text-center py-6 text-gray-400 italic">No historical registry nodes tracked in DB logs.</p>';
                 return;
             }
 
-            cases.sort((x,y) => new Date(y.created_at || 0) - new Date(x.created_at || 0)).forEach(c => {
-                let block = document.createElement('div');
-                block.className = `p-4 rounded-xl border bg-white shadow-sm hover:border-slate-800 transition-all cursor-pointer ${adminActiveToken === c.token ? 'ring-2 ring-red-600' : ''}`;
-                block.onclick = () => selectCaseForAdministration(c.token);
+            // Descending chronological arrangement filter mapping indices strings properties
+            casesList.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).forEach(item => {
+                let cardNode = document.createElement('div');
+                cardNode.className = `p-3 rounded-lg border text-xs bg-white shadow-sm hover:border-blue-900 transition-all cursor-pointer ${adminActiveToken === item.token ? 'ring-2 ring-red-600 bg-red-50/50' : ''}`;
+                cardNode.onclick = () => launchCaseManagementFormConsole(item.token);
 
-                block.innerHTML = `<div class="flex justify-between items-center mb-2">
-                                        <span class="font-mono text-sm font-bold text-red-700">${c.token}</span>
-                                        <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded shadow-sm text-white status-${c.status || 'pending'}">${c.status || 'pending'}</span>
+                cardNode.innerHTML = `<div class="flex justify-between items-center mb-1">
+                                        <span class="font-mono font-bold text-red-700">${item.token}</span>
+                                        <span class="text-[9px] uppercase font-bold px-1.5 py-0.5 rounded shadow-xs text-white status-${item.status || 'pending'}">${item.status || 'pending'}</span>
                                    </div>
-                                   <div class="text-xs space-y-1 text-gray-600">
-                                        <p><strong>Complainant:</strong> ${c.complainant_name || 'Anonymous'} | <strong>Company:</strong> ${c.target_company || 'Dozera Ltd'}</p>
-                                        <p><strong>Counsel Assigned:</strong> <span class="text-green-700 font-semibold">${c.assigned_lawyer || 'NONE'}</span></p>
+                                   <div class="text-gray-500 space-y-0.5">
+                                        <p class="truncate"><strong>Complainant:</strong> ${item.complainant_name || 'Anonymous'}</p>
+                                        <p class="truncate"><strong>Counsel Desk:</strong> <span class="text-green-700 font-semibold">${item.assigned_lawyer || 'UNASSIGNED'}</span></p>
                                    </div>`;
-                box.appendChild(block);
+                sidebarContainerElement.appendChild(cardNode);
             });
 
-            // Refresh contextual information bind if an active tracking token is open
+            // If an active session case is selected for updates, refresh chat logs view stream dynamically
             if(adminActiveToken && globalCasesCache[adminActiveToken]) {
-                let freshData = globalCasesCache[adminActiveToken];
-                let msgList = [];
-                if(freshData.chat_messages) msgList = typeof freshData.chat_messages === 'string' ? JSON.parse(freshData.chat_messages) : Object.values(freshData.chat_messages);
-                renderChatWindow(msgList, 'adminChatFeed', 'admin');
+                let syncedCurrentData = globalCasesCache[adminActiveToken];
+                let extractedMessageLogsArray = [];
+                if(syncedCurrentData.chat_messages) {
+                    extractedMessageLogsArray = typeof syncedCurrentData.chat_messages === 'string' ? JSON.parse(syncedCurrentData.chat_messages) : Object.values(syncedCurrentData.chat_messages);
+                }
+                renderChatWindow(extractedMessageLogsArray, 'adminChatFeed');
             }
         }
 
-        function selectCaseForAdministration(token) {
-            adminActiveToken = token;
-            let targetCase = globalCasesCache[token];
-            if(!targetCase) return;
+        function launchCaseManagementFormConsole(tokenID) {
+            adminActiveToken = tokenID;
+            const chosenRecord = globalCasesCache[tokenID];
+            if(!chosenRecord) return;
 
-            // Interface Initialization Mapping updates structures controls parameters 
+            // Interface visibility configurations mapping fields updates variables
             document.getElementById('adminOperationalContext').classList.add('hidden');
             document.getElementById('adminActionInterface').classList.remove('hidden');
             document.getElementById('adminChatInterceptBox').classList.remove('hidden');
-            document.getElementById('adminActiveTokenLabel').textContent = token;
+            document.getElementById('adminActiveTokenLabel').textContent = tokenID;
             
-            // Values selection configuration syncing
-            document.getElementById('adminStatusSelect').value = targetCase.status || 'pending';
-            document.getElementById('adminLawyerField').value = targetCase.assigned_lawyer || '';
+            // Map entire dictionary array objects metadata parameters variables directly to editable inputs fields textareas blocks
+            document.getElementById('adminFieldComplainant').value = chosenRecord.complainant_name || '';
+            document.getElementById('adminFieldCompany').value = chosenRecord.target_company || '';
+            document.getElementById('adminFieldEmployee').value = chosenRecord.employee_name || '';
+            document.getElementById('adminFieldLawyer').value = chosenRecord.assigned_lawyer || '';
+            document.getElementById('adminStatusSelect').value = chosenRecord.status || 'pending';
+            document.getElementById('adminPrioritySelect').value = chosenRecord.priority || 'medium';
+            document.getElementById('adminFieldCreatedDate').value = chosenRecord.created_at || '';
+            document.getElementById('adminFieldType').value = chosenRecord.complaint_type || '';
+            document.getElementById('adminFieldDescription').value = chosenRecord.complaint_description || '';
 
-            // Run localized rendering pass loop
-            let msgList = [];
-            if(targetCase.chat_messages) msgList = typeof targetCase.chat_messages === 'string' ? JSON.parse(targetCase.chat_messages) : Object.values(targetCase.chat_messages);
-            renderChatWindow(msgList, 'adminChatFeed', 'admin');
-
-            // Visually highlight row tracking selections mapping matrices
-            syncAdminLiveRegistry();
-        }
-
-        async function commitStatusChange() {
-            if(!adminActiveToken || !globalCasesCache[adminActiveToken]) return;
-            const target = globalCasesCache[adminActiveToken];
-            const newStatus = document.getElementById('adminStatusSelect').value;
-
-            const { ref, update } = window.firebaseRefs;
-            let logString = `${target.audit_trail || ''}\n${new Date().toLocaleString()} - Status changed to ${newStatus} via Administrator Terminal.`;
-
-            try {
-                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
-                await update(ref(window.firebaseDB, targetPath), {
-                    status: newStatus,
-                    audit_trail: logString,
-                    updated_at: new Date().toISOString()
-                });
-                throwAlert(`Case status updated to: ${newStatus.toUpperCase()}`, "success");
-            } catch (err) {
-                console.error(err);
-                throwAlert("Failed to update status changes.", "error");
+            // Launch immediate local render verification for chat messages
+            let extractedMessageLogsArray = [];
+            if(chosenRecord.chat_messages) {
+                extractedMessageLogsArray = typeof chosenRecord.chat_messages === 'string' ? JSON.parse(chosenRecord.chat_messages) : Object.values(chosenRecord.chat_messages);
             }
+            renderChatWindow(extractedMessageLogsArray, 'adminChatFeed');
+            attachAdminLiveRealtimeRegistrySync();
         }
 
-        async function commitLawyerAssignment() {
+        // EXTREME ADMIN WRITE CAPABILITY ENGINE: Overwrites entire node metrics blocks schemas directly
+        async function commitComprehensiveCaseEdit() {
             if(!adminActiveToken || !globalCasesCache[adminActiveToken]) return;
-            const target = globalCasesCache[adminActiveToken];
-            const lawyerName = document.getElementById('adminLawyerField').value.trim();
-
-            if(!lawyerName) return throwAlert("Kripya lawyer ka naam darj karein.", "error");
-
+            const historicalTargetRef = globalCasesCache[adminActiveToken];
             const { ref, update } = window.firebaseRefs;
-            let logString = `${target.audit_trail || ''}\n${new Date().toLocaleString()} - Attorney ${lawyerName} assigned to oversee legal proceeding actions.`;
+
+            // Extraction collection sequences definitions configurations variables
+            const updatedComplainant = document.getElementById('adminFieldComplainant').value.trim();
+            const updatedCompany = document.getElementById('adminFieldCompany').value.trim();
+            const updatedEmployee = document.getElementById('adminFieldEmployee').value.trim();
+            const updatedLawyer = document.getElementById('adminFieldLawyer').value.trim();
+            const updatedStatus = document.getElementById('adminStatusSelect').value;
+            const updatedPriority = document.getElementById('adminPrioritySelect').value;
+            const updatedCreatedDate = document.getElementById('adminFieldCreatedDate').value.trim();
+            const updatedType = document.getElementById('adminFieldType').value.trim();
+            const updatedDescription = document.getElementById('adminFieldDescription').value.trim();
+
+            // Track modification audit logs structure mappings history tracking sequences
+            let verificationAuditLogsHistoryText = historicalTargetRef.audit_trail || '';
+            verificationAuditLogsHistoryText += `\n${new Date().toLocaleString()} - Master Administrative Override sequence initiated. Fields parameters rewrote successfully.`;
+
+            // Prepare absolute compilation block object schemas models arrays mapping fields strings
+            const globalUpdatePayloadMap = {
+                complainant_name: updatedComplainant,
+                target_company: updatedCompany,
+                employee_name: updatedEmployee,
+                assigned_lawyer: updatedLawyer,
+                status: updatedStatus,
+                priority: updatedPriority,
+                created_at: updatedCreatedDate,
+                complaint_type: updatedType,
+                complaint_description: updatedDescription,
+                audit_trail: verificationAuditLogsHistoryText,
+                updated_at: new Date().toISOString() // Explicit assignment setting metrics updates track record variables
+            };
 
             try {
-                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
-                await update(ref(window.firebaseDB, targetPath), {
-                    assigned_lawyer: lawyerName,
-                    status: 'active', // Auto escalation to active enforcement stage properties rules metrics
-                    audit_trail: logString,
-                    updated_at: new Date().toISOString()
-                });
-                throwAlert(`Counsel successfully assigned: ${lawyerName}`, "success");
+                let dynamicDBDestinationNodeStringRoute = historicalTargetRef._dbNode === 'cases' ? `cases/${historicalTargetRef._dbKey}` : `legal_cases/${historicalTargetRef._dbKey}`;
+                
+                await update(ref(window.firebaseDB, dynamicDBDestinationNodeStringRoute), globalUpdatePayloadMap);
+                throwAlert(`SUCCESS: Case file token ${adminActiveToken} values altered across all metrics parameters nodes safely inside target Realtime schema layers.`, "success");
             } catch (err) {
                 console.error(err);
-                throwAlert("Lawyer assignment implementation failure encountered.", "error");
+                throwAlert("CRITICAL ERROR: Realtime database write security override rejected request pipeline execution blocks.", "error");
             }
         }
 
         async function sendMessageFromAdmin() {
-            const inputField = document.getElementById('adminChatTextInput');
-            const txt = inputField.value.trim();
-            if(!txt || !adminActiveToken || !globalCasesCache[adminActiveToken]) return;
+            const inputElement = document.getElementById('adminChatTextInput');
+            const administrativeTextStringValue = inputElement.value.trim();
+            if(!administrativeTextStringValue) return;
 
-            const target = globalCasesCache[adminActiveToken];
-            const { ref, update } = window.firebaseRefs;
-
-            try {
-                let msgList = [];
-                if(target.chat_messages) msgList = typeof target.chat_messages === 'string' ? JSON.parse(target.chat_messages) : Object.values(target.chat_messages);
-                
-                msgList.push({ sender: 'lawyer', text: txt, timestamp: new Date().toISOString() });
-
-                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
-                await update(ref(window.firebaseDB, targetPath), {
-                    chat_messages: JSON.stringify(msgList),
-                    updated_at: new Date().toISOString()
-                });
-                inputField.value = '';
-            } catch (err) {
-                console.error(err);
-                throwAlert("Message dispatch intercept failure.", "error");
-            }
+            await dispatchChatPayloadMessage(administrativeTextStringValue, 'lawyer', false);
+            inputElement.value = '';
         }
     </script>
 </body>
