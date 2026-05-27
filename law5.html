@@ -4,208 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DLEA - Dozera Law Enforcement Agency</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #1f2937; }
-        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        body {
+            font-family: 'Times New Roman', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .status-pending { background: #f39c12; color: white; }
+        .status-active { background: #3498db; color: white; }
+        .status-under-review { background: #9b59b6; color: white; }
+        .status-resolved { background: #27ae60; color: white; }
+        .status-closed { background: #95a5a6; color: white; }
     </style>
-</head>
-<body class="bg-gray-950 text-gray-100 min-h-screen flex flex-col">
 
-    <!-- Top Navigation Bar -->
-    <nav class="bg-gray-900 border-b border-gray-800 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center space-x-3">
-            <div class="bg-blue-600 p-2 rounded-lg text-white font-bold tracking-wider text-sm">DLEA</div>
-            <div>
-                <h1 class="text-lg font-bold tracking-tight text-white">Dozera Law Enforcement Agency</h1>
-                <p class="text-xs text-gray-400">Legal Tracking & Management System</p>
-            </div>
-        </div>
-        <div class="flex items-center space-x-4">
-            <button onclick="switchView('user')" id="nav-user" class="px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white transition">
-                <i class="fa-solid fa-user-shield mr-2"></i>User Portal
-            </button>
-            <button onclick="switchView('admin')" id="nav-admin" class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition">
-                <i class="fa-solid fa-lock mr-2"></i>Admin Panel
-            </button>
-        </div>
-    </nav>
-
-    <!-- Main Content Container -->
-    <main class="flex-1 p-4 md:p-8 max-w-7xl w-full mx-auto">
-        
-        <!-- ================= USER PORTAL VIEW ================= -->
-        <div id="user-view" class="space-y-8">
-            <!-- Search & Tracker Header -->
-            <div class="bg-gradient-to-r from-gray-900 to-gray-800 p-6 rounded-2xl border border-gray-800 shadow-xl">
-                <h2 class="text-xl font-bold mb-2"><i class="fa-solid fa-magnifying-glass text-blue-500 mr-2"></i>Track Your Complaint / Case</h2>
-                <p class="text-sm text-gray-400 mb-6">Enter your official DLEA token number to view live status, timeline, assigned lawyer, and access live chat.</p>
-                
-                <div class="flex flex-col md:flex-row gap-4">
-                    <div class="relative flex-1">
-                        <i class="fa-solid fa-ticket absolute left-4 top-3.5 text-gray-500"></i>
-                        <input type="text" id="token-search-input" placeholder="e.g., DLF-MN8WJVXQ-7FBIN" 
-                               class="w-full bg-gray-950 border border-gray-700 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-blue-500 placeholder-gray-600 transition">
-                    </div>
-                    <button onclick="trackCase()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-8 py-3 rounded-xl transition flex items-center justify-center space-x-2 shadow-lg shadow-blue-900/30">
-                        <i class="fa-solid fa-crosshairs"></i>
-                        <span>Track Details</span>
-                    </button>
-                </div>
-                <p class="text-xs text-amber-500 mt-3"><i class="fa-solid fa-circle-info mr-1"></i> Note: Online filing is currently restricted. Complaints can only be registered through official dlea channels.</p>
-            </div>
-
-            <!-- Case Details Output (Hidden initially) -->
-            <div id="case-details-container" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <!-- Left & Middle: Case Info & Timeline -->
-                <div class="lg:col-span-2 space-y-6">
-                    <!-- Main Card -->
-                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 shadow-md">
-                        <div class="flex justify-between items-start border-b border-gray-800 pb-4 mb-4">
-                            <div>
-                                <span id="badge-priority" class="px-2.5 py-1 text-xs font-semibold rounded-md bg-red-950 text-red-400 border border-red-900">High Priority</span>
-                                <h3 id="display-case-title" class="text-xl font-bold mt-2 text-white">Corporate Compliance Dispute</h3>
-                                <p class="text-xs text-gray-400 mt-1">Token: <span id="display-token" class="font-mono text-gray-200"></span></p>
-                            </div>
-                            <div class="text-right">
-                                <span id="badge-status" class="px-3 py-1 rounded-full text-xs font-medium bg-green-950 text-green-400 border border-green-900">Verified</span>
-                                <p id="display-updated-at" class="text-xs text-gray-500 mt-2"></p>
-                            </div>
-                        </div>
-
-                        <!-- Info Grid -->
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-6">
-                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
-                                <span class="text-gray-500 block text-xs">Target Company</span>
-                                <span id="display-target-company" class="font-medium text-gray-200">-</span>
-                            </div>
-                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
-                                <span class="text-gray-500 block text-xs">Complainant Mobile</span>
-                                <span id="display-mobile" class="font-medium text-gray-200">-</span>
-                            </div>
-                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
-                                <span class="text-gray-500 block text-xs">Complainant Email</span>
-                                <span id="display-email" class="font-medium text-gray-200">-</span>
-                            </div>
-                            <div class="bg-gray-950 p-3 rounded-xl border border-gray-800">
-                                <span class="text-gray-500 block text-xs">Filing Date</span>
-                                <span id="display-created-at" class="font-medium text-gray-200">-</span>
-                            </div>
-                        </div>
-
-                        <!-- Lawyer Info Section -->
-                        <div class="bg-blue-950/40 border border-blue-900/50 rounded-xl p-4 flex items-center space-x-4">
-                            <div class="bg-blue-600 h-12 w-12 rounded-full flex items-center justify-center text-xl text-white font-bold shadow-md">
-                                <i class="fa-solid fa-gavel"></i>
-                            </div>
-                            <div>
-                                <span class="text-xs text-blue-400 block font-medium uppercase tracking-wider">Assigned Legal Counsel</span>
-                                <h4 id="display-lawyer-name" class="text-base font-bold text-white">Advocate Sharan Pooni</h4>
-                                <p class="text-xs text-gray-400">Senior Corporate Law Specialist • DLEA Panel</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Case Timeline -->
-                    <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
-                        <h3 class="text-lg font-bold mb-4"><i class="fa-solid fa-timeline text-blue-500 mr-2"></i>Case History & Timeline</h3>
-                        <div id="timeline-flow" class="relative border-l-2 border-gray-800 ml-4 space-y-6 my-2">
-                            <!-- Dynamic Timeline Items will inject here -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Live Chat Module -->
-                <div class="lg:col-span-1">
-                    <div class="bg-gray-900 border border-gray-800 rounded-2xl flex flex-col h-[550px] overflow-hidden shadow-2xl sticky top-24">
-                        <!-- Chat Header -->
-                        <div class="p-4 bg-gray-800 border-b border-gray-700 flex items-center space-x-3">
-                            <div class="relative">
-                                <div class="w-10 h-10 bg-gray-700 rounded-full flex items-center justify-center text-white font-bold">L</div>
-                                <span class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-gray-900 rounded-full"></span>
-                            </div>
-                            <div>
-                                <h4 class="text-sm font-bold text-white">DLEA Counsel Chat</h4>
-                                <p class="text-xs text-green-400">Secure Live Connection</p>
-                            </div>
-                        </div>
-                        <!-- Chat Messages -->
-                        <div id="chat-messages-box" class="flex-1 p-4 overflow-y-auto space-y-3 bg-gray-950">
-                            <!-- Messages Dynamic Load -->
-                        </div>
-                        <!-- Chat Input -->
-                        <div class="p-3 bg-gray-900 border-t border-gray-800 flex gap-2">
-                            <input type="text" id="chat-input-field" placeholder="Type a secure message..." 
-                                   class="flex-1 bg-gray-950 border border-gray-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
-                            <button onclick="sendChatMessage()" class="bg-blue-600 hover:bg-blue-700 p-2.5 rounded-xl text-white transition">
-                                <i class="fa-solid fa-paper-plane"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ================= ADMIN PORTAL VIEW ================= -->
-        <div id="admin-view" class="hidden space-y-6">
-            <div class="flex justify-between items-center bg-gray-900 p-6 rounded-2xl border border-gray-800 shadow-md">
-                <div>
-                    <h2 class="text-xl font-bold"><i class="fa-solid fa-lock-open text-red-500 mr-2"></i>DLEA Command Center</h2>
-                    <p class="text-xs text-gray-400 mt-1">Manage, evaluate, and update real-time law enforcement records.</p>
-                </div>
-                <button onclick="openNewCaseModal()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-xl text-sm transition flex items-center space-x-2">
-                    <i class="fa-solid fa-plus"></i>
-                    <span>Create New Case</span>
-                </button>
-            </div>
-
-            <!-- Admin Cases Table Grid -->
-            <div class="bg-gray-900 border border-gray-800 rounded-2xl overflow-hidden shadow-xl">
-                <div class="p-4 bg-gray-800/50 border-b border-gray-800 flex justify-between items-center">
-                    <span class="text-sm font-bold text-gray-300">Live Database Instances (Nodes: /cases)</span>
-                    <span class="text-xs bg-gray-700 px-2 py-1 rounded text-gray-400 font-mono">Realtime Sync Active</span>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-800 text-xs uppercase tracking-wider text-gray-400 bg-gray-950">
-                                <th class="p-4">Token / Case ID</th>
-                                <th class="p-4">Target Company / Subject</th>
-                                <th class="p-4">Assigned Lawyer</th>
-                                <th class="p-4">Priority</th>
-                                <th class="p-4">Verification</th>
-                                <th class="p-4 text-center">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="admin-cases-table-body" class="text-sm divide-y divide-gray-800/50">
-                            <!-- Dynamic Table Rows -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-gray-950 border-t border-gray-900 py-6 px-6 text-center text-xs text-gray-600 mt-12">
-        &copy; 2026 Dozera Law Enforcement Agency (DLEA). All rights reserved. Secure internal framework.
-    </footer>
-
-    <!-- Firebase App & Database Scripts -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, get, child, update, onValue, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
+        import { getDatabase, ref, set, get, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
 
-        // Firebase Configuration provided by user
+        // Provided Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -218,239 +42,634 @@
 
         // Initialize Firebase
         const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        const database = getDatabase(app);
 
-        // Global State variables
-        let currentTrackedToken = "";
-        let chatListenerRef = null;
+        // Make Firebase globally available for legacy functions
+        window.firebaseDB = database;
+        window.firebaseRefs = { ref, set, get, onValue, update };
+        console.log("DLEA Firebase connected successfully.");
+    </script>
+</head>
+<body class="text-gray-800">
 
-        // Window level scoping for HTML onclick hooks
-        window.switchView = function(viewType) {
-            const userView = document.getElementById('user-view');
-            const adminView = document.getElementById('admin-view');
-            const navUser = document.getElementById('nav-user');
-            const navAdmin = document.getElementById('nav-admin');
+    <header class="shadow-lg style bg-gradient-to-r from-red-800 to-red-600 text-white border-b-4 border-yellow-500">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+                <div class="w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-200 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                    <span class="text-red-700 font-bold text-xl tracking-wider">DLEA</span>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold text-yellow-400 tracking-wide">Dozera Law Enforcement Agency</h1>
+                    <p class="text-sm text-gray-200">Legal Tracking & Case Enforcement Department</p>
+                </div>
+            </div>
+            <div class="text-right text-xs md:text-sm text-yellow-400">
+                <p><i class="fas fa-phone shadow-sm"></i> Legal Helpline: 1800-DOZERA-LAW</p>
+                <p class="text-gray-200 mt-1">Official Inquiry Portal</p>
+            </div>
+        </div>
+    </header>
 
-            if (viewType === 'user') {
-                userView.classList.remove('hidden');
-                adminView.classList.add('hidden');
-                navUser.className = "px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
-                navAdmin.className = "px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition";
+    <nav class="bg-slate-800 shadow-md">
+        <div class="max-w-6xl mx-auto flex justify-center">
+            <button id="tab-track" onclick="switchTab('track')" class="px-6 py-4 text-white font-medium border-b-4 border-yellow-400 bg-red-700/80 transition-all">
+                <i class="fas fa-search mr-2"></i>Track Case & Chat
+            </button>
+            <button id="tab-admin" onclick="switchTab('admin')" class="px-6 py-4 text-white font-medium border-b-4 border-transparent hover:bg-slate-700 transition-all">
+                <i class="fas fa-lock mr-2"></i>Admin Access
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        
+        <div id="alert-box" class="hidden mb-6 p-4 rounded-lg font-semibold shadow-md transition-all"></div>
+
+        <section id="section-track" class="space-y-6">
+            <div class="glass-panel rounded-xl shadow-xl p-6 md:p-8">
+                <h2 class="text-xl font-bold text-red-700 border-b-2 border-yellow-400 pb-3 mb-4">
+                    <i class="fas fa-file-invoice mr-2"></i>Track Existing Legal Case
+                </h2>
+                <p class="text-sm text-gray-600 mb-6 bg-blue-50 p-3 rounded border-l-4 border-blue-500">
+                    <strong>Notice:</strong> Naye complaints file karne ki suvidha is portal par uplabdh nahi hai. Aap apna purana case token darj karke live updates aur lawyer se sampark kar sakte hain.
+                </p>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="caseTokenInput" placeholder="Enter Case Tracking Token (e.g., DZR... or DLW...)" 
+                           class="flex-grow p-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-red-600 uppercase text-lg tracking-wider font-semibold">
+                    <button onclick="processTrackCase()" class="bg-gradient-to-r from-red-700 to-red-600 text-white font-bold px-8 py-3 rounded-lg shadow-md hover:from-red-800 transition-all">
+                        Search Case
+                    </button>
+                </div>
+            </div>
+
+            <div id="caseDisplayArea" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-panel rounded-xl shadow-md p-6">
+                        <div class="flex justify-between items-center border-b pb-3 mb-4">
+                            <h3 class="text-lg font-bold text-slate-800">Case Information</h3>
+                            <span id="caseStatusBadge" class="px-4 py-1.5 rounded-full text-xs font-bold uppercase shadow-sm">PENDING</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Case Token:</strong> <span id="lblToken" class="font-mono text-red-600 font-bold ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Target Company:</strong> <span id="lblCompany" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Accused Employee:</strong> <span id="lblEmployee" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Complaint Type:</strong> <span id="lblType" class="capitalize ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Priority:</strong> <span id="lblPriority" class="capitalize ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Assigned Lawyer:</strong> <span id="lblLawyer" class="text-green-700 font-bold ml-1">Not Assigned Yet</span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Filed Date:</strong> <span id="lblDate" class="ml-1"></span></p>
+                            <p class="bg-slate-50 p-2.5 rounded"><strong>Complainant:</strong> <span id="lblComplainant" class="ml-1"></span></p>
+                        </div>
+
+                        <div class="mt-4 bg-slate-50 p-3 rounded border">
+                            <strong class="text-sm block text-gray-700 mb-1">Incident Description:</strong>
+                            <p id="lblDescription" class="text-sm text-gray-600 italic"></p>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel rounded-xl shadow-md p-6">
+                        <h3 class="text-lg font-bold text-slate-800 border-b pb-2 mb-4"><i class="fas fa-history mr-2 text-blue-500"></i>Case Action Timeline</h3>
+                        <div id="timelineContainer" class="space-y-3">
+                            </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-1">
+                    <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[550px]">
+                        <div class="border-b pb-3 mb-3">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <span class="w-3 h-3 bg-green-500 rounded-full animate-ping"></span>
+                                <i class="fas fa-comments text-red-600"></i> Lawyer Communication
+                            </h3>
+                            <p class="text-xs text-gray-500 mt-1">Direct contact with assigned officer/lawyer</p>
+                        </div>
+
+                        <div id="chatMessagesBox" class="flex-grow overflow-y-auto space-y-3 p-2 bg-slate-50 border rounded-lg shadow-inner text-sm">
+                            </div>
+
+                        <div id="chatInputArea" class="mt-3 hidden">
+                            <div class="flex gap-2">
+                                <input type="text" id="chatTextInput" placeholder="Type message to lawyer..." 
+                                       class="flex-grow p-2.5 border rounded-lg text-sm focus:outline-none focus:border-red-600">
+                                <button onclick="sendMessageFromUser()" class="bg-red-700 hover:bg-red-800 text-white px-4 rounded-lg transition-colors">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div id="chatDisabledMessage" class="mt-3 text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-200">
+                            Chat will activate once a lawyer is assigned to your case.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section id="section-admin" class="hidden space-y-6">
+            
+            <div id="adminAuthPanel" class="max-w-md mx-auto glass-panel rounded-xl shadow-xl p-6 mt-12">
+                <h2 class="text-xl font-bold text-center text-red-700 mb-6">
+                    <i class="fas fa-shield-alt mr-2"></i>Secure Administrative Login
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-2">Access Code</label>
+                        <input type="password" id="adminCodeField" placeholder="Enter administrative password" 
+                               class="w-full p-3 border rounded-lg focus:outline-none focus:border-red-600 text-center tracking-widest text-lg">
+                    </div>
+                    <button onclick="processAdminLogin()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition-colors">
+                        Access Control Center
+                    </button>
+                </div>
+            </div>
+
+            <div id="adminDashboardArea" class="hidden space-y-6">
+                <div class="glass-panel rounded-xl shadow-md p-4 flex justify-between items-center bg-slate-800 text-white">
+                    <div>
+                        <h2 class="text-lg font-bold text-yellow-400">DLEA Central Management Dashboard</h2>
+                        <p class="text-xs text-gray-300">Live Case Tracking Database Node</p>
+                    </div>
+                    <button onclick="processAdminLogout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-xs font-bold transition-colors">
+                        <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                    
+                    <div class="xl:col-span-2 glass-panel rounded-xl shadow-md p-6 space-y-4">
+                        <h3 class="font-bold text-gray-800 border-b pb-2"><i class="fas fa-folder-open mr-2 text-yellow-600"></i>Active Case Records</h3>
+                        <div id="adminCaseContainer" class="space-y-4 max-h-[700px] overflow-y-auto pr-2">
+                            </div>
+                    </div>
+
+                    <div class="xl:col-span-1 space-y-6">
+                        <div class="glass-panel rounded-xl shadow-md p-6 bg-slate-50 border space-y-4">
+                            <h3 class="font-bold text-slate-800 border-b pb-2"><i class="fas fa-gavel mr-2 text-red-700"></i>Executive Operations</h3>
+                            <div id="adminOperationalContext" class="text-xs text-gray-500 bg-white p-3 rounded border italic">
+                                Select a specific case file from the active directory to initiate structural updates or intercept communications.
+                            </div>
+                            
+                            <div id="adminActionInterface" class="hidden space-y-4">
+                                <div class="p-3 bg-red-50 rounded border border-red-200 text-xs">
+                                    <strong>Selected Case ID:</strong> <span id="adminActiveTokenLabel" class="font-mono text-red-700 font-bold ml-1"></span>
+                                </div>
+                                
+                                <div class="space-y-2">
+                                    <label class="block text-xs font-bold text-gray-700">Modify Processing Status</label>
+                                    <select id="adminStatusSelect" class="w-full p-2 text-xs border rounded bg-white">
+                                        <option value="pending">Pending Review</option>
+                                        <option value="under-review">Under Active Review</option>
+                                        <option value="active">Active Enforcement</option>
+                                        <option value="resolved">Case Resolved</option>
+                                        <option value="closed">Archived/Closed</option>
+                                    </select>
+                                    <button onclick="commitStatusChange()" class="w-full bg-slate-800 text-white text-xs py-2 rounded font-semibold hover:bg-slate-900">
+                                        Apply Status Change
+                                    </button>
+                                </div>
+
+                                <div class="space-y-2 pt-2 border-t">
+                                    <label class="block text-xs font-bold text-gray-700">Assign/Transfer Legal Counsel</label>
+                                    <input type="text" id="adminLawyerField" placeholder="Enter Attorney Name" class="w-full p-2 text-xs border rounded">
+                                    <button onclick="commitLawyerAssignment()" class="w-full bg-green-700 text-white text-xs py-2 rounded font-semibold hover:bg-green-800">
+                                        Deploy Legal Counsel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="adminChatInterceptBox" class="hidden glass-panel rounded-xl shadow-md p-4 flex flex-col h-[400px]">
+                            <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2"><i class="fas fa-user-secret mr-1"></i>Secure Intercept Console</h4>
+                            <div id="adminChatFeed" class="flex-grow overflow-y-auto p-2 bg-white border text-xs space-y-2 rounded"></div>
+                            <div class="mt-2 flex gap-1">
+                                <input type="text" id="adminChatTextInput" placeholder="Reply as Legal Department..." class="flex-grow p-2 text-xs border rounded">
+                                <button onclick="sendMessageFromAdmin()" class="bg-slate-800 text-white px-3 rounded text-xs"><i class="fas fa-paper-plane"></i></button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        let currentTrackedToken = null;
+        let adminActiveToken = null;
+        let globalCasesCache = {};
+
+        // Utility: Application Tab Controller
+        function switchTab(target) {
+            document.getElementById('section-track').classList.add('hidden');
+            document.getElementById('section-admin').classList.add('hidden');
+            document.getElementById('tab-track').className = "px-6 py-4 text-white font-medium border-b-4 border-transparent hover:bg-slate-700 transition-all";
+            document.getElementById('tab-admin').className = "px-6 py-4 text-white font-medium border-b-4 border-transparent hover:bg-slate-700 transition-all";
+
+            if (target === 'track') {
+                document.getElementById('section-track').classList.remove('hidden');
+                document.getElementById('tab-track').className = "px-6 py-4 text-white font-medium border-b-4 border-yellow-400 bg-red-700/80 transition-all";
             } else {
-                userView.classList.add('hidden');
-                adminView.classList.remove('hidden');
-                navAdmin.className = "px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white transition";
-                navUser.className = "px-4 py-2 rounded-lg text-sm font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition";
-                loadAdminDashboard();
+                document.getElementById('section-admin').classList.remove('hidden');
+                document.getElementById('tab-admin').className = "px-6 py-4 text-white font-medium border-b-4 border-yellow-400 bg-red-700/80 transition-all";
             }
-        };
+        }
 
-        // --- TRACK CASE FUNCTION ---
-        window.trackCase = async function() {
-            const tokenInput = document.getElementById('token-search-input').value.trim();
-            if (!tokenInput) {
-                alert("Please enter a valid DLEA Token.");
+        // Utility: Alert Notifications Banner
+        function throwAlert(msg, type = 'info') {
+            const alertBox = document.getElementById('alert-box');
+            alertBox.textContent = msg;
+            alertBox.className = "mb-6 p-4 rounded-lg font-semibold shadow-md transition-all block ";
+            
+            if (type === 'error') alertBox.className += "bg-red-100 text-red-800 border-l-4 border-red-600";
+            else if (type === 'success') alertBox.className += "bg-green-100 text-green-800 border-l-4 border-green-600";
+            else alertBox.className += "bg-blue-100 text-blue-800 border-l-4 border-blue-600";
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => alertBox.classList.add('hidden'), 6000);
+        }
+
+        // ================= CLIENT CORE OPERATION LAYER =================
+
+        async function processTrackCase() {
+            const token = document.getElementById('caseTokenInput').value.trim().toUpperCase();
+            if(!token) return throwAlert("Kripya valid case tracking token number enter karein.", "error");
+
+            const { ref, get, onValue } = window.firebaseRefs;
+            
+            try {
+                // Checking standard path (cases node as requested)
+                let caseRef = ref(window.firebaseDB, 'cases');
+                let snapshot = await get(caseRef);
+                let caseData = null;
+
+                if (snapshot.exists()) {
+                    const rawData = snapshot.val();
+                    Object.keys(rawData).forEach(key => {
+                        if (rawData[key].token === token) caseData = rawData[key];
+                    });
+                }
+
+                // Fallback check if stored under legacy subkey node 'legal_cases'
+                if(!caseData) {
+                    let fallbackRef = ref(window.firebaseDB, `legal_cases/${token}`);
+                    let fallbackSnap = await get(fallbackRef);
+                    if(fallbackSnap.exists()) caseData = fallbackSnap.val();
+                }
+
+                if(!caseData) {
+                    document.getElementById('caseDisplayArea').classList.add('hidden');
+                    return throwAlert("Case record nahi mila. Token verification check karein.", "error");
+                }
+
+                currentTrackedToken = token;
+                renderCaseView(caseData);
+
+                // Initialize Realtime Live Chat Tracking Bind
+                const chatPath = caseData.chat_messages ? `legal_cases/${token}/chat_messages` : `chats/${token}/messages`;
+                onValue(ref(window.firebaseDB, chatPath), (chatSnapshot) => {
+                    let msgList = [];
+                    if(chatSnapshot.exists()) {
+                        let val = chatSnapshot.val();
+                        msgList = typeof val === 'string' ? JSON.parse(val) : Object.values(val);
+                    }
+                    renderChatWindow(msgList, 'chatMessagesBox', 'user');
+                });
+
+            } catch (err) {
+                console.error(err);
+                throwAlert("Database node query failure. Network connectivity inspect karein.", "error");
+            }
+        }
+
+        function renderCaseView(data) {
+            document.getElementById('caseDisplayArea').classList.remove('hidden');
+            
+            // Text Label Injection
+            document.getElementById('lblToken').textContent = data.token;
+            document.getElementById('lblCompany').textContent = data.target_company || "Dozera Group";
+            document.getElementById('lblEmployee').textContent = `${data.employee_name || 'N/A'} (ID: ${data.employee_id || 'N/A'})`;
+            document.getElementById('lblType').textContent = (data.complaint_type || 'General Violation').replace('_', ' ');
+            document.getElementById('lblPriority').textContent = data.priority || 'Medium';
+            document.getElementById('lblLawyer').textContent = data.assigned_lawyer || "Enforcement Team Deploying...";
+            document.getElementById('lblDate').textContent = data.created_at ? new Date(data.created_at).toLocaleDateString() : 'N/A';
+            document.getElementById('lblComplainant').textContent = data.complainant_name || 'Anonymous';
+            document.getElementById('lblDescription').textContent = data.complaint_description || 'No description filed.';
+
+            // Badge Treatment
+            const badge = document.getElementById('caseStatusBadge');
+            badge.className = `px-4 py-1.5 rounded-full text-xs font-bold uppercase shadow-sm status-${data.status || 'pending'}`;
+            badge.textContent = data.status || 'PENDING';
+
+            // Communication Visibility Toggle
+            if(data.assigned_lawyer) {
+                document.getElementById('chatInputArea').classList.remove('hidden');
+                document.getElementById('chatDisabledMessage').classList.add('hidden');
+            } else {
+                document.getElementById('chatInputArea').classList.add('hidden');
+                document.getElementById('chatDisabledMessage').classList.remove('hidden');
+            }
+
+            // Timeline Injections
+            const timeline = document.getElementById('timelineContainer');
+            timeline.innerHTML = '';
+            
+            // Standard File Event
+            let initEntry = document.createElement('div');
+            initEntry.className = "p-3 bg-white border-l-4 border-yellow-500 rounded text-xs shadow-sm flex justify-between";
+            initEntry.innerHTML = `<div><i class="fas fa-check text-green-600 mr-2"></i>Complaint Registered Successfully</div>
+                                   <span class="text-gray-400 font-mono">${data.created_at ? new Date(data.created_at).toLocaleDateString() : 'Initial'}</span>`;
+            timeline.appendChild(initEntry);
+
+            // Audit Parse Engine Loop
+            if(data.audit_trail) {
+                let strings = data.audit_trail.split('\n');
+                strings.forEach(log => {
+                    if(!log.trim()) return;
+                    let el = document.createElement('div');
+                    el.className = "p-3 bg-white border-l-4 border-blue-500 rounded text-xs shadow-sm";
+                    el.textContent = log;
+                    timeline.appendChild(el);
+                });
+            }
+        }
+
+        function renderChatWindow(messages, containerId, identityScope) {
+            const box = document.getElementById(containerId);
+            box.innerHTML = '';
+
+            if(messages.length === 0) {
+                box.innerHTML = `<div class="text-center text-xs text-gray-400 italic my-auto py-8">No conversation history found.</div>`;
                 return;
             }
 
-            const dbRef = ref(db);
+            messages.forEach(m => {
+                let el = document.createElement('div');
+                let alignment = "flex flex-col ";
+                let bgStyle = "p-2.5 rounded-lg max-w-[85%] inline-block shadow-sm ";
+
+                if(m.sender === 'user') {
+                    alignment += "items-end";
+                    bgStyle += "bg-blue-600 text-white rounded-br-none";
+                } else {
+                    alignment += "items-start";
+                    bgStyle += "bg-slate-200 text-gray-800 rounded-bl-none";
+                }
+
+                let tag = m.sender === 'user' ? 'You' : 'Officer/Lawyer';
+                el.className = alignment;
+                el.innerHTML = `<div class="${bgStyle}">
+                                    <strong class="block text-[10px] opacity-75">${tag}</strong>
+                                    <p class="mt-0.5">${m.text}</p>
+                                    <small class="block text-[9px] opacity-60 text-right mt-1">${m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</small>
+                                </div>`;
+                box.appendChild(el);
+            });
+            box.scrollTop = box.scrollHeight;
+        }
+
+        async function sendMessageFromUser() {
+            const textInput = document.getElementById('chatTextInput');
+            const messageText = textInput.value.trim();
+            if(!messageText || !currentTrackedToken) return;
+
+            const { ref, get, update } = window.firebaseRefs;
+            
             try {
-                const snapshot = await get(child(dbRef, `cases`));
-                if (snapshot.exists()) {
-                    let caseData = null;
-                    const allCases = snapshot.val();
+                // Determine destination data scheme block
+                let standardCaseRef = ref(window.firebaseDB, `cases`);
+                let snap = await get(standardCaseRef);
+                let targetKey = null;
+                let dataPayload = null;
+
+                if (snap.exists()) {
+                    let d = snap.val();
+                    Object.keys(d).forEach(k => { if(d[k].token === currentTrackedToken) { targetKey = k; dataPayload = d[k]; } });
+                }
+
+                if(targetKey) {
+                    // Modern array message push parsing format inside case object structure
+                    let msgList = [];
+                    if(dataPayload.chat_messages) msgList = JSON.parse(dataPayload.chat_messages);
+                    msgList.push({ sender: 'user', text: messageText, timestamp: new Date().toISOString() });
                     
-                    // Search for case with matching token inside object keys or values
-                    for (let id in allCases) {
-                        if (allCases[id].token === tokenInput || id === tokenInput) {
-                            caseData = allCases[id];
-                            currentTrackedToken = tokenInput;
-                            break;
-                        }
-                    }
-
-                    if (caseData) {
-                        renderCaseDetails(caseData);
-                        setupLiveChat(currentTrackedToken);
-                    } else {
-                        alert("No case record found matching this token in DLEA Database.");
-                    }
+                    await update(ref(window.firebaseDB, `cases/${targetKey}`), {
+                        chat_messages: JSON.stringify(msgList),
+                        updated_at: new Date().toISOString()
+                    });
                 } else {
-                    alert("Database path '/cases' is currently empty.");
-                }
-            } catch (error) {
-                console.error(error);
-                alert("Error fetching database nodes: " + error.message);
-            }
-        };
-
-        function renderCaseDetails(data) {
-            document.getElementById('case-details-container').classList.remove('hidden');
-            document.getElementById('display-token').innerText = data.token || "N/A";
-            document.getElementById('display-case-title').innerText = data.title || "Enforcement Complaint Analysis";
-            document.getElementById('display-target-company').innerText = data.target_company || "Not Specified";
-            document.getElementById('display-mobile').innerText = data.mobile || "N/A";
-            document.getElementById('display-email').innerText = data.email || "N/A";
-            document.getElementById('display-lawyer-name').innerText = data.lawyer_name || "Assigned DLEA Counsel Officer";
-            
-            // Verification Status
-            const badgeStatus = document.getElementById('badge-status');
-            badgeStatus.innerText = data.verification_status || "Pending";
-            if (data.verification_status === "Verified") {
-                badgeStatus.className = "px-3 py-1 rounded-full text-xs font-medium bg-green-950 text-green-400 border border-green-900";
-            } else {
-                badgeStatus.className = "px-3 py-1 rounded-full text-xs font-medium bg-amber-950 text-amber-400 border border-amber-900";
-            }
-
-            // Priority Status
-            const badgePriority = document.getElementById('badge-priority');
-            badgePriority.innerText = (data.priority || "Normal") + " Priority";
-            if (data.priority === "High") {
-                badgePriority.className = "px-2.5 py-1 text-xs font-semibold rounded-md bg-red-950 text-red-400 border border-red-900";
-            } else {
-                badgePriority.className = "px-2.5 py-1 text-xs font-semibold rounded-md bg-blue-950 text-blue-400 border border-blue-900";
-            }
-
-            // Timestamp formatting
-            if (data.updated_at) {
-                const dateParsed = new Date(data.updated_at);
-                document.getElementById('display-updated-at').innerText = "Last Updated: " + dateParsed.toLocaleDateString();
-            }
-
-            // Create Adaptive Case Timeline Flow
-            const timelineFlow = document.getElementById('timeline-flow');
-            timelineFlow.innerHTML = `
-                <div class="relative pl-6">
-                    <div class="absolute -left-[9px] top-1.5 bg-green-500 h-4 w-4 rounded-full border-4 border-gray-900"></div>
-                    <span class="text-xs text-gray-500">${data.updated_at ? new Date(data.updated_at).toLocaleString() : 'Recent'}</span>
-                    <h4 class="text-sm font-semibold text-white">Status Verification Update</h4>
-                    <p class="text-xs text-gray-400 mt-0.5">Case profile set to status: <strong class="text-blue-400">${data.verification_status || 'Under Review'}</strong> by system audit log.</p>
-                </div>
-                <div class="relative pl-6">
-                    <div class="absolute -left-[9px] top-1.5 bg-blue-500 h-4 w-4 rounded-full border-4 border-gray-900"></div>
-                    <span class="text-xs text-gray-500">Initialization Step</span>
-                    <h4 class="text-sm font-semibold text-white">Complaint Processed to Token Framework</h4>
-                    <p class="text-xs text-gray-400 mt-0.5">Assigned to official investigation desk. Priority tagged as ${data.priority || 'Standard'}.</p>
-                </div>
-            `;
-        }
-
-        // --- REALTIME CHAT SYNC ---
-        function setupLiveChat(token) {
-            const chatBox = document.getElementById('chat-messages-box');
-            const chatRef = ref(db, `chats/${token}`);
-            
-            // Clean old listener if changes token
-            if (chatListenerRef) {
-                onValue(ref(db, `chats/${token}`), () => {});
-            }
-
-            onValue(chatRef, (snapshot) => {
-                chatBox.innerHTML = "";
-                if (snapshot.exists()) {
-                    const messages = snapshot.val();
-                    for (let id in messages) {
-                        const msg = messages[id];
-                        const isLawyer = msg.sender === "lawyer";
+                    // Subnode architecture fallback model fallback
+                    let fallbackRef = ref(window.firebaseDB, `legal_cases/${currentTrackedToken}`);
+                    let fSnap = await get(fallbackRef);
+                    if(fSnap.exists()) {
+                        let fd = fSnap.val();
+                        let msgList = fd.chat_messages ? JSON.parse(fd.chat_messages) : [];
+                        msgList.push({ sender: 'user', text: messageText, timestamp: new Date().toISOString() });
                         
-                        const msgHtml = `
-                            <div class="flex flex-col ${isLawyer ? 'items-start' : 'items-end'}">
-                                <div class="max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${isLawyer ? 'bg-gray-800 text-gray-100 rounded-tl-none' : 'bg-blue-600 text-white rounded-tr-none'}">
-                                    <p>${msg.text}</p>
-                                </div>
-                                <span class="text-[10px] text-gray-500 mt-1 px-1">${msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
-                            </div>
-                        `;
-                        chatBox.insertAdjacentHTML('beforeend', msgHtml);
+                        await update(fallbackRef, {
+                            chat_messages: JSON.stringify(msgList),
+                            updated_at: new Date().toISOString()
+                        });
                     }
-                    chatBox.scrollTop = chatBox.scrollHeight;
-                } else {
-                    chatBox.innerHTML = `<div class="text-center text-xs text-gray-600 my-auto p-4">Secure communication line ready. Send a message to initiation log with Advocate.</div>`;
                 }
+                textInput.value = '';
+            } catch (err) {
+                console.error(err);
+                throwAlert("Message delivery failure.", "error");
+            }
+        }
+
+
+        // ================= MANAGEMENT BACKEND EXECUTIVE ENGINE =================
+
+        function processAdminLogin() {
+            const accessCode = document.getElementById('adminCodeField').value.trim();
+            if(accessCode === "7973804008") {
+                document.getElementById('adminAuthPanel').classList.add('hidden');
+                document.getElementById('adminDashboardArea').classList.remove('hidden');
+                throwAlert("Administrative authorization verification successful.", "success");
+                syncAdminLiveRegistry();
+            } else {
+                throwAlert("Access code amanushik/invalid. Authentication blocked.", "error");
+            }
+        }
+
+        function processAdminLogout() {
+            document.getElementById('adminDashboardArea').classList.add('hidden');
+            document.getElementById('adminAuthPanel').classList.remove('hidden');
+            document.getElementById('adminCodeField').value = '';
+            adminActiveToken = null;
+        }
+
+        function syncAdminLiveRegistry() {
+            const { ref, onValue } = window.firebaseRefs;
+            
+            // Listening to full array metrics inside database pipeline structure
+            onValue(ref(window.firebaseDB), (snapshot) => {
+                if(!snapshot.exists()) return;
+                
+                let masterData = snapshot.val();
+                let consolidatedList = [];
+                globalCasesCache = {}; // Purging old storage map layout
+
+                // Process standard node block values mapping index mapping keys structures 
+                if(masterData.cases) {
+                    Object.keys(masterData.cases).forEach(k => {
+                        let c = masterData.cases[k];
+                        c._dbKey = k;
+                        c._dbNode = 'cases';
+                        consolidatedList.push(c);
+                        globalCasesCache[c.token] = c;
+                    });
+                }
+                // Process fallback values mapping array layout patterns
+                if(masterData.legal_cases) {
+                    Object.keys(masterData.legal_cases).forEach(k => {
+                        let c = masterData.legal_cases[k];
+                        c._dbKey = k;
+                        c._dbNode = 'legal_cases';
+                        if(!globalCasesCache[c.token]) {
+                            consolidatedList.push(c);
+                            globalCasesCache[c.token] = c;
+                        }
+                    });
+                }
+                renderAdminTable(consolidatedList);
             });
         }
 
-        window.sendChatMessage = async function() {
-            const inputField = document.getElementById('chat-input-field');
-            const messageText = inputField.value.trim();
-            if (!messageText || !currentTrackedToken) return;
+        function renderAdminTable(cases) {
+            const box = document.getElementById('adminCaseContainer');
+            box.innerHTML = '';
 
-            const chatRef = ref(db, `chats/${currentTrackedToken}`);
-            const newMessageRef = push(chatRef);
+            if(cases.length === 0) {
+                box.innerHTML = '<p class="text-sm text-center py-8 text-gray-500 italic">No historical data available inside target registry strings.</p>';
+                return;
+            }
+
+            cases.sort((x,y) => new Date(y.created_at || 0) - new Date(x.created_at || 0)).forEach(c => {
+                let block = document.createElement('div');
+                block.className = `p-4 rounded-xl border bg-white shadow-sm hover:border-slate-800 transition-all cursor-pointer ${adminActiveToken === c.token ? 'ring-2 ring-red-600' : ''}`;
+                block.onclick = () => selectCaseForAdministration(c.token);
+
+                block.innerHTML = `<div class="flex justify-between items-center mb-2">
+                                        <span class="font-mono text-sm font-bold text-red-700">${c.token}</span>
+                                        <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded shadow-sm text-white status-${c.status || 'pending'}">${c.status || 'pending'}</span>
+                                   </div>
+                                   <div class="text-xs space-y-1 text-gray-600">
+                                        <p><strong>Complainant:</strong> ${c.complainant_name || 'Anonymous'} | <strong>Company:</strong> ${c.target_company || 'Dozera Ltd'}</p>
+                                        <p><strong>Counsel Assigned:</strong> <span class="text-green-700 font-semibold">${c.assigned_lawyer || 'NONE'}</span></p>
+                                   </div>`;
+                box.appendChild(block);
+            });
+
+            // Refresh contextual information bind if an active tracking token is open
+            if(adminActiveToken && globalCasesCache[adminActiveToken]) {
+                let freshData = globalCasesCache[adminActiveToken];
+                let msgList = [];
+                if(freshData.chat_messages) msgList = typeof freshData.chat_messages === 'string' ? JSON.parse(freshData.chat_messages) : Object.values(freshData.chat_messages);
+                renderChatWindow(msgList, 'adminChatFeed', 'admin');
+            }
+        }
+
+        function selectCaseForAdministration(token) {
+            adminActiveToken = token;
+            let targetCase = globalCasesCache[token];
+            if(!targetCase) return;
+
+            // Interface Initialization Mapping updates structures controls parameters 
+            document.getElementById('adminOperationalContext').classList.add('hidden');
+            document.getElementById('adminActionInterface').classList.remove('hidden');
+            document.getElementById('adminChatInterceptBox').classList.remove('hidden');
+            document.getElementById('adminActiveTokenLabel').textContent = token;
             
-            await set(newMessageRef, {
-                sender: "user",
-                text: messageText,
-                timestamp: new Date().toISOString()
-            });
+            // Values selection configuration syncing
+            document.getElementById('adminStatusSelect').value = targetCase.status || 'pending';
+            document.getElementById('adminLawyerField').value = targetCase.assigned_lawyer || '';
 
-            inputField.value = "";
-        };
+            // Run localized rendering pass loop
+            let msgList = [];
+            if(targetCase.chat_messages) msgList = typeof targetCase.chat_messages === 'string' ? JSON.parse(targetCase.chat_messages) : Object.values(targetCase.chat_messages);
+            renderChatWindow(msgList, 'adminChatFeed', 'admin');
 
-        // --- ADMIN VIEW PANEL INJECTION ---
-        window.loadAdminDashboard = function() {
-            const casesRef = ref(db, 'cases');
-            onValue(casesRef, (snapshot) => {
-                const tbody = document.getElementById('admin-cases-table-body');
-                tbody.innerHTML = "";
+            // Visually highlight row tracking selections mapping matrices
+            syncAdminLiveRegistry();
+        }
 
-                if (snapshot.exists()) {
-                    const cases = snapshot.val();
-                    for (let id in cases) {
-                        const item = cases[id];
-                        const rowHtml = `
-                            <tr class="hover:bg-gray-800/30 transition">
-                                <td class="p-4 font-mono text-xs text-blue-400">${item.token || id}</td>
-                                <td class="p-4 font-medium">${item.target_company || 'Oriontec Inc'}</td>
-                                <td class="p-4 text-gray-300"><i class="fa-solid fa-gavel text-xs mr-1 text-gray-500"></i>${item.lawyer_name || 'Adv. Sharan Pooni'}</td>
-                                <td class="p-4">
-                                    <span class="px-2 py-0.5 rounded text-xs ${item.priority === 'High' ? 'bg-red-950 text-red-400 border border-red-900' : 'bg-blue-950 text-blue-400 border border-blue-900'}">${item.priority || 'Normal'}</span>
-                                </td>
-                                <td class="p-4">
-                                    <span class="text-xs ${item.verification_status === 'Verified' ? 'text-green-400' : 'text-amber-400'}">● ${item.verification_status || 'Pending'}</span>
-                                </td>
-                                <td class="p-4 text-center">
-                                    <button onclick="updateCaseStatus('${id}', '${item.verification_status === 'Verified' ? 'Pending' : 'Verified'}')" class="text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-3 py-1 rounded border border-gray-700 transition">
-                                        Toggle Verification Status
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
-                        tbody.insertAdjacentHTML('beforeend', rowHtml);
-                    }
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-xs text-gray-500">No raw records found under node /cases</td></tr>`;
-                }
-            });
-        };
+        async function commitStatusChange() {
+            if(!adminActiveToken || !globalCasesCache[adminActiveToken]) return;
+            const target = globalCasesCache[adminActiveToken];
+            const newStatus = document.getElementById('adminStatusSelect').value;
 
-        window.updateCaseStatus = async function(caseId, newStatus) {
-            const caseRef = ref(db, `cases/${caseId}`);
-            await update(caseRef, {
-                verification_status: newStatus,
-                updated_at: new Date().toISOString()
-            });
-        };
+            const { ref, update } = window.firebaseRefs;
+            let logString = `${target.audit_trail || ''}\n${new Date().toLocaleString()} - Status changed to ${newStatus} via Administrator Terminal.`;
 
-        // Standard sample initialization modal mechanism for testing environment 
-        window.openNewCaseModal = async function() {
-            const tokenGen = "DLF-" + Math.random().toString(36).substr(2, 8).toUpperCase() + "-" + Math.random().toString(36).substr(2, 5).toUpperCase();
-            const newCaseId = push(ref(db, 'cases')).key;
-            
-            // Automatically seeds a sample structured case requested by user structure for ease
-            await set(ref(db, `cases/${newCaseId}`), {
-                token: tokenGen,
-                title: "Asset Enforcement Log Request",
-                target_company: "Oriontec Inc",
-                lawyer_name: "Adv. Sharan Pooni",
-                mobile: "+91 98765-43210",
-                email: "info@oriontec.com",
-                priority: "High",
-                verification_status: "Verified",
-                updated_at: new Date().toISOString()
-            });
-            alert("Generated & Injected sample node to Realtime Database successfully.\nToken ID: " + tokenGen);
-        };
+            try {
+                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
+                await update(ref(window.firebaseDB, targetPath), {
+                    status: newStatus,
+                    audit_trail: logString,
+                    updated_at: new Date().toISOString()
+                });
+                throwAlert(`Case status updated to: ${newStatus.toUpperCase()}`, "success");
+            } catch (err) {
+                console.error(err);
+                throwAlert("Failed to update status changes.", "error");
+            }
+        }
+
+        async function commitLawyerAssignment() {
+            if(!adminActiveToken || !globalCasesCache[adminActiveToken]) return;
+            const target = globalCasesCache[adminActiveToken];
+            const lawyerName = document.getElementById('adminLawyerField').value.trim();
+
+            if(!lawyerName) return throwAlert("Kripya lawyer ka naam darj karein.", "error");
+
+            const { ref, update } = window.firebaseRefs;
+            let logString = `${target.audit_trail || ''}\n${new Date().toLocaleString()} - Attorney ${lawyerName} assigned to oversee legal proceeding actions.`;
+
+            try {
+                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
+                await update(ref(window.firebaseDB, targetPath), {
+                    assigned_lawyer: lawyerName,
+                    status: 'active', // Auto escalation to active enforcement stage properties rules metrics
+                    audit_trail: logString,
+                    updated_at: new Date().toISOString()
+                });
+                throwAlert(`Counsel successfully assigned: ${lawyerName}`, "success");
+            } catch (err) {
+                console.error(err);
+                throwAlert("Lawyer assignment implementation failure encountered.", "error");
+            }
+        }
+
+        async function sendMessageFromAdmin() {
+            const inputField = document.getElementById('adminChatTextInput');
+            const txt = inputField.value.trim();
+            if(!txt || !adminActiveToken || !globalCasesCache[adminActiveToken]) return;
+
+            const target = globalCasesCache[adminActiveToken];
+            const { ref, update } = window.firebaseRefs;
+
+            try {
+                let msgList = [];
+                if(target.chat_messages) msgList = typeof target.chat_messages === 'string' ? JSON.parse(target.chat_messages) : Object.values(target.chat_messages);
+                
+                msgList.push({ sender: 'lawyer', text: txt, timestamp: new Date().toISOString() });
+
+                let targetPath = target._dbNode === 'cases' ? `cases/${target._dbKey}` : `legal_cases/${target._dbKey}`;
+                await update(ref(window.firebaseDB, targetPath), {
+                    chat_messages: JSON.stringify(msgList),
+                    updated_at: new Date().toISOString()
+                });
+                inputField.value = '';
+            } catch (err) {
+                console.error(err);
+                throwAlert("Message dispatch intercept failure.", "error");
+            }
+        }
     </script>
 </body>
 </html>
