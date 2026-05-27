@@ -136,7 +136,7 @@
                                 <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Privacy Controls</div>
                             </div>
                         </div>
-                        <div id="chat-actions" class="hidden">
+                        <div class="flex-shrink-0" id="chat-actions" class="hidden">
                             <button id="block-btn" onclick="toggleBlockUser()" class="text-xs bg-gray-100 hover:bg-red-50 text-red-600 border border-red-200 font-medium px-3 py-1.5 rounded-full transition">
                                 Block User
                             </button>
@@ -292,7 +292,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // HARD-LOCKED APP GESTURES CAPTURING VIEW ENGINE
+        // HARD-LOCKED APP VIEW FOR MOBILE DEVICES
         document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
         let lastTouchTime = 0;
         document.addEventListener('touchend', function (e) {
@@ -326,11 +326,11 @@
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
 
-        // Hidden Audio Post Object Layer parameters allocation
+        // Audio configurations
         let previewAudioObj = new Audio("https://aryasongs.github.io/Pulse/dozera.mp3.mp3");
         let isAudioPlaying = false;
         let selectedMusicState = null; 
-        let currentFeedAudioPlaying = null; 
+        let activeFeedAudioInstance = null; // Stores current autoplaying loop instance
 
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
 
@@ -350,15 +350,14 @@
             });
         }
 
-        // App View Navigation router mapping functions
         function switchAppViewTab(tab) {
             const chatsPanel = document.getElementById('chats-view-panel');
             const feedPanel = document.getElementById('feed-view-panel');
             const btnChats = document.getElementById('nav-btn-chats');
             const btnFeed = document.getElementById('nav-btn-feed');
             
-            // Stop active post audio playback when pivoting spaces
-            if(currentFeedAudioPlaying) { currentFeedAudioPlaying.pause(); currentFeedAudioPlaying = null; }
+            // Clean up audio streams when navigating away
+            if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
 
             if(tab === 'chats') {
                 chatsPanel.classList.remove('hidden');
@@ -430,7 +429,7 @@
                         });
                         const safeEmailKey = email.replace(/\./g, ',');
                         await db.ref('emailToUid/' + safeEmailKey).set(uid);
-                        triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Explore the community chats and newly deployed interactive Music Explorer Feed framework safely.");
+                        triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Explore community rooms or head over to the newly optimized Explorer Feed Tab.");
                     })
                     .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
             }
@@ -500,8 +499,7 @@
                 if(!snapshot.exists()) return;
                 snapshot.forEach(childSnap => {
                     const targetContactUid = childSnap.key;
-                    const combinedChatRoomKey = currentUserData.uid < targetContactUid ? 
-                        `${currentUserData.uid}_${targetContactUid}` : `${targetContactUid}_${currentUserData.uid}`;
+                    const combinedChatRoomKey = currentUserData.uid < targetContactUid ? `${currentUserData.uid}_${targetContactUid}` : `${targetContactUid}_${currentUserData.uid}`;
                     
                     db.ref(`users/${targetContactUid}`).once('value', uSnap => {
                         userMetadataCache[targetContactUid] = uSnap.val();
@@ -675,6 +673,7 @@
                 if(!snapshot.exists()) return;
                 snapshot.forEach(child => {
                     const msg = child.val(); const msgId = child.key; const isMe = msg.senderId === currentUserData.uid;
+                    let contentHtml = "";
                     if(msg.isDeleted) { contentHtml = `<p class="text-xs italic text-gray-400 select-none">🚫 Message deleted</p>`; } else {
                         if(msg.type === 'text') contentHtml = `<p class="text-sm break-all">${linkifyText(msg.content)}</p>`;
                         else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
@@ -713,7 +712,7 @@
         }
 
         // ==========================================
-        //  INSTAGRAM-STYLE EXPLORER FEED STORAGE ENGINE 
+        //  INSTAGRAM-STYLE EXPLORER FEED PARSING ENGINE
         // ==========================================
         function openCreatePostModal() {
             selectedMusicState = null;
@@ -733,7 +732,6 @@
             const tray = document.getElementById('music-selection-tray');
             tray.classList.toggle('hidden');
             if(!tray.classList.contains('hidden')) {
-                // Initialize default selection configurations
                 selectedMusicState = { name: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", startAt: 0 };
                 document.getElementById('post-music-btn-label').innerText = "🎵 Waaka Selected";
             }
@@ -747,7 +745,6 @@
             } else {
                 previewAudioObj.currentTime = parseInt(slider.value);
                 previewAudioObj.play(); isAudioPlaying = true; playBtn.innerText = "⏸ Pause";
-                // Enforce 30 seconds snippet runtime constraint rules
                 previewAudioObj.ontimeupdate = () => {
                     if (previewAudioObj.currentTime >= parseInt(slider.value) + 30) {
                         previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Play";
@@ -782,7 +779,7 @@
                 postId: postRef.key, uid: currentUserData.uid, authorName: currentUserData.name, authorAvatar: currentUserData.pfp,
                 image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
-                alert("Post successfully published to Explorer Feed!");
+                alert("Post successfully published!");
                 closeCreatePostModal();
                 loadExplorerFeedPosts();
             });
@@ -791,19 +788,37 @@
         function loadExplorerFeedPosts() {
             const container = document.getElementById('feed-container');
             container.innerHTML = "";
+            
             db.ref('posts').orderByChild('timestamp').on('value', snapshot => {
                 container.innerHTML = "";
+                
+                // Absolute clean state check: No dummy or template demo code structures visible
                 if(!snapshot.exists()) {
-                    container.innerHTML = `<div class="text-center text-gray-400 text-xs py-10">No collective feed items registered yet.</div>`; return;
+                    container.innerHTML = `<div class="text-center text-gray-400 text-xs py-20">No exploration feed items found. Create a post above!</div>`; 
+                    if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
+                    return;
                 }
+                
                 let postsArray = [];
-                snapshot.forEach(c => { postsArray.unshift(c.val()); }); // Newest items first
+                snapshot.forEach(c => { postsArray.unshift(c.val()); }); 
+
+                // Automatic single loop music track instance mapping for topmost configuration
+                let topPostWithMusic = postsArray.find(p => p.music !== null);
+                if(topPostWithMusic) {
+                    if(!activeFeedAudioInstance) {
+                        activeFeedAudioInstance = new Audio(topPostWithMusic.music.src);
+                        activeFeedAudioInstance.currentTime = topPostWithMusic.music.startAt;
+                        activeFeedAudioInstance.loop = true; // Loops indefinitely without manual interactions
+                        activeFeedAudioInstance.play().catch(e => console.log("Autoplay context tracking waiting for touch trigger"));
+                    }
+                } else {
+                    if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
+                }
 
                 postsArray.forEach(post => {
                     const card = document.createElement('div');
-                    card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden";
+                    card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative";
                     
-                    // Music player overlay generation check
                     let musicHeaderHtml = "";
                     if(post.music) {
                         musicHeaderHtml = `
@@ -812,12 +827,21 @@
                                     <span class="animate-bounce">🎵</span>
                                     <p class="text-xs font-bold text-emerald-800 truncate">${post.music.name} <span class="font-normal text-emerald-600">- ${post.music.artist}</span></p>
                                 </div>
-                                <button onclick="playFeedPostAudio('${post.postId}', '${post.music.src}', ${post.music.startAt}, this)" class="text-[10px] bg-emerald-600 font-bold text-white px-2 py-1 rounded-lg">▶ Play Audio</button>
+                                <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-medium">Autoplay Loop</span>
                             </div>
                         `;
                     }
 
-                    // Comments presentation parser setup
+                    // Delete Post control activation condition logic
+                    let deleteButtonHtml = "";
+                    if(post.uid === currentUserData.uid) {
+                        deleteButtonHtml = `
+                            <button onclick="deleteFeedPostAction('${post.postId}')" class="text-xs font-bold text-red-500 hover:text-red-700 px-2 py-1 bg-red-50 rounded-xl transition">
+                                🗑️ Delete Post
+                            </button>
+                        `;
+                    }
+
                     let commentsListHtml = "";
                     if(post.comments) {
                         Object.values(post.comments).forEach(cm => {
@@ -827,12 +851,15 @@
 
                     card.innerHTML = `
                         ${musicHeaderHtml}
-                        <div class="p-3 flex items-center space-x-2.5">
-                            <img src="${post.authorAvatar || defaultBlankAvatar}" class="w-8 h-8 rounded-full object-cover">
-                            <div>
-                                <h4 class="text-xs font-bold text-gray-800">${post.authorName}</h4>
-                                ${post.location ? `<p class="text-[10px] text-gray-400">📍 ${post.location}</p>` : ''}
+                        <div class="p-3 flex items-center justify-between">
+                            <div class="flex items-center space-x-2.5 min-w-0">
+                                <img src="${post.authorAvatar || defaultBlankAvatar}" class="w-8 h-8 rounded-full object-cover">
+                                <div class="min-w-0">
+                                    <h4 class="text-xs font-bold text-gray-800 truncate">${post.authorName}</h4>
+                                    ${post.location ? `<p class="text-[10px] text-gray-400 truncate">📍 ${post.location}</p>` : ''}
+                                </div>
                             </div>
+                            ${deleteButtonHtml}
                         </div>
                         <img src="${post.image}" class="w-full object-cover max-h-80 bg-gray-50">
                         <div class="p-3 space-y-2">
@@ -857,34 +884,23 @@
             });
         }
 
-        function playFeedPostAudio(postId, src, startAt, btn) {
-            if(currentFeedAudioPlaying) {
-                currentFeedAudioPlaying.pause();
-                if(btn.innerText === "⏸ Pause") { btn.innerText = "▶ Play Audio"; currentFeedAudioPlaying = null; return; }
-                document.querySelectorAll('[id^=music-feed-btn]').forEach(b => b.innerText = "▶ Play Audio");
+        // Delete Post functionality route parameters execution
+        function deleteFeedPostAction(postId) {
+            if(confirm("Are you sure you want to permanently delete this post from the feed?")) {
+                db.ref(`posts/${postId}`).remove().then(() => {
+                    alert("Post deleted successfully.");
+                    loadExplorerFeedPosts();
+                }).catch(err => alert("Error deleting post: " + err.message));
             }
-            btn.id = `music-feed-btn-${postId}`; btn.innerText = "⏸ Pause";
-            currentFeedAudioPlaying = new Audio(src); currentFeedAudioPlaying.currentTime = startAt; currentFeedAudioPlaying.play();
-            currentFeedAudioPlaying.ontimeupdate = () => {
-                if(currentFeedAudioPlaying.currentTime >= startAt + 30) { currentFeedAudioPlaying.pause(); btn.innerText = "▶ Play Audio"; currentFeedAudioPlaying = null; }
-            };
         }
 
-        function likeFeedPostAction(postId) {
-            // Adds anonymous incremental like metrics value to push parameters
-            db.ref(`posts/${postId}/likes/${currentUserData.uid}`).set(true);
-        }
-
+        function likeFeedPostAction(postId) { db.ref(`posts/${postId}/likes/${currentUserData.uid}`).set(true); }
         function submitCommentAction(postId) {
             const input = document.getElementById(`comment-in-${postId}`); if(!input.value.trim()) return;
-            db.ref(`` + `posts/${postId}/comments`).push({
-                userName: currentUserData.name, text: input.value.trim(), timestamp: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => { input.value = ""; });
+            db.ref(`posts/${postId}/comments`).push({ userName: currentUserData.name, text: input.value.trim(), timestamp: firebase.database.ServerValue.TIMESTAMP }).then(() => { input.value = ""; });
         }
 
-        // ==========================================
-        //  LEGACY COMPONENT CONTROLS SYNC MODALS
-        // ==========================================
+        // Modal configuration pathways
         function openMyProfileModal() { document.getElementById('edit-name').value = currentUserData.name; document.getElementById('edit-about').value = currentUserData.about || ""; document.getElementById('edit-dob').value = currentUserData.dob; document.getElementById('profile-modal').style.display = 'flex'; }
         function closeMyProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }
         async function saveProfileUpdates() {
