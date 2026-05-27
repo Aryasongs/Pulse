@@ -3,23 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pulse - Premium Music App</title>
+  <title>Pulse - Premium Apple Music</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(30px); border-t: 1px solid rgba(255, 255, 255, 0.08); }
+    body { background-color: #000; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+    .glass { background: rgba(255, 255, 255, 0.06); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(255, 255, 255, 0.08); }
     .apple-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
-    .apple-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.05); transition: all 0.2s ease; }
-    .apple-card:hover { background: rgba(255, 255, 255, 0.08); }
-    /* Hide scrollbar */
     ::-webkit-scrollbar { display: none; }
-    .active-tab { color: #ff2d55 !important; }
+    
+    /* Fullscreen Player Slide Effect */
+    #fullscreen-player {
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    #fullscreen-player.active {
+      transform: translateY(0%);
+    }
   </style>
 </head>
-<body class="flex justify-center items-center h-screen bg-neutral-950 select-none">
+<body class="flex justify-center items-center h-screen bg-neutral-950">
 
-  <div class="w-full max-w-md h-[92vh] bg-neutral-900 rounded-[40px] shadow-2xl border border-neutral-800 overflow-hidden flex flex-col relative">
+  <div class="w-full max-w-md h-[95vh] bg-neutral-900 rounded-[45px] shadow-2xl border border-neutral-800 overflow-hidden flex flex-col relative">
     
     <div id="auth-screen" class="absolute inset-0 bg-neutral-900 z-50 flex flex-col justify-center p-6 overflow-y-auto">
       <div class="text-center mb-8">
@@ -61,7 +66,6 @@
 
       <div id="forgot-box" class="space-y-4 hidden">
         <h2 class="text-xl font-semibold mb-2">Reset Password</h2>
-        <p class="text-xs text-neutral-400">Registered email aur secret answer daalein naya password set karne ke liye.</p>
         <input type="email" id="forgot-email" placeholder="Registered Email" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
         <input type="text" id="forgot-secret" placeholder="Your Secret Answer" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
         <input type="password" id="forgot-new-password" placeholder="Enter New Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
@@ -70,110 +74,168 @@
       </div>
     </div>
 
-
-    <header class="p-4 flex justify-between items-center bg-neutral-900/80 sticky top-0 backdrop-blur-md z-10">
+    <header class="p-5 flex justify-between items-center bg-neutral-900/80 sticky top-0 backdrop-blur-md z-10">
       <div>
-        <p class="text-[11px] text-neutral-400 uppercase tracking-wider font-semibold">Playing from Pulse</p>
-        <h3 id="user-display-name" class="text-base font-bold text-white">Loading...</h3>
+        <p class="text-xs text-neutral-400">Welcome back,</p>
+        <h3 id="user-display-name" class="text-lg font-bold text-white">Guest User</h3>
       </div>
-      <button id="btn-logout" class="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 hover:text-red-500 transition">
-        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+      <button id="btn-logout" class="w-9 h-9 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 hover:text-red-500 transition">
+        <i class="fa-solid fa-right-from-bracket text-sm"></i>
       </button>
     </header>
 
-
-    <div class="flex-1 overflow-y-auto px-4 pb-44" id="main-content-area">
+    <div class="flex-1 overflow-y-auto px-5 pb-36">
       
-      <div id="tab-browse" class="tab-page space-y-4">
-        <div class="relative mt-2">
-          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-neutral-500 text-sm"></i>
-          <input type="text" id="search-input" placeholder="Artists, Songs, Lyrics..." class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-neutral-800 border border-transparent text-white focus:outline-none focus:bg-neutral-800/60 text-sm placeholder-neutral-500">
-        </div>
-
-        <div class="w-full h-12 bg-neutral-950/60 rounded-xl overflow-hidden relative border border-neutral-800/50 flex items-center justify-center">
-          <canvas id="visualizer-canvas" class="w-full h-full absolute inset-0"></canvas>
-          <div id="visualizer-placeholder" class="text-[10px] text-neutral-500 uppercase tracking-widest z-10 font-medium pointer-events-none">Visualizer Engine Ready</div>
-        </div>
-
-        <h2 class="text-xl font-bold tracking-tight text-white">Browse Songs</h2>
-        <div id="songs-container" class="space-y-2">
-          </div>
+      <div id="view-browse" class="view-panel space-y-4">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Browse Songs</h2>
+        <div id="songs-container" class="space-y-3"></div>
       </div>
 
-      <div id="tab-library" class="tab-page hidden space-y-4">
-        <h2 class="text-xl font-bold tracking-tight text-white mt-2">My Library</h2>
+      <div id="view-search" class="view-panel space-y-4 hidden">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Search</h2>
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-neutral-500 text-sm"></i>
+          <input type="text" id="search-input" placeholder="Artists, Songs, Lyrics..." class="w-full p-3 pl-11 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
+        </div>
+        <div id="search-results-container" class="space-y-3 pt-2"></div>
+      </div>
+
+      <div id="view-library" class="view-panel space-y-6 hidden">
+        <h2 class="text-2xl font-bold tracking-tight text-white">Library</h2>
         
-        <div class="flex space-x-2 border-b border-neutral-800 pb-2">
-          <button onclick="switchLibSubTab('favs')" id="lib-btn-favs" class="text-sm font-semibold text-pink-500 border-b-2 border-pink-500 pb-1 px-1">Favorite Songs</button>
-          <button onclick="switchLibSubTab('playlists')" id="lib-btn-playlists" class="text-sm font-semibold text-neutral-400 pb-1 px-1">Playlists</button>
+        <div class="flex space-x-3">
+          <button id="btn-trigger-playlist-modal" class="flex-1 p-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 transition flex items-center justify-center space-x-2 text-sm font-medium">
+            <i class="fa-solid fa-plus text-pink-500"></i>
+            <span>New Playlist</span>
+          </button>
         </div>
 
-        <div id="library-favs-container" class="space-y-2">
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-neutral-400 mb-3 ml-1">Favorite Songs</h3>
+          <div id="library-favorites-container" class="space-y-3">
+            <p class="text-xs text-neutral-500 p-2 italic">No added songs yet.</p>
           </div>
+        </div>
 
-        <div id="library-playlists-container" class="space-y-3 hidden">
-          <div class="flex justify-between items-center bg-neutral-800/40 p-3 rounded-xl border border-neutral-800">
-            <input type="text" id="playlist-name-input" placeholder="New Playlist Name" class="bg-neutral-900 border border-neutral-700 rounded-lg px-2 py-1 text-xs text-white focus:outline-none w-2/3">
-            <button id="btn-create-playlist" class="apple-gradient text-xs px-3 py-1.5 rounded-lg font-medium"><i class="fa-solid fa-plus mr-1"></i> Create</button>
-          </div>
-          <div id="playlists-list" class="space-y-2">
-            </div>
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-neutral-400 mb-3 ml-1">Your Playlists</h3>
+          <div id="library-playlists-container" class="space-y-3"></div>
         </div>
       </div>
 
     </div>
 
+    <nav class="absolute bottom-20 left-4 right-4 glass rounded-2xl h-14 flex justify-around items-center z-30 px-2 shadow-xl">
+      <button onclick="switchTab('browse')" id="tab-browse" class="flex flex-col items-center justify-center text-pink-500 transition w-16">
+        <i class="fa-solid fa-compass text-lg"></i>
+        <span class="text-[10px] mt-0.5 font-medium">Browse</span>
+      </button>
+      <button onclick="switchTab('search')" id="tab-search" class="flex flex-col items-center justify-center text-neutral-400 hover:text-white transition w-16">
+        <i class="fa-solid fa-magnifying-glass text-lg"></i>
+        <span class="text-[10px] mt-0.5 font-medium">Search</span>
+      </button>
+      <button onclick="switchTab('library')" id="tab-library" class="flex flex-col items-center justify-center text-neutral-400 hover:text-white transition w-16">
+        <i class="fa-solid fa-rectangle-list text-lg"></i>
+        <span class="text-[10px] mt-0.5 font-medium">Library</span>
+      </button>
+    </nav>
 
-    <div class="absolute bottom-0 left-0 right-0 glass flex flex-col z-20">
-      
-      <div id="mini-player" class="p-3 flex flex-col border-b border-neutral-900" style="display: none;">
-        <div class="flex items-center justify-between w-full">
-          <div class="flex items-center space-x-3 cursor-pointer" id="mini-player-info">
-            <img id="player-cover" src="" class="w-10 h-10 rounded-lg object-cover shadow-md">
-            <div class="w-40 truncate">
-              <h4 id="player-title" class="font-semibold text-xs text-white truncate">Song Title</h4>
-              <p id="player-artist" class="text-[11px] text-neutral-400 truncate">Artist Name</p>
-            </div>
-          </div>
-          
-          <div class="flex items-center space-x-4 pr-1">
-            <button id="btn-fav-toggle" class="text-neutral-500 hover:text-pink-500 text-sm transition"><i class="fa-regular fa-heart"></i></button>
-            <button id="btn-prev" class="text-neutral-400 hover:text-white text-sm"><i class="fa-solid fa-backward-step"></i></button>
-            <button id="btn-play-pause" class="w-8 h-8 rounded-full apple-gradient flex items-center justify-center text-white text-xs shadow-md"><i class="fa-solid fa-play"></i></button>
-            <button id="btn-next" class="text-neutral-400 hover:text-white text-sm"><i class="fa-solid fa-forward-step"></i></button>
+    <div id="mini-player" class="absolute bottom-0 left-0 right-0 glass p-4 pb-6 flex flex-col justify-between items-center border-t border-neutral-800 rounded-t-3xl z-20" style="display: none;">
+      <div class="flex items-center justify-between w-full" id="mini-player-trigger">
+        <div class="flex items-center space-x-3 cursor-pointer flex-1">
+          <img id="player-cover" src="" class="w-11 h-11 rounded-xl object-cover shadow-md">
+          <div class="w-40 truncate">
+            <h4 id="player-title" class="font-semibold text-sm text-white truncate">Song Title</h4>
+            <p id="player-artist" class="text-xs text-neutral-400 truncate">Artist Name</p>
           </div>
         </div>
+        <div class="flex items-center space-x-4" onclick="event.stopPropagation();">
+          <button id="btn-mini-play" class="text-white text-xl"><i class="fa-solid fa-play"></i></button>
+          <button id="btn-mini-next" class="text-neutral-400 hover:text-white text-lg"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+      </div>
+    </div>
 
-        <div class="w-full flex items-center space-x-2 mt-2 px-1">
-          <span id="time-current" class="text-[9px] text-neutral-400 w-7">0:00</span>
-          <input type="range" id="seekbar" min="0" value="0" step="1" class="flex-1 h-[3px] bg-neutral-700 rounded-lg appearance-none cursor-pointer accent-pink-500">
-          <span id="time-duration" class="text-[9px] text-neutral-400 w-7 text-right">0:00</span>
+    <div id="fullscreen-player" class="absolute inset-0 z-40 flex flex-col justify-between p-8 overflow-hidden select-none">
+      
+      <div id="dynamic-blur-bg" class="absolute inset-0 scale-125 blur-[50px] brightness-[0.4] saturate-[1.7] transition-all duration-700 bg-cover bg-center -z-10"></div>
+      
+      <div class="flex justify-between items-center w-full mt-4">
+        <button id="btn-close-fullscreen" class="text-white/60 hover:text-white text-xl transition p-2">
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <span class="text-xs font-semibold uppercase tracking-widest text-white/40">Now Playing</span>
+        <button id="btn-fs-options" class="text-white/60 hover:text-white text-xl transition p-2 relative">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+
+      <div class="flex-1 flex flex-col justify-center items-center my-4">
+        <div id="fs-art-wrapper" class="w-68 h-68 max-w-[270px] aspect-square rounded-[24px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] transition-transform duration-500 scale-95">
+          <img id="fs-cover" src="" class="w-full h-full object-cover">
         </div>
       </div>
 
-      <nav class="flex justify-around items-center py-3 bg-neutral-900/90 backdrop-blur-md">
-        <button onclick="switchTab('browse')" id="nav-browse" class="flex flex-col items-center space-y-0.5 text-neutral-400 transition active:scale-95 active-tab">
-          <i class="fa-solid fa-square-compass text-lg"></i>
-          <span class="text-[10px] font-medium">Browse</span>
-        </button>
-        <button onclick="switchTab('library')" id="nav-library" class="flex flex-col items-center space-y-0.5 text-neutral-400 transition active:scale-95">
-          <i class="fa-solid fa-music text-lg"></i>
-          <span class="text-[10px] font-medium">Library</span>
-        </button>
-      </nav>
+      <div class="space-y-6 mb-2">
+        <div class="flex justify-between items-center">
+          <div class="w-full truncate pr-4">
+            <h2 id="fs-title" class="text-2xl font-bold tracking-tight text-white truncate">Song Title</h2>
+            <p id="fs-artist" class="text-lg text-white/60 truncate mt-0.5">Artist Name</p>
+          </div>
+          <button id="btn-heart" class="text-white/40 hover:text-pink-500 text-xl transition"><i class="fa-regular fa-heart"></i></button>
+        </div>
 
+        <div class="space-y-2">
+          <div class="relative w-full">
+            <input type="range" id="fs-seekbar" min="0" value="0" step="1" class="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white transition">
+          </div>
+          <div class="flex justify-between text-xs font-medium text-white/40 tracking-wider">
+            <span id="fs-time-current">0:00</span>
+            <span id="fs-time-duration">0:00</span>
+          </div>
+        </div>
+
+        <div class="flex justify-center items-center space-x-12 py-2">
+          <button id="btn-fs-prev" class="text-white/80 hover:text-white active:scale-90 text-3xl transition duration-200"><i class="fa-solid fa-backward-step"></i></button>
+          <button id="btn-fs-play-pause" class="w-20 h-20 rounded-full bg-white text-black flex items-center justify-center text-3xl shadow-xl active:scale-95 transition-transform duration-200"><i class="fa-solid fa-play ml-1"></i></button>
+          <button id="btn-fs-next" class="text-white/80 hover:text-white active:scale-90 text-3xl transition duration-200"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+
+        <div class="flex justify-between items-center text-white/40 px-4 pt-2">
+          <i class="fa-solid fa-quote-left text-sm hover:text-white transition"></i>
+          <i class="fa-solid fa-list-ul text-sm hover:text-white transition"></i>
+        </div>
+      </div>
+    </div>
+
+    <div id="playlist-modal" class="absolute inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+      <div class="w-full bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-2xl">
+        <h3 class="text-lg font-bold text-white">Create New Playlist</h3>
+        <input type="text" id="playlist-name-input" placeholder="Playlist Title" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
+        <div class="flex space-x-3 pt-2">
+          <button id="btn-close-modal" class="flex-1 p-3 rounded-xl bg-neutral-800 text-neutral-400 font-medium text-sm hover:bg-neutral-700">Cancel</button>
+          <button id="btn-create-playlist" class="flex-1 p-3 rounded-xl apple-gradient text-white font-medium text-sm shadow-md">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="add-to-playlist-modal" class="absolute inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-6">
+      <div class="w-full bg-neutral-900 border border-neutral-800 rounded-3xl p-5 space-y-4 shadow-2xl max-h-[70vh] flex flex-col">
+        <h3 class="text-lg font-bold text-white">Add to Playlist</h3>
+        <div id="playlist-selector-list" class="flex-1 overflow-y-auto space-y-2 pr-1"></div>
+        <button id="btn-close-add-modal" class="w-full p-3 rounded-xl bg-neutral-800 text-neutral-400 text-sm font-medium mt-2">Cancel</button>
+      </div>
     </div>
 
   </div>
 
-  <audio id="audio-player" crossorigin="anonymous"></audio>
+  <audio id="audio-player"></audio>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
     import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
       authDomain: "pulse2-92372.firebaseapp.com",
@@ -188,7 +250,6 @@
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Initial Static Songs Array
     const songs = [
       { id: "s1", title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg" },
       { id: "s2", title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg" },
@@ -201,409 +262,31 @@
 
     let currentSongIndex = 0;
     let currentUser = null;
-    let userLibrary = { favorites: {}, playlists: {} };
-    let filteredSongs = [...songs];
-
-    // Audio Context & Visualizer States
+    let userFavorites = [];
+    let userPlaylists = {};
     const audio = document.getElementById('audio-player');
-    let audioContext = null;
-    let analyser = null;
-    let dataArray = null;
-    let visualizerInitialized = false;
+    const fullscreenPlayer = document.getElementById('fullscreen-player');
 
-    // --- NAVIGATION ENGINE ---
-    window.switchTab = function(tabId) {
-      document.querySelectorAll('.tab-page').forEach(page => page.classList.add('hidden'));
-      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+    // UI Tab Navigation Controls
+    window.switchTab = function(viewKey) {
+      document.querySelectorAll('.view-panel').forEach(p => p.classList.add('hidden'));
+      document.getElementById(`view-${viewKey}`).classList.remove('hidden');
       
-      document.getElementById('nav-browse').classList.remove('active-tab');
-      document.getElementById('nav-library').classList.remove('active-tab');
-      document.getElementById(`nav-${tabId}`).classList.add('active-tab');
-    };
-
-    window.switchLibSubTab = function(subTab) {
-      if(subTab === 'favs') {
-        document.getElementById('library-favs-container').classList.remove('hidden');
-        document.getElementById('library-playlists-container').classList.add('hidden');
-        document.getElementById('lib-btn-favs').className = "text-sm font-semibold text-pink-500 border-b-2 border-pink-500 pb-1 px-1";
-        document.getElementById('lib-btn-playlists').className = "text-sm font-semibold text-neutral-400 pb-1 px-1";
-      } else {
-        document.getElementById('library-favs-container').classList.add('hidden');
-        document.getElementById('library-playlists-container').classList.remove('hidden');
-        document.getElementById('lib-btn-favs').className = "text-sm font-semibold text-neutral-400 pb-1 px-1";
-        document.getElementById('lib-btn-playlists').className = "text-sm font-semibold text-pink-500 border-b-2 border-pink-500 pb-1 px-1";
-      }
-    };
+      document.querySelectorAll('nav button').forEach(b => {
+        b.classList.remove('text-pink-500');
+        b.classList.add('text-neutral-400');
+      });
+      document.getElementById(`tab-${viewKey}`).classList.add('text-pink-500');
+    }
 
     window.toggleAuthBoxes = function(target) {
       document.getElementById('login-box').classList.add('hidden');
       document.getElementById('signup-box').classList.add('hidden');
       document.getElementById('forgot-box').classList.add('hidden');
       document.getElementById(`${target}-box`).classList.remove('hidden');
-    };
-
-    // --- AUDIO VISUALIZER API INTEGRATION ---
-    function initVisualizer() {
-      if (visualizerInitialized) return;
-      try {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        const source = audioContext.createMediaElementSource(audio);
-        analyser = audioContext.createAnalyser();
-        
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-        
-        analyser.fftSize = 64;
-        const bufferLength = analyser.frequencyBinCount;
-        dataArray = new Uint8Array(bufferLength);
-        
-        document.getElementById('visualizer-placeholder').classList.add('hidden');
-        visualizerInitialized = true;
-        drawVisualizer();
-      } catch (e) {
-        console.log("Visualizer failed initialization:", e);
-      }
     }
 
-    function drawVisualizer() {
-      if (!visualizerInitialized) return;
-      requestAnimationFrame(drawVisualizer);
-      
-      const canvas = document.getElementById('visualizer-canvas');
-      const ctx = canvas.getContext('2d');
-      const width = canvas.width = canvas.parentElement.clientWidth;
-      const height = canvas.height = canvas.parentElement.clientHeight;
-      
-      analyser.getByteFrequencyData(dataArray);
-      ctx.clearRect(0, 0, width, height);
-      
-      const barWidth = (width / dataArray.length) * 1.4;
-      let barHeight;
-      let x = 0;
-      
-      for (let i = 0; i < dataArray.length; i++) {
-        barHeight = (dataArray[i] / 255) * height * 0.9;
-        
-        // Premium Apple Color Palette
-        const r = 255;
-        const g = Math.floor(45 + (i * 5));
-        const b = Math.floor(85 + (i * 2));
-        
-        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, 0.85)`;
-        ctx.fillRect(x, height - barHeight, barWidth - 2, barHeight);
-        x += barWidth;
-      }
-    }
-
-    // --- NAVIGATOR MEDIA SESSION API ---
-    function updateMediaSession(song) {
-      if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-          title: song.title,
-          artist: song.artist,
-          album: 'Pulse Premium',
-          artwork: [
-            { src: song.cover, sizes: '512x512', type: 'image/jpeg' }
-          ]
-        });
-
-        navigator.mediaSession.setActionHandler('play', () => { audio.play(); });
-        navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); });
-        navigator.mediaSession.setActionHandler('previoustrack', () => { document.getElementById('btn-prev').click(); });
-        navigator.mediaSession.setActionHandler('nexttrack', () => { document.getElementById('btn-next').click(); });
-      }
-    }
-
-    // --- DATABASE SYNC ---
-    async function syncUserLibraryFromFirebase(uid) {
-      const snapshot = await get(child(ref(db), `users/${uid}/library`));
-      if (snapshot.exists()) {
-        userLibrary = snapshot.val();
-        if(!userLibrary.favorites) userLibrary.favorites = {};
-        if(!userLibrary.playlists) userLibrary.playlists = {};
-      } else {
-        userLibrary = { favorites: {}, playlists: {} };
-      }
-      renderLibraryUI();
-      updateFavoriteButtonUI();
-    }
-
-    function saveLibraryToFirebase() {
-      if(currentUser) {
-        set(ref(db, `users/${currentUser.uid}/library`), userLibrary);
-      }
-    }
-
-    // --- MUSIC PLAYER CORE LOGIC ---
-    window.playSong = function(index) {
-      if(visualizerInitialized && audioContext.state === 'suspended') {
-        audioContext.resume();
-      } else {
-        initVisualizer();
-      }
-
-      currentSongIndex = index;
-      const song = filteredSongs[currentSongIndex];
-      if(!song) return;
-
-      audio.src = song.src;
-      audio.play().then(() => {
-        updateMediaSession(song);
-      }).catch(e => console.log("Playback interaction lock active."));
-
-      // UI updates
-      document.getElementById('player-title').innerText = song.title;
-      document.getElementById('player-artist').innerText = song.artist;
-      document.getElementById('player-cover').src = song.cover;
-      document.getElementById('mini-player').style.display = 'block';
-      document.getElementById('btn-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
-      
-      updateFavoriteButtonUI();
-
-      if(currentUser) {
-        set(ref(db, `users/${currentUser.uid}/activity/` + Date.now()), {
-          songTitle: song.title,
-          artist: song.artist,
-          action: "Played",
-          timestamp: new Date().toLocaleString()
-        });
-        update(ref(db, `users/${currentUser.uid}`), { lastPlayedSong: song.title });
-      }
-    };
-
-    function updateFavoriteButtonUI() {
-      const song = filteredSongs[currentSongIndex];
-      const favBtnIcon = document.querySelector('#btn-fav-toggle i');
-      if(song && userLibrary.favorites && userLibrary.favorites[song.id]) {
-        favBtnIcon.className = "fa-solid fa-heart text-pink-500";
-      } else {
-        favBtnIcon.className = "fa-regular fa-heart text-neutral-500";
-      }
-    }
-
-    // Playlist Operations
-    document.getElementById('btn-create-playlist').addEventListener('click', () => {
-      const pName = document.getElementById('playlist-name-input').value.trim();
-      if(!pName) return alert("Playlist ka naam likhein!");
-      
-      const pId = 'pl_' + Date.now();
-      if(!userLibrary.playlists) userLibrary.playlists = {};
-      userLibrary.playlists[pId] = { name: pName, songs: [] };
-      
-      document.getElementById('playlist-name-input').value = '';
-      saveLibraryToFirebase();
-      renderLibraryUI();
-    });
-
-    window.addSongToPlaylist = function(songId, playlistId) {
-      const pl = userLibrary.playlists[playlistId];
-      if(pl && !pl.songs.includes(songId)) {
-        pl.songs.push(songId);
-        saveLibraryToFirebase();
-        renderLibraryUI();
-        alert(`Song playlist "${pl.name}" mein add ho gaya!`);
-      } else {
-        alert("Song pehle se added hai.");
-      }
-    };
-
-    // --- INTERACTIVE UI RENDERS ---
-    function renderBrowseSongs(tracklist) {
-      const container = document.getElementById('songs-container');
-      container.innerHTML = '';
-      if(tracklist.length === 0) {
-        container.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">No tracks match your search.</p>`;
-        return;
-      }
-      
-      tracklist.forEach((song, idx) => {
-        const div = document.createElement('div');
-        div.className = "flex items-center justify-between p-2.5 rounded-xl apple-card cursor-pointer group";
-        
-        let playlistOptions = '';
-        if(userLibrary.playlists && Object.keys(userLibrary.playlists).length > 0) {
-          Object.keys(userLibrary.playlists).forEach(plId => {
-            playlistOptions += `<option value="${plId}">${userLibrary.playlists[plId].name}</option>`;
-          });
-        }
-
-        div.innerHTML = `
-          <div class="flex items-center space-x-3 flex-1" onclick="playSong(${idx})">
-            <img src="${song.cover}" class="w-11 h-11 rounded-lg object-cover">
-            <div class="w-44 truncate">
-              <h4 class="font-medium text-xs text-white group-hover:text-pink-500 transition truncate">${song.title}</h4>
-              <p class="text-[10px] text-neutral-400 truncate">${song.artist}</p>
-            </div>
-          </div>
-          <div class="flex items-center space-x-2">
-            ${playlistOptions ? `
-              <select onchange="addSongToPlaylist('${song.id}', this.value); this.value='';" class="bg-neutral-800 text-[10px] text-neutral-300 rounded p-1 max-w-[80px] focus:outline-none">
-                <option value="">+ Add To</option>
-                ${playlistOptions}
-              </select>
-            ` : ''}
-            <button onclick="event.stopPropagation(); playSong(${idx});" class="text-neutral-500 group-hover:text-white p-2"><i class="fa-solid fa-play text-[11px]"></i></button>
-          </div>
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    function renderLibraryUI() {
-      // Favorites Tab View
-      const favsContainer = document.getElementById('library-favs-container');
-      favsContainer.innerHTML = '';
-      const favKeys = Object.keys(userLibrary.favorites || {});
-      
-      if(favKeys.length === 0) {
-        favsContainer.innerHTML = `<p class="text-xs text-neutral-500 py-4 text-center">Library khali hai. Dil par click karke add karein.</p>`;
-      } else {
-        const favTracks = songs.filter(s => favKeys.includes(s.id));
-        favTracks.forEach((song) => {
-          const div = document.createElement('div');
-          div.className = "flex items-center justify-between p-2.5 rounded-xl bg-neutral-800/40 border border-neutral-800";
-          div.innerHTML = `
-            <div class="flex items-center space-x-3">
-              <img src="${song.cover}" class="w-10 h-10 rounded-lg object-cover">
-              <div>
-                <h4 class="font-medium text-xs text-white">${song.title}</h4>
-                <p class="text-[10px] text-neutral-400">${song.artist}</p>
-              </div>
-            </div>
-            <button onclick="playFavoriteTrack('${song.id}')" class="text-pink-500 p-2"><i class="fa-solid fa-play text-xs"></i></button>
-          `;
-          favsContainer.appendChild(div);
-        });
-      }
-
-      // Playlists Tab View
-      const playlistsList = document.getElementById('playlists-list');
-      playlistsList.innerHTML = '';
-      const plKeys = Object.keys(userLibrary.playlists || {});
-      
-      if(plKeys.length === 0) {
-        playlistsList.innerHTML += `<p class="text-xs text-neutral-500 py-2 text-center">Custom playlist banayein.</p>`;
-      } else {
-        plKeys.forEach(plId => {
-          const pl = userLibrary.playlists[plId];
-          const div = document.createElement('div');
-          div.className = "p-3 rounded-xl bg-neutral-800/60 border border-neutral-800 space-y-1";
-          div.innerHTML = `
-            <div class="flex justify-between items-center">
-              <h4 class="text-xs font-bold text-neutral-200"><i class="fa-solid fa-list-music text-pink-500 mr-1.5"></i>${pl.name}</h4>
-              <span class="text-[10px] text-neutral-500">${pl.songs ? pl.songs.length : 0} Tracks</span>
-            </div>
-            <div class="text-[10px] text-neutral-400 pl-4 py-1 truncate">
-              ${pl.songs && pl.songs.length > 0 ? pl.songs.map(sid => songs.find(s=>s.id===sid)?.title).join(', ') : 'Empty Playlist'}
-            </div>
-            ${pl.songs && pl.songs.length > 0 ? `
-              <button onclick="playPlaylistTracks('${plId}')" class="text-[10px] text-pink-500 font-semibold uppercase tracking-wider mt-1 block"><i class="fa-solid fa-bolt mr-1"></i>Play List</button>
-            ` : ''}
-          `;
-          playlistsList.appendChild(div);
-        });
-      }
-    }
-
-    window.playFavoriteTrack = function(songId) {
-      filteredSongs = songs; 
-      const idx = filteredSongs.findIndex(s => s.id === songId);
-      if(idx !== -1) playSong(idx);
-    };
-
-    window.playPlaylistTracks = function(playlistId) {
-      const plTracksIds = userLibrary.playlists[playlistId]?.songs || [];
-      if(plTracksIds.length === 0) return;
-      filteredSongs = songs.filter(s => plTracksIds.includes(s.id));
-      if(filteredSongs.length > 0) playSong(0);
-    };
-
-    // --- CONTROLS & EVENT BINDINGS ---
-    document.getElementById('btn-fav-toggle').addEventListener('click', () => {
-      const song = filteredSongs[currentSongIndex];
-      if(!song) return;
-      
-      if(!userLibrary.favorites) userLibrary.favorites = {};
-      if(userLibrary.favorites[song.id]) {
-        delete userLibrary.favorites[song.id];
-      } else {
-        userLibrary.favorites[song.id] = true;
-      }
-      saveLibraryToFirebase();
-      updateFavoriteButtonUI();
-      renderLibraryUI();
-    });
-
-    // Instant Search Bar Handler
-    document.getElementById('search-input').addEventListener('input', (e) => {
-      const q = e.target.value.toLowerCase().trim();
-      if(!q) {
-        filteredSongs = [...songs];
-      } else {
-        filteredSongs = songs.filter(s => s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q));
-      }
-      renderBrowseSongs(filteredSongs);
-    });
-
-    // Media Controllers UI sync
-    const playPauseBtn = document.getElementById('btn-play-pause');
-    playPauseBtn.addEventListener('click', () => {
-      if (audio.paused) {
-        audio.play();
-        playPauseBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
-      } else {
-        audio.pause();
-        playPauseBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
-      }
-    });
-
-    document.getElementById('btn-next').addEventListener('click', () => {
-      if(filteredSongs.length === 0) return;
-      let nextIndex = (currentSongIndex + 1) % filteredSongs.length;
-      playSong(nextIndex);
-    });
-
-    document.getElementById('btn-prev').addEventListener('click', () => {
-      if(filteredSongs.length === 0) return;
-      let prevIndex = (currentSongIndex - 1 + filteredSongs.length) % filteredSongs.length;
-      playSong(prevIndex);
-    });
-
-    audio.addEventListener('timeupdate', () => {
-      if(isNaN(audio.duration)) return;
-      const seekbar = document.getElementById('seekbar');
-      const timeCurrent = document.getElementById('time-current');
-      const timeDuration = document.getElementById('time-duration');
-
-      seekbar.max = Math.floor(audio.duration);
-      seekbar.value = Math.floor(audio.currentTime);
-
-      let curMins = Math.floor(audio.currentTime / 60);
-      let curSecs = Math.floor(audio.currentTime % 60);
-      let durMins = Math.floor(audio.duration / 60);
-      let durSecs = Math.floor(audio.duration % 60);
-
-      if(curSecs < 10) curSecs = "0" + curSecs;
-      if(durSecs < 10) durSecs = "0" + durSecs;
-
-      timeCurrent.innerText = `${curMins}:${curSecs}`;
-      timeDuration.innerText = `${durMins}:${durSecs}`;
-    });
-
-    document.getElementById('seekbar').addEventListener('input', (e) => {
-      audio.currentTime = e.target.value;
-    });
-
-    // Auth flows
-    document.getElementById('btn-login').addEventListener('click', () => {
-      const email = document.getElementById('login-email').value;
-      const password = document.getElementById('login-password').value;
-      if(!email || !password) return alert("Credentials bharein!");
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => document.getElementById('auth-screen').classList.add('hidden'))
-        .catch(e => alert(e.message));
-    });
-
+    // --- FIREBASE ACCOUNT SERVICES ---
     document.getElementById('btn-signup').addEventListener('click', () => {
       const name = document.getElementById('sign-name').value;
       const email = document.getElementById('sign-email').value;
@@ -611,20 +294,25 @@
       const password = document.getElementById('sign-password').value;
       const secretAns = document.getElementById('sign-secret').value.trim().toLowerCase();
 
-      if(!name || !email || !dob || !password || !secretAns) return alert("Saari details fill karein!");
+      if(!name || !email || !dob || !password || !secretAns) return alert("Fill all components!");
 
       createUserWithEmailAndPassword(auth, email, password).then((cred) => {
         set(ref(db, 'users/' + cred.user.uid), {
-          name: name, email: email, dob: dob, secretQuestionAnswer: secretAns, lastPlayedSong: "None"
-        }).then(() => {
-          alert("Account successfully created!");
-          toggleAuthBoxes('login');
-        });
-      }).catch(e => alert(e.message));
+          name, email, dob, secretQuestionAnswer: secretAns, lastPlayedSong: "None", registeredAt: new Date().toISOString()
+        }).then(() => { alert("Success!"); toggleAuthBoxes('login'); });
+      }).catch((e) => alert(e.message));
+    });
+
+    document.getElementById('btn-login').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value;
+      const password = document.getElementById('login-password').value;
+      if(!email || !password) return alert("Invalid entry parameters!");
+      signInWithEmailAndPassword(auth, email, password).catch((e) => alert(e.message));
     });
 
     document.getElementById('btn-logout').addEventListener('click', () => {
       signOut(auth).then(() => {
+        fullscreenPlayer.classList.remove('active');
         document.getElementById('auth-screen').classList.remove('hidden');
         audio.pause();
         document.getElementById('mini-player').style.display = 'none';
@@ -635,16 +323,297 @@
       if (user) {
         currentUser = user;
         document.getElementById('auth-screen').classList.add('hidden');
-        get(child(ref(db), `users/${user.uid}`)).then((snap) => {
-          if (snap.exists()) document.getElementById('user-display-name').innerText = snap.val().name;
-        });
-        syncUserLibraryFromFirebase(user.uid);
+        syncUserData(user.uid);
       } else {
         document.getElementById('auth-screen').classList.remove('hidden');
       }
     });
 
-    renderBrowseSongs(songs);
+    // Realtime Database Retrieval & Observer Pipeline
+    async function syncUserData(uid) {
+      const rootSnap = await get(child(ref(db), `users/${uid}`));
+      if(rootSnap.exists()) {
+        const val = rootSnap.val();
+        document.getElementById('user-display-name').innerText = val.name;
+        userFavorites = val.favorites ? Object.values(val.favorites) : [];
+        userPlaylists = val.playlists || {};
+        renderLibraryViews();
+      }
+    }
+
+    // --- MUSIC LIST RENDERING ENGINE ---
+    function renderSongsList(targetArray, wrapperElement, appendOption = false) {
+      if(!appendOption) wrapperElement.innerHTML = '';
+      if(targetArray.length === 0) {
+        wrapperElement.innerHTML = `<p class="text-xs text-neutral-500 p-2 italic">No matches or records available.</p>`;
+        return;
+      }
+
+      targetArray.forEach((song) => {
+        const globalIdx = songs.findIndex(s => s.id === song.id);
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-3 rounded-2xl bg-neutral-800/40 hover:bg-neutral-800 transition cursor-pointer group";
+        row.onclick = () => { playSong(globalIdx); fullscreenPlayer.classList.add('active'); };
+        
+        row.innerHTML = `
+          <div class="flex items-center space-x-3 truncate flex-1">
+            <img src="${song.cover}" class="w-12 h-12 rounded-xl object-cover flex-shrink-0">
+            <div class="truncate">
+              <h4 class="font-medium text-sm text-white group-hover:text-pink-500 transition truncate">${song.title}</h4>
+              <p class="text-xs text-neutral-400 truncate">${song.artist}</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2" onclick="event.stopPropagation();">
+            <button class="text-neutral-500 hover:text-pink-500 p-2 text-xs" onclick="openPlaylistAssignmentModal('${song.id}')">
+              <i class="fa-solid fa-folder-plus"></i>
+            </button>
+            <div class="text-neutral-500 group-hover:text-white transition p-2"><i class="fa-solid fa-play text-xs"></i></div>
+          </div>
+        `;
+        wrapperElement.appendChild(row);
+      });
+    }
+
+    // --- PLAYER ACTION PIPELINE WITH MEDIA SESSION CONTROLS ---
+    function playSong(index) {
+      currentSongIndex = index;
+      const song = songs[currentSongIndex];
+      audio.src = song.src;
+      audio.play();
+
+      updatePlayerUI(song);
+      initializeMediaSession(song);
+
+      // Track logs directly to Cloud DB Architecture
+      if(currentUser) {
+        set(ref(db, `users/${currentUser.uid}/activity/` + Date.now()), {
+          songTitle: song.title, artist: song.artist, action: "Played", timestamp: new Date().toLocaleString()
+        });
+        update(ref(db, `users/${currentUser.uid}`), { lastPlayedSong: `${song.title} - ${song.artist}` });
+      }
+    }
+
+    function updatePlayerUI(song) {
+      // Mini View Layer Synchronization
+      document.getElementById('player-title').innerText = song.title;
+      document.getElementById('player-artist').innerText = song.artist;
+      document.getElementById('player-cover').src = song.cover;
+      document.getElementById('mini-player').style.display = 'block';
+      document.getElementById('btn-mini-play').innerHTML = '<i class="fa-solid fa-pause"></i>';
+
+      // Fullscreen Now Playing Overlay Layer Synchronization
+      document.getElementById('fs-title').innerText = song.title;
+      document.getElementById('fs-artist').innerText = song.artist;
+      document.getElementById('fs-cover').src = song.cover;
+      document.getElementById('dynamic-blur-bg').style.backgroundImage = `url('${song.cover}')`;
+      
+      document.getElementById('fs-art-wrapper').classList.remove('scale-95');
+      document.getElementById('fs-art-wrapper').classList.add('scale-100');
+      document.getElementById('btn-fs-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
+
+      // Favorite Heart Indicator Sync
+      const heartIcon = document.getElementById('btn-heart').querySelector('i');
+      if(userFavorites.some(s => s.id === song.id)) {
+        heartIcon.className = "fa-solid fa-heart text-pink-500";
+      } else {
+        heartIcon.className = "fa-regular fa-heart";
+      }
+    }
+
+    // W3C Media Session API implementation
+    function initializeMediaSession(song) {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: song.title,
+          artist: song.artist,
+          album: "Pulse Premium",
+          artwork: [{ src: song.cover, sizes: '512x512', type: 'image/jpeg' }]
+        });
+
+        navigator.mediaSession.setActionHandler('play', togglePlayback);
+        navigator.mediaSession.setActionHandler('pause', togglePlayback);
+        navigator.mediaSession.setActionHandler('previoustrack', () => playSong((currentSongIndex - 1 + songs.length) % songs.length));
+        navigator.mediaSession.setActionHandler('nexttrack', () => playSong((currentSongIndex + 1) % songs.length));
+      }
+    }
+
+    function togglePlayback() {
+      const fsPlayBtn = document.getElementById('btn-fs-play-pause');
+      const miniPlayBtn = document.getElementById('btn-mini-play');
+      const artWrapper = document.getElementById('fs-art-wrapper');
+
+      if (audio.paused) {
+        audio.play();
+        fsPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        miniPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        artWrapper.classList.replace('scale-95', 'scale-100');
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
+      } else {
+        audio.pause();
+        fsPlayBtn.innerHTML = '<i class="fa-solid fa-play ml-1"></i>';
+        miniPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>';
+        artWrapper.classList.replace('scale-100', 'scale-95');
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused";
+      }
+    }
+
+    // --- SEARCH STRATEGY ENGINE ---
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const term = e.target.value.trim().toLowerCase();
+      if(!term) {
+        document.getElementById('search-results-container').innerHTML = '';
+        return;
+      }
+      const filtered = songs.filter(s => s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term));
+      renderSongsList(filtered, document.getElementById('search-results-container'));
+    });
+
+    // --- FAVORITES & USER LIBRARY MANAGMENT ---
+    document.getElementById('btn-heart').addEventListener('click', async () => {
+      if(!currentUser) return;
+      const song = songs[currentSongIndex];
+      const favRef = ref(db, `users/${currentUser.uid}/favorites/${song.id}`);
+
+      if(userFavorites.some(s => s.id === song.id)) {
+        // Remove structural branch
+        set(favRef, null);
+        userFavorites = userFavorites.filter(s => s.id !== song.id);
+      } else {
+        // Save Node structure
+        set(favRef, song);
+        userFavorites.push(song);
+      }
+      updatePlayerUI(song);
+      renderLibraryViews();
+    });
+
+    // --- PLAYLIST CREATION & LOGIC DISPATCHERS ---
+    const playlistModal = document.getElementById('playlist-modal');
+    document.getElementById('btn-trigger-playlist-modal').addEventListener('click', () => playlistModal.classList.remove('hidden'));
+    document.getElementById('btn-close-modal').addEventListener('click', () => playlistModal.classList.add('hidden'));
+
+    document.getElementById('btn-create-playlist').addEventListener('click', () => {
+      const name = document.getElementById('playlist-name-input').value.trim();
+      if(!name || !currentUser) return;
+
+      const pId = 'pl_' + Date.now();
+      set(ref(db, `users/${currentUser.uid}/playlists/${pId}`), { id: pId, name: name, trackIds: "" }).then(() => {
+        userPlaylists[pId] = { id: pId, name: name, trackIds: "" };
+        renderLibraryViews();
+        document.getElementById('playlist-name-input').value = '';
+        playlistModal.classList.add('hidden');
+      });
+    });
+
+    window.openPlaylistAssignmentModal = function(songId) {
+      const listContainer = document.getElementById('playlist-selector-list');
+      listContainer.innerHTML = '';
+      const arr = Object.values(userPlaylists);
+
+      if(arr.length === 0) {
+        listContainer.innerHTML = `<p class="text-xs text-neutral-500 text-center py-4">Create a playlist from the library tab first!</p>`;
+      }
+
+      arr.forEach(p => {
+        const item = document.createElement('button');
+        item.className = "w-full p-3 text-left bg-neutral-800 hover:bg-neutral-700 transition rounded-xl text-sm font-medium text-white flex justify-between items-center";
+        item.innerHTML = `<span>${p.name}</span> <i class="fa-solid fa-angle-right text-neutral-500 text-xs"></i>`;
+        item.onclick = () => {
+          let currentIds = p.trackIds ? p.trackIds.split(',') : [];
+          if(!currentIds.includes(songId)) {
+            currentIds.push(songId);
+            update(ref(db, `users/${currentUser.uid}/playlists/${p.id}`), { trackIds: currentIds.join(',') }).then(() => {
+              userPlaylists[p.id].trackIds = currentIds.join(',');
+              renderLibraryViews();
+              alert("Song added into playlist!");
+            });
+          } else {
+            alert("Song already exists in this playlist!");
+          }
+          document.getElementById('add-to-playlist-modal').classList.add('hidden');
+        };
+        listContainer.appendChild(item);
+      });
+      document.getElementById('add-to-playlist-modal').classList.remove('hidden');
+    };
+
+    document.getElementById('btn-close-add-modal').addEventListener('click', () => {
+      document.getElementById('add-to-playlist-modal').classList.add('hidden');
+    });
+
+    // Render Library Content Structures
+    function renderLibraryViews() {
+      // 1. Favorites Mapping
+      const favContainer = document.getElementById('library-favorites-container');
+      renderSongsList(userFavorites, favContainer);
+
+      // 2. Playlists Complex Mapping
+      const playContainer = document.getElementById('library-playlists-container');
+      playContainer.innerHTML = '';
+      const playlistsArr = Object.values(userPlaylists);
+
+      if(playlistsArr.length === 0) {
+        playContainer.innerHTML = `<p class="text-xs text-neutral-500 p-2 italic">No playlists created.</p>`;
+        return;
+      }
+
+      playlistsArr.forEach(p => {
+        const pCard = document.createElement('div');
+        pCard.className = "p-4 rounded-2xl bg-neutral-800/20 border border-neutral-800/60 space-y-2";
+        
+        // Playlist Header Info Layout
+        pCard.innerHTML = `
+          <div class="flex items-center space-x-2 text-pink-500 font-semibold text-sm mb-1">
+            <i class="fa-solid fa-music"></i>
+            <span>${p.name}</span>
+          </div>
+          <div class="playlist-songs-nested-container space-y-2"></div>
+        `;
+
+        const nestedContainer = pCard.querySelector('.playlist-songs-nested-container');
+        const internalIds = p.trackIds ? p.trackIds.split(',') : [];
+        const playlistSongsObjects = songs.filter(s => internalIds.includes(s.id));
+        
+        renderSongsList(playlistSongsObjects, nestedContainer);
+        playContainer.appendChild(pCard);
+      });
+    }
+
+    // --- CORE SYSTEM EVENT INITIALIZATION ASSIGNMENTS ---
+    document.getElementById('btn-mini-play').addEventListener('click', togglePlayback);
+    document.getElementById('btn-fs-play-pause').addEventListener('click', togglePlayback);
+
+    document.getElementById('btn-fs-next').addEventListener('click', () => playSong((currentSongIndex + 1) % songs.length));
+    document.getElementById('btn-mini-next').addEventListener('click', () => playSong((currentSongIndex + 1) % songs.length));
+    document.getElementById('btn-fs-prev').addEventListener('click', () => playSong((currentSongIndex - 1 + songs.length) % songs.length));
+
+    document.getElementById('mini-player-trigger').addEventListener('click', () => fullscreenPlayer.classList.add('active'));
+    document.getElementById('btn-close-fullscreen').addEventListener('click', () => fullscreenPlayer.classList.remove('active'));
+
+    document.getElementById('btn-fs-options').addEventListener('click', () => {
+      openPlaylistAssignmentModal(songs[currentSongIndex].id);
+    });
+
+    audio.addEventListener('timeupdate', () => {
+      if(isNaN(audio.duration)) return;
+      const fsSeek = document.getElementById('fs-seekbar');
+      fsSeek.max = Math.floor(audio.duration);
+      fsSeek.value = Math.floor(audio.currentTime);
+
+      let curMins = Math.floor(audio.currentTime / 60);
+      let curSecs = Math.floor(audio.currentTime % 60);
+      let durMins = Math.floor(audio.duration / 60);
+      let durSecs = Math.floor(audio.duration % 60);
+
+      document.getElementById('fs-time-current').innerText = `${curMins}:${curSecs < 10 ? '0'+curSecs : curSecs}`;
+      document.getElementById('fs-time-duration').innerText = `${durMins}:${durSecs < 10 ? '0'+durSecs : durSecs}`;
+    });
+
+    document.getElementById('fs-seekbar').addEventListener('input', (e) => audio.currentTime = e.target.value);
+    audio.addEventListener('ended', () => playSong((currentSongIndex + 1) % songs.length));
+
+    // Boot execution loops
+    renderSongsList(songs, document.getElementById('songs-container'));
   </script>
 </body>
 </html>
