@@ -8,15 +8,31 @@
     <style>
         .screen { display: none; }
         .screen.active { display: flex; }
-        /* Premium custom chat background */
         .chat-custom-bg {
             background-color: #f0f2f5;
             background-image: radial-gradient(rgba(0,0,0,0.05) 1px, transparent 0);
             background-size: 24px 24px;
         }
+        /* Custom smooth notification animation */
+        @keyframes slideIn {
+            from { transform: translateY(-100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide-in { animation: slideIn 0.3s ease-out forwards; }
     </style>
 </head>
-<body class="bg-gray-100 font-sans h-screen flex flex-col justify-between overflow-hidden m-0">
+<body class="bg-gray-100 font-sans h-screen flex flex-col justify-between overflow-hidden m-0 relative">
+
+    <div id="push-notification-toast" class="fixed top-4 right-4 z-100 max-w-sm w-full bg-white rounded-xl shadow-2xl border-l-4 border-emerald-500 p-4 hidden animate-slide-in cursor-pointer">
+        <div class="flex items-start space-x-3">
+            <img id="notify-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
+            <div class="flex-1 min-w-0">
+                <p id="notify-title" class="text-sm font-bold text-gray-900 truncate">New Message</p>
+                <p id="notify-body" class="text-xs text-gray-600 truncate mt-0.5">Message text snippet...</p>
+            </div>
+            <button onclick="document.getElementById('push-notification-toast').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-sm font-bold">&times;</button>
+        </div>
+    </div>
 
     <div id="auth-screen" class="screen active flex-col items-center justify-center h-full px-4">
         <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
@@ -29,6 +45,7 @@
                 
                 <div id="signup-fields" class="hidden space-y-4">
                     <input type="text" id="auth-name" placeholder="Full Name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <input type="text" id="auth-about" placeholder="About Me (Status)" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <div class="text-xs text-gray-500 pl-1">Date of Birth:</div>
                     <input type="date" id="auth-dob" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
                     <select id="auth-question" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500">
@@ -117,7 +134,7 @@
             <div id="input-bar" class="p-3 bg-gray-100 border-t border-gray-200 flex items-center space-x-2">
                 <label class="cursor-pointer bg-white border p-2.5 rounded-full shadow-sm hover:bg-gray-50 text-base">
                     📎
-                    <input type="file" id="chat-file" onchange="sendFile()" class="hidden">
+                    <input type="file" id="chat-file" onchange="sendFile()" class="hidden" accept="image/*,video/*,application/pdf">
                 </label>
                 <input type="text" id="chat-message-input" placeholder="Type a message..." class="flex-1 p-3 bg-white border border-gray-300 rounded-xl shadow-inner text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" onkeypress="if(event.key === 'Enter') sendTextMessage()">
                 <button onclick="sendTextMessage()" class="bg-emerald-600 text-white px-5 py-3 rounded-xl font-semibold shadow hover:bg-emerald-700 transition">Send</button>
@@ -132,6 +149,10 @@
                 <div>
                     <label class="text-xs font-semibold text-gray-600 block mb-1">Full Name</label>
                     <input type="text" id="edit-name" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">About Me (Bio)</label>
+                    <textarea id="edit-about" rows="2" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none resize-none" placeholder="Write something about yourself..."></textarea>
                 </div>
                 <div>
                     <label class="text-xs font-semibold text-gray-600 block mb-1">Date of Birth</label>
@@ -159,9 +180,11 @@
             </div>
 
             <h3 id="view-user-name" class="text-2xl font-bold text-gray-800 flex items-center justify-center space-x-1">User Details</h3>
-            <p id="view-user-email" class="text-sm text-gray-500 mb-2">email@example.com</p>
+            <p id="view-user-email" class="text-sm text-gray-500 mb-1">email@example.com</p>
             
-            <div class="bg-gray-50 p-3 rounded-xl my-4 text-left text-xs space-y-2 text-gray-600">
+            <p id="view-user-about" class="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg my-2 italic break-words">No status available.</p>
+            
+            <div class="bg-gray-50 p-3 rounded-xl my-3 text-left text-xs space-y-2 text-gray-600">
                 <div><strong>User ID:</strong> <span id="view-user-uid" class="select-all"></span></div>
                 <div><strong>Date of Birth:</strong> <span id="view-user-dob"></span></div>
                 <div id="view-verification-status" class="text-emerald-600 font-semibold"></div>
@@ -205,6 +228,7 @@
         
         let blockedByMe = [];    
         let blockedByThem = [];  
+        let userMetadataCache = {}; // For global notifications processing lookup
 
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
 
@@ -251,6 +275,7 @@
                     .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
             } else {
                 const name = document.getElementById('auth-name').value.trim();
+                const about = document.getElementById('auth-about').value.trim() || "Available";
                 const dob = document.getElementById('auth-dob').value;
                 const question = document.getElementById('auth-question').value;
                 const answer = document.getElementById('auth-answer').value.trim().toLowerCase();
@@ -267,7 +292,7 @@
                     .then(async (userCredential) => {
                         const uid = userCredential.user.uid;
                         await db.ref('users/' + uid).set({
-                            uid: uid, name: name, email: email.toLowerCase(), dob: dob, question: question, answer: answer, pfp: pfpBase64, verified: false
+                            uid: uid, name: name, about: about, email: email.toLowerCase(), dob: dob, question: question, answer: answer, pfp: pfpBase64, verified: false
                         });
                         const safeEmailKey = email.replace(/\./g, ',');
                         await db.ref('emailToUid/' + safeEmailKey).set(uid);
@@ -280,7 +305,7 @@
 
         function triggerPulseSystemMessage(targetUid, messageText) {
             const systemBotId = "system_pulse";
-            const combinedKey = systemBotId < targetUid ? `${systemBotId}_${targetUid}` : `${targetUid}_${systemBotId}`;
+            const combinedKey = systemBotId < targetUid ? `${systemBotId}_${targetUid}` : `${targetUid}_system_pulse`;
             
             db.ref(`contacts/${targetUid}/${systemBotId}`).set(true);
             db.ref(`chats/${combinedKey}`).push({
@@ -297,6 +322,7 @@
                 db.ref('users/system_pulse').set({
                     uid: "system_pulse",
                     name: "Pulse",
+                    about: "Official Pulse Interactive Automated Security Bot Endpoint Control Node",
                     email: "pulse-bot@secure.network",
                     dob: "2026-05-27",
                     pfp: "https://aryasongs.github.io/Pulse/IMG_6101.png",
@@ -317,6 +343,7 @@
                         document.getElementById('app-screen').classList.add('active');
                         
                         syncPrivacyBlocks();
+                        setupGlobalNotificationListener();
                     }
                 });
             } else {
@@ -329,14 +356,12 @@
         function logout() { auth.signOut(); }
 
         function syncPrivacyBlocks() {
-            // Real-time listener for users I have blocked
             db.ref(`blocks/${currentUserData.uid}`).on('value', snapshot => {
                 blockedByMe = [];
                 if(snapshot.exists()) {
                     snapshot.forEach(child => { if(child.val() === true) blockedByMe.push(child.key); });
                 }
                 
-                // Real-time listener for users who blocked me
                 db.ref(`blockedObservers/${currentUserData.uid}`).on('value', obsSnap => {
                     blockedByThem = [];
                     if(obsSnap.exists()) {
@@ -345,11 +370,58 @@
                     
                     if(activeChatUserId) {
                         renderChatInterfaceHeader(activeChatUserId);
-                        listenToMessages(); // Re-trigger live pipeline window filters
+                        listenToMessages(); 
                     }
                     loadContactsSidebarList();
                 });
             });
+        }
+
+        // Global Push Notification Interceptor Logic
+        function setupGlobalNotificationListener() {
+            db.ref(`contacts/${currentUserData.uid}`).once('value', snapshot => {
+                if(!snapshot.exists()) return;
+                snapshot.forEach(childSnap => {
+                    const targetContactUid = childSnap.key;
+                    const combinedChatRoomKey = currentUserData.uid < targetContactUid ? 
+                        `${currentUserData.uid}_${targetContactUid}` : `${targetContactUid}_${currentUserData.uid}`;
+                    
+                    // Fetch profile info for name lookups
+                    db.ref(`users/${targetContactUid}`).once('value', uSnap => {
+                        userMetadataCache[targetContactUid] = uSnap.val();
+                    });
+
+                    // Listen to the end node of every chat room for additions
+                    db.ref(`chats/${combinedChatRoomKey}`).limitToLast(1).on('child_added', msgSnap => {
+                        const msg = msgSnap.val();
+                        if(!msg || msg.senderId === currentUserData.uid || msg.seen === true) return;
+
+                        // Trigger push toast conditions: If sender is NOT current active window user, and not blocked
+                        if(msg.senderId !== activeChatUserId && !blockedByMe.includes(msg.senderId) && !blockedByThem.includes(msg.senderId)) {
+                            showInAppPushToast(msg);
+                        }
+                    });
+                });
+            });
+        }
+
+        function showInAppPushToast(msg) {
+            const senderData = userMetadataCache[msg.senderId] || { name: "Pulse User", pfp: defaultBlankAvatar };
+            const toast = document.getElementById('push-notification-toast');
+            
+            document.getElementById('notify-avatar').src = senderData.pfp || defaultBlankAvatar;
+            document.getElementById('notify-title').innerText = senderData.name;
+            document.getElementById('notify-body').innerText = msg.type === 'text' ? msg.content : `Sent a ${msg.type} file`;
+            
+            toast.classList.remove('hidden');
+            // Audio sound notification mapping placeholder execution
+            try { new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-84.wav').play(); } catch(e){}
+
+            toast.onclick = () => {
+                toast.classList.add('hidden');
+                openChatWindow(senderData);
+            };
+            setTimeout(() => { toast.classList.add('hidden'); }, 4000);
         }
 
         function addContact() {
@@ -366,10 +438,12 @@
                     db.ref(`contacts/${targetUid}/${currentUserData.uid}`).set(true);
                     alert("Contact integrated successfully!");
                     emailInput.value = "";
+                    setupGlobalNotificationListener(); // Recalibrate active rooms map
                 });
             });
         }
 
+        // Sidebar list render with dynamic tracking counters & last message timestamp logs
         function loadContactsSidebarList() {
             db.ref(`contacts/${currentUserData.uid}`).on('value', snapshot => {
                 const container = document.getElementById('contacts-list');
@@ -385,35 +459,58 @@
                         const uData = userSnap.val();
                         if(!uData) return;
                         
-                        let existingItem = document.getElementById(`sidebar-user-${uData.uid}`);
-                        if(existingItem) existingItem.remove();
-
                         const isHeBlockingMe = blockedByThem.includes(uData.uid);
                         const amIBlockingHim = blockedByMe.includes(uData.uid);
                         
-                        // If either block condition matches, mask data completely
                         const displayName = (isHeBlockingMe || amIBlockingHim) ? "Pulse User" : uData.name;
                         const displayPfp = (isHeBlockingMe || amIBlockingHim) ? defaultBlankAvatar : (uData.pfp || defaultBlankAvatar);
                         
-                        const item = document.createElement('div');
-                        item.id = `sidebar-user-${uData.uid}`;
-                        item.className = "contact-item flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 transition border-b border-gray-100";
-                        item.dataset.name = displayName.toLowerCase();
-                        item.onclick = () => openChatWindow(uData);
+                        const combinedKey = currentUserData.uid < contactUid ? `${currentUserData.uid}_${contactUid}` : `${contactUid}_${currentUserData.uid}`;
+                        
+                        // Calculate metrics: Unread counter and last transaction timestamp logs
+                        db.ref(`chats/${combinedKey}`).once('value', chatSnap => {
+                            let unreadCount = 0;
+                            let lastTimeStr = "";
+                            
+                            if(chatSnap.exists() && !isHeBlockingMe && !amIBlockingHim) {
+                                chatSnap.forEach(msgChild => {
+                                    const m = msgChild.val();
+                                    if(m.senderId === contactUid && m.seen === false) unreadCount++;
+                                    if(m.timestamp) {
+                                        lastTimeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                                    }
+                                });
+                            }
 
-                        let verifiedHtml = (uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
+                            let existingItem = document.getElementById(`sidebar-user-${uData.uid}`);
+                            if(existingItem) existingItem.remove();
 
-                        item.innerHTML = `
-                            <div class="relative">
-                                <img src="${displayPfp}" class="w-11 h-11 rounded-full object-cover">
-                                ${(uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <p class="text-sm font-semibold text-gray-900 flex items-center truncate">${displayName} ${verifiedHtml}</p>
-                                <p class="text-xs text-gray-400 truncate">${(isHeBlockingMe || amIBlockingHim) ? 'Secure Network Session' : uData.email}</p>
-                            </div>
-                        `;
-                        container.appendChild(item);
+                            const item = document.createElement('div');
+                            item.id = `sidebar-user-${uData.uid}`;
+                            item.className = "contact-item flex items-center justify-between p-3 cursor-pointer hover:bg-gray-50 transition border-b border-gray-100";
+                            item.dataset.name = displayName.toLowerCase();
+                            item.onclick = () => openChatWindow(uData);
+
+                            let verifiedHtml = (uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
+
+                            item.innerHTML = `
+                                <div class="flex items-center space-x-3 min-w-0">
+                                    <div class="relative flex-shrink-0">
+                                        <img src="${displayPfp}" class="w-11 h-11 rounded-full object-cover">
+                                        ${(uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="text-sm font-semibold text-gray-900 flex items-center truncate">${displayName} ${verifiedHtml}</p>
+                                        <p class="text-xs text-gray-400 truncate">${(isHeBlockingMe || amIBlockingHim) ? 'Secure Network Session' : uData.email}</p>
+                                    </div>
+                                </div>
+                                <div class="flex flex-col items-end flex-shrink-0 space-y-1">
+                                    <span class="text-[9px] text-gray-400">${lastTimeStr}</span>
+                                    ${unreadCount > 0 ? `<span class="bg-emerald-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-4 text-center">${unreadCount}</span>` : ''}
+                                </div>
+                            `;
+                            container.appendChild(item);
+                        });
                     });
                 });
             });
@@ -504,15 +601,14 @@
             });
         }
 
+        // Live Chat Messages with custom interaction layout mappings (Likes, Deletion, Video elements)
         function listenToMessages() {
             const container = document.getElementById('messages-container');
-            // Remove previous database triggers before creating a fresh active channel pipeline
             db.ref(`chats/${activeChatKey}`).off();
 
             const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
             const amIBlockingHim = blockedByMe.includes(activeChatUserId);
 
-            // If active tracking block logic is true, instantly clear chat dashboard visuals
             if(isHeBlockingMe || amIBlockingHim) {
                 container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Privacy Protocols Active. Feed Session Hidden.</div>`;
                 return;
@@ -527,24 +623,29 @@
 
                 snapshot.forEach(child => {
                     const msg = child.val();
+                    const msgId = child.key;
                     const isMe = msg.senderId === currentUserData.uid;
 
-                    // Absolute block intercept parameters validation
-                    if(!isMe && (blockedByMe.includes(msg.senderId) || blockedByThem.includes(msg.senderId))) {
-                        return; 
-                    }
+                    if(!isMe && (blockedByMe.includes(msg.senderId) || blockedByThem.includes(msg.senderId))) return; 
 
                     if(!isMe && !msg.seen) {
-                        db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true);
+                        db.ref(`chats/${activeChatKey}/${msgId}/seen`).set(true);
                     }
 
                     const bubble = document.createElement('div');
-                    bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+                    bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'} group mb-1`;
 
                     let contentHtml = "";
-                    if(msg.type === 'text') contentHtml = `<p class="text-sm break-all">${msg.content}</p>`;
-                    else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
-                    else contentHtml = `<div class="flex items-center space-x-2 bg-black/5 p-2 rounded"><a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-xs underline font-medium text-emerald-700 truncate max-w-[150px]">${msg.fileName || 'View file'}</a></div>`;
+                    
+                    // Render checks based on state
+                    if(msg.isDeleted) {
+                        contentHtml = `<p class="text-xs italic text-gray-400 select-none">🚫 This message was deleted</p>`;
+                    } else {
+                        if(msg.type === 'text') contentHtml = `<p class="text-sm break-all">${msg.content}</p>`;
+                        else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer shadow-sm" onclick="window.open('${msg.content}')">`;
+                        else if(msg.type === 'video') contentHtml = `<video src="${msg.content}" controls class="max-w-xs max-h-60 rounded-lg shadow-sm bg-black"></video>`;
+                        else contentHtml = `<div class="flex items-center space-x-2 bg-black/5 p-2 rounded"><a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-xs underline font-medium text-emerald-700 truncate max-w-[150px]">${msg.fileName || 'View file'}</a></div>`;
+                    }
 
                     if(!isMe && msg.senderId === "system_pulse" && msg.isRecoveryPrompt === true) {
                         contentHtml += `
@@ -553,24 +654,54 @@
                         </div>`;
                     }
 
-                    let tickHtml = "";
-                    if(isMe) {
-                        tickHtml = msg.seen ? `<span class="text-blue-500 font-bold ml-1 text-xs">✓✓</span>` : `<span class="text-gray-400 font-medium ml-1 text-xs">✓</span>`;
+                    let tickHtml = isMe ? (msg.seen ? `<span class="text-blue-500 font-bold ml-1 text-xs">✓✓</span>` : `<span class="text-gray-400 font-medium ml-1 text-xs">✓</span>`) : "";
+
+                    // Like Heart Overlay
+                    let likeHeartHtml = msg.liked ? `<span class="absolute -bottom-2 -left-1 text-xs bg-white rounded-full shadow px-0.5 border border-gray-100 select-none">❤️</span>` : '';
+
+                    // Menu Controls (Only show if message is active)
+                    let actionsMenuHtml = "";
+                    if(!msg.isDeleted) {
+                        actionsMenuHtml = `
+                            <div class="hidden group-hover:flex items-center space-x-1 mx-2 text-[11px] text-gray-400 select-none">
+                                <button onclick="likeMessage('${msgId}', ${msg.liked || false})" class="hover:text-red-500 transition">❤️ Like</button>
+                                ${isMe ? `<button onclick="deleteMessage('${msgId}')" class="hover:text-red-600 transition pl-1 border-l">🗑️ Delete</button>` : ''}
+                            </div>
+                        `;
                     }
 
-                    bubble.innerHTML = `
+                    const innerContent = `
                         <div class="max-w-[75%] rounded-xl px-3 py-2 shadow-sm relative ${isMe ? 'bg-emerald-200 text-gray-800 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'}">
                             ${contentHtml}
                             <div class="text-[9px] text-gray-500 text-right mt-0.5 flex justify-end items-center">
                                 ${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                                 ${tickHtml}
                             </div>
+                            ${likeHeartHtml}
                         </div>
                     `;
+
+                    bubble.innerHTML = isMe ? (actionsMenuHtml + innerContent) : (innerContent + actionsMenuHtml);
                     container.appendChild(bubble);
                 });
                 container.scrollTop = container.scrollHeight;
             });
+        }
+
+        // Like Interaction Trigger Rules
+        function likeMessage(msgId, currentLikedState) {
+            db.ref(`chats/${activeChatKey}/${msgId}/liked`).set(!currentLikedState);
+        }
+
+        // Delete Message Trigger Rules
+        function deleteMessage(msgId) {
+            if(confirm("Do you want to delete this message for everyone?")) {
+                db.ref(`chats/${activeChatKey}/${msgId}`).update({
+                    isDeleted: true,
+                    content: "",
+                    type: "text"
+                });
+            }
         }
 
         function sendTextMessage() {
@@ -578,11 +709,7 @@
             const txt = input.value.trim();
             if(!txt || !activeChatKey) return;
 
-            // Instantly stop message generation pipeline if block runtime state matches true
-            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) {
-                alert("Transmission failed. Privacy blocking is active.");
-                return;
-            }
+            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) return alert("Transmission failed. Privacy blocking is active.");
 
             if(activeChatUserId === "system_pulse" && (txt.toLowerCase().includes("password") || txt.toLowerCase().includes("reset") || txt.toLowerCase().includes("help"))) {
                 db.ref(`chats/${activeChatKey}`).push({
@@ -604,7 +731,7 @@
             }
 
             db.ref(`chats/${activeChatKey}`).push({
-                senderId: currentUserData.uid, type: 'text', content: txt, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
+                senderId: currentUserData.uid, type: 'text', content: txt, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
             });
             input.value = "";
         }
@@ -623,26 +750,29 @@
                     });
                     triggerPulseSystemMessage(currentUserData.uid, "Security Alert Log: Profile access credential password updated successfully via automated Bot channel routing protection.");
                 }).catch(err => {
-                    alert("Session authentication expired. For core credentials rewrite, log out and request direct password link via Firebase client system: " + err.message);
+                    alert("Session expired. Log out and request a clean recovery link: " + err.message);
                 });
             } else {
                 alert("Security Verification failed. Access denied!");
             }
         }
 
+        // Base64 File Send parsing engine matching extended video formats
         async function sendFile() {
-            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) {
-                alert("Transmission failed. Privacy blocking is active.");
-                return;
-            }
+            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) return alert("Transmission failed. Privacy blocking is active.");
+            
             const fileInput = document.getElementById('chat-file');
             const file = fileInput.files[0];
             if(!file || !activeChatKey) return;
+            
             const base64Str = await getBase64(file);
-            let fileType = file.type.startsWith('image/') ? 'image' : 'file';
+            let fileType = 'file';
+
+            if (file.type.startsWith('image/')) fileType = 'image';
+            else if (file.type.startsWith('video/')) fileType = 'video';
 
             db.ref(`chats/${activeChatKey}`).push({
-                senderId: currentUserData.uid, type: fileType, content: base64Str, fileName: file.name, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
+                senderId: currentUserData.uid, type: fileType, content: base64Str, fileName: file.name, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
             });
             fileInput.value = "";
         }
@@ -650,6 +780,7 @@
         function openMyProfileModal() {
             if(!currentUserData) return;
             document.getElementById('edit-name').value = currentUserData.name;
+            document.getElementById('edit-about').value = currentUserData.about || "";
             document.getElementById('edit-dob').value = currentUserData.dob;
             document.getElementById('profile-modal').style.display = 'flex';
         }
@@ -660,11 +791,12 @@
 
         async function saveProfileUpdates() {
             const newName = document.getElementById('edit-name').value.trim();
+            const newAbout = document.getElementById('edit-about').value.trim() || "Available";
             const newDob = document.getElementById('edit-dob').value;
             const newPfpFile = document.getElementById('edit-pfp').files[0];
 
             if(!newName || !newDob) return alert("Fields cannot be completely blank!");
-            let updates = { name: newName, dob: newDob };
+            let updates = { name: newName, about: newAbout, dob: newDob };
 
             if(newPfpFile) {
                 const base64Img = await getBase64(newPfpFile);
@@ -674,7 +806,7 @@
             db.ref(`users/${currentUserData.uid}`).update(updates).then(() => {
                 alert("Profile credentials updated!");
                 closeMyProfileModal();
-                triggerPulseSystemMessage(currentUserData.uid, "Security update confirmation log: Profile name or configurations parameters modified successfully.");
+                triggerPulseSystemMessage(currentUserData.uid, "Security update confirmation log: Profile configurations parameters or status details modified successfully.");
             }).catch(err => alert("Error updating profile: " + err.message));
         }
 
@@ -690,6 +822,7 @@
                 const pfpElement = document.getElementById('view-user-pfp');
                 const nameElement = document.getElementById('view-user-name');
                 const emailElement = document.getElementById('view-user-email');
+                const aboutElement = document.getElementById('view-user-about');
                 const uidElement = document.getElementById('view-user-uid');
                 const dobElement = document.getElementById('view-user-dob');
                 const verifiedBadge = document.getElementById('view-user-verified');
@@ -700,6 +833,7 @@
                     pfpElement.src = defaultBlankAvatar;
                     nameElement.innerText = "Pulse User";
                     emailElement.innerText = "Secure Data Node Hidden";
+                    aboutElement.innerText = "Privacy Restrictions Active";
                     uidElement.innerText = "Hidden Encryption Key";
                     dobElement.innerText = "Hidden Parameter";
                     verifiedBadge.classList.add('hidden');
@@ -710,6 +844,7 @@
                     pfpElement.src = data.pfp || defaultBlankAvatar;
                     nameElement.innerText = data.name;
                     emailElement.innerText = data.email;
+                    aboutElement.innerText = data.about || "No status bio shared.";
                     uidElement.innerText = data.uid;
                     dobElement.innerText = data.dob || "Not Shared";
                     reportBtn.classList.remove('hidden');
