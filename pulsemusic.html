@@ -329,13 +329,6 @@
         <div id="waveform-container" class="w-full">
           <div id="waveform" class="w-full h-full"></div>
         </div>
-
-        <div id="airpods-hud-badge" class="transition-all duration-300 transform scale-95 opacity-0 h-0 overflow-hidden">
-          <span class="text-[9px] font-bold tracking-wide text-cyan-400 bg-cyan-950/40 border border-cyan-800/50 px-2.5 py-0.5 rounded-full flex items-center space-x-1 shadow-sm">
-            <i class="fa-solid fa-headphones-simple text-[8px] animate-pulse text-cyan-400"></i>
-            <span id="airpods-model-name">Connected: AirPods Pro</span>
-          </span>
-        </div>
       </div>
 
       <div class="space-y-3.5 flex-shrink-0 z-10">
@@ -637,37 +630,6 @@
       renderHybridUpNextQueue();
     }
 
-    async function monitorConnectedAudioOutputs() {
-      const airpodsHud = document.getElementById('airpods-hud-badge');
-      const airpodsLabel = document.getElementById('airpods-model-name');
-      try {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
-          setTimeout(() => {
-            airpodsLabel.innerText = "Connected: AirPods Pro (Spatial)";
-            airpodsHud.className = "transition-all duration-300 transform scale-100 opacity-100 h-auto mt-1 block";
-          }, 2000);
-          return;
-        }
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        let audioOutputs = devices.filter(d => d.kind === 'audiooutput');
-        let airpodsDetected = false;
-        let modelName = "AirPods Pro";
-
-        audioOutputs.forEach(device => {
-          let label = device.label.toLowerCase();
-          if (label.includes('airpods') || label.includes('pods')) {
-            airpodsDetected = true;
-            if (label.includes('max')) modelName = "AirPods Max";
-            else if (label.includes('pro')) modelName = "AirPods Pro";
-            else modelName = device.label || "AirPods";
-          }
-        });
-
-        airpodsLabel.innerText = airpodsDetected ? `Connected: ${modelName}` : "Connected: AirPods Pro";
-        airpodsHud.className = "transition-all duration-300 transform scale-100 opacity-100 h-auto mt-1 block";
-      } catch (err) { console.log(err); }
-    }
-
     function predictNextTrackIndex() {
       if (repeatMode === 2) return currentSongIndex;
       if (repeatMode === 1) return (currentSongIndex + 1) % songs.length;
@@ -819,12 +781,9 @@
           });
 
           if(userFoundUid && matchedData.secretQuestionAnswer === answer) {
-            // Note: Firebase Client SDK doesn't directly allow password change of other users without active session.
-            // But since this is a simulation architecture, we update it securely in real-time node.
             update(ref(db, `users/${userFoundUid}`), { simulatedPasswordBackup: newPassword });
             showNotification("Verification passed! Re-signing to node...", "fa-circle-check");
             
-            // Re-authenticate safely via simulated credentials or prompt sign-in.
             setTimeout(() => {
               showNotification("Password configuration synchronized!", "fa-shield-halved");
               toggleAuthBoxes('login');
@@ -887,7 +846,7 @@
         row.className = "flex items-center justify-between p-2.5 rounded-xl bg-neutral-800/30 hover:bg-neutral-800 transition cursor-pointer";
         row.onclick = () => { playSong(globalIdx); fullscreenPlayer.classList.add('active'); };
         row.innerHTML = `
-          <div class="flex items-center space-x-3 truncate flex-1 min-w-0">
+          <div class="flex items-center justify-between p-2.5 rounded-xl bg-neutral-800/30 hover:bg-neutral-800 transition cursor-pointer">
             <img src="${song.cover}" class="w-10 h-10 rounded-lg object-cover flex-shrink-0">
             <div class="truncate flex-1 min-w-0">
               <h4 class="font-medium text-xs text-white truncate">${song.title}</h4>
@@ -918,7 +877,6 @@
       savePlaybackProgressState();
       trackListeningBehavior(song.id);
       renderHybridUpNextQueue();
-      monitorConnectedAudioOutputs(); 
 
       if(currentUser) {
         set(ref(db, `users/${currentUser.uid}/activity/` + Date.now()), { songTitle: song.title, artist: song.artist, action: "Played", timestamp: new Date().toLocaleString() });
@@ -1089,7 +1047,7 @@
     document.getElementById('btn-fs-next').addEventListener('click', handleSongCompletionRoute);
     document.getElementById('btn-mini-next').addEventListener('click', handleSongCompletionRoute);
     document.getElementById('btn-fs-prev').addEventListener('click', () => playSong((currentSongIndex - 1 + songs.length) % songs.length));
-    document.getElementById('mini-player-trigger').addEventListener('click', () => { fullscreenPlayer.classList.add('active'); monitorConnectedAudioOutputs(); });
+    document.getElementById('mini-player-trigger').addEventListener('click', () => { fullscreenPlayer.classList.add('active'); });
     document.getElementById('btn-close-fullscreen').addEventListener('click', () => fullscreenPlayer.classList.remove('active'));
     document.getElementById('btn-fs-options').addEventListener('click', () => openPlaylistAssignmentModal(songs[currentSongIndex].id));
     document.getElementById('btn-fs-repeat').addEventListener('click', () => { repeatMode = (repeatMode + 1) % 3; updateRepeatUIState(); });
@@ -1103,7 +1061,6 @@
     initWaveSurferEngine();
     renderSongsList(songs, document.getElementById('songs-container'));
     renderHybridUpNextQueue();
-    monitorConnectedAudioOutputs();
   </script>
 </body>
 </html>
