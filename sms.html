@@ -299,7 +299,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // HARD-LOCKED APP VIEWS
+        // HARD-LOCKED FIXED SCALING ENGINE
         document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
         let lastTouchTime = 0;
         document.addEventListener('touchend', function (e) {
@@ -333,7 +333,6 @@
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
 
-        // Music Catalog Array
         const songs = [
           {
             title: "Barota",
@@ -377,10 +376,9 @@
         let isAudioPlaying = false;
         let selectedMusicState = null; 
         
-        // SCROLL SENSITIVE SCROLL-PLAYER OBJECTS
         let activeFeedAudioInstance = null; 
         let currentlyPlayingPostId = null;
-        let feedMusicMutedState = false; // Persistent mute memory block across scroll swaps
+        let feedMusicMutedState = false; 
         let postObserverInstance = null;
 
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
@@ -669,7 +667,7 @@
             renderChatInterfaceHeader(targetUser.uid);
             db.ref(`chats/${activeChatKey}`).once('value', snap => {
                 if(snap.exists()) {
-                    snapshot.forEach(child => { if(child.val().senderId === targetUser.uid && !child.val().seen) db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true); });
+                    snap.forEach(child => { if(child.val().senderId === targetUser.uid && !child.val().seen) db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true); });
                 }
             });
             listenToMessages();
@@ -837,12 +835,11 @@
             const caption = document.getElementById('post-caption').value.trim();
             const location = document.getElementById('post-location').value.trim();
             if(!imgFile) return alert("Please select a post layout image!");
-            const imgBase64 = await getBase64(imgFile); const postRef = db.ref('posts').push(); const isVerifiedUser = currentUserData.verified === true;
+            const imgBase64 = await getBase64(imgFile); const postRef = db.ref('posts').push();
             
             postRef.set({
                 postId: postRef.key, uid: currentUserData.uid, authorName: currentUserData.name, authorAvatar: currentUserData.pfp,
-                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, 
-                isAuthorVerified: isVerifiedUser, timestamp: firebase.database.ServerValue.TIMESTAMP
+                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
             }).then(() => {
                 alert("Post successfully published!"); closeCreatePostModal(); loadExplorerFeedPosts();
             });
@@ -870,8 +867,6 @@
             if (activeFeedAudioInstance) {
                 feedMusicMutedState = !feedMusicMutedState;
                 activeFeedAudioInstance.muted = feedMusicMutedState;
-                
-                // Mute status updates icon toggles indicators visual feedback helper
                 const badges = document.querySelectorAll('.mute-indicator-icon-label');
                 badges.forEach(b => b.innerText = feedMusicMutedState ? "🔇 Muted" : "🔊 Playing");
             }
@@ -889,17 +884,9 @@
             setTimeout(() => { heart.remove(); }, 600);
         }
 
-        // ========================================================
-        // ADVANCED SCROLL-BASED SMART INTERSECTION AUDIO CONTROLLER
-        // ========================================================
         function initializeFeedScrollAudioObserver() {
             if(postObserverInstance) postObserverInstance.disconnect();
-
-            const observerOptions = {
-                root: document.getElementById('feed-container'),
-                rootMargin: '0px',
-                threshold: 0.6 // Fires when at least 60% of card item is visible in view frame
-            };
+            const observerOptions = { root: document.getElementById('feed-container'), rootMargin: '0px', threshold: 0.6 };
 
             postObserverInstance = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
@@ -909,30 +896,26 @@
                         const musicSrc = postCard.dataset.musicsrc;
                         const startAt = parseInt(postCard.dataset.startat || 0);
 
-                        // If user scrolls to a post that has music, and it's not already playing
                         if (musicSrc && musicSrc !== "null" && currentlyPlayingPostId !== postId) {
                             if (activeFeedAudioInstance) { activeFeedAudioInstance.pause(); }
-                            
                             currentlyPlayingPostId = postId;
                             activeFeedAudioInstance = new Audio(musicSrc);
                             activeFeedAudioInstance.currentTime = startAt;
                             activeFeedAudioInstance.loop = true;
-                            activeFeedAudioInstance.muted = feedMusicMutedState; // Retain mute history state block
-                            
-                            activeFeedAudioInstance.play().catch(e => console.log("Context gesture lock trigger active."));
+                            activeFeedAudioInstance.muted = feedMusicMutedState; 
+                            activeFeedAudioInstance.play().catch(e => console.log("Awaiting core interaction layer..."));
                         } else if (!musicSrc || musicSrc === "null") {
-                            // If user scrolls to a post that has no music, pause previous song
                             if (activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; currentlyPlayingPostId = null; }
                         }
                     }
                 });
             }, observerOptions);
 
-            // Bind observer track to all child feed item rows cards
             const postCards = document.querySelectorAll('.feed-post-card-item');
             postCards.forEach(card => postObserverInstance.observe(card));
         }
 
+        // LIVE REAL-TIME OBSERVATION PATHWAY FOR VERIFIED SYSTEM BADGES IN EXPLORER FEED
         function loadExplorerFeedPosts() {
             const container = document.getElementById('feed-container');
             container.innerHTML = "";
@@ -948,8 +931,21 @@
                 let postsArray = [];
                 snapshot.forEach(c => { postsArray.unshift(c.val()); }); 
 
+                let topPostWithMusic = postsArray.find(p => p.music !== null);
+                if(topPostWithMusic) {
+                    if(!activeFeedAudioInstance) {
+                        activeFeedAudioInstance = new Audio(topPostWithMusic.music.src);
+                        activeFeedAudioInstance.currentTime = topPostWithMusic.music.startAt;
+                        activeFeedAudioInstance.loop = true; 
+                        activeFeedAudioInstance.play().catch(e => console.log("Context initialized."));
+                    }
+                } else {
+                    if(activeFeedAudioInstance) { activeFeedAudioInstance.pause(); activeFeedAudioInstance = null; }
+                }
+
                 postsArray.forEach(post => {
                     const card = document.createElement('div');
+                    card.id = `feed-card-root-${post.postId}`;
                     card.className = "feed-post-card-item bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden relative";
                     card.dataset.id = post.postId;
                     card.dataset.musicsrc = post.music ? post.music.src : "null";
@@ -976,8 +972,6 @@
                         `;
                     }
 
-                    let authorVerifiedBadgeHtml = post.isAuthorVerified === true ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline-block ml-1">` : "";
-
                     let commentsListHtml = "";
                     if(post.comments) {
                         Object.values(post.comments).forEach(cm => {
@@ -991,7 +985,7 @@
                             <div class="flex items-center space-x-2.5 min-w-0">
                                 <img src="${post.authorAvatar || defaultBlankAvatar}" class="w-8 h-8 rounded-full object-cover">
                                 <div class="min-w-0">
-                                    <h4 class="text-xs font-bold text-gray-800 flex items-center truncate">${post.authorName} ${authorVerifiedBadgeHtml}</h4>
+                                    <h4 id="feed-author-name-lbl-${post.postId}" class="text-xs font-bold text-gray-800 flex items-center truncate">${post.authorName}</h4>
                                     ${post.location ? `<p class="text-[10px] text-gray-400 truncate">📍 ${post.location}</p>` : ''}
                                 </div>
                             </div>
@@ -1020,9 +1014,20 @@
                         </div>
                     `;
                     container.appendChild(card);
+                    
+                    // TARGET LIVE SNAPSHOT INTERCEPTOR: Checks users path in real-time for verified status key boolean true
+                    db.ref(`users/${post.uid}/verified`).on('value', verifiedSnap => {
+                        const nameLabel = document.getElementById(`feed-author-name-lbl-${post.postId}`);
+                        if(nameLabel) {
+                            if(verifiedSnap.val() === true) {
+                                nameLabel.innerHTML = `${post.authorName} <img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline-block ml-1">`;
+                            } else {
+                                nameLabel.innerHTML = post.authorName;
+                            }
+                        }
+                    });
                 });
 
-                // Trigger observer binding layers after items are pushed down dynamically
                 initializeFeedScrollAudioObserver();
             });
         }
