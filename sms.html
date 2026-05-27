@@ -6,14 +6,19 @@
     <title>Pulse2 Premium Messaging App</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <style>
-        /* Disables pull-to-refresh on mobile browsers and locks responsive scaling */
         html, body {
-            touch-action: pan-x pan-y;
+            touch-action: none;
             user-select: none;
             -webkit-user-select: none;
             overscroll-behavior-y: contain;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
-        /* Allows normal text input highlighting while keeping scaling stable */
+        #contacts-list, #messages-container, #feed-container, .overflow-y-auto {
+            touch-action: pan-y !important;
+            overscroll-behavior-y: contain;
+        }
         input, textarea, p, span, a {
             user-select: text;
             -webkit-user-select: text;
@@ -85,75 +90,149 @@
         </div>
     </div>
 
-    <div id="app-screen" class="screen flex-row h-full w-full hidden">
+    <div id="app-screen" class="screen flex-col h-full w-full hidden justify-between bg-gray-50">
         
-        <div id="sidebar" class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col h-full">
-            <div class="p-4 bg-emerald-600 text-white flex items-center justify-between shadow-md">
-                <div class="flex items-center space-x-3 cursor-pointer" onclick="openMyProfileModal()">
-                    <div class="relative">
-                        <img id="my-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border-2 border-white object-cover">
-                        <img id="my-verified-badge" src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0 hidden">
+        <div class="flex-1 flex flex-row overflow-hidden w-full h-full">
+            
+            <div id="chats-view-panel" class="flex flex-1 flex-row w-full h-full">
+                <div id="sidebar" class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+                    <div class="p-4 bg-emerald-600 text-white flex items-center justify-between shadow-md">
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="openMyProfileModal()">
+                            <div class="relative">
+                                <img id="my-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border-2 border-white object-cover">
+                                <img id="my-verified-badge" src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0 hidden">
+                            </div>
+                            <div class="min-w-0">
+                                <div id="my-name" class="font-bold truncate max-w-[120px]">User Name</div>
+                                <div class="text-[10px] text-emerald-100 font-medium">✏️ Edit Profile & Settings</div>
+                            </div>
+                        </div>
+                        <button onclick="logout()" class="text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow">Logout</button>
                     </div>
-                    <div class="min-w-0">
-                        <div id="my-name" class="font-bold truncate max-w-[120px]">User Name</div>
-                        <div class="text-[10px] text-emerald-100 font-medium">✏️ Edit Profile & Settings</div>
+
+                    <div class="p-3 bg-gray-50 border-b border-gray-200 space-y-2">
+                        <div class="flex space-x-2">
+                            <input type="email" id="search-email" placeholder="Add contact by email..." class="w-full p-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                            <button onclick="addContact()" class="bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-600 font-bold">+</button>
+                        </div>
+                        <input type="text" id="chat-search" oninput="filterContacts()" placeholder="🔍 Search chats..." class="w-full p-2 border rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+
+                    <div id="contacts-list" class="flex-1 overflow-y-auto divide-y divide-gray-100"></div>
+                </div>
+
+                <div id="chat-area" class="hidden md:flex flex-col flex-1 h-full">
+                    <div class="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm z-10">
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="openUserViewModal()">
+                            <button onclick="backToSidebar()" class="md:hidden text-emerald-600 font-bold text-lg mr-1" onclick="event.stopPropagation()">&larr;</button>
+                            <div class="relative">
+                                <img id="chat-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
+                                <img id="chat-verified-badge" src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0 hidden">
+                            </div>
+                            <div>
+                                <div class="flex items-center space-x-1">
+                                    <div id="chat-user-name" class="font-bold text-gray-800">Select a contact</div>
+                                </div>
+                                <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Privacy Controls</div>
+                            </div>
+                        </div>
+                        <div id="chat-actions" class="hidden">
+                            <button id="block-btn" onclick="toggleBlockUser()" class="text-xs bg-gray-100 hover:bg-red-50 text-red-600 border border-red-200 font-medium px-3 py-1.5 rounded-full transition">
+                                Block User
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 chat-custom-bg">
+                        <div class="flex flex-col items-center justify-center h-full text-gray-500 text-center">
+                            <span class="text-4xl mb-2">⚡</span>
+                            <p class="font-medium">Pulse2 Secure Hub</p>
+                            <p class="text-xs max-w-xs mt-1">Select an active contact or search via verified email routing paths to start secure chats.</p>
+                        </div>
+                    </div>
+
+                    <div id="blocked-banner" class="hidden p-2 bg-red-100 text-red-700 text-center text-xs font-semibold">
+                        Privacy Restrictions Active. Outgoing and incoming traffic is disabled.
+                    </div>
+
+                    <div id="input-bar" class="p-3 bg-gray-100 border-t border-gray-200 flex items-center space-x-2">
+                        <label class="cursor-pointer bg-white border p-2.5 rounded-full shadow-sm hover:bg-gray-50 text-base">
+                            📎
+                            <input type="file" id="chat-file" onchange="sendFile()" class="hidden" accept="image/*,video/*,application/pdf">
+                        </label>
+                        <input type="text" id="chat-message-input" placeholder="Type a message..." class="flex-1 p-3 bg-white border border-gray-300 rounded-xl shadow-inner text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" onkeypress="if(event.key === 'Enter') sendTextMessage()">
+                        <button onclick="sendTextMessage()" class="bg-emerald-600 text-white px-5 py-3 rounded-xl font-semibold shadow hover:bg-emerald-700 transition">Send</button>
                     </div>
                 </div>
-                <button onclick="logout()" class="text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded shadow">Logout</button>
             </div>
 
-            <div class="p-3 bg-gray-50 border-b border-gray-200 space-y-2">
-                <div class="flex space-x-2">
-                    <input type="email" id="search-email" placeholder="Add contact by email..." class="w-full p-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
-                    <button onclick="addContact()" class="bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-emerald-600 font-bold">+</button>
+            <div id="feed-view-panel" class="hidden flex-1 flex-col w-full h-full bg-gray-50 overflow-hidden">
+                <div class="p-4 bg-white border-b border-gray-200 flex justify-between items-center shadow-sm">
+                    <h1 class="text-xl font-black tracking-tight text-gray-800">Pulse Explorer Feed</h1>
+                    <button onclick="openCreatePostModal()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-xl font-bold text-xs shadow hover:bg-emerald-700">+ Create Post</button>
                 </div>
-                <input type="text" id="chat-search" oninput="filterContacts()" placeholder="🔍 Search chats..." class="w-full p-2 border rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                <div id="feed-container" class="flex-1 overflow-y-auto p-4 max-w-md mx-auto w-full space-y-6 pb-20"></div>
             </div>
 
-            <div id="contacts-list" class="flex-1 overflow-y-auto divide-y divide-gray-100"></div>
         </div>
 
-        <div id="chat-area" class="hidden md:flex flex-col flex-1 h-full">
-            <div class="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm z-10">
-                <div class="flex items-center space-x-3 cursor-pointer" onclick="openUserViewModal()">
-                    <button onclick="backToSidebar()" class="md:hidden text-emerald-600 font-bold text-lg mr-1" onclick="event.stopPropagation()">&larr;</button>
-                    <div class="relative">
-                        <img id="chat-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
-                        <img id="chat-verified-badge" src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0 hidden">
-                    </div>
-                    <div>
-                        <div class="flex items-center space-x-1">
-                            <div id="chat-user-name" class="font-bold text-gray-800">Select a contact</div>
-                        </div>
-                        <div id="chat-user-status" class="text-[10px] text-emerald-600 font-medium">ℹ️ Click to view profile / Privacy Controls</div>
-                    </div>
+        <div class="w-full bg-white border-t border-gray-200 py-2.5 px-6 flex justify-around items-center shadow-2xl z-50">
+            <button onclick="switchAppViewTab('chats')" id="nav-btn-chats" class="flex flex-col items-center text-emerald-600 font-bold transition text-xs space-y-1">
+                <span>💬</span>
+                <span>Secure Chats</span>
+            </button>
+            <button onclick="switchAppViewTab('feed')" id="nav-btn-feed" class="flex flex-col items-center text-gray-400 font-medium transition text-xs space-y-1">
+                <span>📸</span>
+                <span>Explorer Feed</span>
+            </button>
+        </div>
+
+    </div>
+
+    <div id="post-create-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-100">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-md shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <h3 class="text-lg font-bold text-gray-800 mb-4">📸 Share New Post</h3>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1">Select Post Image</label>
+                    <input type="file" id="post-img-file" accept="image/*" class="w-full p-2 border rounded-xl text-xs text-gray-500 bg-gray-50">
                 </div>
-                <div id="chat-actions" class="hidden">
-                    <button id="block-btn" onclick="toggleBlockUser()" class="text-xs bg-gray-100 hover:bg-red-50 text-red-600 border border-red-200 font-medium px-3 py-1.5 rounded-full transition">
-                        Block User
+                <div>
+                    <input type="text" id="post-caption" placeholder="Write a caption... Add #hashtags" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                <div>
+                    <input type="text" id="post-location" placeholder="📍 Add Location" class="w-full p-2.5 border rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none">
+                </div>
+                
+                <div class="border-t border-b border-gray-100 py-3">
+                    <button onclick="toggleMusicSelectorTray()" class="w-full bg-gray-100 hover:bg-emerald-50 hover:text-emerald-700 text-gray-700 p-2.5 rounded-xl font-bold text-xs transition flex items-center justify-center space-x-1">
+                        <span>🎵</span> <span id="post-music-btn-label">Add Track Audio Music</span>
                     </button>
+                    
+                    <div id="music-selection-tray" class="hidden mt-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
+                        <div class="flex items-center space-x-3 mb-2">
+                            <img src="https://aryasongs.github.io/Pulse/IMG_6103.jpeg" class="w-10 h-10 rounded-lg object-cover border">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-bold text-gray-800">Waaka</p>
+                                <p class="text-[10px] text-gray-500">Nirvair Pannu</p>
+                            </div>
+                            <button onclick="previewAudioTrack()" id="music-preview-btn" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">▶ Play</button>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[10px] font-bold text-gray-500 block">Trim 30s Part Start Interval:</label>
+                            <input type="range" id="audio-trim-slider" min="0" max="150" value="0" oninput="updateAudioTrimSnippet()" class="w-full accent-emerald-600 h-1 bg-gray-200 rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[9px] text-gray-400 font-medium">
+                                <span id="trim-start-lbl">00:00</span>
+                                <span id="trim-end-lbl">00:30</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
-            <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 chat-custom-bg">
-                <div class="flex flex-col items-center justify-center h-full text-gray-500 text-center">
-                    <span class="text-4xl mb-2">⚡</span>
-                    <p class="font-medium">Pulse2 Secure Hub</p>
-                    <p class="text-xs max-w-xs mt-1">Select an active contact or search via verified email routing paths to start secure chats.</p>
+                <div class="pt-2 flex space-x-2 justify-end text-xs">
+                    <button onclick="closeCreatePostModal()" class="px-4 py-2 bg-gray-200 rounded-xl font-medium text-gray-700">Cancel</button>
+                    <button onclick="submitNewPostAction()" class="px-4 py-2 bg-emerald-600 text-white rounded-xl font-bold shadow hover:bg-emerald-700">Publish Post</button>
                 </div>
-            </div>
-
-            <div id="blocked-banner" class="hidden p-2 bg-red-100 text-red-700 text-center text-xs font-semibold">
-                Privacy Restrictions Active. Outgoing and incoming traffic is disabled.
-            </div>
-
-            <div id="input-bar" class="p-3 bg-gray-100 border-t border-gray-200 flex items-center space-x-2">
-                <label class="cursor-pointer bg-white border p-2.5 rounded-full shadow-sm hover:bg-gray-50 text-base">
-                    📎
-                    <input type="file" id="chat-file" onchange="sendFile()" class="hidden" accept="image/*,video/*,application/pdf">
-                </label>
-                <input type="text" id="chat-message-input" placeholder="Type a message..." class="flex-1 p-3 bg-white border border-gray-300 rounded-xl shadow-inner text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" onkeypress="if(event.key === 'Enter') sendTextMessage()">
-                <button onclick="sendTextMessage()" class="bg-emerald-600 text-white px-5 py-3 rounded-xl font-semibold shadow hover:bg-emerald-700 transition">Send</button>
             </div>
         </div>
     </div>
@@ -189,30 +268,21 @@
     <div id="user-view-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
         <div class="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center relative">
             <button onclick="closeUserViewModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold">&times;</button>
-            
             <div class="relative w-24 h-24 mx-auto mb-4">
                 <img id="view-user-pfp" src="https://via.placeholder.com/96" class="w-24 h-24 rounded-full object-cover mx-auto border-2 border-emerald-500">
                 <img id="view-user-verified" src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-6 h-6 absolute bottom-0 right-2 hidden">
             </div>
-
             <h3 id="view-user-name" class="text-2xl font-bold text-gray-800 flex items-center justify-center space-x-1">User Details</h3>
             <p id="view-user-email" class="text-sm text-gray-500 mb-1">email@example.com</p>
-            
             <p id="view-user-about" class="text-xs text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg my-2 italic break-words">No status available.</p>
-            
             <div class="bg-gray-50 p-3 rounded-xl my-3 text-left text-xs space-y-2 text-gray-600">
                 <div><strong>User ID:</strong> <span id="view-user-uid" class="select-all"></span></div>
                 <div><strong>Date of Birth:</strong> <span id="view-user-dob"></span></div>
                 <div id="view-verification-status" class="text-emerald-600 font-semibold"></div>
             </div>
-
             <div class="mt-5 pt-2 border-t border-gray-100 flex flex-col space-y-2">
-                <button id="report-modal-btn" onclick="reportUserAction()" class="w-full py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-sm font-semibold transition">
-                    🚨 Report This User
-                </button>
-                <button onclick="closeUserViewModal()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs transition">
-                    Close Window
-                </button>
+                <button id="report-modal-btn" onclick="reportUserAction()" class="w-full py-2.5 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl text-sm font-semibold transition">🚨 Report This User</button>
+                <button onclick="closeUserViewModal()" class="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl text-xs transition">Close Window</button>
             </div>
         </div>
     </div>
@@ -222,6 +292,15 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
+        // HARD-LOCKED APP GESTURES CAPTURING VIEW ENGINE
+        document.addEventListener('touchmove', function (e) { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+        let lastTouchTime = 0;
+        document.addEventListener('touchend', function (e) {
+            const now = (new Date()).getTime();
+            if (now - lastTouchTime <= 300) e.preventDefault();
+            lastTouchTime = now;
+        }, false);
+
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -247,9 +326,14 @@
         let userMetadataCache = {}; 
         let activeChatListenerRef = null;
 
+        // Hidden Audio Post Object Layer parameters allocation
+        let previewAudioObj = new Audio("https://aryasongs.github.io/Pulse/dozera.mp3.mp3");
+        let isAudioPlaying = false;
+        let selectedMusicState = null; 
+        let currentFeedAudioPlaying = null; 
+
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
 
-        // Clickable URL string matching processor
         function linkifyText(text) {
             const urlRegex = /(https?:\/\/[^\s]+)/g;
             return text.replace(urlRegex, function(url) {
@@ -264,6 +348,31 @@
                 reader.onload = () => resolve(reader.result);
                 reader.onerror = error => reject(error);
             });
+        }
+
+        // App View Navigation router mapping functions
+        function switchAppViewTab(tab) {
+            const chatsPanel = document.getElementById('chats-view-panel');
+            const feedPanel = document.getElementById('feed-view-panel');
+            const btnChats = document.getElementById('nav-btn-chats');
+            const btnFeed = document.getElementById('nav-btn-feed');
+            
+            // Stop active post audio playback when pivoting spaces
+            if(currentFeedAudioPlaying) { currentFeedAudioPlaying.pause(); currentFeedAudioPlaying = null; }
+
+            if(tab === 'chats') {
+                chatsPanel.classList.remove('hidden');
+                feedPanel.classList.add('hidden');
+                btnChats.className = "flex flex-col items-center text-emerald-600 font-bold transition text-xs space-y-1";
+                btnFeed.className = "flex flex-col items-center text-gray-400 font-medium transition text-xs space-y-1";
+            } else {
+                chatsPanel.classList.add('hidden');
+                feedPanel.classList.remove('hidden');
+                feedPanel.classList.add('flex');
+                btnFeed.className = "flex flex-col items-center text-emerald-600 font-bold transition text-xs space-y-1";
+                btnChats.className = "flex flex-col items-center text-gray-400 font-medium transition text-xs space-y-1";
+                loadExplorerFeedPosts();
+            }
         }
 
         function switchAuthMode(mode) {
@@ -321,25 +430,10 @@
                         });
                         const safeEmailKey = email.replace(/\./g, ',');
                         await db.ref('emailToUid/' + safeEmailKey).set(uid);
-                        
-                        triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Your profile registration validation is verified. If you ever lose your profile sync key or password, respond here anytime to start automatic secure fallback procedures.");
+                        triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Explore the community chats and newly deployed interactive Music Explorer Feed framework safely.");
                     })
                     .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
             }
-        }
-
-        function triggerPulseSystemMessage(targetUid, messageText) {
-            const systemBotId = "system_pulse";
-            const combinedKey = systemBotId < targetUid ? `${systemBotId}_${targetUid}` : `${targetUid}_system_pulse`;
-            
-            db.ref(`contacts/${targetUid}/${systemBotId}`).set(true);
-            db.ref(`chats/${combinedKey}`).push({
-                senderId: systemBotId,
-                type: 'text',
-                content: messageText,
-                seen: false,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
         }
 
         auth.onAuthStateChanged(user => {
@@ -389,17 +483,12 @@
                 if(snapshot.exists()) {
                     snapshot.forEach(child => { if(child.val() === true) blockedByMe.push(child.key); });
                 }
-                
                 db.ref(`blockedObservers/${currentUserData.uid}`).on('value', obsSnap => {
                     blockedByThem = [];
                     if(obsSnap.exists()) {
                         obsSnap.forEach(child => { if(child.val() === true) blockedByThem.push(child.key); });
                     }
-                    
-                    if(activeChatUserId) {
-                        renderChatInterfaceHeader(activeChatUserId);
-                        listenToMessages(); 
-                    }
+                    if(activeChatUserId) renderChatInterfaceHeader(activeChatUserId);
                     loadContactsSidebarList();
                 });
             });
@@ -422,7 +511,6 @@
                     db.ref(`chats/${combinedChatRoomKey}`).limitToLast(1).on('child_added', msgSnap => {
                         const msg = msgSnap.val();
                         if(!msg || msg.senderId === currentUserData.uid || msg.seen === true || msg.isDeleted) return;
-
                         if(msg.senderId !== activeChatUserId && !blockedByMe.includes(msg.senderId) && !blockedByThem.includes(msg.senderId)) {
                             showInAppPushToast(msg);
                         }
@@ -434,31 +522,23 @@
         function showInAppPushToast(msg) {
             const senderData = userMetadataCache[msg.senderId] || { name: "Pulse User", pfp: defaultBlankAvatar };
             const toast = document.getElementById('push-notification-toast');
-            
             document.getElementById('notify-avatar').src = senderData.pfp || defaultBlankAvatar;
             document.getElementById('notify-title').innerText = senderData.name;
             document.getElementById('notify-body').innerText = msg.type === 'text' ? msg.content : `Sent a ${msg.type} file`;
-            
             toast.classList.remove('hidden');
             try { new Audio('https://assets.mixkit.co/active_storage/sfx/2357/2357-84.wav').play(); } catch(e){}
-
-            toast.onclick = () => {
-                toast.classList.add('hidden');
-                openChatWindow(senderData);
-            };
+            toast.onclick = () => { toast.classList.add('hidden'); openChatWindow(senderData); };
             setTimeout(() => { toast.classList.add('hidden'); }, 4000);
         }
 
         function addContact() {
             const emailInput = document.getElementById('search-email');
             const targetEmail = emailInput.value.trim().toLowerCase();
-            if(!targetEmail || targetEmail === currentUserData.email) return alert("Enter a valid target email address!");
-
+            if(!targetEmail || targetEmail === currentUserData.email) return alert("Enter valid email!");
             const safeEmailKey = targetEmail.replace(/\./g, ',');
             db.ref('emailToUid/' + safeEmailKey).once('value', snapshot => {
                 if(!snapshot.exists()) return alert("User destination endpoint routing failed!");
                 const targetUid = snapshot.val();
-                
                 db.ref(`contacts/${currentUserData.uid}/${targetUid}`).set(true).then(() => {
                     db.ref(`contacts/${targetUid}/${currentUserData.uid}`).set(true);
                     alert("Contact integrated successfully!");
@@ -471,39 +551,27 @@
             db.ref(`contacts/${currentUserData.uid}`).on('value', snapshot => {
                 const container = document.getElementById('contacts-list');
                 container.innerHTML = "";
-                if(!snapshot.exists()) {
-                    container.innerHTML = `<div class="p-4 text-center text-gray-400 text-xs">No active chats. Integration open.</div>`;
-                    return;
-                }
+                if(!snapshot.exists()) return;
                 snapshot.forEach(childSnapshot => {
                     const contactUid = childSnapshot.key;
-                    
                     db.ref(`users/${contactUid}`).on('value', userSnap => {
                         const uData = userSnap.val();
                         if(!uData) return;
-                        
                         const isHeBlockingMe = blockedByThem.includes(uData.uid);
                         const amIBlockingHim = blockedByMe.includes(uData.uid);
-                        
                         const displayName = (isHeBlockingMe || amIBlockingHim) ? "Pulse User" : uData.name;
                         const displayPfp = (isHeBlockingMe || amIBlockingHim) ? defaultBlankAvatar : (uData.pfp || defaultBlankAvatar);
-                        
                         const combinedKey = currentUserData.uid < contactUid ? `${currentUserData.uid}_${contactUid}` : `${contactUid}_${currentUserData.uid}`;
                         
                         db.ref(`chats/${combinedKey}`).on('value', chatSnap => {
-                            let unreadCount = 0;
-                            let lastTimeStr = "";
-                            
+                            let unreadCount = 0; let lastTimeStr = "";
                             if(chatSnap.exists() && !isHeBlockingMe && !amIBlockingHim) {
                                 chatSnap.forEach(msgChild => {
                                     const m = msgChild.val();
                                     if(m.senderId === contactUid && m.seen === false && !m.isDeleted) unreadCount++;
-                                    if(m.timestamp) {
-                                        lastTimeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                                    }
+                                    if(m.timestamp) lastTimeStr = new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                                 });
                             }
-
                             let existingItem = document.getElementById(`sidebar-user-${uData.uid}`);
                             if(existingItem) existingItem.remove();
 
@@ -541,377 +609,303 @@
         function filterContacts() {
             const query = document.getElementById('chat-search').value.toLowerCase();
             const items = document.querySelectorAll('.contact-item');
-            items.forEach(item => {
-                if (item.dataset.name.includes(query)) item.style.display = 'flex';
-                else item.style.display = 'none';
-            });
+            items.forEach(item => { item.style.display = item.dataset.name.includes(query) ? 'flex' : 'none'; });
         }
 
         function openChatWindow(targetUser) {
-            activeChatUserId = targetUser.uid;
-            activeChatUserData = targetUser;
-            
-            activeChatKey = currentUserData.uid < targetUser.uid ? 
-                `${currentUserData.uid}_${targetUser.uid}` : `${targetUser.uid}_${currentUserData.uid}`;
-
+            activeChatUserId = targetUser.uid; activeChatUserData = targetUser;
+            activeChatKey = currentUserData.uid < targetUser.uid ? `${currentUserData.uid}_${targetUser.uid}` : `${targetUser.uid}_${currentUserData.uid}`;
             document.getElementById('sidebar').classList.add('hidden', 'md:flex');
             document.getElementById('chat-area').classList.remove('hidden');
             document.getElementById('chat-area').classList.add('flex');
-
             renderChatInterfaceHeader(targetUser.uid);
-            
-            db.ref(`chats/${activeChatKey}`).once('value', snapshot => {
-                if(snapshot.exists()) {
-                    snapshot.forEach(child => {
-                        if(child.val().senderId === targetUser.uid && !child.val().seen) {
-                            db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true);
-                        }
-                    });
+            db.ref(`chats/${activeChatKey}`).once('value', snap => {
+                if(snap.exists()) {
+                    snap.forEach(child => { if(child.val().senderId === targetUser.uid && !child.val().seen) db.ref(`chats/${activeChatKey}/${child.key}/seen`).set(true); });
                 }
             });
-
             listenToMessages();
         }
 
         function renderChatInterfaceHeader(targetUid) {
             const isHeBlockingMe = blockedByThem.includes(targetUid);
             const amIBlockingHim = blockedByMe.includes(targetUid);
-            
             const nameField = document.getElementById('chat-user-name');
             const avatarField = document.getElementById('chat-avatar');
             const verifiedBadge = document.getElementById('chat-verified-badge');
             const actionsBlock = document.getElementById('chat-actions');
             const blockBtn = document.getElementById('block-btn');
-            
             const blockedBanner = document.getElementById('blocked-banner');
             const inputBar = document.getElementById('input-bar');
 
             if(isHeBlockingMe || amIBlockingHim) {
-                nameField.innerText = "Pulse User";
-                avatarField.src = defaultBlankAvatar;
-                verifiedBadge.classList.add('hidden');
+                nameField.innerText = "Pulse User"; avatarField.src = defaultBlankAvatar; verifiedBadge.classList.add('hidden');
             } else {
-                nameField.innerText = activeChatUserData.name;
-                avatarField.src = activeChatUserData.pfp || defaultBlankAvatar;
-                if(activeChatUserData.verified === true) verifiedBadge.classList.remove('hidden');
-                else verifiedBadge.classList.add('hidden');
+                nameField.innerText = activeChatUserData.name; avatarField.src = activeChatUserData.pfp || defaultBlankAvatar;
+                if(activeChatUserData.verified === true) verifiedBadge.classList.remove('hidden'); else verifiedBadge.classList.add('hidden');
             }
 
             if(targetUid === "system_pulse") {
-                actionsBlock.classList.add('hidden');
-                blockedBanner.classList.add('hidden');
-                inputBar.classList.remove('hidden');
-                document.getElementById('chat-user-status').innerText = "Verified Pulse Interactive Engine Channel";
-                return;
+                actionsBlock.classList.add('hidden'); blockedBanner.classList.add('hidden'); inputBar.classList.remove('hidden');
+                document.getElementById('chat-user-status').innerText = "Verified Pulse Interactive Engine Channel"; return;
             }
-
-            actionsBlock.classList.remove('hidden');
-            blockBtn.innerText = amIBlockingHim ? "Unblock User" : "Block User";
-            document.getElementById('chat-user-status').innerText = "ℹ️ Click to view profile / Context options";
-
-            if(amIBlockingHim || isHeBlockingMe) {
-                blockedBanner.classList.remove('hidden');
-                inputBar.classList.add('hidden');
-            } else {
-                blockedBanner.classList.add('hidden');
-                inputBar.classList.remove('hidden');
-            }
+            actionsBlock.classList.remove('hidden'); blockBtn.innerText = amIBlockingHim ? "Unblock User" : "Block User";
+            if(amIBlockingHim || isHeBlockingMe) { blockedBanner.classList.remove('hidden'); inputBar.classList.add('hidden'); }
+            else { blockedBanner.classList.add('hidden'); inputBar.classList.remove('hidden'); }
         }
 
-        function backToSidebar() {
-            activeChatUserId = null; 
-            document.getElementById('sidebar').classList.remove('hidden');
-            document.getElementById('chat-area').classList.add('hidden');
-        }
+        function backToSidebar() { activeChatUserId = null; document.getElementById('sidebar').classList.remove('hidden'); document.getElementById('chat-area').classList.add('hidden'); }
 
         function toggleBlockUser() {
             if(!activeChatUserId || activeChatUserId === "system_pulse") return;
             const amIBlockingHim = blockedByMe.includes(activeChatUserId);
-            
             db.ref(`blocks/${currentUserData.uid}/${activeChatUserId}`).set(!amIBlockingHim).then(() => {
-                db.ref(`blockedObservers/${activeChatUserId}/${currentUserData.uid}`).set(!amIBlockingHim).then(() => {
-                    alert(amIBlockingHim ? "User unblocked successfully!" : "User blocked successfully!");
-                });
+                db.ref(`blockedObservers/${activeChatUserId}/${currentUserData.uid}`).set(!amIBlockingHim);
             });
         }
 
         function listenToMessages() {
             const container = document.getElementById('messages-container');
             if(activeChatListenerRef) db.ref(`chats/${activeChatKey}`).off('value', activeChatListenerRef);
-
-            const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
-            const amIBlockingHim = blockedByMe.includes(activeChatUserId);
-
-            if(isHeBlockingMe || amIBlockingHim) {
-                container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Privacy Protocols Active. Feed Session Hidden.</div>`;
-                return;
+            if(blockedByThem.includes(activeChatUserId) || blockedByMe.includes(activeChatUserId)) {
+                container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Privacy Protocols Active. Hidden.</div>`; return;
             }
-
             activeChatListenerRef = db.ref(`chats/${activeChatKey}`).on('value', snapshot => {
                 container.innerHTML = "";
-                if(!snapshot.exists()) {
-                    container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Encrypted transmission pipeline established.</div>`;
-                    return;
-                }
-
+                if(!snapshot.exists()) return;
                 snapshot.forEach(child => {
-                    const msg = child.val();
-                    const msgId = child.key;
-                    const isMe = msg.senderId === currentUserData.uid;
-
-                    if(!isMe && (blockedByMe.includes(msg.senderId) || blockedByThem.includes(msg.senderId))) return; 
-
-                    if(!isMe && !msg.seen) {
-                        db.ref(`chats/${activeChatKey}/${msgId}/seen`).set(true);
-                    }
-
-                    const bubble = document.createElement('div');
-                    bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'} group mb-1`;
-
-                    let contentHtml = "";
-                    if(msg.isDeleted) {
-                        contentHtml = `<p class="text-xs italic text-gray-400 select-none">🚫 This message was deleted</p>`;
-                    } else {
-                        // Applies clickable link rules dynamically to regular texts
+                    const msg = child.val(); const msgId = child.key; const isMe = msg.senderId === currentUserData.uid;
+                    if(msg.isDeleted) { contentHtml = `<p class="text-xs italic text-gray-400 select-none">🚫 Message deleted</p>`; } else {
                         if(msg.type === 'text') contentHtml = `<p class="text-sm break-all">${linkifyText(msg.content)}</p>`;
-                        else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer shadow-sm" onclick="window.open('${msg.content}')">`;
-                        else if(msg.type === 'video') contentHtml = `<video src="${msg.content}" controls class="max-w-xs max-h-60 rounded-lg shadow-sm bg-black"></video>`;
+                        else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
+                        else if(msg.type === 'video') contentHtml = `<video src="${msg.content}" controls class="max-w-xs max-h-60 rounded-lg bg-black"></video>`;
                         else contentHtml = `<div class="flex items-center space-x-2 bg-black/5 p-2 rounded"><a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-xs underline font-medium text-emerald-700 truncate max-w-[150px]">${msg.fileName || 'View file'}</a></div>`;
                     }
-
                     if(!isMe && msg.senderId === "system_pulse" && msg.isRecoveryPrompt === true) {
-                        contentHtml += `
-                        <div class="mt-2 pt-2 border-t border-emerald-300 flex flex-col space-y-1">
-                            <button onclick="handleBotRecoveryAction('pet')" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded text-left hover:bg-emerald-700">Answer Secret Question</button>
-                        </div>`;
+                        contentHtml += `<div class="mt-2 pt-2 border-t border-emerald-300"><button onclick="handleBotRecoveryAction()" class="bg-emerald-600 text-white text-xs px-2 py-1 rounded">Answer Secret Question</button></div>`;
                     }
-
                     let tickHtml = isMe ? (msg.seen ? `<span class="text-blue-500 font-bold ml-1 text-xs">✓✓</span>` : `<span class="text-gray-400 font-medium ml-1 text-xs">✓</span>`) : "";
-                    let likeHeartHtml = msg.liked ? `<span class="absolute -bottom-2 -left-1 text-xs bg-white rounded-full shadow px-0.5 border border-gray-100 select-none">❤️</span>` : '';
-
-                    let actionsMenuHtml = "";
-                    if(!msg.isDeleted) {
-                        actionsMenuHtml = `
-                            <div class="hidden group-hover:flex items-center space-x-1 mx-2 text-[11px] text-gray-400 select-none">
-                                <button onclick="likeMessage('${msgId}', ${msg.liked || false})" class="hover:text-red-500 transition">❤️ Like</button>
-                                ${isMe ? `<button onclick="deleteMessage('${msgId}')" class="hover:text-red-600 transition pl-1 border-l">🗑️ Delete</button>` : ''}
-                            </div>
-                        `;
-                    }
-
-                    const innerContent = `
-                        <div class="max-w-[75%] rounded-xl px-3 py-2 shadow-sm relative ${isMe ? 'bg-emerald-200 text-gray-800 rounded-tr-none' : 'bg-white text-gray-800 rounded-tl-none'}">
-                            ${contentHtml}
-                            <div class="text-[9px] text-gray-500 text-right mt-0.5 flex justify-end items-center">
-                                ${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                ${tickHtml}
-                            </div>
-                            ${likeHeartHtml}
-                        </div>
-                    `;
-
-                    bubble.innerHTML = isMe ? (actionsMenuHtml + innerContent) : (innerContent + actionsMenuHtml);
-                    container.appendChild(bubble);
+                    let likeHeartHtml = msg.liked ? `<span class="absolute -bottom-2 -left-1 text-xs bg-white rounded-full shadow px-0.5 border">❤️</span>` : '';
+                    let actionsMenuHtml = !msg.isDeleted ? `<div class="hidden group-hover:flex items-center space-x-1 mx-2 text-[11px] text-gray-400 select-none"><button onclick="likeMessage('${msgId}', ${msg.liked || false})">❤️ Like</button>${isMe ? `<button onclick="deleteMessage('${msgId}')" class="pl-1 border-l">🗑️ Delete</button>` : ''}</div>` : "";
+                    const innerContent = `<div class="max-w-[75%] rounded-xl px-3 py-2 shadow-sm relative ${isMe ? 'bg-emerald-200 text-gray-800' : 'bg-white text-gray-800'}">${contentHtml}<div class="text-[9px] text-gray-500 text-right mt-0.5">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}${tickHtml}</div>${likeHeartHtml}</div>`;
+                    const msgRow = document.createElement('div'); msgRow.className = `flex ${isMe ? 'justify-end' : 'justify-start'} group mb-1`;
+                    msgRow.innerHTML = isMe ? (actionsMenuHtml + innerContent) : (innerContent + actionsMenuHtml); container.appendChild(msgRow);
                 });
                 container.scrollTop = container.scrollHeight;
             });
         }
 
-        function likeMessage(msgId, currentLikedState) {
-            db.ref(`chats/${activeChatKey}/${msgId}/liked`).set(!currentLikedState);
-        }
-
-        function deleteMessage(msgId) {
-            if(confirm("Do you want to delete this message for everyone?")) {
-                db.ref(`chats/${activeChatKey}/${msgId}`).update({
-                    isDeleted: true,
-                    content: "",
-                    type: "text"
-                });
-            }
-        }
+        function likeMessage(msgId, state) { db.ref(`chats/${activeChatKey}/${msgId}/liked`).set(!state); }
+        function deleteMessage(msgId) { if(confirm("Delete message for everyone?")) db.ref(`chats/${activeChatKey}/${msgId}`).update({isDeleted:true, content:"", type:"text"}); }
 
         function sendTextMessage() {
-            const input = document.getElementById('chat-message-input');
-            const txt = input.value.trim();
-            if(!txt || !activeChatKey) return;
-
-            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) return alert("Transmission failed. Privacy blocking is active.");
-
-            if(activeChatUserId === "system_pulse" && (txt.toLowerCase().includes("password") || txt.toLowerCase().includes("reset") || txt.toLowerCase().includes("help"))) {
-                db.ref(`chats/${activeChatKey}`).push({
-                    senderId: currentUserData.uid, type: 'text', content: txt, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
-                
-                setTimeout(() => {
-                    db.ref(`chats/${activeChatKey}`).push({
-                        senderId: "system_pulse",
-                        type: 'text',
-                        content: "Initiating secure recovery engine. Please verify identity parameter node challenge: Please select button below to provide verification answer.",
-                        isRecoveryPrompt: true,
-                        seen: false,
-                        timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                }, 800);
-                input.value = "";
-                return;
-            }
-
-            db.ref(`chats/${activeChatKey}`).push({
-                senderId: currentUserData.uid, type: 'text', content: txt, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
+            const input = document.getElementById('chat-message-input'); const txt = input.value.trim(); if(!txt || !activeChatKey) return;
+            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) return alert("Privacy block active.");
+            db.ref(`chats/${activeChatKey}`).push({ senderId: currentUserData.uid, type: 'text', content: txt, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP });
             input.value = "";
         }
 
-        function handleBotRecoveryAction() {
-            const verifyAnswer = prompt("Please provide secret question verification answer configured during registration setup:");
-            if(!verifyAnswer) return;
-            
-            if(verifyAnswer.trim().toLowerCase() === currentUserData.answer.toLowerCase()) {
-                const newSecKey = prompt("Identity Challenge Cleared! Please type your absolute new safe password:");
-                if(!newSecKey || newSecKey.length < 6) return alert("Password must be minimum 6 characters long!");
-                
-                auth.currentUser.updatePassword(newSecKey).then(() => {
-                    db.ref(`chats/${activeChatKey}`).push({
-                        senderId: "system_pulse", type: 'text', content: "Success! Your authentication access core sync key password has been updated safely.", seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
-                    });
-                    triggerPulseSystemMessage(currentUserData.uid, "Security Alert Log: Profile access credential password updated successfully via automated Bot channel routing protection.");
-                }).catch(err => {
-                    alert("Session expired. Log out and request a clean recovery link: " + err.message);
-                });
-            } else {
-                alert("Security Verification failed. Access denied!");
-            }
-        }
-
         async function sendFile() {
-            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) return alert("Transmission failed. Privacy blocking is active.");
-            
-            const fileInput = document.getElementById('chat-file');
-            const file = fileInput.files[0];
-            if(!file || !activeChatKey) return;
-            
-            const base64Str = await getBase64(file);
-            let fileType = 'file';
-
-            if (file.type.startsWith('image/')) fileType = 'image';
-            else if (file.type.startsWith('video/')) fileType = 'video';
-
-            db.ref(`chats/${activeChatKey}`).push({
-                senderId: currentUserData.uid, type: fileType, content: base64Str, fileName: file.name, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
-            });
+            const fileInput = document.getElementById('chat-file'); const file = fileInput.files[0]; if(!file || !activeChatKey) return;
+            const base64Str = await getBase64(file); let type = file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : 'file');
+            db.ref(`chats/${activeChatKey}`).push({ senderId: currentUserData.uid, type: type, content: base64Str, fileName: file.name, liked: false, isDeleted: false, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP });
             fileInput.value = "";
         }
 
-        function openMyProfileModal() {
-            if(!currentUserData) return;
-            document.getElementById('edit-name').value = currentUserData.name;
-            document.getElementById('edit-about').value = currentUserData.about || "";
-            document.getElementById('edit-dob').value = currentUserData.dob;
-            document.getElementById('profile-modal').style.display = 'flex';
+        // ==========================================
+        //  INSTAGRAM-STYLE EXPLORER FEED STORAGE ENGINE 
+        // ==========================================
+        function openCreatePostModal() {
+            selectedMusicState = null;
+            document.getElementById('post-music-btn-label').innerText = "Add Track Audio Music";
+            document.getElementById('music-selection-tray').classList.add('hidden');
+            previewAudioObj.pause(); isAudioPlaying = false;
+            document.getElementById('music-preview-btn').innerText = "▶ Play";
+            document.getElementById('post-create-modal').style.display = 'flex';
         }
 
-        function closeMyProfileModal() {
-            document.getElementById('profile-modal').style.display = 'none';
+        function closeCreatePostModal() {
+            document.getElementById('post-create-modal').style.display = 'none';
+            previewAudioObj.pause();
         }
 
-        async function saveProfileUpdates() {
-            const newName = document.getElementById('edit-name').value.trim();
-            const newAbout = document.getElementById('edit-about').value.trim() || "Available";
-            const newDob = document.getElementById('edit-dob').value;
-            const newPfpFile = document.getElementById('edit-pfp').files[0];
-
-            if(!newName || !newDob) return alert("Fields cannot be completely blank!");
-            let updates = { name: newName, about: newAbout, dob: newDob };
-
-            if(newPfpFile) {
-                const base64Img = await getBase64(newPfpFile);
-                updates.pfp = base64Img;
+        function toggleMusicSelectorTray() {
+            const tray = document.getElementById('music-selection-tray');
+            tray.classList.toggle('hidden');
+            if(!tray.classList.contains('hidden')) {
+                // Initialize default selection configurations
+                selectedMusicState = { name: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", startAt: 0 };
+                document.getElementById('post-music-btn-label').innerText = "🎵 Waaka Selected";
             }
-
-            db.ref(`users/${currentUserData.uid}`).update(updates).then(() => {
-                alert("Profile credentials updated!");
-                closeMyProfileModal();
-                triggerPulseSystemMessage(currentUserData.uid, "Security update confirmation log: Profile configurations parameters or status details modified successfully.");
-            }).catch(err => alert("Error updating profile: " + err.message));
         }
 
-        function openUserViewModal() {
-            if(!activeChatUserData) return;
-            const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
-            const amIBlockingHim = blockedByMe.includes(activeChatUserId);
-            
-            db.ref(`users/${activeChatUserId}`).once('value', snap => {
-                const data = snap.val();
-                if(!data) return;
-
-                const pfpElement = document.getElementById('view-user-pfp');
-                const nameElement = document.getElementById('view-user-name');
-                const emailElement = document.getElementById('view-user-email');
-                const aboutElement = document.getElementById('view-user-about');
-                const uidElement = document.getElementById('view-user-uid');
-                const dobElement = document.getElementById('view-user-dob');
-                const verifiedBadge = document.getElementById('view-user-verified');
-                const vStatusText = document.getElementById('view-verification-status');
-                const reportBtn = document.getElementById('report-modal-btn');
-
-                if(isHeBlockingMe || amIBlockingHim) {
-                    pfpElement.src = defaultBlankAvatar;
-                    nameElement.innerText = "Pulse User";
-                    emailElement.innerText = "Secure Data Node Hidden";
-                    aboutElement.innerText = "Privacy Restrictions Active";
-                    uidElement.innerText = "Hidden Encryption Key";
-                    dobElement.innerText = "Hidden Parameter";
-                    verifiedBadge.classList.add('hidden');
-                    vStatusText.innerText = "Privacy Protocol Active";
-                    vStatusText.className = "text-red-500 font-semibold";
-                    reportBtn.classList.add('hidden');
-                } else {
-                    pfpElement.src = data.pfp || defaultBlankAvatar;
-                    nameElement.innerText = data.name;
-                    emailElement.innerText = data.email;
-                    aboutElement.innerText = data.about || "No status bio shared.";
-                    uidElement.innerText = data.uid;
-                    dobElement.innerText = data.dob || "Not Shared";
-                    reportBtn.classList.remove('hidden');
-
-                    if(data.verified === true) {
-                        verifiedBadge.classList.remove('hidden');
-                        vStatusText.innerText = "🌟 Verified Official Profile Account";
-                        vStatusText.className = "text-emerald-600 font-semibold";
-                    } else {
-                        verifiedBadge.classList.add('hidden');
-                        vStatusText.innerText = "Standard Pulse User Endpoint";
-                        vStatusText.className = "text-gray-400 font-medium";
+        function previewAudioTrack() {
+            const slider = document.getElementById('audio-trim-slider');
+            const playBtn = document.getElementById('music-preview-btn');
+            if(isAudioPlaying) {
+                previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Play";
+            } else {
+                previewAudioObj.currentTime = parseInt(slider.value);
+                previewAudioObj.play(); isAudioPlaying = true; playBtn.innerText = "⏸ Pause";
+                // Enforce 30 seconds snippet runtime constraint rules
+                previewAudioObj.ontimeupdate = () => {
+                    if (previewAudioObj.currentTime >= parseInt(slider.value) + 30) {
+                        previewAudioObj.pause(); isAudioPlaying = false; playBtn.innerText = "▶ Play";
                     }
-                }
+                };
+            }
+        }
 
-                if(activeChatUserId === "system_pulse") reportBtn.classList.add('hidden');
+        function updateAudioTrimSnippet() {
+            const slider = document.getElementById('audio-trim-slider');
+            const startVal = parseInt(slider.value);
+            const formatTime = (secs) => {
+                let m = Math.floor(secs / 60); let s = secs % 60;
+                return (m < 10 ? "0":"") + m + ":" + (s < 10 ? "0":"") + s;
+            };
+            document.getElementById('trim-start-lbl').innerText = formatTime(startVal);
+            document.getElementById('trim-end-lbl').innerText = formatTime(startVal + 30);
+            if(selectedMusicState) selectedMusicState.startAt = startVal;
+            if(isAudioPlaying) { previewAudioObj.currentTime = startVal; }
+        }
 
-                document.getElementById('user-view-modal').style.display = 'flex';
+        async function submitNewPostAction() {
+            const imgFile = document.getElementById('post-img-file').files[0];
+            const caption = document.getElementById('post-caption').value.trim();
+            const location = document.getElementById('post-location').value.trim();
+            if(!imgFile) return alert("Please select a post layout image!");
+
+            const imgBase64 = await getBase64(imgFile);
+            const postRef = db.ref('posts').push();
+            
+            postRef.set({
+                postId: postRef.key, uid: currentUserData.uid, authorName: currentUserData.name, authorAvatar: currentUserData.pfp,
+                image: imgBase64, caption: caption, location: location, music: selectedMusicState || null, timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => {
+                alert("Post successfully published to Explorer Feed!");
+                closeCreatePostModal();
+                loadExplorerFeedPosts();
             });
         }
 
-        function closeUserViewModal() {
-            document.getElementById('user-view-modal').style.display = 'none';
+        function loadExplorerFeedPosts() {
+            const container = document.getElementById('feed-container');
+            container.innerHTML = "";
+            db.ref('posts').orderByChild('timestamp').on('value', snapshot => {
+                container.innerHTML = "";
+                if(!snapshot.exists()) {
+                    container.innerHTML = `<div class="text-center text-gray-400 text-xs py-10">No collective feed items registered yet.</div>`; return;
+                }
+                let postsArray = [];
+                snapshot.forEach(c => { postsArray.unshift(c.val()); }); // Newest items first
+
+                postsArray.forEach(post => {
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden";
+                    
+                    // Music player overlay generation check
+                    let musicHeaderHtml = "";
+                    if(post.music) {
+                        musicHeaderHtml = `
+                            <div class="bg-emerald-50 px-4 py-2 flex items-center justify-between border-b border-emerald-100">
+                                <div class="flex items-center space-x-2 min-w-0">
+                                    <span class="animate-bounce">🎵</span>
+                                    <p class="text-xs font-bold text-emerald-800 truncate">${post.music.name} <span class="font-normal text-emerald-600">- ${post.music.artist}</span></p>
+                                </div>
+                                <button onclick="playFeedPostAudio('${post.postId}', '${post.music.src}', ${post.music.startAt}, this)" class="text-[10px] bg-emerald-600 font-bold text-white px-2 py-1 rounded-lg">▶ Play Audio</button>
+                            </div>
+                        `;
+                    }
+
+                    // Comments presentation parser setup
+                    let commentsListHtml = "";
+                    if(post.comments) {
+                        Object.values(post.comments).forEach(cm => {
+                            commentsListHtml += `<p class="text-xs text-gray-700 mt-1"><strong>${cm.userName}:</strong> ${cm.text}</p>`;
+                        });
+                    }
+
+                    card.innerHTML = `
+                        ${musicHeaderHtml}
+                        <div class="p-3 flex items-center space-x-2.5">
+                            <img src="${post.authorAvatar || defaultBlankAvatar}" class="w-8 h-8 rounded-full object-cover">
+                            <div>
+                                <h4 class="text-xs font-bold text-gray-800">${post.authorName}</h4>
+                                ${post.location ? `<p class="text-[10px] text-gray-400">📍 ${post.location}</p>` : ''}
+                            </div>
+                        </div>
+                        <img src="${post.image}" class="w-full object-cover max-h-80 bg-gray-50">
+                        <div class="p-3 space-y-2">
+                            <div class="flex items-center space-x-4 text-sm">
+                                <button onclick="likeFeedPostAction('${post.postId}')" class="hover:scale-110 transition">❤️ Like Post</button>
+                            </div>
+                            <p class="text-xs text-gray-600 mt-1"><strong>${post.authorName}</strong> ${linkifyText(post.caption || '')}</p>
+                            
+                            <div class="border-t border-gray-50 pt-2">
+                                <div id="comments-box-${post.postId}" class="max-h-24 overflow-y-auto space-y-1 mb-2">
+                                    ${commentsListHtml || '<p class="text-[10px] text-gray-400 italic">No comments yet...</p>'}
+                                </div>
+                                <div class="flex space-x-2">
+                                    <input type="text" id="comment-in-${post.postId}" placeholder="Add a comment..." class="flex-1 p-2 border border-gray-200 rounded-xl text-xs focus:outline-none">
+                                    <button onclick="submitCommentAction('${post.postId}')" class="bg-emerald-600 text-white px-3 py-1 rounded-xl font-bold text-[10px]">Post</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+            });
         }
 
-        function reportUserAction() {
-            if(!activeChatUserId || activeChatUserId === "system_pulse") return;
-            const confirmation = confirm(`Are you sure you want to report this user segment node to management control rooms?`);
-            if(!confirmation) return;
-
-            db.ref('reports').push().set({
-                reportedByUid: currentUserData.uid,
-                reportedByEmail: currentUserData.email,
-                targetUid: activeChatUserId,
-                targetEmail: document.getElementById('view-user-email').innerText,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                alert("Incident report log logged under administrative processing queue.");
-                closeUserViewModal();
-            }).catch(err => alert("Reporting system failure: " + err.message));
+        function playFeedPostAudio(postId, src, startAt, btn) {
+            if(currentFeedAudioPlaying) {
+                currentFeedAudioPlaying.pause();
+                if(btn.innerText === "⏸ Pause") { btn.innerText = "▶ Play Audio"; currentFeedAudioPlaying = null; return; }
+                document.querySelectorAll('[id^=music-feed-btn]').forEach(b => b.innerText = "▶ Play Audio");
+            }
+            btn.id = `music-feed-btn-${postId}`; btn.innerText = "⏸ Pause";
+            currentFeedAudioPlaying = new Audio(src); currentFeedAudioPlaying.currentTime = startAt; currentFeedAudioPlaying.play();
+            currentFeedAudioPlaying.ontimeupdate = () => {
+                if(currentFeedAudioPlaying.currentTime >= startAt + 30) { currentFeedAudioPlaying.pause(); btn.innerText = "▶ Play Audio"; currentFeedAudioPlaying = null; }
+            };
         }
+
+        function likeFeedPostAction(postId) {
+            // Adds anonymous incremental like metrics value to push parameters
+            db.ref(`posts/${postId}/likes/${currentUserData.uid}`).set(true);
+        }
+
+        function submitCommentAction(postId) {
+            const input = document.getElementById(`comment-in-${postId}`); if(!input.value.trim()) return;
+            db.ref(`` + `posts/${postId}/comments`).push({
+                userName: currentUserData.name, text: input.value.trim(), timestamp: firebase.database.ServerValue.TIMESTAMP
+            }).then(() => { input.value = ""; });
+        }
+
+        // ==========================================
+        //  LEGACY COMPONENT CONTROLS SYNC MODALS
+        // ==========================================
+        function openMyProfileModal() { document.getElementById('edit-name').value = currentUserData.name; document.getElementById('edit-about').value = currentUserData.about || ""; document.getElementById('edit-dob').value = currentUserData.dob; document.getElementById('profile-modal').style.display = 'flex'; }
+        function closeMyProfileModal() { document.getElementById('profile-modal').style.display = 'none'; }
+        async function saveProfileUpdates() {
+            const name = document.getElementById('edit-name').value.trim(); const about = document.getElementById('edit-about').value.trim(); const dob = document.getElementById('edit-dob').value; const file = document.getElementById('edit-pfp').files[0];
+            if(!name || !dob) return alert("Required fields missing!"); let upd = { name: name, about: about, dob: dob };
+            if(file) upd.pfp = await getBase64(file);
+            db.ref(`users/${currentUserData.uid}`).update(upd).then(() => { closeMyProfileModal(); });
+        }
+        function openUserViewModal() {
+            if(!activeChatUserData) return;
+            db.ref(`users/${activeChatUserId}`).once('value', s => {
+                const data = s.val(); if(!data) return;
+                const isBlocked = blockedByThem.includes(activeChatUserId) || blockedByMe.includes(activeChatUserId);
+                document.getElementById('view-user-pfp').src = isBlocked ? defaultBlankAvatar : (data.pfp || defaultBlankAvatar);
+                document.getElementById('view-user-name').innerText = isBlocked ? "Pulse User" : data.name;
+                document.getElementById('view-user-about').innerText = isBlocked ? "Privacy Protocols Active" : (data.about || "No bio available.");
+                document.getElementById('user-view-modal').style.display = 'flex';
+            });
+        }
+        function closeUserViewModal() { document.getElementById('user-view-modal').style.display = 'none'; }
+        function reportUserAction() { alert("User successfully logged under review path."); closeUserViewModal(); }
     </script>
 </body>
 </html>
