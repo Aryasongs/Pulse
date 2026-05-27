@@ -3,118 +3,489 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulse Chat App</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Pulse2 Messaging App</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <style>
+        .screen { display: none; }
+        .screen.active { display: flex; }
+    </style>
 </head>
-<body class="bg-slate-100 font-sans h-screen flex flex-col justify-between">
+<body class="bg-gray-100 font-sans h-screen flex flex-col justify-between overflow-hidden m-0">
 
-    <div id="auth-container" class="max-w-md w-full mx-auto my-auto p-6 bg-white rounded-lg shadow-md hidden">
-        <div class="flex justify-around mb-6 border-b pb-2">
-            <button id="tab-login" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-1" onclick="switchAuthTab('login')">Login</button>
-            <button id="tab-signup" class="text-gray-500 font-bold pb-1" onclick="switchAuthTab('signup')">Sign Up</button>
-            <button id="tab-forgot" class="text-gray-500 font-bold pb-1 hidden" onclick="switchAuthTab('forgot')">Forgot</button>
-        </div>
-
-        <form id="login-form" class="space-y-4">
-            <input type="email" id="login-email" placeholder="Email" class="w-full p-2 border rounded" required>
-            <input type="password" id="login-password" placeholder="Password" class="w-full p-2 border rounded" required>
-            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">Login</button>
-            <p class="text-center text-sm text-blue-500 cursor-pointer" onclick="switchAuthTab('forgot')">Forgot Password?</p>
-        </form>
-
-        <form id="signup-form" class="space-y-4 hidden">
-            <input type="text" id="signup-name" placeholder="Full Name" class="w-full p-2 border rounded" required>
-            <input type="email" id="signup-email" placeholder="Email" class="w-full p-2 border rounded" required>
-            <input type="date" id="signup-dob" placeholder="DOB" class="w-full p-2 border rounded" required>
-            <input type="password" id="signup-password" placeholder="Password" class="w-full p-2 border rounded" required>
+    <div id="auth-screen" class="screen active flex-col items-center justify-center h-full px-4">
+        <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md">
+            <h2 id="auth-title" class="text-3xl font-bold text-center text-blue-600 mb-6">Pulse2 Login</h2>
             
-            <div class="border p-2 rounded bg-gray-50">
-                <label class="text-xs text-gray-500">Secret Security Question (For Password Reset)</label>
-                <select id="signup-question" class="w-full p-1 bg-transparent border-b mb-2">
-                    <option value="pet">What is your pet's name?</option>
-                    <option value="school">What was your first school?</option>
-                    <option value="city">In what city were you born?</option>
-                </select>
-                <input type="text" id="signup-answer" placeholder="Your Answer" class="w-full p-2 border rounded" required>
+            <div id="auth-alert" class="hidden p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg"></div>
+
+            <div class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email Address" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="password" id="auth-pass" placeholder="Password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                
+                <div id="signup-fields" class="hidden space-y-4">
+                    <input type="text" id="auth-name" placeholder="Full Name" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="text-xs text-gray-500 pl-1">Date of Birth:</div>
+                    <input type="date" id="auth-dob" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="auth-question" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Secret Question</option>
+                        <option value="pet">What is your pet's name?</option>
+                        <option value="school">What was your first school?</option>
+                        <option value="city">What is your birth city?</option>
+                    </select>
+                    <input type="text" id="auth-answer" placeholder="Your Answer" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="text-xs text-gray-500 pl-1">Profile Image (Optional):</div>
+                    <input type="file" id="auth-pfp" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-500">
+                </div>
+
+                <div id="forgot-fields" class="hidden space-y-4">
+                    <p class="text-xs text-gray-500">Apna password verify karne ke liye register kiya gaya secret question chunein aur answer dein.</p>
+                    <select id="forgot-question" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Select Your Secret Question</option>
+                        <option value="pet">What is your pet's name?</option>
+                        <option value="school">What was your first school?</option>
+                        <option value="city">What is your birth city?</option>
+                    </select>
+                    <input type="text" id="forgot-answer" placeholder="Your Answer" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="password" id="forgot-new-pass" placeholder="Enter New Password" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <button id="btn-primary" onclick="handleAuthAction()" class="w-full bg-blue-600 text-white p-3 rounded-lg font-semibold hover:bg-blue-700 transition">Login</button>
             </div>
 
-            <div class="flex items-center space-x-2">
-                <label class="text-sm text-gray-600">Profile Pic:</label>
-                <input type="file" id="signup-avatar" accept="image/*" class="text-xs">
+            <div class="mt-6 text-center text-sm text-gray-600 space-y-2">
+                <p id="toggle-signup">Naye user hain? <span onclick="switchAuthMode('signup')" class="text-blue-500 cursor-pointer font-semibold underline">Register Karein</span></p>
+                <p id="toggle-forgot"><span onclick="switchAuthMode('forgot')" class="text-red-500 cursor-pointer font-semibold underline">Password Bhool Gaye?</span></p>
+                <p id="toggle-login" class="hidden">Wapas <span onclick="switchAuthMode('login')" class="text-blue-500 cursor-pointer font-semibold underline">Login Par Jayein</span></p>
             </div>
-            <button type="submit" class="w-full bg-green-500 text-white p-2 rounded hover:bg-green-600">Register</button>
-        </form>
-
-        <form id="forgot-form" class="space-y-4 hidden">
-            <input type="email" id="forgot-email" placeholder="Enter your Email" class="w-full p-2 border rounded" required>
-            <select id="forgot-question" class="w-full p-2 border rounded">
-                <option value="pet">What is your pet's name?</option>
-                <option value="school">What was your first school?</option>
-                <option value="city">In what city were you born?</option>
-            </select>
-            <input type="text" id="forgot-answer" placeholder="Your Answer" class="w-full p-2 border rounded" required>
-            <input type="password" id="forgot-new-password" placeholder="Enter New Password" class="w-full p-2 border rounded" required>
-            <button type="submit" class="w-full bg-orange-500 text-white p-2 rounded hover:bg-orange-600">Reset Password</button>
-        </form>
+        </div>
     </div>
 
 
-    <div id="app-container" class="h-screen w-full flex flex-col md:flex-row hidden">
+    <div id="app-screen" class="screen flex-row h-full w-full hidden">
         
-        <div class="w-full md:w-1/3 bg-white border-r flex flex-col h-full">
-            <div class="p-4 bg-slate-800 text-white flex justify-between items-center">
+        <div id="sidebar" class="w-full md:w-80 bg-white border-r border-gray-200 flex flex-col h-full">
+            <div class="p-4 bg-blue-600 text-white flex items-center justify-between">
                 <div class="flex items-center space-x-3">
-                    <img id="user-display-img" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover bg-white">
+                    <img id="my-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full border-2 border-white object-cover">
                     <div>
-                        <h4 id="user-display-name" class="font-bold text-sm">Loading...</h4>
-                        <p id="user-display-dob" class="text-xs text-gray-400"></p>
+                        <div id="my-name" class="font-bold truncate max-w-[120px]">User Name</div>
+                        <div id="my-dob" class="text-xs text-blue-200">DOB</div>
                     </div>
                 </div>
-                <button onclick="logout()" class="text-red-400 hover:text-red-500"><i class="fas fa-sign-out-alt"></i></button>
+                <button onclick="logout()" class="text-xs bg-red-500 hover:bg-red-600 px-2 py-1 rounded">Logout</button>
             </div>
 
-            <div class="p-3 bg-gray-50 border-b flex space-x-2">
-                <input type="email" id="contact-email-input" placeholder="Add contact by Email..." class="flex-1 p-2 border text-sm rounded">
-                <button onclick="addContact()" class="bg-blue-500 text-white px-3 py-1 rounded text-sm"><i class="fas fa-user-plus"></i></button>
+            <div class="p-3 bg-gray-50 border-b border-gray-200 flex space-x-2">
+                <input type="email" id="search-email" placeholder="Enter friend's email" class="w-full p-2 border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500">
+                <button onclick="addContact()" class="bg-blue-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-blue-600">+</button>
             </div>
 
-            <div id="contacts-list" class="flex-1 overflow-y-auto divide-y">
+            <div id="contacts-list" class="flex-1 overflow-y-auto divide-y divide-gray-100">
                 </div>
         </div>
 
-        <div id="chat-area" class="w-full md:w-2/3 flex flex-col h-full bg-slate-50 hidden">
-            <div class="p-4 bg-white border-b flex items-center space-x-3 shadow-sm">
-                <img id="active-chat-img" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
+        <div id="chat-area" class="hidden md:flex flex-col flex-1 bg-gray-50 h-full">
+            <div class="p-4 bg-white border-b border-gray-200 flex items-center space-x-3">
+                <button onclick="backToSidebar()" class="md:hidden text-blue-600 font-bold mr-2">&larr;</button>
+                <img id="chat-avatar" src="https://via.placeholder.com/40" class="w-10 h-10 rounded-full object-cover">
                 <div>
-                    <h4 id="active-chat-name" class="font-bold">Select a contact</h4>
-                    <p id="active-chat-status" class="text-xs text-green-500"></p>
+                    <div id="chat-user-name" class="font-bold text-gray-800">Select a contact</div>
+                    <div id="chat-user-email" class="text-xs text-gray-500"></div>
                 </div>
             </div>
 
-            <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-4">
-                </div>
+            <div id="messages-container" class="flex-1 p-4 overflow-y-auto space-y-4 bg-gray-100">
+                <div class="text-center text-gray-400 mt-10">Kisi dost ko select karke chat shuru karein.</div>
+            </div>
 
-            <div class="p-4 bg-white border-t flex items-center space-x-2">
-                <label class="cursor-pointer text-gray-500 hover:text-blue-500 p-2">
-                    <i class="fas fa-paperclip text-xl"></i>
-                    <input type="file" id="file-attachment" class="hidden" onchange="handleFileUpload(this)">
+            <div class="p-3 bg-white border-t border-gray-200 flex items-center space-x-2">
+                <label class="cursor-pointer bg-gray-200 p-2 rounded-full hover:bg-gray-300">
+                    📎
+                    <input type="file" id="chat-file" onchange="sendFile()" class="hidden">
                 </label>
-                
-                <input type="text" id="message-input" placeholder="Type a message..." class="flex-1 p-2 border rounded-full px-4 focus:outline-none focus:border-blue-500">
-                <button onclick="sendMessage()" class="bg-blue-500 text-white w-10 h-10 rounded-full flex items-center justify-center hover:bg-blue-600">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
+                <input type="text" id="chat-message-input" placeholder="Type a message..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" onkeypress="if(event.key === 'Enter') sendTextMessage()">
+                <button onclick="sendTextMessage()" class="bg-blue-600 text-white px-5 py-3 rounded-lg font-semibold hover:bg-blue-700">Send</button>
             </div>
-        </div>
-
-        <div id="empty-chat-state" class="hidden md:flex w-full md:w-2/3 items-center justify-center bg-slate-50 flex-col text-gray-400">
-            <i class="far fa-comments text-6xl mb-2"></i>
-            <p>Select a contact to start chatting</p>
         </div>
 
     </div>
 
-    <script type="module" src="app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+        // Aapka Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Firebase Initialize
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // State Management variables
+        let currentAuthMode = 'login';
+        let currentUserData = null;
+        let activeChatUserId = null;
+        let activeChatUserEmail = null;
+        let activeChatKey = null;
+
+        // Base64 Helper
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+            });
+        }
+
+        // Auth Screens Switcher
+        function switchAuthMode(mode) {
+            currentAuthMode = mode;
+            document.getElementById('auth-alert').classList.add('hidden');
+            
+            const signupFields = document.getElementById('signup-fields');
+            const forgotFields = document.getElementById('forgot-fields');
+            const btnPrimary = document.getElementById('btn-primary');
+            const title = document.getElementById('auth-title');
+            
+            document.getElementById('toggle-signup').style.display = (mode === 'login') ? 'block' : 'none';
+            document.getElementById('toggle-forgot').style.display = (mode === 'login') ? 'block' : 'none';
+            document.getElementById('toggle-login').style.display = (mode !== 'login') ? 'block' : 'none';
+
+            if (mode === 'signup') {
+                title.innerText = "Create Account";
+                signupFields.classList.remove('hidden');
+                forgotFields.classList.add('hidden');
+                btnPrimary.innerText = "Register";
+            } else if (mode === 'forgot') {
+                title.innerText = "Reset Password";
+                signupFields.classList.add('hidden');
+                forgotFields.classList.remove('hidden');
+                btnPrimary.innerText = "Verify & Update";
+            } else {
+                title.innerText = "Pulse2 Login";
+                signupFields.classList.add('hidden');
+                forgotFields.classList.add('hidden');
+                btnPrimary.innerText = "Login";
+            }
+        }
+
+        // Unified Auth Action Handler
+        async function handleAuthAction() {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-pass').value;
+            const alertBox = document.getElementById('auth-alert');
+            alertBox.classList.add('hidden');
+
+            if (!email) { alertBox.innerText = "Email fill karein!"; alertBox.classList.remove('hidden'); return; }
+
+            if (currentAuthMode === 'login') {
+                if (!password) { alertBox.innerText = "Password bharein!"; alertBox.classList.remove('hidden'); return; }
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
+
+            } else if (currentAuthMode === 'signup') {
+                const name = document.getElementById('auth-name').value.trim();
+                const dob = document.getElementById('auth-dob').value;
+                const question = document.getElementById('auth-question').value;
+                const answer = document.getElementById('auth-answer').value.trim().toLowerCase();
+                const pfpFile = document.getElementById('auth-pfp').files[0];
+
+                if (!name || !password || !dob || !question || !answer) {
+                    alertBox.innerText = "Saari details bharna aniwarya hai!";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
+
+                let pfpBase64 = "https://via.placeholder.com/150"; // Default image
+                if (pfpFile) {
+                    pfpBase64 = await getBase64(pfpFile);
+                }
+
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then(async (userCredential) => {
+                        const uid = userCredential.user.uid;
+                        // Database mei Custom details save karna (Cleaned path ke liye base64 text use kiya)
+                        await db.ref('users/' + uid).set({
+                            uid: uid,
+                            name: name,
+                            email: email.toLowerCase(),
+                            dob: dob,
+                            question: question,
+                            answer: answer,
+                            pfp: pfpBase64
+                        });
+                        // Reverse lookup index to search by email easily
+                        const safeEmailKey = email.replace(/\./g, ',');
+                        await db.ref('emailToUid/' + safeEmailKey).set(uid);
+                    })
+                    .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
+
+            } else if (currentAuthMode === 'forgot') {
+                const question = document.getElementById('forgot-question').value;
+                const answer = document.getElementById('forgot-answer').value.trim().toLowerCase();
+                const newPass = document.getElementById('forgot-new-pass').value;
+
+                if (!question || !answer || !newPass) {
+                    alertBox.innerText = "Verifcation info aur naya password bharein!";
+                    alertBox.classList.remove('hidden');
+                    return;
+                }
+
+                // Pehle email lookup karke user dhundna
+                const safeEmailKey = email.replace(/\./g, ',');
+                db.ref('emailToUid/' + safeEmailKey).once('value', snapshot => {
+                    if(!snapshot.exists()) {
+                        alertBox.innerText = "Yeh email registered nahi hai!";
+                        alertBox.classList.remove('hidden');
+                        return;
+                    }
+                    const uid = snapshot.val();
+                    db.ref('users/' + uid).once('value', userSnap => {
+                        const data = userSnap.val();
+                        if (data.question === question && data.answer === answer) {
+                            // Question Answer matching successful.
+                            // Firebase rules open hone par direct update possible hai login ke bina custom flow mei
+                            alertBox.innerText = "Verifying details & updating... Please wait.";
+                            alertBox.className = "p-3 mb-4 text-sm text-green-700 bg-green-100 rounded-lg";
+                            alertBox.classList.remove('hidden');
+                            
+                            // Firebase Admin function ke bina client side pass update automatic login ke bina tough hai,
+                            // To resolve this easily, we alert the user we cannot do via core auth directly without reauth, but we give a workaround.
+                            alertBox.innerText = "Firebase Client security constraints don't allow password rewrite without active login session. For custom recovery, reset using Firebase native email instead.";
+                            alertBox.className = "p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg";
+                            
+                            // Alternative: Firebase Native Reset Link
+                            auth.sendPasswordResetEmail(email).then(() => {
+                                alert("Hamne aapki email par direct link bhej diya hai, wahan se safe reset karein.");
+                                switchAuthMode('login');
+                            });
+                        } else {
+                            alertBox.innerText = "Galat Secret Question ya Answer!";
+                            alertBox.className = "p-3 mb-4 text-sm text-red-700 bg-red-100 rounded-lg";
+                            alertBox.classList.remove('hidden');
+                        }
+                    });
+                });
+            }
+        }
+
+        // Listen for Authentication State
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                // User logged in
+                db.ref('users/' + user.uid).once('value', snapshot => {
+                    currentUserData = snapshot.val();
+                    if(currentUserData) {
+                        document.getElementById('my-name').innerText = currentUserData.name;
+                        document.getElementById('my-dob').innerText = "DOB: " + currentUserData.dob;
+                        document.getElementById('my-avatar').src = currentUserData.pfp || "https://via.placeholder.com/40";
+                        
+                        document.getElementById('auth-screen').classList.remove('active');
+                        document.getElementById('app-screen').classList.add('active');
+                        loadContactsList();
+                    }
+                });
+            } else {
+                // User logged out
+                document.getElementById('app-screen').classList.remove('active');
+                document.getElementById('auth-screen').classList.add('active');
+                switchAuthMode('login');
+            }
+        });
+
+        // Logout function
+        function logout() {
+            auth.signOut();
+        }
+
+        // Add a contact using Email ID
+        function addContact() {
+            const emailInput = document.getElementById('search-email');
+            const targetEmail = emailInput.value.trim().toLowerCase();
+            
+            if(!targetEmail || targetEmail === currentUserData.email) {
+                alert("Kripya kisi anye valid user ki email dalein.");
+                return;
+            }
+
+            const safeEmailKey = targetEmail.replace(/\./g, ',');
+            db.ref('emailToUid/' + safeEmailKey).once('value', snapshot => {
+                if(!snapshot.exists()) {
+                    alert("Yeh user Pulse2 par nahi mila!");
+                    return;
+                }
+                const targetUid = snapshot.val();
+                
+                // Add to my contacts list node
+                db.ref(`contacts/${currentUserData.uid}/${targetUid}`).set(true).then(() => {
+                    // Add inverse also to display in their UI
+                    db.ref(`contacts/${targetUid}/${currentUserData.uid}`).set(true);
+                    alert("Dost successfully add ho gaya!");
+                    emailInput.value = "";
+                    loadContactsList();
+                });
+            });
+        }
+
+        // Load contact sidebar dynamically
+        function loadContactsList() {
+            const container = document.getElementById('contacts-list');
+            container.innerHTML = "";
+
+            db.ref(`contacts/${currentUserData.uid}`).on('value', snapshot => {
+                container.innerHTML = "";
+                if(!snapshot.exists()) {
+                    container.innerHTML = `<div class="p-4 text-center text-gray-400 text-sm">Koi contact nahi mila. Email se add karein.</div>`;
+                    return;
+                }
+
+                snapshot.forEach(childSnapshot => {
+                    const contactUid = childSnapshot.key;
+                    
+                    db.ref(`users/${contactUid}`).once('value', userSnap => {
+                        const uData = userSnap.val();
+                        if(!uData) return;
+
+                        const item = document.createElement('div');
+                        item.className = "flex items-center space-x-3 p-3 cursor-pointer hover:bg-gray-50 transition border-b border-gray-100";
+                        item.onclick = () => openChatWindow(uData);
+                        item.innerHTML = `
+                            <img src="${uData.pfp || 'https://via.placeholder.com/40'}" class="w-11 h-11 rounded-full object-cover">
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-semibold text-gray-900 truncate">${uData.name}</p>
+                                <p class="text-xs text-gray-500 truncate">${uData.email}</p>
+                            </div>
+                        `;
+                        container.appendChild(item);
+                    });
+                });
+            });
+        }
+
+        // Open chat for specific user
+        function openChatWindow(targetUser) {
+            activeChatUserId = targetUser.uid;
+            activeChatUserEmail = targetUser.email;
+            
+            document.getElementById('chat-user-name').innerText = targetUser.name;
+            document.getElementById('chat-user-email').innerText = targetUser.email;
+            document.getElementById('chat-avatar').src = targetUser.pfp || "https://via.placeholder.com/40";
+            
+            // Generate a unique chat ID combine strings alphabetically
+            activeChatKey = currentUserData.uid < targetUser.uid ? 
+                `${currentUserData.uid}_${targetUser.uid}` : `${targetUser.uid}_${currentUserData.uid}`;
+
+            // Responsiveness: Show chat on mobile
+            document.getElementById('sidebar').classList.add('hidden', 'md:flex');
+            document.getElementById('chat-area').classList.remove('hidden');
+            document.getElementById('chat-area').classList.add('flex');
+
+            listenToMessages();
+        }
+
+        function backToSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            document.getElementById('chat-area').classList.add('hidden');
+        }
+
+        // Listen for live messages in current chatroom
+        function listenToMessages() {
+            const container = document.getElementById('messages-container');
+            
+            db.ref(`chats/${activeChatKey}`).on('value', snapshot => {
+                container.innerHTML = "";
+                if(!snapshot.exists()) {
+                    container.innerHTML = `<div class="text-center text-gray-400 mt-10">Hi bhejiye aur baatein shuru karein!</div>`;
+                    return;
+                }
+
+                snapshot.forEach(child => {
+                    const msg = child.val();
+                    const isMe = msg.senderId === currentUserData.uid;
+
+                    const bubble = document.createElement('div');
+                    bubble.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+
+                    let contentHtml = "";
+                    if(msg.type === 'text') {
+                        contentHtml = `<p class="text-sm break-all">${msg.content}</p>`;
+                    } else if(msg.type === 'image') {
+                        contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
+                    } else if(msg.type === 'pdf' || msg.type === 'file') {
+                        contentHtml = `
+                            <div class="flex items-center space-x-2 bg-black/10 p-2 rounded">
+                                <span>📄</span>
+                                <a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-sm underline font-medium truncate max-w-[180px]">${msg.fileName || 'Download File'}</a>
+                            </div>`;
+                    }
+
+                    bubble.innerHTML = `
+                        <div class="max-w-[70%] rounded-2xl px-4 py-2.5 shadow-sm ${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 rounded-bl-none'}">
+                            ${contentHtml}
+                            <span class="block text-[10px] text-right mt-1 opacity-60">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        </div>
+                    `;
+                    container.appendChild(bubble);
+                });
+                // Auto Scroll down
+                container.scrollTop = container.scrollHeight;
+            });
+        }
+
+        // Send standard Text Messages
+        function sendTextMessage() {
+            const input = document.getElementById('chat-message-input');
+            const txt = input.value.trim();
+            if(!txt || !activeChatKey) return;
+
+            const msgData = {
+                senderId: currentUserData.uid,
+                type: 'text',
+                content: txt,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            db.ref(`chats/${activeChatKey}`).push(msgData);
+            input.value = "";
+        }
+
+        // Send Files / Base64 Document/Images
+        async function sendFile() {
+            const fileInput = document.getElementById('chat-file');
+            const file = fileInput.files[0];
+            if(!file || !activeChatKey) return;
+
+            const base64Str = await getBase64(file);
+            let fileType = 'file';
+
+            if (file.type.startsWith('image/')) {
+                fileType = 'image';
+            } else if (file.type === 'application/pdf') {
+                fileType = 'pdf';
+            }
+
+            const msgData = {
+                senderId: currentUserData.uid,
+                type: fileType,
+                content: base64Str,
+                fileName: file.name,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            db.ref(`chats/${activeChatKey}`).push(msgData);
+            fileInput.value = ""; // Clear file selector input
+        }
+    </script>
 </body>
 </html>
