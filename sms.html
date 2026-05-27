@@ -203,8 +203,8 @@
         let activeChatUserData = null; 
         let activeChatKey = null;
         
-        let blockedByMe = [];    // Users I have blocked
-        let blockedByThem = [];  // Users who have blocked me
+        let blockedByMe = [];    
+        let blockedByThem = [];  
 
         const defaultBlankAvatar = "https://via.placeholder.com/150/cccccc/ffffff?text=User";
 
@@ -272,21 +272,17 @@
                         const safeEmailKey = email.replace(/\./g, ',');
                         await db.ref('emailToUid/' + safeEmailKey).set(uid);
                         
-                        // Automated verification welcome trigger by system Pulse bot account
                         triggerPulseSystemMessage(uid, "Welcome to Pulse2 Secure network! Your profile registration validation is verified. If you ever lose your profile sync key or password, respond here anytime to start automatic secure fallback procedures.");
                     })
                     .catch(err => { alertBox.innerText = err.message; alertBox.classList.remove('hidden'); });
             }
         }
 
-        // Pulse System Welcome / Verification Engine
         function triggerPulseSystemMessage(targetUid, messageText) {
             const systemBotId = "system_pulse";
             const combinedKey = systemBotId < targetUid ? `${systemBotId}_${targetUid}` : `${targetUid}_${systemBotId}`;
             
-            // Registering System contact node
             db.ref(`contacts/${targetUid}/${systemBotId}`).set(true);
-            
             db.ref(`chats/${combinedKey}`).push({
                 senderId: systemBotId,
                 type: 'text',
@@ -296,10 +292,8 @@
             });
         }
 
-        // Persistent Auth Sessions
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Ensure system profile parameters exists globally for render lookups
                 db.ref('users/system_pulse').set({
                     uid: "system_pulse",
                     name: "Pulse",
@@ -334,24 +328,25 @@
 
         function logout() { auth.signOut(); }
 
-        // Dual-directional block synchronizer rules
         function syncPrivacyBlocks() {
-            // 1. Load users I have blocked
+            // Real-time listener for users I have blocked
             db.ref(`blocks/${currentUserData.uid}`).on('value', snapshot => {
                 blockedByMe = [];
                 if(snapshot.exists()) {
                     snapshot.forEach(child => { if(child.val() === true) blockedByMe.push(child.key); });
                 }
                 
-                // 2. Load users who blocked me
+                // Real-time listener for users who blocked me
                 db.ref(`blockedObservers/${currentUserData.uid}`).on('value', obsSnap => {
                     blockedByThem = [];
                     if(obsSnap.exists()) {
                         obsSnap.forEach(child => { if(child.val() === true) blockedByThem.push(child.key); });
                     }
                     
-                    // Refresh current active view allocations
-                    if(activeChatUserId) renderChatInterfaceHeader(activeChatUserId);
+                    if(activeChatUserId) {
+                        renderChatInterfaceHeader(activeChatUserId);
+                        listenToMessages(); // Re-trigger live pipeline window filters
+                    }
                     loadContactsSidebarList();
                 });
             });
@@ -375,7 +370,6 @@
             });
         }
 
-        // Side view contact renderer
         function loadContactsSidebarList() {
             db.ref(`contacts/${currentUserData.uid}`).on('value', snapshot => {
                 const container = document.getElementById('contacts-list');
@@ -395,10 +389,11 @@
                         if(existingItem) existingItem.remove();
 
                         const isHeBlockingMe = blockedByThem.includes(uData.uid);
+                        const amIBlockingHim = blockedByMe.includes(uData.uid);
                         
-                        // Mask parameters if under blocking layout
-                        const displayName = isHeBlockingMe ? "Pulse User" : uData.name;
-                        const displayPfp = isHeBlockingMe ? defaultBlankAvatar : (uData.pfp || defaultBlankAvatar);
+                        // If either block condition matches, mask data completely
+                        const displayName = (isHeBlockingMe || amIBlockingHim) ? "Pulse User" : uData.name;
+                        const displayPfp = (isHeBlockingMe || amIBlockingHim) ? defaultBlankAvatar : (uData.pfp || defaultBlankAvatar);
                         
                         const item = document.createElement('div');
                         item.id = `sidebar-user-${uData.uid}`;
@@ -406,16 +401,16 @@
                         item.dataset.name = displayName.toLowerCase();
                         item.onclick = () => openChatWindow(uData);
 
-                        let verifiedHtml = (uData.verified === true && !isHeBlockingMe) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
+                        let verifiedHtml = (uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 inline ml-1">` : '';
 
                         item.innerHTML = `
                             <div class="relative">
                                 <img src="${displayPfp}" class="w-11 h-11 rounded-full object-cover">
-                                ${(uData.verified === true && !isHeBlockingMe) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
+                                ${(uData.verified === true && !isHeBlockingMe && !amIBlockingHim) ? `<img src="https://aryasongs.github.io/Pulse/IMG_6101.png" class="w-4 h-4 absolute bottom-0 right-0">` : ''}
                             </div>
                             <div class="flex-1 min-w-0">
                                 <p class="text-sm font-semibold text-gray-900 flex items-center truncate">${displayName} ${verifiedHtml}</p>
-                                <p class="text-xs text-gray-400 truncate">${isHeBlockingMe ? 'Secure Network Session' : uData.email}</p>
+                                <p class="text-xs text-gray-400 truncate">${(isHeBlockingMe || amIBlockingHim) ? 'Secure Network Session' : uData.email}</p>
                             </div>
                         `;
                         container.appendChild(item);
@@ -433,7 +428,6 @@
             });
         }
 
-        // Open chat frame allocations
         function openChatWindow(targetUser) {
             activeChatUserId = targetUser.uid;
             activeChatUserData = targetUser;
@@ -449,7 +443,6 @@
             listenToMessages();
         }
 
-        // Custom privacy headers validation routing
         function renderChatInterfaceHeader(targetUid) {
             const isHeBlockingMe = blockedByThem.includes(targetUid);
             const amIBlockingHim = blockedByMe.includes(targetUid);
@@ -463,8 +456,7 @@
             const blockedBanner = document.getElementById('blocked-banner');
             const inputBar = document.getElementById('input-bar');
 
-            // Set profile text modifications depending on state
-            if(isHeBlockingMe) {
+            if(isHeBlockingMe || amIBlockingHim) {
                 nameField.innerText = "Pulse User";
                 avatarField.src = defaultBlankAvatar;
                 verifiedBadge.classList.add('hidden');
@@ -475,7 +467,6 @@
                 else verifiedBadge.classList.add('hidden');
             }
 
-            // Exclude privacy operations option for official support bot account
             if(targetUid === "system_pulse") {
                 actionsBlock.classList.add('hidden');
                 blockedBanner.classList.add('hidden');
@@ -488,7 +479,6 @@
             blockBtn.innerText = amIBlockingHim ? "Unblock User" : "Block User";
             document.getElementById('chat-user-status').innerText = "ℹ️ Click to view profile / Context options";
 
-            // Blocked flow structural configuration
             if(amIBlockingHim || isHeBlockingMe) {
                 blockedBanner.classList.remove('hidden');
                 inputBar.classList.add('hidden');
@@ -503,12 +493,10 @@
             document.getElementById('chat-area').classList.add('hidden');
         }
 
-        // Double block layout routing inside chat listeners
         function toggleBlockUser() {
             if(!activeChatUserId || activeChatUserId === "system_pulse") return;
             const amIBlockingHim = blockedByMe.includes(activeChatUserId);
             
-            // Set sync updates inside double directional pathways
             db.ref(`blocks/${currentUserData.uid}/${activeChatUserId}`).set(!amIBlockingHim).then(() => {
                 db.ref(`blockedObservers/${activeChatUserId}/${currentUserData.uid}`).set(!amIBlockingHim).then(() => {
                     alert(amIBlockingHim ? "User unblocked successfully!" : "User blocked successfully!");
@@ -516,9 +504,20 @@
             });
         }
 
-        // Live updates read operation parameters
         function listenToMessages() {
             const container = document.getElementById('messages-container');
+            // Remove previous database triggers before creating a fresh active channel pipeline
+            db.ref(`chats/${activeChatKey}`).off();
+
+            const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
+            const amIBlockingHim = blockedByMe.includes(activeChatUserId);
+
+            // If active tracking block logic is true, instantly clear chat dashboard visuals
+            if(isHeBlockingMe || amIBlockingHim) {
+                container.innerHTML = `<div class="text-center text-gray-400 text-xs mt-10">Privacy Protocols Active. Feed Session Hidden.</div>`;
+                return;
+            }
+
             db.ref(`chats/${activeChatKey}`).on('value', snapshot => {
                 container.innerHTML = "";
                 if(!snapshot.exists()) {
@@ -530,8 +529,8 @@
                     const msg = child.val();
                     const isMe = msg.senderId === currentUserData.uid;
 
-                    // If user is blocking me, then do not process incoming messages to my side
-                    if(!isMe && blockedByMe.includes(msg.senderId)) {
+                    // Absolute block intercept parameters validation
+                    if(!isMe && (blockedByMe.includes(msg.senderId) || blockedByThem.includes(msg.senderId))) {
                         return; 
                     }
 
@@ -547,7 +546,6 @@
                     else if(msg.type === 'image') contentHtml = `<img src="${msg.content}" class="max-w-xs max-h-60 rounded-lg cursor-pointer" onclick="window.open('${msg.content}')">`;
                     else contentHtml = `<div class="flex items-center space-x-2 bg-black/5 p-2 rounded"><a href="${msg.content}" download="${msg.fileName || 'file'}" class="text-xs underline font-medium text-emerald-700 truncate max-w-[150px]">${msg.fileName || 'View file'}</a></div>`;
 
-                    // Pulse support interactive processing controls inside welcome thread screen
                     if(!isMe && msg.senderId === "system_pulse" && msg.isRecoveryPrompt === true) {
                         contentHtml += `
                         <div class="mt-2 pt-2 border-t border-emerald-300 flex flex-col space-y-1">
@@ -580,7 +578,12 @@
             const txt = input.value.trim();
             if(!txt || !activeChatKey) return;
 
-            // If messaging to system pulse bot, handle internal intercept recovery questions workflow
+            // Instantly stop message generation pipeline if block runtime state matches true
+            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) {
+                alert("Transmission failed. Privacy blocking is active.");
+                return;
+            }
+
             if(activeChatUserId === "system_pulse" && (txt.toLowerCase().includes("password") || txt.toLowerCase().includes("reset") || txt.toLowerCase().includes("help"))) {
                 db.ref(`chats/${activeChatKey}`).push({
                     senderId: currentUserData.uid, type: 'text', content: txt, seen: false, timestamp: firebase.database.ServerValue.TIMESTAMP
@@ -606,7 +609,6 @@
             input.value = "";
         }
 
-        // Fallback procedural answer checker
         function handleBotRecoveryAction() {
             const verifyAnswer = prompt("Please provide secret question verification answer configured during registration setup:");
             if(!verifyAnswer) return;
@@ -629,6 +631,10 @@
         }
 
         async function sendFile() {
+            if(blockedByMe.includes(activeChatUserId) || blockedByThem.includes(activeChatUserId)) {
+                alert("Transmission failed. Privacy blocking is active.");
+                return;
+            }
             const fileInput = document.getElementById('chat-file');
             const file = fileInput.files[0];
             if(!file || !activeChatKey) return;
@@ -668,8 +674,6 @@
             db.ref(`users/${currentUserData.uid}`).update(updates).then(() => {
                 alert("Profile credentials updated!");
                 closeMyProfileModal();
-                
-                // Trigger security message update alert by official system channel
                 triggerPulseSystemMessage(currentUserData.uid, "Security update confirmation log: Profile name or configurations parameters modified successfully.");
             }).catch(err => alert("Error updating profile: " + err.message));
         }
@@ -677,6 +681,7 @@
         function openUserViewModal() {
             if(!activeChatUserData) return;
             const isHeBlockingMe = blockedByThem.includes(activeChatUserId);
+            const amIBlockingHim = blockedByMe.includes(activeChatUserId);
             
             db.ref(`users/${activeChatUserId}`).once('value', snap => {
                 const data = snap.val();
@@ -691,8 +696,7 @@
                 const vStatusText = document.getElementById('view-verification-status');
                 const reportBtn = document.getElementById('report-modal-btn');
 
-                if(isHeBlockingMe) {
-                    // Force complete profile obfuscation layout masking
+                if(isHeBlockingMe || amIBlockingHim) {
                     pfpElement.src = defaultBlankAvatar;
                     nameElement.innerText = "Pulse User";
                     emailElement.innerText = "Secure Data Node Hidden";
