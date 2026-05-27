@@ -12,7 +12,6 @@
             font-family: 'Times New Roman', serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
             min-height: 100vh;
-            /* Extra CSS safety layer to discourage selection/scaling glitches */
             touch-action: pan-x pan-y;
         }
         .glass-panel {
@@ -37,7 +36,7 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js';
         import { getDatabase, ref, set, get, onValue, update } from 'https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js';
 
-        // Provided Firebase Configuration credentials mapping
+        // Provided Firebase Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -52,7 +51,6 @@
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // Binding variables globally for script use
         window.firebaseDB = database;
         window.firebaseRefs = { ref, set, get, onValue, update };
         console.log("DLEA Security Firebase Node Attached Successfully.");
@@ -153,9 +151,9 @@
                         <div class="border-b pb-3 mb-3">
                             <h3 class="font-bold text-slate-800 flex items-center gap-2">
                                 <span class="w-3 h-3 bg-green-500 rounded-full animate-ping"></span>
-                                <i class="fas fa-comments text-red-600"></i> Encrypted Lawyer Chat
+                                <i class="fas fa-comments text-red-600"></i> Encrypted Chat Desk
                             </h3>
-                            <p class="text-xs text-gray-500 mt-1">Direct verification with images & records dispatch</p>
+                            <p class="text-xs text-gray-500 mt-1">Direct communication stream with Admin / Assigned Lawyer</p>
                         </div>
 
                         <div id="chatMessagesBox" class="flex-grow overflow-y-auto space-y-3 p-2 bg-slate-100 border rounded-lg shadow-inner text-sm">
@@ -167,7 +165,7 @@
                                     <i class="fas fa-image text-lg"></i>
                                     <input type="file" id="chatImageFile" accept="image/*" class="hidden" onchange="handleImageConversion(this, 'user')">
                                 </label>
-                                <input type="text" id="chatTextInput" placeholder="Type message to lawyer..." 
+                                <input type="text" id="chatTextInput" placeholder="Type message to DLEA Desk..." 
                                        class="flex-grow p-2 text-sm focus:outline-none bg-transparent">
                                 <button onclick="sendMessageFromUser()" class="bg-red-700 hover:bg-red-800 text-white p-2.5 rounded-lg transition-colors">
                                     <i class="fas fa-paper-plane"></i>
@@ -176,7 +174,7 @@
                             <div id="imageLoadingIndicator" class="hidden text-[11px] text-orange-600 animate-pulse text-center"><i class="fas fa-spinner class animate-spin mr-1"></i> Converting image file matrix to Base64...</div>
                         </div>
                         <div id="chatDisabledMessage" class="mt-3 text-center text-xs text-red-500 bg-red-50 p-2 rounded border border-red-200">
-                            Chat feature activates once legal counsel/lawyer is assigned to this record.
+                            Chat feature activates once legal counsel/lawyer or admin initiates this record thread.
                         </div>
                     </div>
                 </div>
@@ -206,7 +204,7 @@
                 <div class="glass-panel rounded-xl shadow-md p-4 flex justify-between items-center bg-slate-800 text-white">
                     <div>
                         <h2 class="text-lg font-bold text-yellow-400">DLEA Executive Control Center Node</h2>
-                        <p class="text-xs text-gray-300">Total Live Modification Rights Enabled</p>
+                        <p class="text-xs text-gray-300">Total Live Modification & Dual Chat Rights Enabled</p>
                     </div>
                     <button onclick="processAdminLogout()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-xs font-bold transition-colors">
                         <i class="fas fa-sign-out-alt mr-1"></i>Logout Terminal
@@ -293,16 +291,31 @@
                         </div>
 
                         <div id="adminChatInterceptBox" class="hidden grid grid-cols-1 gap-4">
-                            <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[400px]">
-                                <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider mb-2"><i class="fas fa-user-secret mr-1"></i>Secure Intercept / Counsel Dispatch Desk</h4>
+                            <div class="glass-panel rounded-xl shadow-md p-4 flex flex-col h-[440px]">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-2 mb-2">
+                                    <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider"><i class="fas fa-user-secret mr-1"></i>Secure Communication Control Desk</h4>
+                                    
+                                    <div class="flex bg-gray-200 p-0.5 rounded-lg text-xs font-semibold">
+                                        <button id="personaBtnLawyer" onclick="setAdminPersona('lawyer')" class="px-3 py-1 rounded-md bg-blue-600 text-white shadow-sm transition-all">
+                                            <i class="fas fa-gavel mr-1"></i>Chat as Lawyer
+                                        </button>
+                                        <button id="personaBtnAdmin" onclick="setAdminPersona('admin')" class="px-3 py-1 rounded-md text-gray-600 transition-all">
+                                            <i class="fas fa-user-shield mr-1"></i>Chat as Admin
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <div id="adminChatFeed" class="flex-grow overflow-y-auto p-2 bg-white border text-xs space-y-2 rounded shadow-inner"></div>
+                                
                                 <div class="mt-2 flex items-center gap-2 bg-slate-50 p-1 border rounded-lg">
-                                    <label class="cursor-pointer p-2 text-gray-500 hover:text-slate-800 transition-colors" title="Send Image as Admin/Lawyer">
+                                    <label class="cursor-pointer p-2 text-gray-500 hover:text-slate-800 transition-colors" title="Send Image (Based on active persona)">
                                         <i class="fas fa-camera text-base"></i>
-                                        <input type="file" id="adminChatImageFile" accept="image/*" class="hidden" onchange="handleImageConversion(this, 'lawyer')">
+                                        <input type="file" id="adminChatImageFile" accept="image/*" class="hidden" onchange="handleImageConversion(this, activeAdminPersona)">
                                     </label>
-                                    <input type="text" id="adminChatTextInput" placeholder="Reply as Legal Enforcement Counsel Desk..." class="flex-grow p-2 text-xs bg-transparent focus:outline-none">
-                                    <button onclick="sendMessageFromAdmin()" class="bg-slate-800 text-white px-4 py-2 rounded-md text-xs font-bold hover:bg-slate-900"><i class="fas fa-paper-plane"></i></button>
+                                    <input type="text" id="adminChatTextInput" placeholder="Type message to complainant..." class="flex-grow p-2 text-xs bg-transparent focus:outline-none">
+                                    <button onclick="sendMessageFromAdmin()" class="bg-slate-800 text-white px-5 py-2 rounded-md text-xs font-bold hover:bg-slate-900">
+                                        Send Message
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -318,6 +331,7 @@
         let currentTrackedToken = null;
         let adminActiveToken = null;
         let globalCasesCache = {};
+        let activeAdminPersona = 'lawyer'; // Default dispatch profile identity matrix
 
         // Application Navigation State Swapper Engine
         function switchTab(target) {
@@ -349,6 +363,24 @@
             setTimeout(() => alertBox.classList.add('hidden'), 5000);
         }
 
+        // Identity Swap Routine for Admin Interface Panel Control
+        function setAdminPersona(role) {
+            activeAdminPersona = role;
+            const btnLawyer = document.getElementById('personaBtnLawyer');
+            const btnAdmin = document.getElementById('personaBtnAdmin');
+            const chatInput = document.getElementById('adminChatTextInput');
+
+            if(role === 'lawyer') {
+                btnLawyer.className = "px-3 py-1 rounded-md bg-blue-600 text-white shadow-sm transition-all";
+                btnAdmin.className = "px-3 py-1 rounded-md text-gray-600 transition-all";
+                chatInput.placeholder = "Type message to complainant as Assigned Lawyer...";
+            } else {
+                btnAdmin.className = "px-3 py-1 rounded-md bg-slate-700 text-white shadow-sm transition-all";
+                btnLawyer.className = "px-3 py-1 rounded-md text-gray-600 transition-all";
+                chatInput.placeholder = "Type message to complainant as DLEA Administrator Desk...";
+            }
+        }
+
         // ================= USER OPERATIONS & DECODER ENGINE =================
 
         async function processTrackCase() {
@@ -362,7 +394,6 @@
                 let snapshot = await get(caseRef);
                 let caseData = null;
 
-                // Index search scan through prime database mapping string sequences
                 if (snapshot.exists()) {
                     const dataBlock = snapshot.val();
                     Object.keys(dataBlock).forEach(key => {
@@ -370,7 +401,6 @@
                     });
                 }
 
-                // Subnode Fallback Architecture Strategy check sequence route values
                 if(!caseData) {
                     let fallbackRef = ref(window.firebaseDB, `legal_cases/${token}`);
                     let fallbackSnap = await get(fallbackRef);
@@ -385,7 +415,7 @@
                 currentTrackedToken = token;
                 renderCaseView(caseData);
 
-                // Realtime Listener loop synchronization hook for base64 image strings messages feeds
+                // Realtime Listener loop synchronization hook
                 const chatPath = caseData.chat_messages ? `legal_cases/${token}/chat_messages` : `chats/${token}/messages`;
                 onValue(ref(window.firebaseDB, chatPath), (chatSnapshot) => {
                     let msgList = [];
@@ -405,7 +435,6 @@
         function renderCaseView(data) {
             document.getElementById('caseDisplayArea').classList.remove('hidden');
             
-            // Layout fields texts population mapping matrices attributes
             document.getElementById('lblToken').textContent = data.token;
             document.getElementById('lblCompany').textContent = data.target_company || "Dozera Group Framework";
             document.getElementById('lblEmployee').textContent = data.employee_name ? `${data.employee_name} (ID: ${data.employee_id || 'N/A'})` : "Under Verification Registry";
@@ -413,20 +442,18 @@
             document.getElementById('lblPriority').textContent = data.priority || 'Medium Level';
             document.getElementById('lblLawyer').textContent = data.assigned_lawyer || "Enforcement Team Deploying Counselor...";
             
-            // Format Timestamps explicitly for UI view
             document.getElementById('lblDate').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : 'N/A / Initial Creation';
             document.getElementById('lblLastUpdate').textContent = data.updated_at ? new Date(data.updated_at).toLocaleString() : 'No Post-creation Processing Recorded';
             
             document.getElementById('lblComplainant').textContent = data.complainant_name || 'Anonymous Identifier Filing';
             document.getElementById('lblDescription').textContent = data.complaint_description || 'No formal written incident narrative filed.';
 
-            // Badge Color Assignment Engine
             const badge = document.getElementById('caseStatusBadge');
             badge.className = `px-4 py-1.5 rounded-full text-xs font-bold uppercase shadow-sm status-${data.status || 'pending'}`;
             badge.textContent = data.status || 'PENDING';
 
             // Check if Lawyer presence validates active messaging permissions
-            if(data.assigned_lawyer) {
+            if(data.assigned_lawyer || data.chat_messages) {
                 document.getElementById('chatInputArea').classList.remove('hidden');
                 document.getElementById('chatDisabledMessage').classList.add('hidden');
             } else {
@@ -434,7 +461,6 @@
                 document.getElementById('chatDisabledMessage').classList.remove('hidden');
             }
 
-            // Timeline Trace Logs Node List Builder
             const timeline = document.getElementById('timelineContainer');
             timeline.innerHTML = '';
             
@@ -474,14 +500,21 @@
                 if(payload.sender === 'user') {
                     alignmentClass += "items-end";
                     standardBubbleStyle += "bg-blue-600 text-white rounded-br-none";
-                } else {
+                } else if(payload.sender === 'lawyer') {
                     alignmentClass += "items-start";
-                    standardBubbleStyle += "bg-white text-gray-800 border rounded-bl-none";
+                    standardBubbleStyle += "bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-bl-none";
+                } else {
+                    // System Admin role layout allocation strategy
+                    alignmentClass += "items-start";
+                    standardBubbleStyle += "bg-white text-gray-800 border border-slate-300 rounded-bl-none";
                 }
 
-                let identityStringTag = payload.sender === 'user' ? 'Complainant Authenticator' : 'DLEA Officer/Lawyer Assigned';
+                // Differentiating Identity Tags based on explicit system context
+                let identityStringTag = 'System Desk';
+                if(payload.sender === 'user') identityStringTag = 'Complainant Authenticator';
+                else if(payload.sender === 'lawyer') identityStringTag = 'DLEA Assigned Lawyer (Counsel)';
+                else if(payload.sender === 'admin') identityStringTag = 'DLEA Administrative Authority';
                 
-                // Content evaluation logic: Message string vs Base64 Image Matrix
                 let contentRenderPayload = "";
                 if(payload.isImage || (payload.text && payload.text.startsWith('data:image'))) {
                     contentRenderPayload = `<img src="${payload.text}" class="rounded-lg max-w-full h-auto max-h-[160px] object-contain border my-1 block cursor-pointer" onclick="window.open('${payload.text}')" title="Click to view full image resolution data">`;
@@ -500,12 +533,10 @@
             viewportBox.scrollTop = viewportBox.scrollHeight;
         }
 
-        // Handle Base64 Local Image Core Extraction Sequence conversion
         function handleImageConversion(element, identityContext) {
             const targetFile = element.files[0];
             if(!targetFile) return;
 
-            // Maximum Payload size safety check (Limit to 1.5MB to preserve Firebase Realtime JSON performance speeds)
             if(targetFile.size > 1500000) {
                 alert("File size bounds limit validation failed. Please upload compressed images smaller than 1.5MB.");
                 element.value = '';
@@ -520,9 +551,8 @@
                 const computedBase64StringData = binaryStreamReader.result;
                 if(loaderIndicator) loaderIndicator.classList.add('hidden');
                 
-                // Forward generated context base64 directly to database transmission loops
                 dispatchChatPayloadMessage(computedBase64StringData, identityContext, true);
-                element.value = ''; // Clean field reference
+                element.value = '';
             }
             binaryStreamReader.readAsDataURL(targetFile);
         }
@@ -536,7 +566,6 @@
             inputField.value = '';
         }
 
-        // Globalized Shared Core Master Engine logic function to stream logs across cases
         async function dispatchChatPayloadMessage(contentString, senderIdentity, isImageFlag) {
             const contextTokenTarget = (senderIdentity === 'user') ? currentTrackedToken : adminActiveToken;
             if(!contextTokenTarget || !globalCasesCache[contextTokenTarget]) return;
@@ -570,8 +599,7 @@
             }
         }
 
-
-        // ================= MAXIMUM ADMINISTRATIVE MANIPULATOR OPERATIONS ENGINE =================
+        // ================= ADMINISTRATIVE CONTROL GATE WORKSPACE ENGINE =================
 
         function processAdminLogin() {
             const challengeCodeInput = document.getElementById('adminCodeField').value.trim();
@@ -595,13 +623,12 @@
         function attachAdminLiveRealtimeRegistrySync() {
             const { ref, onValue } = window.firebaseRefs;
             
-            // Continuous open socket streaming channel monitoring matrix variables nodes maps
             onValue(ref(window.firebaseDB), (streamSnapshot) => {
                 if(!streamSnapshot.exists()) return;
                 
                 let rawMasterDatabaseObject = streamSnapshot.val();
                 let flatCasesRegistryList = [];
-                globalCasesCache = {}; // Clear memory reference trace maps
+                globalCasesCache = {};
 
                 if(rawMasterDatabaseObject.cases) {
                     Object.keys(rawMasterDatabaseObject.cases).forEach(uniqueKey => {
@@ -637,7 +664,6 @@
                 return;
             }
 
-            // Descending chronological arrangement filter mapping indices strings properties
             casesList.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)).forEach(item => {
                 let cardNode = document.createElement('div');
                 cardNode.className = `p-3 rounded-lg border text-xs bg-white shadow-sm hover:border-blue-900 transition-all cursor-pointer ${adminActiveToken === item.token ? 'ring-2 ring-red-600 bg-red-50/50' : ''}`;
@@ -654,7 +680,6 @@
                 sidebarContainerElement.appendChild(cardNode);
             });
 
-            // If an active session case is selected for updates, refresh chat logs view stream dynamically
             if(adminActiveToken && globalCasesCache[adminActiveToken]) {
                 let syncedCurrentData = globalCasesCache[adminActiveToken];
                 let extractedMessageLogsArray = [];
@@ -670,13 +695,11 @@
             const chosenRecord = globalCasesCache[tokenID];
             if(!chosenRecord) return;
 
-            // Interface visibility configurations mapping fields updates variables
             document.getElementById('adminOperationalContext').classList.add('hidden');
             document.getElementById('adminActionInterface').classList.remove('hidden');
             document.getElementById('adminChatInterceptBox').classList.remove('hidden');
             document.getElementById('adminActiveTokenLabel').textContent = tokenID;
             
-            // Map entire dictionary array objects metadata parameters variables directly to editable inputs fields textareas blocks
             document.getElementById('adminFieldComplainant').value = chosenRecord.complainant_name || '';
             document.getElementById('adminFieldCompany').value = chosenRecord.target_company || '';
             document.getElementById('adminFieldEmployee').value = chosenRecord.employee_name || '';
@@ -687,22 +710,19 @@
             document.getElementById('adminFieldType').value = chosenRecord.complaint_type || '';
             document.getElementById('adminFieldDescription').value = chosenRecord.complaint_description || '';
 
-            // Launch immediate local render verification for chat messages
             let extractedMessageLogsArray = [];
             if(chosenRecord.chat_messages) {
                 extractedMessageLogsArray = typeof chosenRecord.chat_messages === 'string' ? JSON.parse(chosenRecord.chat_messages) : Object.values(chosenRecord.chat_messages);
             }
             renderChatWindow(extractedMessageLogsArray, 'adminChatFeed');
-            attachAdminLiveRealtimeRegistrySync();
+            setAdminPersona('lawyer'); // Reset selection view context default to attorney profile layout
         }
 
-        // EXTREME ADMIN WRITE CAPABILITY ENGINE: Overwrites entire node metrics blocks schemas directly
         async function commitComprehensiveCaseEdit() {
             if(!adminActiveToken || !globalCasesCache[adminActiveToken]) return;
             const historicalTargetRef = globalCasesCache[adminActiveToken];
             const { ref, update } = window.firebaseRefs;
 
-            // Extraction collection sequences definitions configurations variables
             const updatedComplainant = document.getElementById('adminFieldComplainant').value.trim();
             const updatedCompany = document.getElementById('adminFieldCompany').value.trim();
             const updatedEmployee = document.getElementById('adminFieldEmployee').value.trim();
@@ -713,11 +733,9 @@
             const updatedType = document.getElementById('adminFieldType').value.trim();
             const updatedDescription = document.getElementById('adminFieldDescription').value.trim();
 
-            // Track modification audit logs structure mappings history tracking sequences
             let verificationAuditLogsHistoryText = historicalTargetRef.audit_trail || '';
             verificationAuditLogsHistoryText += `\n${new Date().toLocaleString()} - Master Administrative Override sequence initiated. Fields parameters rewrote successfully.`;
 
-            // Prepare absolute compilation block object schemas models arrays mapping fields strings
             const globalUpdatePayloadMap = {
                 complainant_name: updatedComplainant,
                 target_company: updatedCompany,
@@ -729,17 +747,17 @@
                 complaint_type: updatedType,
                 complaint_description: updatedDescription,
                 audit_trail: verificationAuditLogsHistoryText,
-                updated_at: new Date().toISOString() // Explicit assignment setting metrics updates track record variables
+                updated_at: new Date().toISOString()
             };
 
             try {
                 let dynamicDBDestinationNodeStringRoute = historicalTargetRef._dbNode === 'cases' ? `cases/${historicalTargetRef._dbKey}` : `legal_cases/${historicalTargetRef._dbKey}`;
                 
                 await update(ref(window.firebaseDB, dynamicDBDestinationNodeStringRoute), globalUpdatePayloadMap);
-                throwAlert(`SUCCESS: Case file token ${adminActiveToken} values altered across all metrics parameters nodes safely inside target Realtime schema layers.`, "success");
+                throwAlert(`SUCCESS: Case file token ${adminActiveToken} overrides written safely inside target Realtime database.`, "success");
             } catch (err) {
                 console.error(err);
-                throwAlert("CRITICAL ERROR: Realtime database write security override rejected request pipeline execution blocks.", "error");
+                throwAlert("CRITICAL ERROR: Realtime database update security rejection.", "error");
             }
         }
 
@@ -748,7 +766,8 @@
             const administrativeTextStringValue = inputElement.value.trim();
             if(!administrativeTextStringValue) return;
 
-            await dispatchChatPayloadMessage(administrativeTextStringValue, 'lawyer', false);
+            // Transmitting message parsing dynamic active assigned persona identifier token map
+            await dispatchChatPayloadMessage(administrativeTextStringValue, activeAdminPersona, false);
             inputElement.value = '';
         }
     </script>
