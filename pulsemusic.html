@@ -1,1182 +1,1166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulse - Premium Music & Social</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <style>
-        body {
-            background-color: #000000;
-            color: #ffffff;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            overflow-x: hidden;
-        }
-        .apple-blur {
-            background: rgba(28, 28, 30, 0.75);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-        }
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        /* Photo Editor Filters */
-        .filter-normal { filter: none; }
-        .filter-bw { filter: grayscale(100%) contrast(120%); }
-        .filter-vintage { filter: sepia(50%) hue-rotate(-10deg) saturate(140%); }
-        .filter-neon { filter: hue-rotate(90deg) saturate(200%) contrast(110%); }
-        .filter-cyber { filter: hue-rotate(180deg) saturate(180%) brightness(90%); }
-        
-        .verified-tick {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: #007aff;
-            color: white;
-            border-radius: 50%;
-            width: 14px;
-            height: 14px;
-            font-size: 8px;
-            margin-left: 4px;
-        }
-    </style>
-</head>
-<body class="bg-black text-white h-screen flex flex-col justify-between">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Pulse - Premium Hybrid Experience</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link class="ui-style" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://unpkg.com/wavesurfer.js@7"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    
+    html, body { 
+      margin: 0;
+      padding: 0;
+      width: 100%; 
+      height: 100%; 
+      background-color: #050505; 
+      color: #fff; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overflow: hidden;
+      position: fixed;
+      touch-action: none;
+    }
+    
+    .app-canvas {
+      width: 100%;
+      height: 100%;
+      max-width: 440px;
+      max-height: 920px;
+      background-color: #0f0f0f;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      transition: all 0.3s ease;
+    }
 
-    <header class="apple-blur border-b border-zinc-800 p-4 sticky top-0 z-40 flex justify-between items-center">
-        <h1 class="text-2xl font-bold tracking-tight text-red-500 flex items-center gap-2">
-            <i class="fa-solid fa-bolt"></i> Pulse
-        </h1>
-        <div id="header-actions" class="flex items-center gap-4 hidden">
-            <button onclick="openPermissionPanel()" class="text-zinc-400 hover:text-white relative">
-                <i class="fa-solid fa-bell text-xl"></i>
-                <span id="notif-dot" class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full hidden"></span>
-            </button>
-            <div id="global-verified-panel" class="hidden">
-                <button onclick="toggleAdminPanel()" class="text-xs bg-zinc-800 px-2 py-1 rounded text-zinc-300 border border-zinc-700">Verify Config</button>
-            </div>
+    @media (min-width: 450px) and (min-height: 600px) {
+      .app-canvas {
+        border-radius: 40px;
+        border: 1px solid #262626;
+        height: 95vh;
+      }
+    }
+
+    /* PREMIUM iOS HARDWARE HUD VOLUME INDICATOR INTERFACE ENGINE */
+    .ios-volume-hud {
+      position: absolute;
+      left: 10px;
+      top: 25%;
+      width: 4px;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 30px;
+      overflow: hidden;
+      opacity: 0;
+      transform: scaleX(0.4);
+      transform-origin: left center;
+      transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), width 0.2s ease;
+      z-index: 100;
+      pointer-events: none;
+      border: 0.5px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .ios-volume-hud.active {
+      opacity: 1;
+      width: 7px;
+      transform: scaleX(1);
+    }
+    
+    .ios-volume-bar {
+      width: 100%;
+      height: 50%;
+      background: #ffffff;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      border-radius: 30px;
+      transition: height 0.08s linear;
+    }
+
+    .ios-scrollbar::-webkit-scrollbar {
+      width: 3px;
+    }
+    .ios-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 20px;
+    }
+    .ios-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+    }
+
+    .glass { 
+      background: rgba(20, 20, 20, 0.75); 
+      backdrop-filter: blur(30px); 
+      -webkit-backdrop-filter: blur(30px); 
+      border-top: 1px solid rgba(255, 255, 255, 0.08); 
+    }
+    
+    .apple-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
+    ::-webkit-scrollbar { display: none; }
+    
+    #fullscreen-player, #view-dev-fullscreen {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      background: #000;
+      display: block;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+    }
+    #fullscreen-player.active, #view-dev-fullscreen.active {
+      transform: translateY(0%);
+    }
+
+    #toast-notification {
+      transform: translate(-50%, -150%);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    #toast-notification.show {
+      transform: translate(-50%, 0);
+    }
+
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+    input[type="range"] { touch-action: pan-x; }
+    .scrollable-content { touch-action: pan-y; -webkit-overflow-scrolling: touch; }
+    
+    .queue-row {
+      animation: slideFadeUp 0.5s ease backwards;
+    }
+    @keyframes slideFadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* APPLE MUSIC LIVE WAVE CONTAINER WRAPPER */
+    #waveform-container {
+      width: 100%;
+      height: 40px;
+      position: relative;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body class="flex justify-center items-center">
+
+  <div class="app-canvas flex flex-col">
+    
+    <div id="volume-hud" class="ios-volume-hud">
+      <div id="volume-bar-progress" class="ios-volume-bar"></div>
+    </div>
+    
+    <div id="toast-notification" class="absolute top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] bg-neutral-900/90 backdrop-blur-xl border border-neutral-800 p-3.5 rounded-2xl z-[100] shadow-2xl flex items-center space-x-3 pointer-events-none">
+      <div class="apple-gradient w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0 text-xs shadow-md">
+        <i id="toast-icon" class="fa-solid fa-bell"></i>
+      </div>
+      <div class="flex-1 min-w-0">
+        <p id="toast-message" class="text-xs font-semibold text-white truncate">Internal Alert Triggered</p>
+      </div>
+    </div>
+    
+    <div id="auth-screen" class="absolute inset-0 bg-neutral-900 z-50 flex flex-col justify-center p-6 overflow-y-auto scrollable-content">
+      <div class="text-center mb-6 flex-shrink-0">
+        <div class="apple-gradient w-14 h-14 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-3">
+          <i class="fa-solid fa-music text-2xl text-white"></i>
         </div>
+        <h1 class="text-2xl font-bold tracking-tight">Pulse Music</h1>
+        <p class="text-neutral-400 text-xs mt-0.5">Listen to your rhythm</p>
+      </div>
+
+      <div id="login-box" class="space-y-3 block">
+        <h2 class="text-lg font-semibold mb-1">Sign In</h2>
+        <input type="email" id="login-email" placeholder="Email Address" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
+        <input type="password" id="login-password" placeholder="Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
+        <button id="btn-login" class="w-full apple-gradient p-3 rounded-xl font-medium text-white shadow-lg active:scale-95 transition text-sm">Sign In</button>
+        <div class="flex justify-between text-xs text-neutral-400 mt-1 px-1">
+          <button id="trigger-forgot-view" class="hover:text-white">Forgot Password?</button>
+          <button id="trigger-signup-view" class="text-pink-500 font-medium">Create Account</button>
+        </div>
+      </div>
+
+      <div id="signup-box" class="space-y-3 hidden">
+        <h2 class="text-lg font-semibold mb-1">Create Account</h2>
+        <input type="text" id="sign-name" placeholder="Full Name" class="w-full p-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <input type="email" id="sign-email" placeholder="Email Address" class="w-full p-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <div class="flex flex-col">
+          <label class="text-[11px] text-neutral-400 mb-0.5 ml-1">Date of Birth</label>
+          <input type="date" id="sign-dob" class="w-full p-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        </div>
+        <input type="password" id="sign-password" placeholder="Password" class="w-full p-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <div class="bg-neutral-800 p-2.5 rounded-xl border border-neutral-700 space-y-1">
+          <label class="text-[11px] text-pink-500 font-medium">Security Question</label>
+          <p class="text-[11px] text-neutral-300">What is your childhood nickname?</p>
+          <input type="text" id="sign-secret" placeholder="Your Answer" class="w-full p-2 rounded-lg bg-neutral-900 border border-neutral-700 text-white text-sm">
+        </div>
+        <button id="btn-signup" class="w-full apple-gradient p-2.5 rounded-xl font-medium shadow-lg active:scale-95 transition text-sm">Sign Up</button>
+        <p class="text-xs text-center text-neutral-400 mt-1">Already have an account? <button id="back-to-login-from-signup" class="text-pink-500 font-medium">Sign In</button></p>
+      </div>
+
+      <div id="forgot-box" class="space-y-3 hidden">
+        <h2 class="text-lg font-semibold mb-1">Reset Password via Question</h2>
+        <input type="email" id="forgot-email" placeholder="Registered Email" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <input type="text" id="forgot-secret" placeholder="Your Secret Answer" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <input type="password" id="forgot-new-password" placeholder="Enter New Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm">
+        <button id="btn-reset" class="w-full apple-gradient p-3 rounded-xl font-medium shadow-lg active:scale-95 transition text-sm">Update Password</button>
+        <div class="text-xs text-center text-neutral-400 mt-1"><button id="back-to-login-from-forgot" class="text-pink-500 font-medium">Back to Login</button></div>
+      </div>
+    </div>
+
+    <header class="p-4 flex justify-between items-center bg-neutral-900/80 sticky top-0 backdrop-blur-md z-10 flex-shrink-0">
+      <div>
+        <p class="text-[11px] text-neutral-400">Welcome back,</p>
+        <h3 id="user-display-name" class="text-base font-bold text-white">Guest User</h3>
+      </div>
+      <button id="btn-logout" class="w-8 h-8 rounded-full bg-neutral-800 flex items-center justify-center text-neutral-400 hover:text-red-500 transition">
+        <i class="fa-solid fa-right-from-bracket text-xs"></i>
+      </button>
     </header>
 
-    <div id="ad-lock-overlay" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 hidden">
-        <div class="text-center space-y-6 max-w-sm">
-            <div class="relative w-48 h-48 mx-auto rounded-2xl overflow-hidden shadow-2xl border border-zinc-700">
-                <img id="ad-cover-art" src="" class="w-full h-full object-cover animate-pulse" alt="Ad Poster">
-                <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
-                    <i class="fa-solid fa-rectangle-ad text-white text-4xl"></i>
-                </div>
-            </div>
-            <div class="space-y-2">
-                <span class="text-xs font-bold tracking-widest text-zinc-500 uppercase bg-zinc-900 px-2.5 py-1 rounded-full border border-zinc-800">Sponsor Advertisement</span>
-                <h2 id="ad-title" class="text-xl font-black text-white"></h2>
-                <p id="ad-artist" class="text-sm text-zinc-400"></p>
-            </div>
-            <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
-                <div id="ad-progress" class="bg-red-500 h-full w-0 transition-all duration-300"></div>
-            </div>
-            <p class="text-xs text-red-400 font-mono flex items-center justify-center gap-2">
-                <i class="fa-solid fa-lock animate-bounce"></i> Non-Skippable Ad Playing... <span id="ad-timer">0</span>s left
-            </p>
+    <div class="flex-1 overflow-y-auto px-4 pb-32 scrollable-content">
+      
+      <div id="view-browse" class="view-panel space-y-3 block">
+        <div class="flex justify-between items-center pt-1">
+          <h2 class="text-xl font-bold tracking-tight text-white">Browse Songs</h2>
+          <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">AI Personalized</span>
         </div>
-    </div>
+        <div id="songs-container" class="space-y-2"></div>
+      </div>
 
-    <main class="flex-1 overflow-y-auto hide-scrollbar pb-24">
+      <div id="view-search" class="view-panel space-y-3 hidden">
+        <h2 class="text-xl font-bold tracking-tight text-white pt-1">Search</h2>
+        <div class="relative">
+          <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-neutral-500 text-xs"></i>
+          <input type="text" id="search-input" placeholder="Artists, Songs, Lyrics..." class="w-full p-2.5 pl-10 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
+        </div>
+        <div id="search-results-container" class="space-y-2 pt-1"></div>
+      </div>
+
+      <div id="view-library" class="view-panel space-y-4 hidden">
+        <h2 class="text-xl font-bold tracking-tight text-white pt-1">Library</h2>
         
-        <section id="screen-auth" class="p-6 max-w-md mx-auto mt-8">
-            <div class="apple-blur border border-zinc-800 p-6 rounded-2xl shadow-2xl">
-                <div class="flex border-b border-zinc-800 mb-6">
-                    <button onclick="switchAuthTab('login')" id="tab-login" class="flex-1 pb-3 text-center border-b-2 border-red-500 font-semibold">Login</button>
-                    <button onclick="switchAuthTab('register')" id="tab-register" class="flex-1 pb-3 text-center border-b-2 border-transparent text-zinc-500">Sign Up</button>
-                </div>
-
-                <div id="form-login" class="space-y-4">
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Email Address</label>
-                        <input type="email" id="login-email" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Password</label>
-                        <input type="password" id="login-password" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <button onclick="handleLogin()" class="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl transition mt-2">Sign In</button>
-                    <p class="text-center text-sm text-zinc-400 mt-4">
-                        Forgot Password? <button onclick="openForgotModal()" class="text-red-400 hover:underline">Reset Via Secret Question</button>
-                    </p>
-                </div>
-
-                <div id="form-register" class="space-y-4 hidden">
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Full Name</label>
-                        <input type="text" id="reg-name" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Email Address</label>
-                        <input type="email" id="reg-email" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Date of Birth</label>
-                        <input type="date" id="reg-dob" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-zinc-300">
-                    </div>
-                    <div>
-                        <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Password</label>
-                        <input type="password" id="reg-password" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <div class="border-t border-zinc-800 pt-3">
-                        <label class="block text-xs text-red-400 font-bold mb-1">Security Question: Your First School Name?</label>
-                        <input type="text" id="reg-secret" placeholder="Answer required for password reset" class="w-full bg-zinc-900 border border-zinc-800 p-3 rounded-xl focus:outline-none focus:border-zinc-700 text-white">
-                    </div>
-                    <button onclick="handleRegister()" class="w-full bg-red-600 hover:bg-red-500 text-white font-semibold py-3 rounded-xl transition mt-2">Create Account</button>
-                </div>
-            </div>
-        </section>
-
-        <section id="screen-feed" class="p-4 max-w-lg mx-auto space-y-6 hidden">
-            <div class="apple-blur border border-zinc-800 p-4 rounded-2xl">
-                <h3 class="text-sm font-semibold mb-3 text-zinc-300">Share something to Pulse Feed</h3>
-                <div class="flex flex-col gap-3">
-                    <textarea id="post-caption" placeholder="Write a caption with #hashtags..." class="w-full bg-zinc-900 text-sm p-3 rounded-xl border border-zinc-800 focus:outline-none resize-none h-20 text-white"></textarea>
-                    
-                    <div class="flex flex-wrap items-center justify-between gap-2 bg-zinc-950 p-2 rounded-xl border border-zinc-900">
-                        <input type="file" id="post-image-file" accept="image/*" onchange="initImageEditor(event)" class="hidden">
-                        <button onclick="document.getElementById('post-image-file').click()" class="bg-zinc-900 text-xs px-3 py-2 rounded-lg text-zinc-300 border border-zinc-800 hover:bg-zinc-800">
-                            <i class="fa-solid fa-image text-green-500 mr-1"></i> Choose Photo
-                        </button>
-                        
-                        <select id="post-song-select" class="bg-zinc-900 text-xs p-2 rounded-lg border border-zinc-800 text-zinc-300 focus:outline-none max-w-[180px]">
-                            <option value="">Attach Music track...</option>
-                        </select>
-                    </div>
-
-                    <div id="image-editor-box" class="hidden border border-zinc-800 rounded-xl p-3 bg-zinc-950 space-y-3">
-                        <div class="text-xs text-zinc-400 flex justify-between items-center">
-                            <span>Image Canvas Architecture Engine</span>
-                            <button onclick="closeEditor()" class="text-red-400"><i class="fa-solid fa-times"></i></button>
-                        </div>
-                        
-                        <div id="crop-wrapper" class="overflow-hidden bg-zinc-900 mx-auto flex items-center justify-center transition-all duration-300" style="width: 100%; max-height: 280px;">
-                            <img id="editor-preview-img" class="filter-normal object-cover w-full h-full" src="" alt="Preview">
-                        </div>
-
-                        <div class="flex justify-center gap-2 border-t border-zinc-900 pt-2">
-                            <button onclick="changeAspect('1:1')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">1:1 Square</button>
-                            <button onclick="changeAspect('4:5')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">4:5 Portrait</button>
-                            <button onclick="changeAspect('16:9')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">16:9 Wide</button>
-                        </div>
-
-                        <div class="grid grid-cols-5 gap-1 pt-1">
-                            <button onclick="applyFilter('filter-normal')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">Normal</button>
-                            <button onclick="applyFilter('filter-bw')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">M-B&W</button>
-                            <button onclick="applyFilter('filter-vintage')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">G-Vintage</button>
-                            <button onclick="applyFilter('filter-neon')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">Neon-E</button>
-                            <button onclick="applyFilter('filter-cyber')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">Cyberpunk</button>
-                        </div>
-                    </div>
-
-                    <button onclick="submitPost()" class="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 rounded-xl text-sm transition">Publish Post</button>
-                </div>
-            </div>
-
-            <div id="posts-timeline" class="space-y-6">
-                </div>
-        </section>
-
-        <section id="screen-chat" class="p-4 max-w-lg mx-auto hidden flex flex-col h-[70vh]">
-            <div class="apple-blur border border-zinc-800 p-3 rounded-t-2xl flex justify-between items-center border-b-0">
-                <div class="flex items-center gap-2">
-                    <div class="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping"></div>
-                    <span class="text-sm font-semibold tracking-wide">Pulse Global Synchronizer Channel</span>
-                </div>
-                <button onclick="openUserDirectory()" class="text-xs text-zinc-400 bg-zinc-900 px-2.5 py-1 rounded border border-zinc-800 hover:text-white">
-                    <i class="fa-solid fa-users mr-1"></i> User Directory & Block Panel
-                </button>
-            </div>
-            
-            <div id="chat-messages-box" class="flex-1 bg-zinc-950 border border-zinc-800 p-4 overflow-y-auto space-y-3 hide-scrollbar">
-                </div>
-
-            <div class="apple-blur p-2 rounded-b-2xl border border-zinc-800 border-t-0 flex gap-2">
-                <input type="text" id="chat-input-message" placeholder="Type verified encrypted message here..." class="flex-1 bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-sm text-white focus:outline-none">
-                <button onclick="sendChatMessage()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition"><i class="fa-solid fa-paper-plane"></i></button>
-            </div>
-        </section>
-
-        <section id="screen-music" class="p-4 max-w-xl mx-auto space-y-6 hidden">
-            <div class="apple-blur border border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
-                <div class="w-56 h-56 rounded-2xl overflow-hidden shadow-xl mb-4 border border-zinc-800 bg-zinc-900">
-                    <img id="player-track-cover" src="https://aryasongs.github.io/Pulse/IMG_6103.jpeg" alt="Track Art" class="w-full h-full object-cover">
-                </div>
-                <h2 id="player-track-title" class="text-xl font-bold tracking-tight text-white mb-0.5">Waaka</h2>
-                <p id="player-track-artist" class="text-sm text-zinc-400 mb-4">Nirvair Pannu</p>
-                
-                <div class="w-full flex items-center gap-2 mb-4">
-                    <span id="player-time-current" class="text-[10px] text-zinc-500 font-mono w-8 text-right">0:00</span>
-                    <div onclick="seekTrack(event)" id="player-progress-container" class="flex-1 h-1 bg-zinc-800 rounded-full cursor-pointer relative">
-                        <div id="player-progress-bar" class="h-full bg-white rounded-full w-0"></div>
-                    </div>
-                    <span id="player-time-total" class="text-[10px] text-zinc-500 font-mono w-8 text-left">0:30</span>
-                </div>
-
-                <div class="flex items-center gap-6">
-                    <button onclick="prevTrack()" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-backward-step"></i></button>
-                    <button onclick="togglePlayback()" id="btn-main-play" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center transition hover:scale-105 text-xl pl-1"><i class="fa-solid fa-play"></i></button>
-                    <button onclick="nextTrack()" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-forward-step"></i></button>
-                </div>
-            </div>
-
-            <div>
-                <h3 class="text-base font-bold tracking-tight mb-3 text-zinc-300 pl-1">Tracks Library Catalogue</h3>
-                <div id="music-catalogue-container" class="space-y-1">
-                    </div>
-            </div>
-        </section>
-
-        <section id="screen-profile" class="p-4 max-w-md mx-auto hidden">
-            <div class="apple-blur border border-zinc-800 rounded-2xl p-6 space-y-6">
-                <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-full bg-zinc-800 border-2 border-red-500 flex items-center justify-center text-xl font-bold text-white relative">
-                        <span id="profile-initials">U</span>
-                        <div class="absolute bottom-0 right-0 w-4 h-4 bg-green-500 border-2 border-black rounded-full"></div>
-                    </div>
-                    <div>
-                        <h2 class="text-lg font-bold flex items-center text-white">
-                            <span id="profile-display-name">Loading...</span>
-                            <span id="profile-verified-badge" class="verified-tick hidden"><i class="fa-solid fa-check"></i></span>
-                        </h2>
-                        <p id="profile-display-email" class="text-xs text-zinc-500">loading@pulse.com</p>
-                        <p id="profile-display-dob" class="text-xs text-zinc-400 mt-1">DOB: --/--/----</p>
-                    </div>
-                </div>
-
-                <div class="bg-zinc-950 p-4 rounded-xl border border-zinc-900 space-y-2">
-                    <h4 class="text-xs uppercase tracking-wider text-zinc-500 font-bold mb-2"><i class="fa-solid fa-chart-line mr-1 text-red-500"></i> Pulse Synchronized Session Analytics</h4>
-                    <div class="flex justify-between text-xs py-1 border-b border-zinc-900">
-                        <span class="text-zinc-400">Current Stream Track Active:</span>
-                        <span id="analytics-track-title" class="font-semibold text-white">None</span>
-                    </div>
-                    <div class="flex justify-between text-xs py-1 border-b border-zinc-900">
-                        <span class="text-zinc-400">Total Synchronized Events:</span>
-                        <span id="analytics-event-count" class="font-mono text-zinc-300">0</span>
-                    </div>
-                    <div class="flex justify-between text-xs py-1">
-                        <span class="text-zinc-400">Pulse Status Flag:</span>
-                        <span class="text-green-400 font-bold tracking-wide">CONNECTED ACTIVE</span>
-                    </div>
-                </div>
-
-                <button onclick="handleLogout()" class="w-full bg-zinc-900 hover:bg-red-950 hover:text-red-400 text-zinc-400 font-medium py-2.5 rounded-xl text-sm border border-zinc-800 transition">Terminate Session (Logout)</button>
-            </div>
-        </section>
-
-    </main>
-
-    <div id="custom-permission-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="apple-blur border border-zinc-800 max-w-sm w-full rounded-2xl p-5 shadow-2xl">
-            <h3 class="text-base font-bold text-white mb-2"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i> Custom Privacy Panel</h3>
-            <p class="text-xs text-zinc-400 mb-4">Pulse manages system event layers internally without requesting web-browser notification APIs.</p>
-            
-            <div class="space-y-3">
-                <div class="flex justify-between items-center p-2.5 bg-zinc-900 rounded-xl border border-zinc-800">
-                    <div>
-                        <p class="text-xs font-semibold text-white">Push Alert Synchronizer</p>
-                        <p class="text-[10px] text-zinc-500">Send instant feed & message alerts</p>
-                    </div>
-                    <input type="checkbox" id="perm-push-toggle" onchange="syncInternalPermissions()" class="w-4 h-4 accent-red-500">
-                </div>
-                <div class="flex justify-between items-center p-2.5 bg-zinc-900 rounded-xl border border-zinc-800">
-                    <div>
-                        <p class="text-xs font-semibold text-white">Stream Activity Logging</p>
-                        <p class="text-[10px] text-zinc-500">Track real-time played song histories</p>
-                    </div>
-                    <input type="checkbox" id="perm-log-toggle" checked onchange="syncInternalPermissions()" class="w-4 h-4 accent-red-500">
-                </div>
-            </div>
-            <button onclick="closePermissionPanel()" class="w-full bg-zinc-800 hover:bg-zinc-700 text-white font-medium py-2 rounded-xl text-xs mt-4 border border-zinc-700 transition">Save & Apply Rules</button>
+        <div class="flex space-x-2">
+          <button id="btn-trigger-playlist-modal" class="flex-1 p-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 transition flex items-center justify-center space-x-2 text-xs font-medium">
+            <i class="fa-solid fa-plus text-pink-500"></i>
+            <span>New Playlist</span>
+          </button>
+          
+          <button id="btn-open-dev-view" class="flex-1 p-2.5 rounded-xl bg-gradient-to-r from-neutral-800 to-neutral-800/60 border border-neutral-700/40 hover:border-pink-500/30 transition flex items-center justify-center space-x-2 text-xs font-medium">
+            <i class="fa-solid fa-code text-pink-500"></i>
+            <span>Developers</span>
+          </button>
         </div>
+
+        <div>
+          <h3 class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-2 ml-1">Favorite Songs</h3>
+          <div id="library-favorites-container" class="space-y-2"></div>
+        </div>
+
+        <div>
+          <h3 class="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 mb-2 ml-1">Your Playlists</h3>
+          <div id="library-playlists-container" class="space-y-2"></div>
+        </div>
+      </div>
+
     </div>
 
-    <div id="forgot-password-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="apple-blur border border-zinc-800 max-w-sm w-full rounded-2xl p-5 shadow-2xl space-y-4">
-            <div>
-                <h3 class="text-base font-bold text-white">Account Recovery Desk</h3>
-                <p class="text-xs text-zinc-500">Verify answer key to override current credentials.</p>
-            </div>
-            <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">Target Account Email</label>
-                <input type="email" id="forgot-email" class="w-full bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl text-sm text-white focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-xs text-red-400 font-bold mb-1">Security Question: Your First School Name?</label>
-                <input type="text" id="forgot-secret-ans" class="w-full bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl text-sm text-white focus:outline-none">
-            </div>
-            <div>
-                <label class="block text-xs uppercase tracking-wider text-zinc-500 font-bold mb-1">New Target Password</label>
-                <input type="password" id="forgot-new-pass" class="w-full bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl text-sm text-white focus:outline-none">
-            </div>
-            <div class="flex gap-2">
-                <button onclick="closeForgotModal()" class="flex-1 bg-zinc-900 text-zinc-400 text-xs py-2 rounded-xl border border-zinc-800">Cancel</button>
-                <button onclick="processForgotPasswordReset()" class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs font-bold py-2 rounded-xl transition">Submit Reset Override</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="user-directory-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-        <div class="apple-blur border border-zinc-800 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col max-h-[80vh]">
-            <div class="flex justify-between items-center mb-3">
-                <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-ban text-red-500 mr-1"></i> User Relationship Directory</h3>
-                <button onclick="closeUserDirectory()" class="text-zinc-500 hover:text-white"><i class="fa-solid fa-times"></i></button>
-            </div>
-            <p class="text-[11px] text-zinc-400 mb-3">Blocking hides avatars and overrides identities to 'Pulse User' with total message suppression protocols.</p>
-            <div id="directory-users-list" class="flex-1 overflow-y-auto space-y-2 hide-scrollbar">
-                </div>
-        </div>
-    </div>
-
-    <div id="admin-verified-panel" class="fixed inset-x-4 top-20 bg-zinc-950 border border-blue-900/50 rounded-2xl p-4 shadow-2xl max-w-md mx-auto hidden z-50">
-        <div class="flex justify-between items-center mb-2">
-            <h4 class="text-xs font-bold tracking-wide text-blue-400 uppercase"><i class="fa-solid fa-certificate"></i> Realtime Verification Authority Matrix</h4>
-            <button onclick="toggleAdminPanel()" class="text-zinc-500 hover:text-white text-xs"><i class="fa-solid fa-times"></i></button>
-        </div>
-        <div class="space-y-3">
-            <p class="text-[11px] text-zinc-400">Grant or revoke verified status ticks dynamically inside Firebase nodes across any profiles below.</p>
-            <div id="admin-users-payload-target" class="space-y-1.5 max-h-40 overflow-y-auto hide-scrollbar">
-                </div>
-        </div>
-    </div>
-
-    <audio id="global-audio-node" preload="auto"></audio>
-
-    <nav id="app-navigation-bar" class="apple-blur border-t border-zinc-800 fixed bottom-0 inset-x-0 p-2 flex justify-around items-center z-40 hidden">
-        <button onclick="navigateToScreen('feed')" id="nav-feed" class="flex flex-col items-center gap-0.5 text-red-500 transition">
-            <i class="fa-solid fa-rss text-lg"></i><span class="text-[10px] font-medium">Feed</span>
-        </button>
-        <button onclick="navigateToScreen('chat')" id="nav-chat" class="flex flex-col items-center gap-0.5 text-zinc-500 transition relative">
-            <i class="fa-solid fa-comments text-lg"></i><span class="text-[10px] font-medium">Chat</span>
-            <span id="chat-alert-dot" class="absolute top-1 right-2 w-1.5 h-1.5 bg-blue-500 rounded-full hidden"></span>
-        </button>
-        <button onclick="navigateToScreen('music')" id="nav-music" class="flex flex-col items-center gap-0.5 text-zinc-500 transition">
-            <i class="fa-solid fa-music text-lg"></i><span class="text-[10px] font-medium">Music</span>
-        </button>
-        <button onclick="navigateToScreen('profile')" id="nav-profile" class="flex flex-col items-center gap-0.5 text-zinc-500 transition">
-            <i class="fa-solid fa-user text-lg"></i><span class="text-[10px] font-medium">Profile</span>
-        </button>
+    <nav id="app-main-nav" class="absolute bottom-16 left-3 right-3 glass rounded-2xl h-12 flex justify-around items-center z-30 px-1 shadow-xl">
+      <button onclick="switchTab('browse')" id="tab-browse" class="flex flex-col items-center justify-center text-pink-500 transition w-14">
+        <i class="fa-solid fa-compass text-base"></i>
+        <span class="text-[9px] mt-0.5 font-medium">Browse</span>
+      </button>
+      <button onclick="switchTab('search')" id="tab-search" class="flex flex-col items-center justify-center text-neutral-400 hover:text-white transition w-14">
+        <i class="fa-solid fa-magnifying-glass text-base"></i>
+        <span class="text-[9px] mt-0.5 font-medium">Search</span>
+      </button>
+      <button onclick="switchTab('library')" id="tab-library" class="flex flex-col items-center justify-center text-neutral-400 hover:text-white transition w-14">
+        <i class="fa-solid fa-rectangle-list text-base"></i>
+        <span class="text-[9px] mt-0.5 font-medium">Library</span>
+      </button>
     </nav>
 
+    <div id="mini-player" class="absolute bottom-0 left-0 right-0 glass p-3 pb-4 flex flex-col justify-between items-center border-t border-neutral-800 rounded-t-2xl z-20" style="display: none;">
+      <div class="flex items-center justify-between w-full" id="mini-player-trigger">
+        <div class="flex items-center space-x-3 cursor-pointer flex-1 min-w-0">
+          <img id="player-cover" src="" class="w-9 h-9 rounded-lg object-cover shadow-md flex-shrink-0">
+          <div class="flex-1 min-w-0">
+            <h4 id="player-title" class="font-semibold text-xs text-white truncate">Song Title</h4>
+            <p id="player-artist" class="text-[10px] text-neutral-400 truncate">Artist Name</p>
+          </div>
+        </div>
+        <div class="flex items-center space-x-3 flex-shrink-0" onclick="event.stopPropagation();">
+          <button id="btn-mini-play" class="text-white text-base p-1"><i class="fa-solid fa-play"></i></button>
+          <button id="btn-mini-next" class="text-neutral-400 hover:text-white text-sm p-1"><i class="fa-solid fa-forward-step"></i></button>
+        </div>
+      </div>
+    </div>
 
-    <script>
-        // 1. FIREBASE AUTH CONFIGURATION
-        const firebaseConfig = {
-            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-            authDomain: "pulse2-92372.firebaseapp.com",
-            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-            projectId: "pulse2-92372",
-            storageBucket: "pulse2-92372.firebasestorage.app",
-            messagingSenderId: "276235725177",
-            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
-        };
+    <div id="fullscreen-player" class="fullscreen-player-layout flex flex-col justify-between p-6 overflow-hidden">
+      <div id="dynamic-blur-bg" class="absolute inset-0 scale-125 blur-[55px] brightness-[0.32] saturate-[1.65] transition-all duration-700 bg-cover bg-center -z-10"></div>
+      
+      <div class="flex justify-between items-center w-full mt-2 flex-shrink-0 z-10">
+        <button id="btn-close-fullscreen" class="text-white/60 hover:text-white text-lg transition p-1">
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+        <span id="fs-player-badge" class="text-[10px] font-semibold uppercase tracking-widest text-white/40">Now Playing</span>
+        <button id="btn-fs-options" class="text-white/60 hover:text-white text-lg transition p-1">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const database = firebase.database();
+      <div class="flex-1 flex items-center justify-center my-1.5 min-h-0 z-10">
+        <div id="fs-art-wrapper" class="fs-art-container w-full max-w-[190px] aspect-square rounded-[22px] overflow-hidden shadow-[0_30px_60px_-15px_rgba(0,0,0,0.85)] transition-transform duration-500 scale-95 flex-shrink-0">
+          <img id="fs-cover" src="" class="w-full h-full object-cover">
+        </div>
+      </div>
 
-        // 2. SONG ASSET LIBRARY MATRICES (With New Ad Song Included)
-        const songs = [
-            { title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg" },
-            { title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg" },
-            { title: "Lovely", artist: "Kanika Kapoor", src: "https://aryasongs.github.io/Pulse/lovely.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6104.jpeg" },
-            { title: "Jackpot", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/jackpot.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6105.png" },
-            { title: "Waka Waka (This Time for Africa)", artist: "Shakira", src: "https://aryasongs.github.io/Pulse/shakira.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6108.jpeg" },
-            { title: "5-7", artist: "Karan Aujla", src: "https://aryasongs.github.io/Pulse/5-7.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6109.jpeg" },
-            { title: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6103.jpeg" },
-            { title: "911", artist: "Abigail Claire, Sharan Pooni", src: "https://aryasongs.github.io/Pulse/audio.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg" }
-        ];
+      <div class="w-full flex flex-col items-center justify-center space-y-2 z-10 mb-1 flex-shrink-0 px-2">
+        <div id="waveform-container" class="w-full">
+          <div id="waveform" class="w-full h-full"></div>
+        </div>
+      </div>
 
-        // State Machine Storage Matrices
-        let currentUser = null;
-        let globalUsersObject = {};
-        let currentTrackIndex = 6; 
-        let activeImageEditorFilter = 'filter-normal';
-        let activeImageEditorBase64 = null;
-        let audioNode = document.getElementById('global-audio-node');
+      <div class="space-y-3.5 flex-shrink-0 z-10">
+        <div class="flex justify-between items-center">
+          <div class="flex-1 min-w-0 pr-3">
+            <h2 id="fs-title" class="text-xl font-bold tracking-tight text-white truncate">Song Title</h2>
+            <p id="fs-artist" class="text-xs text-white/60 truncate mt-0.5">Artist Name</p>
+          </div>
+          <button id="btn-heart" class="text-white/40 hover:text-pink-500 text-lg transition p-1 flex-shrink-0"><i class="fa-regular fa-heart"></i></button>
+        </div>
 
-        // Spotify Style Ad Engine State Machine
-        let songsListenedCount = 0;
-        let isAdPlaying = false;
-        const targetAdSongIndex = 7; // Index of '911'
-        const adStartTime = 33;
-        const adEndTime = 54;
-        const adTotalDuration = adEndTime - adStartTime; // 21 Seconds
+        <div class="space-y-1">
+          <input type="range" id="fs-seekbar" min="0" value="0" step="1" class="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white transition">
+          <div class="flex justify-between text-[10px] font-medium text-white/40 tracking-wider">
+            <span id="fs-time-current">0:00</span>
+            <span id="fs-time-duration">0:00</span>
+          </div>
+        </div>
 
-        // Initialization execution hooks
-        document.addEventListener("DOMContentLoaded", () => {
-            populateMusicCatalogues();
-            attachAudioPlayerListeners();
-            checkSavedSession();
-        });
+        <div class="flex justify-center items-center space-x-8 py-0.5">
+          <button id="btn-fs-repeat" class="text-white/40 hover:text-white text-lg transition p-1 relative">
+            <i class="fa-solid fa-repeat"></i>
+            <span id="repeat-one-indicator" class="absolute -top-1 -right-1 text-[7px] font-black bg-pink-500 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center hidden">1</span>
+          </button>
+          
+          <button id="btn-fs-prev" class="text-white/80 hover:text-white active:scale-90 text-xl transition p-1"><i class="fa-solid fa-backward-step"></i></button>
+          <button id="btn-fs-play-pause" class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center text-lg shadow-xl active:scale-95 transition-transform duration-200"><i class="fa-solid fa-play ml-0.5"></i></button>
+          <button id="btn-fs-next" class="text-white/80 hover:text-white active:scale-90 text-xl transition p-1"><i class="fa-solid fa-forward-step"></i></button>
+          
+          <div class="w-4"></div>
+        </div>
+      </div>
 
-        // 3. AUTHENTICATION CONTROLLER CORE PIPELINES
-        function switchAuthTab(type) {
-            const loginTab = document.getElementById('tab-login');
-            const regTab = document.getElementById('tab-register');
-            const loginForm = document.getElementById('form-login');
-            const regForm = document.getElementById('form-register');
-
-            if (type === 'login') {
-                loginTab.className = "flex-1 pb-3 text-center border-b-2 border-red-500 font-semibold text-white";
-                regTab.className = "flex-1 pb-3 text-center border-b-2 border-transparent text-zinc-500";
-                loginForm.classList.remove('hidden');
-                regForm.classList.add('hidden');
-            } else {
-                regTab.className = "flex-1 pb-3 text-center border-b-2 border-red-500 font-semibold text-white";
-                loginTab.className = "flex-1 pb-3 text-center border-b-2 border-transparent text-zinc-500";
-                regForm.classList.remove('hidden');
-                loginForm.classList.add('hidden');
-            }
-        }
-
-        function handleRegister() {
-            const name = document.getElementById('reg-name').value.trim();
-            const email = document.getElementById('reg-email').value.trim().toLowerCase();
-            const dob = document.getElementById('reg-dob').value;
-            const password = document.getElementById('reg-password').value;
-            const secret = document.getElementById('reg-secret').value.trim().toLowerCase();
-
-            if (!name || !email || !dob || !password || !secret) {
-                alert("Please fill all configuration variables to validate entry account.");
-                return;
-            }
-
-            const cleanEmailKey = email.replace(/[.#$\[\]]/g, "_");
-            
-            database.ref('users/' + cleanEmailKey).once('value', snapshot => {
-                if (snapshot.exists()) {
-                    alert("Account configuration already deployment matrix found for this email address.");
-                } else {
-                    const profilePayload = {
-                        name: name,
-                        email: email,
-                        dob: dob,
-                        password: password,
-                        secretQuestionAnswer: secret,
-                        verified: false,
-                        blockedUsers: {},
-                        lastActive: new Date().toISOString()
-                    };
-                    
-                    database.ref('users/' + cleanEmailKey).set(profilePayload, error => {
-                        if (!error) {
-                            alert("Account provisioned successfully via Firebase. Logging in...");
-                            executeUserSessionBinding(profilePayload);
-                        } else {
-                            alert("Firebase communication failure: " + error.message);
-                        }
-                    });
-                }
-            });
-        }
-
-        function handleLogin() {
-            const email = document.getElementById('login-email').value.trim().toLowerCase();
-            const password = document.getElementById('login-password').value;
-
-            if (!email || !password) {
-                alert("Enter operational routing credentials.");
-                return;
-            }
-
-            const cleanEmailKey = email.replace(/[.#$\[\]]/g, "_");
-            database.ref('users/' + cleanEmailKey).once('value', snapshot => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    if (userData.password === password) {
-                        executeUserSessionBinding(userData);
-                    } else {
-                        alert("Invalid security password block mapping mismatch.");
-                    }
-                } else {
-                    alert("No registered configuration profile linked to this identifier.");
-                }
-            });
-        }
-
-        function executeUserSessionBinding(userRecord) {
-            currentUser = userRecord;
-            localStorage.setItem('pulse_user_session', JSON.stringify(currentUser));
-            
-            document.getElementById('screen-auth').classList.add('hidden');
-            document.getElementById('header-actions').classList.remove('hidden');
-            document.getElementById('global-verified-panel').classList.remove('hidden');
-            document.getElementById('app-navigation-bar').classList.remove('hidden');
-            
-            initializeRealtimeDataMirrors();
-            navigateToScreen('music');
-            updateProfileDashboardMetrics();
-        }
-
-        function checkSavedSession() {
-            const session = localStorage.getItem('pulse_user_session');
-            if (session) {
-                executeUserSessionBinding(JSON.parse(session));
-            }
-        }
-
-        function handleLogout() {
-            if(currentUser) {
-                const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-                database.ref(`users/${cleanEmailKey}/lastActive`).set(new Date().toISOString());
-            }
-            localStorage.removeItem('pulse_user_session');
-            currentUser = null;
-            location.reload();
-        }
-
-        // 4. FORGOT PASSWORD SYSTEM DESK
-        function openForgotModal() { document.getElementById('forgot-password-modal').classList.remove('hidden'); }
-        function closeForgotModal() { document.getElementById('forgot-password-modal').classList.add('hidden'); }
-
-        function processForgotPasswordReset() {
-            const email = document.getElementById('forgot-email').value.trim().toLowerCase();
-            const secretAns = document.getElementById('forgot-secret-ans').value.trim().toLowerCase();
-            const newPass = document.getElementById('forgot-new-pass').value;
-
-            if (!email || !secretAns || !newPass) {
-                alert("All verification fields are required for operational bypass rules.");
-                return;
-            }
-
-            const cleanEmailKey = email.replace(/[.#$\[\]]/g, "_");
-            database.ref('users/' + cleanEmailKey).once('value', snapshot => {
-                if (snapshot.exists()) {
-                    const userData = snapshot.val();
-                    if (userData.secretQuestionAnswer === secretAns) {
-                        database.ref(`users/${cleanEmailKey}/password`).set(newPass, err => {
-                            if (!err) {
-                                alert("Security layers updated successfully. Your new password has been applied by Pulse system logs.");
-                                closeForgotModal();
-                            }
-                        });
-                    } else {
-                        alert("Security challenge answers match validation status verification rejected.");
-                    }
-                } else {
-                    alert("Account profile mapping matrix targeted search returned void space.");
-                }
-            });
-        }
-
-        // 5. NAVIGATION LAYERS INTERACTION ARCHITECTURE ROUTER
-        function navigateToScreen(targetScreenId) {
-            if (isAdPlaying) return; // Prevent navigation when Ad is active
-            const screens = ['auth', 'feed', 'chat', 'music', 'profile'];
-            screens.forEach(s => {
-                const element = document.getElementById(`screen-${s}`);
-                if (element) element.classList.add('hidden');
-                
-                const navBtn = document.getElementById(`nav-${s}`);
-                if (navBtn) {
-                    navBtn.classList.remove('text-red-500');
-                    navBtn.classList.add('text-zinc-500');
-                }
-            });
-
-            document.getElementById(`screen-${targetScreenId}`).classList.remove('hidden');
-            const targetNav = document.getElementById(`nav-${targetScreenId}`);
-            if (targetNav) targetNav.classList.add('text-red-500');
-            
-            logSessionUserActivity(`Mapsd to view node scene: ${targetScreenId}`);
-        }
-
-        // 6. REALTIME SYNCHRONIZER STORAGE STREAMS
-        function initializeRealtimeDataMirrors() {
-            database.ref('users').on('value', snapshot => {
-                if (snapshot.exists()) {
-                    globalUsersObject = snapshot.val();
-                    const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-                    if (globalUsersObject[cleanEmailKey]) {
-                        currentUser = globalUsersObject[cleanEmailKey];
-                    }
-                    renderPostsTimelineStream();
-                    renderGlobalChatPayload();
-                    renderUserManagementDirectory();
-                    renderAdminAuthorityPanel();
-                }
-            });
-
-            database.ref('feed_posts').on('value', () => { renderPostsTimelineStream(); });
-            database.ref('global_chat_messages').on('value', () => {
-                renderGlobalChatPayload();
-                if (document.getElementById('screen-chat').classList.contains('hidden')) {
-                    document.getElementById('chat-alert-dot').classList.remove('hidden');
-                }
-            });
-        }
-
-        // 7. PRIVACY PERMISSIONS MANAGEMENT
-        function openPermissionPanel() { if(!isAdPlaying) document.getElementById('custom-permission-modal').classList.remove('hidden'); }
-        function closePermissionPanel() { document.getElementById('custom-permission-modal').classList.add('hidden'); }
+      <div id="fs-queue-section-wrapper" class="w-full mt-3 border-t border-white/10 pt-2.5 flex flex-col min-h-[130px] max-h-[175px] z-10 flex-shrink-0">
+        <div class="flex justify-between items-center mb-2 px-1">
+          <span class="text-[11px] font-bold uppercase tracking-widest text-white/50 flex items-center space-x-1.5">
+            <i class="fa-solid fa-list-ul text-[10px] text-pink-500 animate-pulse"></i>
+            <span>Up Next</span>
+          </span>
+          <span id="queue-status-indicator" class="text-[9px] bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Premium Flow</span>
+        </div>
         
-        function syncInternalPermissions() {
-            const isPushAlertEnabled = document.getElementById('perm-push-toggle').checked;
-            document.getElementById('notif-dot').className = isPushAlertEnabled ? "absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full" : "hidden";
-            logSessionUserActivity(`Updated internal permission layers. Alert Rules set to flag state: ${isPushAlertEnabled}`);
-        }
+        <div id="hybrid-up-next-queue" class="flex-1 overflow-y-auto space-y-1.5 pr-0.5 ios-scrollbar scrollable-content"></div>
+      </div>
+      
+    </div>
 
-        function logSessionUserActivity(actionDescription) {
-            if (!currentUser || !document.getElementById('perm-log-toggle').checked) return;
-            const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-            const eventTimestampKey = Date.now();
-            database.ref(`users/${cleanEmailKey}/activityLog/${eventTimestampKey}`).set({
-                action: actionDescription,
-                timestamp: new Date().toISOString()
+    <div id="view-dev-fullscreen" class="flex flex-col p-6 overflow-hidden">
+      <div class="absolute inset-0 bg-gradient-to-b from-purple-950/40 via-neutral-950 to-black -z-10"></div>
+      <div class="absolute top-[-10%] left-[-15%] w-[80%] aspect-square rounded-full bg-pink-500/10 blur-[80px] -z-10"></div>
+      <div class="absolute bottom-[5%] right-[-10%] w-[70%] aspect-square rounded-full bg-purple-500/10 blur-[90px] -z-10"></div>
+
+      <div class="flex items-center justify-between w-full mt-2 mb-6 flex-shrink-0 z-10">
+        <button id="btn-close-dev-view" class="text-neutral-400 hover:text-white text-xs bg-neutral-900/80 border border-neutral-800 px-3 py-1.5 rounded-full flex items-center space-x-1 transition active:scale-95">
+          <i class="fa-solid fa-chevron-left text-[10px]"></i>
+          <span>Back</span>
+        </button>
+        <span class="text-[10px] font-bold uppercase tracking-widest bg-clip-text text-transparent bg-gradient-to-r from-pink-400 to-purple-400">Project Engine</span>
+        <div class="w-12"></div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto space-y-5 pb-8 pr-0.5 ios-scrollbar scrollable-content z-10">
+        <div class="bg-gradient-to-br from-white/[0.04] to-transparent border border-white/[0.05] p-5 rounded-2xl text-center shadow-xl">
+          <div class="apple-gradient w-12 h-12 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-3">
+            <i class="fa-solid fa-cubes text-xl text-white"></i>
+          </div>
+          <h2 class="text-xl font-black tracking-tight text-white">PULSE ARCHITECTURE</h2>
+          <p class="text-[11px] text-pink-400 font-semibold uppercase tracking-wider mt-0.5">Next-Gen Audio Stream Engine</p>
+        </div>
+
+        <div class="space-y-2.5">
+          <h3 class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 ml-1">Core Developers</h3>
+          <div class="flex items-center space-x-3.5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition duration-300">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-pink-500 to-purple-600 flex items-center justify-center text-white font-black shadow-md text-sm">GS</div>
+            <div>
+              <h4 class="text-xs font-bold text-white">Gursharan Singh</h4>
+              <p class="text-[10px] text-neutral-400 mt-0.5">Lead Systems Architect & Core Engine Developer</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3.5 p-3 rounded-2xl bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition duration-300">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-black shadow-md text-sm">AS</div>
+            <div>
+              <h4 class="text-xs font-bold text-white">Ayush Sharma</h4>
+              <p class="text-[10px] text-neutral-400 mt-0.5">UI/UX Interaction Engineer & Database Sync Lead</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2.5">
+          <h3 class="text-[11px] font-bold uppercase tracking-widest text-neutral-400 ml-1">Project Milestone & Vision</h3>
+          <div class="bg-neutral-900/50 border border-neutral-800 p-4 rounded-2xl space-y-3.5 text-neutral-300 text-xs leading-relaxed">
+            <div>
+              <span class="text-[10px] font-bold text-pink-500 bg-pink-500/10 px-2 py-0.5 rounded-full tracking-wide">Why Pulse Was Created?</span>
+              <p class="mt-2 text-neutral-400 text-[11px]">
+                Pulse Music was conceptualized as a highly scalable premium solution to disrupt standard audio streaming boundaries. The main vision was to build an ultra-fast hybrid architecture capable of merging complex dynamic cloud authentication layers with local iOS hardware UI configurations smoothly.
+              </p>
+            </div>
+            <div class="border-t border-neutral-800 pt-3 flex items-start space-x-3">
+              <div class="text-purple-400 text-xs mt-0.5"><i class="fa-solid fa-hourglass-start"></i></div>
+              <div>
+                <h5 class="text-[11px] font-bold text-white uppercase tracking-wider">Project Launch (2024)</h5>
+                <p class="text-[10px] text-neutral-400 mt-0.5">The conceptual design, secure database blueprints, and real-time audio pipeline research protocols were officially launched in late 2024.</p>
+              </div>
+            </div>
+            <div class="border-t border-neutral-800 pt-3 flex items-start space-x-3">
+              <div class="text-emerald-400 text-xs mt-0.5"><i class="fa-solid fa-vial-circle-check"></i></div>
+              <div>
+                <h5 class="text-[11px] font-bold text-white uppercase tracking-wider">Final Testing Phase (2026)</h5>
+                <p class="text-[10px] text-neutral-400 mt-0.5">Currently running extensive live beta system optimizations, dynamic premium synchronization flow, and comprehensive hardware simulation test benches.</p>
+              </div>
+            </div>
+            <div class="border-t border-neutral-800 pt-3 text-[10px] text-neutral-500 italic text-center">&copy; 2026 Pulse Systems Inc. All rights reserved.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="playlist-modal" class="absolute inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+      <div class="w-full bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3 shadow-2xl">
+        <h3 class="text-sm font-bold text-white">Create New Playlist</h3>
+        <input type="text" id="playlist-name-input" placeholder="Playlist Title" class="w-full p-2.5 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-xs">
+        <div class="flex space-x-2 pt-1">
+          <button id="btn-close-modal" class="flex-1 p-2 rounded-xl bg-neutral-800 text-neutral-400 font-medium text-xs hover:bg-neutral-700">Cancel</button>
+          <button id="btn-create-playlist" class="flex-1 p-2 rounded-xl apple-gradient text-white font-medium text-xs shadow-md">Create</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="add-to-playlist-modal" class="absolute inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+      <div class="w-full bg-neutral-900 border border-neutral-800 rounded-2xl p-4 space-y-3 shadow-2xl max-h-[60vh] flex flex-col">
+        <h3 class="text-sm font-bold text-white">Add to Playlist</h3>
+        <div id="playlist-selector-list" class="flex-1 overflow-y-auto space-y-1.5 pr-0.5 scrollable-content"></div>
+        <button id="btn-close-add-modal" class="w-full p-2.5 rounded-xl bg-neutral-800 text-neutral-400 text-xs font-medium mt-1">Cancel</button>
+      </div>
+    </div>
+
+  </div>
+
+  <audio id="audio-player-primary" preload="auto" crossorigin="anonymous"></audio>
+  <audio id="audio-player-secondary" preload="auto" crossorigin="anonymous"></audio>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+      authDomain: "pulse2-92372.firebaseapp.com",
+      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+      projectId: "pulse2-92372",
+      storageBucket: "pulse2-92372.firebasestorage.app",
+      messagingSenderId: "276235725177",
+      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
+
+    // Added naya gaana '911' array catalog me complete configurations ke saath
+    let songs = [
+      { id: "s1", title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg", duration: "3:42", tags: ["punjabi", "hiphop", "moosewala"] },
+      { id: "s2", title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg", duration: "2:55", tags: ["punjabi", "hiphop", "cheema"] },
+      { id: "s3", title: "Lovely", artist: "Kanika Kapoor", src: "https://aryasongs.github.io/Pulse/lovely.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6104.jpeg", duration: "3:15", tags: ["bollywood", "pop", "dance"] },
+      { id: "s4", title: "Jackpot", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/jackpot.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6105.png", duration: "3:02", tags: ["punjabi", "hiphop", "cheema"] },
+      { id: "s5", title: "Waka Waka (This Time for Africa)", artist: "Shakira", src: "https://aryasongs.github.io/Pulse/shakira.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6108.jpeg", duration: "3:22", tags: ["pop", "global", "dance"] },
+      { id: "s6", title: "5-7", artist: "Karan Aujla", src: "https://aryasongs.github.io/Pulse/5-7.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6109.jpeg", duration: "2:48", tags: ["punjabi", "hiphop", "aujla"] },
+      { id: "s7", title: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6103.jpeg", duration: "3:10", tags: ["punjabi", "folk", "melodic"] },
+      { id: "s8", title: "Sohniye", artist: "Gur Sidhu , Preeta", src: "https://aryasongs.github.io/Pulse/Sohniye.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6117.jpeg", duration: "3:05", tags: ["punjabi", "pop", "gursidhu"] },
+      { id: "s9", title: "KALLA KALLA TAARA", artist: "Kulbir Jhinjer , Deep Jandu", src: "https://aryasongs.github.io/Pulse/kalla.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6118.jpeg", duration: "3:30", tags: ["punjabi", "hiphop", "jhinjer"] },
+      { id: "s10", title: "911", artist: "Abigail Claire , Sharan Pooni", src: "https://aryasongs.github.io/Pulse/audio.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg", duration: "3:12", tags: ["urban", "hiphop", "sharanpooni"] }
+    ];
+
+    let currentSongIndex = 0;
+    let currentUser = null;
+    let userFavorites = [];
+    let userPlaylists = {};
+    let isRestoreMechanismTriggered = false;
+    let songPlayCounts = {};
+    let repeatMode = 0; 
+    let isCrossfading = false;
+    let wavesurfer = null;
+
+    // Spotify Audio Ad Engine Track State Variables
+    let generalSongsPlayedCounter = 0; 
+    let isAdCurrentlyPlaying = false; 
+
+    const audioPrimary = document.getElementById('audio-player-primary');
+    const audioSecondary = document.getElementById('audio-player-secondary');
+    let audio = audioPrimary; 
+
+    const fullscreenPlayer = document.getElementById('fullscreen-player');
+    const devFullscreenView = document.getElementById('view-dev-fullscreen');
+
+    function initWaveSurferEngine() {
+      if(wavesurfer) wavesurfer.destroy();
+      wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: 'rgba(255, 255, 255, 0.2)',
+        progressColor: '#ff2d55',
+        cursorColor: 'transparent',
+        barWidth: 2,
+        barGap: 3,
+        barRadius: 4,
+        height: 40,
+        responsive: true,
+        normalize: true,
+        backend: 'WebAudio'
+      });
+    }
+
+    function showNotification(message, iconClass = "fa-bell") {
+      const toast = document.getElementById('toast-notification');
+      document.getElementById('toast-message').innerText = message;
+      document.getElementById('toast-icon').className = `fa-solid ${iconClass}`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2400);
+    }
+
+    function toggleAuthBoxes(target) {
+      document.getElementById('login-box').style.display = 'none';
+      document.getElementById('signup-box').style.display = 'none';
+      document.getElementById('forgot-box').style.display = 'none';
+      document.getElementById(`${target}-box`).style.display = 'block';
+    }
+
+    document.getElementById('trigger-forgot-view').addEventListener('click', () => toggleAuthBoxes('forgot'));
+    document.getElementById('trigger-signup-view').addEventListener('click', () => toggleAuthBoxes('signup'));
+    document.getElementById('back-to-login-from-signup').addEventListener('click', () => toggleAuthBoxes('login'));
+    document.getElementById('back-to-login-from-forgot').addEventListener('click', () => toggleAuthBoxes('login'));
+
+    let hudTimeout;
+    function triggerVolumeHUDAnimation(level) {
+      const hud = document.getElementById('volume-hud');
+      const bar = document.getElementById('volume-bar-progress');
+      bar.style.height = `${level * 100}%`;
+      hud.classList.add('active');
+      clearTimeout(hudTimeout);
+      hudTimeout = setTimeout(() => hud.classList.remove('active'), 1200);
+    }
+
+    window.switchTab = function(viewKey) {
+      if(isAdCurrentlyPlaying) return; // Strict Nav block lock
+      document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+      document.getElementById(`view-${viewKey}`).style.display = 'block';
+      document.querySelectorAll('nav button').forEach(b => {
+        b.classList.remove('text-pink-500'); b.classList.add('text-neutral-400');
+      });
+      document.getElementById(`tab-${viewKey}`).classList.add('text-pink-500');
+    }
+
+    document.getElementById('btn-open-dev-view').addEventListener('click', () => {
+      if(!isAdCurrentlyPlaying) devFullscreenView.classList.add('active');
+    });
+    document.getElementById('btn-close-dev-view').addEventListener('click', () => devFullscreenView.classList.remove('active'));
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('gesturestart', event => event.preventDefault());
+
+    function savePlaybackProgressState() {
+      if(isAdCurrentlyPlaying || !audio.src || isNaN(audio.currentTime)) return;
+      const progressPayload = {
+        songIndex: songs.findIndex(s => s.src === audio.src),
+        timestampPosition: audio.currentTime,
+        savedAt: Date.now()
+      };
+      localStorage.setItem('pulse_playback_session_state', JSON.stringify(progressPayload));
+    }
+
+    function checkAndRestorePreviousSession() {
+      if(isRestoreMechanismTriggered) return;
+      const rawSession = localStorage.getItem('pulse_playback_session_state');
+      if(!rawSession) return;
+      try {
+        const session = JSON.parse(rawSession);
+        if(session && typeof session.songIndex === 'number' && songs[session.songIndex]) {
+          isRestoreMechanismTriggered = true;
+          currentSongIndex = session.songIndex;
+          const targetSong = songs[currentSongIndex];
+          audio.src = targetSong.src;
+          audio.currentTime = session.timestampPosition || 0;
+          updatePlayerUI(targetSong);
+          initializeMediaSession(targetSong);
+          document.getElementById('mini-player').style.display = 'block';
+          
+          wavesurfer.load(targetSong.src);
+          wavesurfer.on('ready', () => { wavesurfer.setTime(audio.currentTime); });
+        }
+      } catch (error) { console.error(error); }
+    }
+
+    function trackListeningBehavior(songId) {
+      if(songId === "s10") return; // Ad metadata tracking bypass
+      if(!songPlayCounts[songId]) songPlayCounts[songId] = 0;
+      songPlayCounts[songId] += 1;
+      localStorage.setItem('pulse_listening_habits', JSON.stringify(songPlayCounts));
+      if (currentUser) set(ref(db, `users/${currentUser.uid}/listeningHabits/${songId}`), songPlayCounts[songId]);
+      applyPersonalizedSorting();
+    }
+
+    function applyPersonalizedSorting() {
+      // Retain personalized sorting index rules
+      let adTrack = songs.find(s => s.id === "s10");
+      let restSongs = songs.filter(s => s.id !== "s10");
+      
+      restSongs.sort((a, b) => {
+        const countA = songPlayCounts[a.id] || 0;
+        const countB = songPlayCounts[b.id] || 0;
+        return countB - countA;
+      });
+      
+      songs = [...restSongs, adTrack]; // Lock ad at base node catalog index references
+      renderSongsList(songs, document.getElementById('songs-container'));
+      renderHybridUpNextQueue();
+    }
+
+    // SPOTIFY AUDIO AD PLAYER MECHANICAL CONTROLLER PIPELINE
+    function triggerSpotifyAudioAdSystem(pendingNextIndexDestination) {
+      isAdCurrentlyPlaying = true;
+      generalSongsPlayedCounter = 0; // Reset criteria check
+      
+      const adSongObject = songs.find(s => s.id === "s10");
+      audio.src = adSongObject.src;
+      audio.currentTime = 33; // Seek bounds to strict 33 seconds
+      
+      audio.play();
+      wavesurfer.load(adSongObject.src);
+
+      // Force-override metadata UI configurations
+      document.getElementById('player-title').innerText = "Spotify Audio Ad";
+      document.getElementById('player-artist').innerText = "Abigail Claire x Sharan Pooni";
+      document.getElementById('player-cover').src = adSongObject.cover;
+      
+      document.getElementById('fs-title').innerText = "911 (Audio Ad Campaign)";
+      document.getElementById('fs-artist').innerText = "Non-Skippable Sponsor Slot";
+      document.getElementById('fs-cover').src = adSongObject.cover;
+      document.getElementById('dynamic-blur-bg').style.backgroundImage = `url('${adSongObject.cover}')`;
+      document.getElementById('fs-player-badge').innerText = "ADVERTISEMENT - SPONSORED";
+      document.getElementById('fs-player-badge').classList.add('text-green-400', 'font-black');
+
+      // Lock UI interaction bounds completely
+      setPlayerInterfaceLockState(true);
+      showNotification("Sponsor Slot: Playing Audio Ad", "fa-rectangle-ad");
+
+      // Custom loop checker node tracks exact timeframe
+      let adCheckInterval = setInterval(() => {
+        if(audio.currentTime >= 54 || audio.paused) {
+          clearInterval(adCheckInterval);
+          terminateAudioAdExecution(pendingNextIndexDestination);
+        }
+      }, 250);
+    }
+
+    function terminateAudioAdExecution(resumeIndexDestination) {
+      isAdCurrentlyPlaying = false;
+      setPlayerInterfaceLockState(false);
+      
+      document.getElementById('fs-player-badge').innerText = "Now Playing";
+      document.getElementById('fs-player-badge').classList.remove('text-green-400', 'font-black');
+      
+      showNotification("Ad Completed. Resuming Premium Flow.", "fa-circle-check");
+      playSong(resumeIndexDestination); // Shift process directly onto the targeted pipeline
+    }
+
+    function setPlayerInterfaceLockState(shouldLock) {
+      const elementsToBlock = [
+        'btn-fs-prev', 'btn-fs-next', 'btn-mini-next', 'btn-fs-play-pause', 
+        'btn-mini-play', 'fs-seekbar', 'btn-fs-repeat', 'btn-fs-options'
+      ];
+      elementsToBlock.forEach(id => {
+        const el = document.getElementById(id);
+        if(el) {
+          el.style.pointerEvents = shouldLock ? 'none' : 'auto';
+          el.style.opacity = shouldLock ? '0.3' : '1';
+        }
+      });
+      // Toggle nav capability visibility wrappers
+      document.getElementById('app-main-nav').style.pointerEvents = shouldLock ? 'none' : 'auto';
+      document.getElementById('app-main-nav').style.opacity = shouldLock ? '0.4' : '1';
+      document.getElementById('btn-close-fullscreen').style.display = shouldLock ? 'none' : 'block';
+    }
+
+    function predictNextTrackIndex() {
+      if (repeatMode === 2) return currentSongIndex;
+      if (repeatMode === 1) return (currentSongIndex + 1) % (songs.length - 1); // Exclude Ad tracking
+
+      const currentTrack = songs[currentSongIndex];
+      let bestMatchIndex = (currentSongIndex + 1) % (songs.length - 1);
+      let highestScore = -1;
+
+      songs.forEach((candidate, idx) => {
+        if (idx === currentSongIndex || candidate.id === "s10") return;
+        let currentScore = 0;
+        candidate.tags.forEach(t => { if (currentTrack.tags.includes(t)) currentScore += 10; });
+        if (candidate.artist.split(',')[0].trim() === currentTrack.artist.split(',')[0].trim()) currentScore += 15;
+        if (currentScore > highestScore) { highestScore = currentScore; bestMatchIndex = idx; }
+      });
+      return bestMatchIndex;
+    }
+
+    function executeCrossfadeTransition() {
+      if (isCrossfading || isAdCurrentlyPlaying) return;
+      
+      // Verification check constraints for ad threshold triggering loops
+      generalSongsPlayedCounter++;
+      const nextIndex = predictNextTrackIndex();
+      
+      if(generalSongsPlayedCounter >= 3) {
+        executeCrossfadeTransitionToAd();
+        return;
+      }
+
+      isCrossfading = true;
+      const targetSong = songs[nextIndex];
+      const fadeOutAudio = audioPrimary.src === audio.src ? audioPrimary : audioSecondary;
+      const fadeInAudio = fadeOutAudio === audioPrimary ? audioSecondary : audioPrimary;
+
+      fadeInAudio.src = targetSong.src;
+      fadeInAudio.volume = 0;
+      fadeInAudio.play();
+
+      currentSongIndex = nextIndex;
+      audio = fadeInAudio; 
+      wavesurfer.load(targetSong.src);
+
+      let steps = 20, duration = 4000, currentStep = 0;
+      let targetVolume = audioPrimary.volume; 
+      let fadeInterval = setInterval(() => {
+        currentStep++;
+        let ratio = currentStep / steps;
+        fadeOutAudio.volume = Math.max(0, targetVolume * (1 - ratio));
+        fadeInAudio.volume = Math.min(targetVolume, targetVolume * ratio);
+        if (currentStep >= steps) {
+          clearInterval(fadeInterval);
+          fadeOutAudio.pause();
+          fadeOutAudio.volume = targetVolume;
+          fadeInAudio.volume = targetVolume;
+          isCrossfading = false;
+          updatePlayerUI(targetSong);
+          initializeMediaSession(targetSong);
+          trackListeningBehavior(targetSong.id);
+        }
+      }, duration / steps);
+    }
+
+    function executeCrossfadeTransitionToAd() {
+      isCrossfading = true;
+      const adSongObject = songs.find(s => s.id === "s10");
+      const fadeOutAudio = audioPrimary.src === audio.src ? audioPrimary : audioSecondary;
+      
+      let steps = 20, duration = 2000, currentStep = 0;
+      let targetVolume = audioPrimary.volume;
+      
+      let crossInterval = setInterval(() => {
+        currentStep++;
+        let ratio = currentStep / steps;
+        fadeOutAudio.volume = Math.max(0, targetVolume * (1 - ratio));
+        if(currentStep >= steps) {
+          clearInterval(crossInterval);
+          fadeOutAudio.pause();
+          fadeOutAudio.volume = targetVolume;
+          isCrossfading = false;
+          triggerSpotifyAudioAdSystem(predictNextTrackIndex());
+        }
+      }, duration / steps);
+    }
+
+    function handleSongCompletionRoute() {
+      if (isCrossfading || isAdCurrentlyPlaying) return;
+      
+      generalSongsPlayedCounter++;
+      if (generalSongsPlayedCounter >= 3) {
+        triggerSpotifyAudioAdSystem(predictNextTrackIndex());
+      } else {
+        playSong(predictNextTrackIndex());
+      }
+    }
+
+    function renderHybridUpNextQueue() {
+      const container = document.getElementById('hybrid-up-next-queue');
+      container.innerHTML = '';
+      
+      let cleanSongsQueue = songs.filter(s => s.id !== "s10"); // Hide Ad from upcoming list previews
+      let logicalQueue = [];
+      
+      for(let i = 1; i <= cleanSongsQueue.length; i++) {
+        let loopIndex = (currentSongIndex + i) % cleanSongsQueue.length;
+        if(cleanSongsQueue[loopIndex].id !== songs[currentSongIndex].id) {
+          logicalQueue.push({ song: cleanSongsQueue[loopIndex], indexId: songs.findIndex(s => s.id === cleanSongsQueue[loopIndex].id) });
+        }
+      }
+      
+      logicalQueue.slice(0, 4).forEach((item, sequentialOrder) => {
+        const row = document.createElement('div');
+        row.className = "queue-row flex items-center justify-between p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.02] transition-all duration-300 cursor-pointer group";
+        row.style.animationDelay = `${sequentialOrder * 60}ms`;
+        row.onclick = () => { if(!isAdCurrentlyPlaying) playSong(item.indexId); };
+        row.innerHTML = `
+          <div class="flex items-center space-x-3 truncate flex-1 min-w-0">
+            <img src="${item.song.cover}" class="w-8 h-8 rounded-lg object-cover shadow-md">
+            <div class="truncate flex-1 min-w-0">
+              <h4 class="text-xs font-semibold text-white/90 truncate">${item.song.title}</h4>
+              <p class="text-[10px] text-white/40 truncate mt-0.5">${item.song.artist}</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2.5 pl-2 flex-shrink-0">
+            <span class="text-[9px] text-white/30 font-medium tracking-wider">${item.song.duration || '3:00'}</span>
+            <div class="text-white/20 p-1"><i class="fa-solid fa-bars text-[10px]"></i></div>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    document.getElementById('btn-signup').addEventListener('click', () => {
+      const name = document.getElementById('sign-name').value.trim();
+      const email = document.getElementById('sign-email').value.trim();
+      const dob = document.getElementById('sign-dob').value;
+      const password = document.getElementById('sign-password').value;
+      const secretAns = document.getElementById('sign-secret').value.trim().toLowerCase();
+
+      if(!name || !email || !dob || !password || !secretAns) return showNotification("Please complete all details!", "fa-triangle-exclamation");
+
+      createUserWithEmailAndPassword(auth, email, password)
+        .then((cred) => {
+          set(ref(db, 'users/' + cred.user.uid), { name, email, dob, secretQuestionAnswer: secretAns, lastPlayedSong: "None", registeredAt: new Date().toISOString()
+          }).then(() => { showNotification("Account created successfully!", "fa-circle-check"); toggleAuthBoxes('login'); });
+        })
+        .catch((e) => showNotification(e.message, "fa-triangle-exclamation"));
+    });
+
+    document.getElementById('btn-login').addEventListener('click', () => {
+      const email = document.getElementById('login-email').value.trim();
+      const password = document.getElementById('login-password').value;
+      if(!email || !password) return showNotification("Fields cannot be empty!", "fa-triangle-exclamation");
+      signInWithEmailAndPassword(auth, email, password).then(() => showNotification("Welcome back to Pulse!", "fa-circle-check")).catch((e) => showNotification(e.message, "fa-triangle-exclamation"));
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', async () => {
+      const email = document.getElementById('forgot-email').value.trim();
+      const answer = document.getElementById('forgot-secret').value.trim().toLowerCase();
+      const newPassword = document.getElementById('forgot-new-password').value;
+
+      if(!email || !answer || !newPassword) return showNotification("All input fields are mandatory!", "fa-triangle-exclamation");
+      try {
+        const usersSnap = await get(ref(db, 'users'));
+        if(usersSnap.exists()) {
+          let userFoundUid = null;
+          Object.entries(usersSnap.val()).forEach(([uid, userData]) => {
+            if(userData.email && userData.email.toLowerCase() === email.toLowerCase()) userFoundUid = uid;
+          });
+          if(userFoundUid && usersSnap.val()[userFoundUid].secretQuestionAnswer === answer) {
+            update(ref(db, `users/${userFoundUid}`), { simulatedPasswordBackup: newPassword });
+            showNotification("Password configuration synchronized!", "fa-shield-halved");
+            toggleAuthBoxes('login');
+          } else { showNotification("Invalid Details!", "fa-circle-xmark"); }
+        }
+      } catch (err) { showNotification("Database error.", "fa-bug"); }
+    });
+
+    document.getElementById('btn-logout').addEventListener('click', () => {
+      localStorage.removeItem('pulse_playback_session_state');
+      signOut(auth).then(() => {
+        fullscreenPlayer.classList.remove('active'); devFullscreenView.classList.remove('active');
+        document.getElementById('auth-screen').style.display = 'block';
+        audioPrimary.pause(); audioSecondary.pause();
+        document.getElementById('mini-player').style.display = 'none';
+      });
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        currentUser = user; document.getElementById('auth-screen').style.display = 'none';
+        const localHabits = localStorage.getItem('pulse_listening_habits');
+        if (localHabits) songPlayCounts = JSON.parse(localHabits);
+        syncUserData(user.uid); setTimeout(checkAndRestorePreviousSession, 600);
+      } else { document.getElementById('auth-screen').style.display = 'block'; }
+    });
+
+    async function syncUserData(uid) {
+      const rootSnap = await get(child(ref(db), `users/${uid}`));
+      if(rootSnap.exists()) {
+        const val = rootSnap.val(); document.getElementById('user-display-name').innerText = val.name;
+        userFavorites = val.favorites ? Object.values(val.favorites) : []; userPlaylists = val.playlists || {};
+        if (val.listeningHabits) { songPlayCounts = val.listeningHabits; applyPersonalizedSorting(); }
+        renderLibraryViews();
+      }
+    }
+
+    // FIXED: PEHLE JAISA WIDE, CLEAN AND BEAUTIFUL SONGS LIST LAYOUT FOR HOME PAGE BROWSE
+    function renderSongsList(targetArray, wrapperElement, appendOption = false) {
+      if(!appendOption) wrapperElement.innerHTML = '';
+      if(targetArray.length === 0) { wrapperElement.innerHTML = `<p class="text-xs text-neutral-500 p-2 italic">No matches available.</p>`; return; }
+      
+      targetArray.forEach((song) => {
+        if(song.id === "s10") return; // Home Page browse grid node se Ad hide karna pipeline branch code check
+        const globalIdx = songs.findIndex(s => s.id === song.id);
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-3 rounded-2xl bg-neutral-800/40 hover:bg-neutral-800 transition cubic-bezier(0.4, 0, 0.2, 1) duration-200 cursor-pointer group";
+        row.onclick = () => { playSong(globalIdx); fullscreenPlayer.classList.add('active'); };
+        
+        row.innerHTML = `
+          <div class="flex items-center space-x-4 truncate flex-1 min-w-0">
+            <img src="${song.cover}" class="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-md">
+            <div class="truncate flex-1 min-w-0">
+              <h4 class="font-semibold text-sm text-white group-hover:text-pink-500 transition truncate">${song.title}</h4>
+              <p class="text-xs text-neutral-400 truncate mt-0.5">${song.artist}</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3 pl-2 flex-shrink-0" onclick="event.stopPropagation();">
+            <button class="text-neutral-500 hover:text-pink-500 p-2 text-sm transition" onclick="openPlaylistAssignmentModal('${song.id}')">
+              <i class="fa-solid fa-folder-plus"></i>
+            </button>
+            <div class="text-neutral-500 group-hover:text-white transition p-2"><i class="fa-solid fa-play text-xs"></i></div>
+          </div>
+        `;
+        wrapperElement.appendChild(row);
+      });
+    }
+
+    function playSong(index) {
+      if(isCrossfading || isAdCurrentlyPlaying) return;
+      
+      generalSongsPlayedCounter++;
+      // Agar user bina skip kiye lagaatar 3 gane chalata h to crossfade logic automatically route framework shift trigger karga ad me
+      if(generalSongsPlayedCounter >= 4) {
+        triggerSpotifyAudioAdSystem(index);
+        return;
+      }
+
+      currentSongIndex = index;
+      const song = songs[currentSongIndex];
+      audio.src = song.src;
+      audio.play().then(() => {
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
+      }).catch(err => console.log(err));
+
+      wavesurfer.load(song.src);
+      updatePlayerUI(song);
+      initializeMediaSession(song);
+      savePlaybackProgressState();
+      trackListeningBehavior(song.id);
+      renderHybridUpNextQueue();
+
+      if(currentUser) {
+        set(ref(db, `users/${currentUser.uid}/activity/` + Date.now()), { songTitle: song.title, artist: song.artist, action: "Played", timestamp: new Date().toLocaleString() });
+        update(ref(db, `users/${currentUser.uid}`), { lastPlayedSong: `${song.title} - ${song.artist}` });
+      }
+    }
+
+    function updatePlayerUI(song) {
+      if(isAdCurrentlyPlaying) return; // Prevent overwriting view during active ad state runtime cycles
+      document.getElementById('player-title').innerText = song.title;
+      document.getElementById('player-artist').innerText = song.artist;
+      document.getElementById('player-cover').src = song.cover;
+      document.getElementById('fs-title').innerText = song.title;
+      document.getElementById('fs-artist').innerText = song.artist;
+      document.getElementById('fs-cover').src = song.cover;
+      document.getElementById('dynamic-blur-bg').style.backgroundImage = `url('${song.cover}')`;
+      
+      const artWrapper = document.getElementById('fs-art-wrapper');
+      if(!audio.paused) {
+        artWrapper.classList.replace('scale-95', 'scale-100');
+        document.getElementById('btn-fs-play-pause').innerHTML = '<i class="fa-solid fa-pause"></i>';
+        document.getElementById('btn-mini-play').innerHTML = '<i class="fa-solid fa-pause"></i>';
+      } else {
+        artWrapper.classList.replace('scale-100', 'scale-95');
+        document.getElementById('btn-fs-play-pause').innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>';
+        document.getElementById('btn-mini-play').innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+
+      const heartIcon = document.getElementById('btn-heart').querySelector('i');
+      heartIcon.className = userFavorites.some(s => s.id === song.id) ? "fa-solid fa-heart text-pink-500" : "fa-regular fa-heart";
+      updateRepeatUIState();
+    }
+
+    function updateRepeatUIState() {
+      const repBtn = document.getElementById('btn-fs-repeat');
+      const indicator = document.getElementById('repeat-one-indicator');
+      if (repeatMode === 0) { repBtn.className = "text-white/40 text-lg p-1 relative"; indicator.classList.add('hidden'); }
+      else if (repeatMode === 1) { repBtn.className = "text-pink-500 text-lg p-1 relative"; indicator.classList.add('hidden'); }
+      else if (repeatMode === 2) { repBtn.className = "text-pink-500 text-lg p-1 relative"; indicator.classList.remove('hidden'); }
+    }
+
+    function initializeMediaSession(song) {
+      if ('mediaSession' in navigator) {
+        navigator.mediaSession.metadata = new MediaMetadata({ title: song.title, artist: song.artist, album: "Pulse Premium", artwork: [{ src: song.cover, sizes: '512x512', type: 'image/jpeg' }] });
+        navigator.mediaSession.setActionHandler('play', togglePlayback); navigator.mediaSession.setActionHandler('pause', togglePlayback);
+        navigator.mediaSession.setActionHandler('previoustrack', () => { if(!isAdCurrentlyPlaying) playSong((currentSongIndex - 1 + (songs.length - 1)) % (songs.length - 1)); });
+        navigator.mediaSession.setActionHandler('nexttrack', handleSongCompletionRoute);
+      }
+    }
+
+    function togglePlayback() {
+      if(isAdCurrentlyPlaying) return;
+      const fsPlayBtn = document.getElementById('btn-fs-play-pause');
+      const miniPlayBtn = document.getElementById('btn-mini-play');
+      const artWrapper = document.getElementById('fs-art-wrapper');
+      if (audio.paused) {
+        audio.play(); fsPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; miniPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; artWrapper.classList.replace('scale-95', 'scale-100');
+      } else {
+        audio.pause(); fsPlayBtn.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>'; miniPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; artWrapper.classList.replace('scale-100', 'scale-95');
+      }
+      savePlaybackProgressState();
+    }
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      const term = e.target.value.trim().toLowerCase();
+      if(!term) { document.getElementById('search-results-container').innerHTML = ''; return; }
+      const filtered = songs.filter(s => (s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term)) && s.id !== "s10");
+      renderSongsList(filtered, document.getElementById('search-results-container'));
+    });
+
+    document.getElementById('btn-heart').addEventListener('click', async () => {
+      if(!currentUser || isAdCurrentlyPlaying) return;
+      const song = songs[currentSongIndex];
+      const favRef = ref(db, `users/${currentUser.uid}/favorites/${song.id}`);
+      if(userFavorites.some(s => s.id === song.id)) {
+        set(favRef, null); userFavorites = userFavorites.filter(s => s.id !== song.id); showNotification("Removed from Favorites", "fa-heart-crack");
+      } else {
+        set(favRef, song); userFavorites.push(song); showNotification("Added to Favorites!", "fa-heart");
+      }
+      updatePlayerUI(song); renderLibraryViews();
+    });
+
+    const playlistModal = document.getElementById('playlist-modal');
+    document.getElementById('btn-trigger-playlist-modal').addEventListener('click', () => { if(!isAdCurrentlyPlaying) playlistModal.classList.remove('hidden'); });
+    document.getElementById('btn-close-modal').addEventListener('click', () => playlistModal.classList.add('hidden'));
+
+    document.getElementById('btn-create-playlist').addEventListener('click', () => {
+      const name = document.getElementById('playlist-name-input').value.trim(); if(!name || !currentUser) return;
+      const pId = 'pl_' + Date.now();
+      set(ref(db, `users/${currentUser.uid}/playlists/${pId}`), { id: pId, name: name, trackIds: "" }).then(() => {
+        userPlaylists[pId] = { id: pId, name: name, trackIds: "" }; renderLibraryViews();
+        document.getElementById('playlist-name-input').value = ''; playlistModal.classList.add('hidden');
+        showNotification(`Playlist "${name}" Created!`, "fa-folder-plus");
+      });
+    });
+
+    window.openPlaylistAssignmentModal = function(songId) {
+      if(isAdCurrentlyPlaying) return;
+      const listContainer = document.getElementById('playlist-selector-list'); listContainer.innerHTML = '';
+      const arr = Object.values(userPlaylists);
+      if(arr.length === 0) listContainer.innerHTML = `<p class="text-xs text-neutral-500 text-center py-2">Create a playlist first!</p>`;
+      arr.forEach(p => {
+        const item = document.createElement('button');
+        item.className = "w-full p-2.5 text-left bg-neutral-800 rounded-xl text-xs font-medium text-white flex justify-between items-center";
+        item.innerHTML = `<span>${p.name}</span> <i class="fa-solid fa-angle-right text-neutral-500 text-[10px]"></i>`;
+        item.onclick = () => {
+          let currentIds = p.trackIds ? p.trackIds.split(',') : [];
+          if(!currentIds.includes(songId)) {
+            currentIds.push(songId);
+            update(ref(db, `users/${currentUser.uid}/playlists/${p.id}`), { trackIds: currentIds.join(',') }).then(() => {
+              userPlaylists[p.id].trackIds = currentIds.join(','); renderLibraryViews(); showNotification("Added to playlist!", "fa-square-check");
             });
-            const counter = document.getElementById('analytics-event-count');
-            if(counter) counter.innerText = parseInt(counter.innerText) + 1;
-        }
+          } else { showNotification("Already exists in playlist!", "fa-circle-exclamation"); }
+          document.getElementById('add-to-playlist-modal').classList.add('hidden');
+        };
+        listContainer.appendChild(item);
+      });
+      document.getElementById('add-to-playlist-modal').classList.remove('hidden');
+    };
 
-        // 8. INSTAGRAM-STYLE ADVANCED PHOTO EDITOR 
-        function initImageEditor(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const fileReader = new FileReader();
-            fileReader.onload = function(e) {
-                activeImageEditorBase64 = e.target.result;
-                document.getElementById('editor-preview-img').src = activeImageEditorBase64;
-                document.getElementById('image-editor-box').classList.remove('hidden');
-            };
-            fileReader.readAsDataURL(file);
-        }
+    document.getElementById('btn-close-add-modal').addEventListener('click', () => document.getElementById('add-to-playlist-modal').classList.add('hidden'));
 
-        function applyFilter(filterClassName) {
-            document.getElementById('editor-preview-img').className = "object-cover w-full h-full " + filterClassName;
-            activeImageEditorFilter = filterClassName;
-        }
+    function renderLibraryViews() {
+      renderSongsList(userFavorites, document.getElementById('library-favorites-container'));
+      const playContainer = document.getElementById('library-playlists-container'); playContainer.innerHTML = '';
+      const playlistsArr = Object.values(userPlaylists);
+      if(playlistsArr.length === 0) { playContainer.innerHTML = `<p class="text-xs text-neutral-500 p-1 italic">No playlists available.</p>`; return; }
+      playlistsArr.forEach(p => {
+        const pCard = document.createElement('div'); pCard.className = "p-3 rounded-xl bg-neutral-800/10 border border-neutral-800/50 space-y-2";
+        pCard.innerHTML = `<div class="flex items-center space-x-2 text-pink-500 font-semibold text-xs mb-0.5"><i class="fa-solid fa-music"></i> <span>${p.name}</span></div><div class="playlist-songs-nested-container space-y-1.5"></div>`;
+        const nestedContainer = pCard.querySelector('.playlist-songs-nested-container');
+        const internalIds = p.trackIds ? p.trackIds.split(',') : [];
+        const playlistSongsObjects = songs.filter(s => internalIds.includes(s.id));
+        renderSongsList(playlistSongsObjects, nestedContainer); playContainer.appendChild(pCard);
+      });
+    }
 
-        document.getElementById("editor-preview-img").addEventListener("error", function () {
-            this.src = "https://aryasongs.github.io/Pulse/IMG_6103.jpeg";
-        });
+    function onAudioEngineTimeUpdate(e) {
+      const activeEngine = e.target;
+      if(activeEngine.src !== audio.src) return; 
+      if(isNaN(activeEngine.duration)) return;
 
-        function changeAspect(ratioString) {
-            const wrapper = document.getElementById('crop-wrapper');
-            if (ratioString === '1:1') { wrapper.style.aspectRatio = "1 / 1"; wrapper.style.height = "280px"; }
-            else if (ratioString === '4:5') { wrapper.style.aspectRatio = "4 / 5"; wrapper.style.height = "320px"; }
-            else if (ratioString === '16:9') { wrapper.style.aspectRatio = "16 / 9"; wrapper.style.height = "180px"; }
-        }
+      const fsSeek = document.getElementById('fs-seekbar');
+      fsSeek.max = Math.floor(activeEngine.duration);
+      fsSeek.value = Math.floor(activeEngine.currentTime);
 
-        function closeEditor() {
-            document.getElementById('image-editor-box').classList.add('hidden');
-            activeImageEditorBase64 = null;
-            document.getElementById('post-image-file').value = "";
-        }
+      let curMins = Math.floor(activeEngine.currentTime / 60);
+      let curSecs = Math.floor(activeEngine.currentTime % 60);
+      let durMins = Math.floor(activeEngine.duration / 60);
+      let durSecs = Math.floor(activeEngine.duration % 60);
 
-        // 9. FEED LOGIC PUBLICATION & TIMELINE
-        function submitPost() {
-            const caption = document.getElementById('post-caption').value.trim();
-            const songSelectionIndex = document.getElementById('post-song-select').value;
-            
-            if (!caption && !activeImageEditorBase64) {
-                alert("Cannot broadcast structural empty components inside post timeline framework logs.");
-                return;
-            }
+      document.getElementById('fs-time-current').innerText = `${curMins}:${curSecs < 10 ? '0'+curSecs : curSecs}`;
+      document.getElementById('fs-time-duration').innerText = `${durMins}:${durSecs < 10 ? '0'+durSecs : durSecs}`;
+      
+      if(wavesurfer && !isCrossfading) {
+        wavesurfer.setTime(activeEngine.currentTime);
+      }
+      
+      // TRIGGER CROSSFADE DETECTOR
+      if (activeEngine.duration - activeEngine.currentTime <= 5 && !isCrossfading && repeatMode !== 2 && !isAdCurrentlyPlaying) {
+        executeCrossfadeTransition();
+      }
+      if (!isAdCurrentlyPlaying && Math.floor(activeEngine.currentTime) % 2 === 0) savePlaybackProgressState();
+    }
 
-            let songPayload = null;
-            if (songSelectionIndex !== "") { songPayload = songs[parseInt(songSelectionIndex)]; }
+    audioPrimary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
+    audioSecondary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
+    audioPrimary.addEventListener('ended', handleSongCompletionRoute);
+    audioSecondary.addEventListener('ended', handleSongCompletionRoute);
 
-            const postObject = {
-                authorEmail: currentUser.email,
-                authorName: currentUser.name,
-                caption: caption,
-                attachedSong: songPayload,
-                imageDataMatrix: activeImageEditorBase64,
-                imageFilterClass: activeImageEditorFilter,
-                timestamp: Date.now(),
-                likesCount: 0,
-                likedByArray: {}
-            };
+    document.getElementById('btn-mini-play').addEventListener('click', togglePlayback);
+    document.getElementById('btn-fs-play-pause').addEventListener('click', togglePlayback);
+    document.getElementById('btn-fs-next').addEventListener('click', handleSongCompletionRoute);
+    document.getElementById('btn-mini-next').addEventListener('click', handleSongCompletionRoute);
+    document.getElementById('btn-fs-prev').addEventListener('click', () => { if(!isAdCurrentlyPlaying) playSong((currentSongIndex - 1 + (songs.length - 1)) % (songs.length - 1)); });
+    document.getElementById('mini-player-trigger').addEventListener('click', () => { fullscreenPlayer.classList.add('active'); });
+    document.getElementById('btn-close-fullscreen').addEventListener('click', () => fullscreenPlayer.classList.remove('active'));
+    document.getElementById('btn-fs-options').addEventListener('click', () => openPlaylistAssignmentModal(songs[currentSongIndex].id));
+    document.getElementById('btn-fs-repeat').addEventListener('click', () => { repeatMode = (repeatMode + 1) % 3; updateRepeatUIState(); });
+    
+    document.getElementById('fs-seekbar').addEventListener('input', (e) => { 
+      if(isAdCurrentlyPlaying) return;
+      audio.currentTime = e.target.value; 
+      if(wavesurfer) wavesurfer.setTime(audio.currentTime);
+      savePlaybackProgressState(); 
+    });
 
-            database.ref('feed_posts').push(postObject, err => {
-                if (!err) {
-                    document.getElementById('post-caption').value = "";
-                    document.getElementById('post-song-select').value = "";
-                    closeEditor();
-                    logSessionUserActivity("Created and published a new dynamic media timeline post feed node.");
-                }
-            });
-        }
-
-        function renderPostsTimelineStream() {
-            const container = document.getElementById('posts-timeline');
-            if (!container) return;
-            
-            database.ref('feed_posts').once('value', snapshot => {
-                container.innerHTML = "";
-                if (!snapshot.exists()) {
-                    container.innerHTML = `<div class="text-center text-zinc-600 text-xs py-8">Timeline stream workspace is currently empty.</div>`;
-                    return;
-                }
-
-                let trackingPostsList = [];
-                snapshot.forEach(child => {
-                    let post = child.val(); post.key = child.key; trackingPostsList.unshift(post);
-                });
-
-                trackingPostsList.forEach(post => {
-                    const authorCleanKey = post.authorEmail.replace(/[.#$\[\]]/g, "_");
-                    const authorProfileNode = globalUsersObject[authorCleanKey] || {};
-                    
-                    if (currentUser && currentUser.blockedUsers && currentUser.blockedUsers[authorCleanKey]) return;
-
-                    const isAuthorVerified = authorProfileNode.verified || false;
-                    const nameString = isAuthorVerified ? `${post.authorName} <span class="verified-tick"><i class="fa-solid fa-check"></i></span>` : post.authorName;
-                    let currentPostLikesTotal = post.likesCount || 0;
-                    
-                    let imageSectionMarkup = "";
-                    if (post.imageDataMatrix) {
-                        imageSectionMarkup = `
-                            <div class="relative overflow-hidden bg-zinc-950 mt-2 border border-zinc-900 rounded-xl max-h-[360px] flex items-center justify-center cursor-pointer" 
-                                 onclick="handlePostMediaSingleTap('${post.key}')" 
-                                 ondblclick="handlePostMediaInstagramDoubleTap('${post.key}', event)">
-                                <img src="${post.imageDataMatrix}" class="w-full h-full object-cover ${post.imageFilterClass}" alt="Post Media">
-                                <div id="heart-overlay-${post.key}" class="absolute text-white text-5xl opacity-0 scale-50 pointer-events-none transition-all duration-300"><i class="fa-solid fa-heart text-red-500"></i></div>
-                            </div>
-                        `;
-                    }
-
-                    let songSectionMarkup = "";
-                    if (post.attachedSong) {
-                        songSectionMarkup = `
-                            <div class="bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl mt-3 flex items-center justify-between">
-                                <div class="flex items-center gap-2.5 truncate">
-                                    <img src="${post.attachedSong.cover}" class="w-10 h-10 rounded-lg object-cover border border-zinc-800">
-                                    <div class="truncate">
-                                        <p class="text-xs font-bold text-white truncate">${post.attachedSong.title}</p>
-                                        <p class="text-[10px] text-zinc-400 truncate">${post.attachedSong.artist}</p>
-                                    </div>
-                                </div>
-                                <button onclick="injectTrackOverridingEngine('${post.attachedSong.title}')" class="text-xs text-red-500 font-semibold bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white transition">
-                                    <i class="fa-solid fa-play mr-1"></i> Stream Track
-                                </button>
-                            </div>
-                        `;
-                    }
-
-                    const postBlockMarkupCard = `
-                        <div class="apple-blur border border-zinc-800 rounded-2xl p-4 space-y-2 relative shadow-md">
-                            <div class="flex justify-between items-center">
-                                <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 text-xs font-bold flex items-center justify-center text-white border border-zinc-700">
-                                        ${post.authorName.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <h4 class="text-xs font-bold flex items-center text-zinc-200">${nameString}</h4>
-                                        <p class="text-[9px] text-zinc-500 font-mono">${new Date(post.timestamp).toLocaleTimeString()}</p>
-                                    </div>
-                                </div>
-                                ${currentUser && currentUser.email === post.authorEmail ? `
-                                    <button onclick="deleteTargetedPost('${post.key}')" class="text-zinc-600 hover:text-red-400 text-xs transition"><i class="fa-solid fa-trash-can"></i></button>
-                                ` : ''}
-                            </div>
-                            <p class="text-xs text-zinc-300 leading-relaxed pt-1">${post.caption}</p>
-                            ${imageSectionMarkup}
-                            ${songSectionMarkup}
-                            <div class="flex items-center gap-4 text-xs pt-2 border-t border-zinc-900 text-zinc-500">
-                                <button onclick="togglePostLikeStructure('${post.key}')" class="hover:text-red-400 flex items-center gap-1 transition">
-                                    <i class="fa-solid fa-heart ${post.likedByArray && currentUser && post.likedByArray[currentUser.email.replace(/[.#$\[\]]/g, "_")] ? 'text-red-500' : ''}"></i> 
-                                    <span class="font-mono text-[11px]">${currentPostLikesTotal} Likes</span>
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                    container.innerHTML += postBlockMarkupCard;
-                });
-            });
-        }
-
-        function deleteTargetedPost(postKey) {
-            if(confirm("Confirm system transaction logic deletion command parameters across targeted tracking node?")) {
-                database.ref(`feed_posts/${postKey}`).remove(() => {
-                    logSessionUserActivity("Permanently stripped an authorized asset post node from active realtime cloud tables.");
-                });
-            }
-        }
-
-        // 10. POST MEDIA INTERACTION ENGINE
-        function handlePostMediaSingleTap(postKey) {
-            if(audioNode) { audioNode.muted = !audioNode.muted; }
-        }
-
-        function handlePostMediaInstagramDoubleTap(postKey, event) {
-            event.preventDefault();
-            const heart = document.getElementById(`heart-overlay-${postKey}`);
-            if(heart) {
-                heart.classList.remove('opacity-0', 'scale-50'); heart.classList.add('opacity-100', 'scale-100');
-                setTimeout(() => { heart.classList.remove('opacity-100', 'scale-100'); heart.classList.add('opacity-0', 'scale-50'); }, 700);
-            }
-            const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-            database.ref(`feed_posts/${postKey}`).once('value', snapshot => {
-                if (snapshot.exists()) {
-                    let postData = snapshot.val();
-                    if(!postData.likedByArray || !postData.likedByArray[cleanEmailKey]) { togglePostLikeStructure(postKey); }
-                }
-            });
-        }
-
-        function togglePostLikeStructure(postKey) {
-            const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-            database.ref(`feed_posts/${postKey}`).transaction(post => {
-                if (post) {
-                    if (!post.likedByArray) post.likedByArray = {};
-                    if (post.likedByArray[cleanEmailKey]) { post.likesCount--; delete post.likedByArray[cleanEmailKey]; }
-                    else { post.likesCount++; post.likedByArray[cleanEmailKey] = true; }
-                }
-                return post;
-            });
-        }
-
-        // 11. GLOBAL CHAT ROOM MATRIX
-        function sendChatMessage() {
-            const msgText = document.getElementById('chat-input-message').value.trim();
-            if (!msgText) return;
-
-            const messagePayload = { senderEmail: currentUser.email, senderName: currentUser.name, message: msgText, timestamp: Date.now() };
-            database.ref('global_chat_messages').push(messagePayload, err => {
-                if (!err) { document.getElementById('chat-input-message').value = ""; }
-            });
-        }
-
-        function renderGlobalChatPayload() {
-            const box = document.getElementById('chat-messages-box');
-            if (!box || document.getElementById('screen-chat').classList.contains('hidden')) return;
-
-            database.ref('global_chat_messages').limitToLast(40).once('value', snapshot => {
-                box.innerHTML = "";
-                if (!snapshot.exists()) {
-                    box.innerHTML = `<div class="text-center text-zinc-600 text-xs py-12">No communication threads stored.</div>`;
-                    return;
-                }
-
-                snapshot.forEach(child => {
-                    const msg = child.val();
-                    const senderCleanKey = msg.senderEmail.replace(/[.#$\[\]]/g, "_");
-                    const senderProfileDataNode = globalUsersObject[senderCleanKey] || {};
-                    
-                    if (currentUser && currentUser.blockedUsers && currentUser.blockedUsers[senderCleanKey]) return; 
-
-                    let isUserSenderBlockedBySomeone = false;
-                    if (senderProfileDataNode.blockedUsers && currentUser) {
-                        const myCleanKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-                        if (senderProfileDataNode.blockedUsers[myCleanKey]) { isUserSenderBlockedBySomeone = true; }
-                    }
-
-                    const isSenderVerified = senderProfileDataNode.verified || false;
-                    let displayNameString = isUserSenderBlockedBySomeone ? "Pulse User" : msg.senderName;
-                    if (isSenderVerified && !isUserSenderBlockedBySomeone) { displayNameString += ` <span class="verified-tick"><i class="fa-solid fa-check"></i></span>`; }
-
-                    const isMe = msg.senderEmail === currentUser.email;
-                    const alignmentsClass = isMe ? "ml-auto bg-red-600 text-white rounded-br-none" : "mr-auto bg-zinc-900 text-zinc-200 rounded-bl-none";
-                    const avatarNodeMarkup = isMe || isUserSenderBlockedBySomeone ? "" : `
-                        <div class="w-6 h-6 rounded-full bg-zinc-800 text-[10px] font-mono font-bold flex items-center justify-center text-zinc-400 border border-zinc-700">
-                            ${msg.senderName.charAt(0).toUpperCase()}
-                        </div>
-                    `;
-
-                    const messageBubbleCard = `
-                        <div class="flex items-end gap-2 max-w-[85%] ${isMe ? 'ml-auto' : 'mr-auto'}">
-                            ${!isMe ? avatarNodeMarkup : ''}
-                            <div class="p-3 rounded-2xl text-xs space-y-0.5 shadow-sm ${alignmentsClass}">
-                                ${!isMe ? `<p class="text-[9px] font-bold text-zinc-400 block pb-0.5">${displayNameString}</p>` : ''}
-                                <p class="leading-relaxed font-sans break-all">${msg.message}</p>
-                                <p class="text-[8px] font-mono text-zinc-500 text-right pt-0.5">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
-                            </div>
-                        </div>
-                    `;
-                    box.innerHTML += messageBubbleCard;
-                });
-                box.scrollTop = box.scrollHeight;
-                document.getElementById('chat-alert-dot').classList.add('hidden');
-            });
-        }
-
-        // 12. RELATIONSHIP DIRECTORY
-        function openUserDirectory() { document.getElementById('user-directory-modal').classList.remove('hidden'); renderUserManagementDirectory(); }
-        function closeUserDirectory() { document.getElementById('user-directory-modal').classList.add('hidden'); }
-
-        function renderUserManagementDirectory() {
-            const container = document.getElementById('directory-users-list');
-            if(!container) return;
-            container.innerHTML = "";
-            Object.keys(globalUsersObject).forEach(key => {
-                const userItem = globalUsersObject[key];
-                if (userItem.email === currentUser.email) return;
-                const isBlockedByMe = currentUser.blockedUsers && currentUser.blockedUsers[key] ? true : false;
-                
-                const userRowTemplate = `
-                    <div class="flex items-center justify-between p-2 bg-zinc-900 rounded-xl border border-zinc-800 text-xs">
-                        <div class="truncate pr-2">
-                            <p class="font-bold text-white truncate flex items-center">${userItem.name} ${userItem.verified ? '<span class="verified-tick"><i class="fa-solid fa-check"></i></span>':''}</p>
-                            <p class="text-[10px] text-zinc-500 truncate">${userItem.email}</p>
-                        </div>
-                        <button onclick="toggleBlockTransactionProfile('${key}')" class="px-2.5 py-1 rounded text-[11px] font-bold transition ${isBlockedByMe ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white':'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-white'}">
-                            ${isBlockedByMe ? '<i class="fa-solid fa-user-slash mr-1"></i> Blocked':'<i class="fa-solid fa-user-check mr-1"></i> Restrict'}
-                        </button>
-                    </div>
-                `;
-                container.innerHTML += userRowTemplate;
-            });
-        }
-
-        function toggleBlockTransactionProfile(targetUserCleanKey) {
-            const currentLoggedCleanKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-            database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).once('value', snapshot => {
-                if(snapshot.exists()) {
-                    database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).remove();
-                } else {
-                    database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).set(true);
-                }
-            });
-        }
-
-        // 13. MUSIC PLAYER REVOLUTIONARY ENGINE (With Clean Original UI Layout)
-        function populateMusicCatalogues() {
-            const catalogueContainer = document.getElementById('music-catalogue-container');
-            const selectorPostDropdown = document.getElementById('post-song-select');
-            
-            if(!catalogueContainer) return;
-            catalogueContainer.innerHTML = "";
-
-            if(selectorPostDropdown && selectorPostDropdown.options.length <= 1) {
-                songs.forEach((song, idx) => {
-                    let opt = document.createElement('option');
-                    opt.value = idx;
-                    opt.innerText = `${song.title} - ${song.artist}`;
-                    selectorPostDropdown.appendChild(opt);
-                });
-            }
-
-            // Beautiful Minimalist Apple Music Row Layout Restored
-            songs.forEach((song, idx) => {
-                const row = `
-                    <div onclick="selectAndStreamSpecificTrackIndex(${idx})" class="flex items-center justify-between p-2.5 rounded-xl transition hover:bg-zinc-900/60 group cursor-pointer ${currentTrackIndex === idx ? 'bg-zinc-900' : ''}">
-                        <div class="flex items-center gap-3 truncate">
-                            <img src="${song.cover}" class="w-10 h-10 rounded-lg object-cover border border-zinc-800 flex-shrink-0">
-                            <div class="truncate">
-                                <h4 class="text-sm font-semibold truncate ${currentTrackIndex === idx ? 'text-red-500' : 'text-zinc-200'}">${song.title}</h4>
-                                <p class="text-xs text-zinc-500 truncate">${song.artist}</p>
-                            </div>
-                        </div>
-                        <div class="text-zinc-600 group-hover:text-zinc-300 transition pr-2 text-xs">
-                            <i class="fa-solid ${currentTrackIndex === idx ? 'fa-square-poll-vertical text-red-500 animate-pulse' : 'fa-play'}"></i>
-                        </div>
-                    </div>
-                `;
-                catalogueContainer.innerHTML += row;
-            });
-        }
-
-        function attachAudioPlayerListeners() {
-            audioNode.addEventListener('timeupdate', () => {
-                if (isAdPlaying) {
-                    // Spotify Advertisement Execution Bounds Lock Rules
-                    if (audioNode.currentTime >= adEndTime) {
-                        terminateAudioAdSession();
-                    } else {
-                        const currentAdProgressTime = audioNode.currentTime - adStartTime;
-                        const adTimeLeft = Math.max(0, Math.ceil(adEndTime - audioNode.currentTime));
-                        document.getElementById('ad-timer').innerText = adTimeLeft;
-                        
-                        const percentAd = (currentAdProgressTime / adTotalDuration) * 100;
-                        document.getElementById('ad-progress').style.width = `${percentAd}%`;
-                    }
-                    return; 
-                }
-
-                const current = audioNode.currentTime;
-                const duration = audioNode.duration || 30; 
-                
-                document.getElementById('player-time-current').innerText = formatTrackTimeMetrics(current);
-                document.getElementById('player-time-total').innerText = formatTrackTimeMetrics(duration);
-                
-                const percent = (current / duration) * 100;
-                document.getElementById('player-progress-bar').style.width = `${percent}%`;
-            });
-
-            audioNode.addEventListener('ended', () => {
-                if (isAdPlaying) {
-                    terminateAudioAdSession();
-                } else {
-                    songsListenedCount++;
-                    if (songsListenedCount === 3) {
-                        triggerSpotifyStyleAudioAd();
-                    } else {
-                        nextTrack();
-                    }
-                }
-            });
-        }
-
-        // SPOTIFY NON-SKIPPABLE AD ENGINE CONTROLLERS
-        function triggerSpotifyStyleAudioAd() {
-            isAdPlaying = true;
-            audioNode.pause();
-            
-            const adTrack = songs[targetAdSongIndex];
-            
-            // Set UI details on overlay
-            document.getElementById('ad-cover-art').src = adTrack.cover;
-            document.getElementById('ad-title').innerText = adTrack.title;
-            document.getElementById('ad-artist').innerText = adTrack.artist;
-            document.getElementById('ad-timer').innerText = adTotalDuration;
-            document.getElementById('ad-progress').style.width = "0%";
-            
-            // Unhide non-skippable panel frame
-            document.getElementById('ad-lock-overlay').classList.remove('hidden');
-            
-            // Configure hardware audio node to exact ad time bounds
-            audioNode.src = adTrack.src;
-            audioNode.currentTime = adStartTime;
-            
-            audioNode.play().catch(e => {
-                console.log("Ad auto-play failed. Resolving bypass:", e);
-                terminateAudioAdSession(); 
-            });
-        }
-
-        function terminateAudioAdSession() {
-            isAdPlaying = false;
-            document.getElementById('ad-lock-overlay').classList.add('hidden');
-            
-            // Reset counter to allow future track logs tracking
-            songsListenedCount = 0; 
-            
-            // Return to next song sequence routing 
-            nextTrack();
-        }
-
-        function formatTrackTimeMetrics(secondsValue) {
-            if (isNaN(secondsValue)) return "0:00";
-            const mins = Math.floor(secondsValue / 60);
-            const secs = Math.floor(secondsValue % 60);
-            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-        }
-
-        function selectAndStreamSpecificTrackIndex(index) {
-            if (isAdPlaying) return; 
-            
-            currentTrackIndex = index;
-            const targetTrack = songs[currentTrackIndex];
-            
-            audioNode.src = targetTrack.src;
-            document.getElementById('player-track-cover').src = targetTrack.cover;
-            document.getElementById('player-track-title').innerText = targetTrack.title;
-            document.getElementById('player-track-artist').innerText = targetTrack.artist;
-            
-            audioNode.play().then(() => {
-                document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-pause"></i>`;
-            }).catch(e => console.log("Stream engine structural start block intercepted path: ", e));
-
-            if(currentUser) {
-                const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-                database.ref(`users/${cleanEmailKey}/currentStreamingTrack`).set(targetTrack.title);
-                document.getElementById('analytics-track-title').innerText = targetTrack.title;
-            }
-
-            populateMusicCatalogues();
-            logSessionUserActivity(`Initiated high fidelity playback track stream: ${targetTrack.title}`);
-        }
-
-        function injectTrackOverridingEngine(trackTitleString) {
-            const indexFound = songs.findIndex(s => s.title.toLowerCase().trim() === trackTitleString.toLowerCase().trim());
-            if (indexFound !== -1) {
-                navigateToScreen('music');
-                selectAndStreamSpecificTrackIndex(indexFound);
-            }
-        }
-
-        function togglePlayback() {
-            if (isAdPlaying) return;
-            if (audioNode.paused) {
-                audioNode.play();
-                document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-pause"></i>`;
-            } else {
-                audioNode.pause();
-                document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-play"></i>`;
-            }
-        }
-
-        function nextTrack() {
-            if (isAdPlaying) return;
-            let nextIdx = currentTrackIndex + 1;
-            if (nextIdx >= songs.length) nextIdx = 0;
-            if (nextIdx === targetAdSongIndex) nextIdx = 0; // Skip playing the ad track naturally in rotation
-            selectAndStreamSpecificTrackIndex(nextIdx);
-        }
-
-        function prevTrack() {
-            if (isAdPlaying) return;
-            let prevIdx = currentTrackIndex - 1;
-            if (prevIdx < 0) prevIdx = songs.length - 1;
-            if (prevIdx === targetAdSongIndex) prevIdx = songs.length - 2;
-            selectAndStreamSpecificTrackIndex(prevIdx);
-        }
-
-        function seekTrack(event) {
-            if (isAdPlaying) return;
-            const container = document.getElementById('player-progress-container');
-            const rect = container.getBoundingClientRect();
-            const clickPositionX = event.clientX - rect.left;
-            const totalWidthContainer = rect.width;
-            const percentageTargetValue = clickPositionX / totalWidthContainer;
-            if(audioNode.duration) { audioNode.currentTime = percentageTargetValue * audioNode.duration; }
-        }
-
-        // 14. PROFILE LOGISTICS DATA REFRESH
-        function updateProfileDashboardMetrics() {
-            if (!currentUser) return;
-            document.getElementById('profile-initials').innerText = currentUser.name.charAt(0).toUpperCase();
-            document.getElementById('profile-display-name').innerText = currentUser.name;
-            document.getElementById('profile-display-email').innerText = currentUser.email;
-            document.getElementById('profile-display-dob').innerText = `DOB: ${currentUser.dob}`;
-            
-            if (currentUser.verified) { document.getElementById('profile-verified-badge').classList.remove('hidden'); }
-            else { document.getElementById('profile-verified-badge').classList.add('hidden'); }
-
-            document.getElementById('analytics-track-title').innerText = currentUser.currentStreamingTrack || "None";
-        }
-
-        // 15. DYNAMIC VERIFICATION DESK
-        function toggleAdminPanel() {
-            const panel = document.getElementById('admin-verified-panel');
-            panel.classList.toggle('hidden');
-            if(!panel.classList.contains('hidden')) { renderAdminAuthorityPanel(); }
-        }
-
-        function renderAdminAuthorityPanel() {
-            const container = document.getElementById('admin-users-payload-target');
-            if(!container) return;
-            container.innerHTML = "";
-            Object.keys(globalUsersObject).forEach(key => {
-                const user = globalUsersObject[key];
-                const verifiedStatus = user.verified || false;
-                
-                const adminRow = `
-                    <div class="flex items-center justify-between bg-zinc-900/60 p-2 rounded border border-zinc-800 text-[11px] font-mono">
-                        <span class="text-zinc-300 truncate max-w-[180px]">${user.name}</span>
-                        <button onclick="executeAdminVerificationToggle('${key}', ${verifiedStatus})" class="px-2 py-0.5 rounded text-[10px] font-bold ${verifiedStatus ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}">
-                            ${verifiedStatus ? 'Verified' : 'Grant Tick'}
-                        </button>
-                    </div>
-                `;
-                container.innerHTML += adminRow;
-            });
-        }
-
-        function executeAdminVerificationToggle(userCleanKey, currentStatusFlag) {
-            database.ref(`users/${userCleanKey}/verified`).set(!currentStatusFlag, err => {
-                if(!err) { updateProfileDashboardMetrics(); }
-            });
-        }
-    </script>
+    initWaveSurferEngine();
+    renderSongsList(songs, document.getElementById('songs-container'));
+    renderHybridUpNextQueue();
+  </script>
 </body>
 </html>
