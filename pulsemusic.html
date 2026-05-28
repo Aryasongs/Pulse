@@ -488,7 +488,6 @@
     const auth = getAuth(app);
     const db = getDatabase(app);
 
-    // Added naya gaana '911' array catalog me complete configurations ke saath
     let songs = [
       { id: "s1", title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg", duration: "3:42", tags: ["punjabi", "hiphop", "moosewala"] },
       { id: "s2", title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg", duration: "2:55", tags: ["punjabi", "hiphop", "cheema"] },
@@ -571,7 +570,7 @@
     }
 
     window.switchTab = function(viewKey) {
-      if(isAdCurrentlyPlaying) return; // Strict Nav block lock
+      if(isAdCurrentlyPlaying) return; 
       document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
       document.getElementById(`view-${viewKey}`).style.display = 'block';
       document.querySelectorAll('nav button').forEach(b => {
@@ -620,16 +619,22 @@
     }
 
     function trackListeningBehavior(songId) {
-      if(songId === "s10") return; // Ad metadata tracking bypass
-      if(!songPlayCounts[songId]) songPlayCounts[songId] = 0;
-      songPlayCounts[songId] += 1;
+      if(songId === "s10" && (songPlayCounts[songId] || 0) === 0) {
+        // First play track update node trigger karega home list allocation
+        songPlayCounts[songId] = 1;
+      } else if(songId !== "s10") {
+        if(!songPlayCounts[songId]) songPlayCounts[songId] = 0;
+        songPlayCounts[songId] += 1;
+      } else {
+        songPlayCounts[songId] += 1;
+      }
+      
       localStorage.setItem('pulse_listening_habits', JSON.stringify(songPlayCounts));
       if (currentUser) set(ref(db, `users/${currentUser.uid}/listeningHabits/${songId}`), songPlayCounts[songId]);
       applyPersonalizedSorting();
     }
 
     function applyPersonalizedSorting() {
-      // Retain personalized sorting index rules
       let adTrack = songs.find(s => s.id === "s10");
       let restSongs = songs.filter(s => s.id !== "s10");
       
@@ -639,7 +644,7 @@
         return countB - countA;
       });
       
-      songs = [...restSongs, adTrack]; // Lock ad at base node catalog index references
+      songs = [...restSongs, adTrack]; 
       renderSongsList(songs, document.getElementById('songs-container'));
       renderHybridUpNextQueue();
     }
@@ -647,16 +652,15 @@
     // SPOTIFY AUDIO AD PLAYER MECHANICAL CONTROLLER PIPELINE
     function triggerSpotifyAudioAdSystem(pendingNextIndexDestination) {
       isAdCurrentlyPlaying = true;
-      generalSongsPlayedCounter = 0; // Reset criteria check
+      generalSongsPlayedCounter = 0; 
       
       const adSongObject = songs.find(s => s.id === "s10");
       audio.src = adSongObject.src;
-      audio.currentTime = 33; // Seek bounds to strict 33 seconds
+      audio.currentTime = 33; 
       
       audio.play();
       wavesurfer.load(adSongObject.src);
 
-      // Force-override metadata UI configurations
       document.getElementById('player-title').innerText = "Spotify Audio Ad";
       document.getElementById('player-artist').innerText = "Abigail Claire x Sharan Pooni";
       document.getElementById('player-cover').src = adSongObject.cover;
@@ -668,11 +672,9 @@
       document.getElementById('fs-player-badge').innerText = "ADVERTISEMENT - SPONSORED";
       document.getElementById('fs-player-badge').classList.add('text-green-400', 'font-black');
 
-      // Lock UI interaction bounds completely
       setPlayerInterfaceLockState(true);
       showNotification("Sponsor Slot: Playing Audio Ad", "fa-rectangle-ad");
 
-      // Custom loop checker node tracks exact timeframe
       let adCheckInterval = setInterval(() => {
         if(audio.currentTime >= 54 || audio.paused) {
           clearInterval(adCheckInterval);
@@ -689,7 +691,7 @@
       document.getElementById('fs-player-badge').classList.remove('text-green-400', 'font-black');
       
       showNotification("Ad Completed. Resuming Premium Flow.", "fa-circle-check");
-      playSong(resumeIndexDestination); // Shift process directly onto the targeted pipeline
+      playSong(resumeIndexDestination); 
     }
 
     function setPlayerInterfaceLockState(shouldLock) {
@@ -704,7 +706,6 @@
           el.style.opacity = shouldLock ? '0.3' : '1';
         }
       });
-      // Toggle nav capability visibility wrappers
       document.getElementById('app-main-nav').style.pointerEvents = shouldLock ? 'none' : 'auto';
       document.getElementById('app-main-nav').style.opacity = shouldLock ? '0.4' : '1';
       document.getElementById('btn-close-fullscreen').style.display = shouldLock ? 'none' : 'block';
@@ -712,7 +713,7 @@
 
     function predictNextTrackIndex() {
       if (repeatMode === 2) return currentSongIndex;
-      if (repeatMode === 1) return (currentSongIndex + 1) % (songs.length - 1); // Exclude Ad tracking
+      if (repeatMode === 1) return (currentSongIndex + 1) % (songs.length - 1); 
 
       const currentTrack = songs[currentSongIndex];
       let bestMatchIndex = (currentSongIndex + 1) % (songs.length - 1);
@@ -731,7 +732,6 @@
     function executeCrossfadeTransition() {
       if (isCrossfading || isAdCurrentlyPlaying) return;
       
-      // Verification check constraints for ad threshold triggering loops
       generalSongsPlayedCounter++;
       const nextIndex = predictNextTrackIndex();
       
@@ -810,7 +810,7 @@
       const container = document.getElementById('hybrid-up-next-queue');
       container.innerHTML = '';
       
-      let cleanSongsQueue = songs.filter(s => s.id !== "s10"); // Hide Ad from upcoming list previews
+      let cleanSongsQueue = songs.filter(s => s.id !== "s10"); 
       let logicalQueue = [];
       
       for(let i = 1; i <= cleanSongsQueue.length; i++) {
@@ -917,13 +917,19 @@
       }
     }
 
-    // FIXED: PEHLE JAISA WIDE, CLEAN AND BEAUTIFUL SONGS LIST LAYOUT FOR HOME PAGE BROWSE
+    // UPDATED: Home page browse container track selection rule engine modification
     function renderSongsList(targetArray, wrapperElement, appendOption = false) {
       if(!appendOption) wrapperElement.innerHTML = '';
       if(targetArray.length === 0) { wrapperElement.innerHTML = `<p class="text-xs text-neutral-500 p-2 italic">No matches available.</p>`; return; }
       
       targetArray.forEach((song) => {
-        if(song.id === "s10") return; // Home Page browse grid node se Ad hide karna pipeline branch code check
+        if(song.id === "s10") {
+          // Rule check: Agar 911 gaane ki count 0 h ya exist nahi karti, aur ye render Browse Home page container h, to hide kardo.
+          const isBrowseContainer = wrapperElement.id === "songs-container";
+          const timesPlayed = songPlayCounts[song.id] || 0;
+          if (isBrowseContainer && timesPlayed === 0) return;
+        }
+        
         const globalIdx = songs.findIndex(s => s.id === song.id);
         const row = document.createElement('div');
         row.className = "flex items-center justify-between p-3 rounded-2xl bg-neutral-800/40 hover:bg-neutral-800 transition cubic-bezier(0.4, 0, 0.2, 1) duration-200 cursor-pointer group";
@@ -952,7 +958,6 @@
       if(isCrossfading || isAdCurrentlyPlaying) return;
       
       generalSongsPlayedCounter++;
-      // Agar user bina skip kiye lagaatar 3 gane chalata h to crossfade logic automatically route framework shift trigger karga ad me
       if(generalSongsPlayedCounter >= 4) {
         triggerSpotifyAudioAdSystem(index);
         return;
@@ -979,7 +984,7 @@
     }
 
     function updatePlayerUI(song) {
-      if(isAdCurrentlyPlaying) return; // Prevent overwriting view during active ad state runtime cycles
+      if(isAdCurrentlyPlaying) return; 
       document.getElementById('player-title').innerText = song.title;
       document.getElementById('player-artist').innerText = song.artist;
       document.getElementById('player-cover').src = song.cover;
@@ -1037,7 +1042,8 @@
     document.getElementById('search-input').addEventListener('input', (e) => {
       const term = e.target.value.trim().toLowerCase();
       if(!term) { document.getElementById('search-results-container').innerHTML = ''; return; }
-      const filtered = songs.filter(s => (s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term)) && s.id !== "s10");
+      // Search view container me "911" ko completely access/search kiya ja sakta h restriction ke bina
+      const filtered = songs.filter(s => (s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term)));
       renderSongsList(filtered, document.getElementById('search-results-container'));
     });
 
@@ -1129,7 +1135,6 @@
         wavesurfer.setTime(activeEngine.currentTime);
       }
       
-      // TRIGGER CROSSFADE DETECTOR
       if (activeEngine.duration - activeEngine.currentTime <= 5 && !isCrossfading && repeatMode !== 2 && !isAdCurrentlyPlaying) {
         executeCrossfadeTransition();
       }
