@@ -140,7 +140,6 @@
       to { opacity: 1; transform: translateY(0); }
     }
 
-    /* APPLE MUSIC LIVE WAVE CONTAINER WRAPPER */
     #waveform-container {
       width: 100%;
       height: 40px;
@@ -232,7 +231,7 @@
       <div id="view-browse" class="view-panel space-y-3 block">
         <div class="flex justify-between items-center pt-1">
           <h2 class="text-xl font-bold tracking-tight text-white">Browse Songs</h2>
-          <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">Algorithmic Flow</span>
+          <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">Premium Flow</span>
         </div>
         <div id="songs-container" class="space-y-2"></div>
       </div>
@@ -376,7 +375,7 @@
             <i class="fa-solid fa-list-ul text-[10px] text-pink-500 animate-pulse"></i>
             <span id="queue-header-title">Up Next</span>
           </span>
-          <span id="queue-status-indicator" class="text-[9px] bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">API Core Flow</span>
+          <span class="text-[9px] bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Engine Flow</span>
         </div>
         
         <div id="hybrid-up-next-queue" class="flex-1 overflow-y-auto space-y-1.5 pr-0.5 ios-scrollbar scrollable-content"></div>
@@ -522,9 +521,6 @@
     let isCrossfading = false;
     let wavesurfer = null;
 
-    let generalSongsPlayedCounter = 0; 
-    let isAdCurrentlyPlaying = false; 
-
     const audioPrimary = document.getElementById('audio-player-primary');
     const audioSecondary = document.getElementById('audio-player-secondary');
     let audio = audioPrimary; 
@@ -580,7 +576,6 @@
     }
 
     window.switchTab = function(viewKey) {
-      if(isAdCurrentlyPlaying) return; 
       document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
       document.getElementById(`view-${viewKey}`).style.display = 'block';
       document.querySelectorAll('nav button').forEach(b => {
@@ -591,15 +586,14 @@
     }
 
     document.getElementById('btn-open-dev-view').addEventListener('click', () => {
-      if(!isAdCurrentlyPlaying) devFullscreenView.classList.add('active');
+      devFullscreenView.classList.add('active');
     });
     document.getElementById('btn-close-dev-view').addEventListener('click', () => devFullscreenView.classList.remove('active'));
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('gesturestart', event => event.preventDefault());
 
-    // ABSOLUTE PERSISTENT HARDWARE BACKUP LAYER (FOR WINDOW/BROWSER EXIT CONTROL)
     function savePlaybackProgressState() {
-      if(isAdCurrentlyPlaying || !audio.src || isNaN(audio.currentTime)) return;
+      if(!audio.src || isNaN(audio.currentTime)) return;
       const progressPayload = {
         songIndex: songs.findIndex(s => s.src === audio.src),
         timestampPosition: audio.currentTime,
@@ -609,7 +603,6 @@
       localStorage.setItem('pulse_playback_session_state', JSON.stringify(progressPayload));
     }
 
-    // Tab visibility aur closure handler pipeline execution
     window.addEventListener('beforeunload', () => { savePlaybackProgressState(); });
     window.addEventListener('unload', () => { savePlaybackProgressState(); });
     document.addEventListener('visibilitychange', () => { savePlaybackProgressState(); });
@@ -642,14 +635,8 @@
     }
 
     function trackListeningBehavior(songId) {
-      if(songId === "s10" && (songPlayCounts[songId] || 0) === 0) {
-        songPlayCounts[songId] = 1;
-      } else if(songId !== "s10") {
-        if(!songPlayCounts[songId]) songPlayCounts[songId] = 0;
-        songPlayCounts[songId] += 1;
-      } else {
-        songPlayCounts[songId] += 1;
-      }
+      if(!songPlayCounts[songId]) songPlayCounts[songId] = 0;
+      songPlayCounts[songId] += 1;
       
       localStorage.setItem('pulse_listening_habits', JSON.stringify(songPlayCounts));
       if (currentUser) set(ref(db, `users/${currentUser.uid}/listeningHabits/${songId}`), songPlayCounts[songId]);
@@ -657,100 +644,32 @@
     }
 
     function applyPersonalizedSorting() {
-      let adTrack = songs.find(s => s.id === "s10");
-      let restSongs = songs.filter(s => s.id !== "s10");
-      
-      restSongs.sort((a, b) => {
+      songs.sort((a, b) => {
         const countA = songPlayCounts[a.id] || 0;
         const countB = songPlayCounts[b.id] || 0;
         return countB - countA;
       });
       
-      songs = [...restSongs, adTrack]; 
       renderSongsList(songs, document.getElementById('songs-container'));
       renderHybridUpNextQueue();
     }
 
-    function triggerSpotifyAudioAdSystem(pendingNextIndexDestination) {
-      isAdCurrentlyPlaying = true;
-      generalSongsPlayedCounter = 0; 
-      
-      const adSongObject = songs.find(s => s.id === "s10");
-      audio.src = adSongObject.src;
-      audio.currentTime = 33; 
-      
-      audio.play();
-      wavesurfer.load(adSongObject.src);
-
-      document.getElementById('player-title').innerText = "Spotify Audio Ad";
-      document.getElementById('player-artist').innerText = "Abigail Claire x Sharan Pooni";
-      document.getElementById('player-cover').src = adSongObject.cover;
-      
-      document.getElementById('fs-title').innerText = "911 (Audio Ad Campaign)";
-      document.getElementById('fs-artist').innerText = "Non-Skippable Sponsor Slot";
-      document.getElementById('fs-cover').src = adSongObject.cover;
-      document.getElementById('dynamic-blur-bg').style.backgroundImage = `url('${adSongObject.cover}')`;
-      document.getElementById('fs-player-badge').innerText = "ADVERTISEMENT - SPONSORED";
-      document.getElementById('fs-player-badge').classList.add('text-green-400', 'font-black');
-
-      setPlayerInterfaceLockState(true);
-      showNotification("Sponsor Slot: Playing Audio Ad", "fa-rectangle-ad");
-
-      let adCheckInterval = setInterval(() => {
-        if(audio.currentTime >= 54 || audio.paused) {
-          clearInterval(adCheckInterval);
-          terminateAudioAdExecution(pendingNextIndexDestination);
-        }
-      }, 250);
-    }
-
-    function terminateAudioAdExecution(resumeIndexDestination) {
-      isAdCurrentlyPlaying = false;
-      setPlayerInterfaceLockState(false);
-      
-      document.getElementById('fs-player-badge').innerText = "Now Playing";
-      document.getElementById('fs-player-badge').classList.remove('text-green-400', 'font-black');
-      
-      showNotification("Ad Completed. Resuming Premium Flow.", "fa-circle-check");
-      playSong(resumeIndexDestination); 
-    }
-
-    function setPlayerInterfaceLockState(shouldLock) {
-      const elementsToBlock = [
-        'btn-fs-prev', 'btn-fs-next', 'btn-mini-next', 'btn-fs-play-pause', 
-        'btn-mini-play', 'fs-seekbar', 'btn-fs-repeat', 'btn-fs-options'
-      ];
-      elementsToBlock.forEach(id => {
-        const el = document.getElementById(id);
-        if(el) {
-          el.style.pointerEvents = shouldLock ? 'none' : 'auto';
-          el.style.opacity = shouldLock ? '0.3' : '1';
-        }
-      });
-      document.getElementById('app-main-nav').style.pointerEvents = shouldLock ? 'none' : 'auto';
-      document.getElementById('app-main-nav').style.opacity = shouldLock ? '0.4' : '1';
-      document.getElementById('btn-close-fullscreen').style.display = shouldLock ? 'none' : 'block';
-    }
-
-    // HIGHLY OPTIMIZED RAW API MATRIX ALGORITHM - USER METADATA MATCH PROTOCOL
     function predictNextTrackIndex() {
       if (repeatMode === 2) return currentSongIndex;
-      if (repeatMode === 1) return (currentSongIndex + 1) % (songs.length - 1); 
+      if (repeatMode === 1) return (currentSongIndex + 1) % songs.length; 
 
       const currentTrack = songs[currentSongIndex];
-      let bestMatchIndex = (currentSongIndex + 1) % (songs.length - 1);
+      let bestMatchIndex = (currentSongIndex + 1) % songs.length;
       let highestScore = -1;
 
       songs.forEach((candidate, idx) => {
-        if (idx === currentSongIndex || candidate.id === "s10") return;
+        if (idx === currentSongIndex) return;
         let currentScore = 0;
         
-        // Tag Matrix Mapping Protocol
         candidate.tags.forEach(t => { 
           if (currentTrack.tags.includes(t)) currentScore += 25; 
         });
         
-        // Exact Artist Match Boost
         const primaryCandidateArtist = candidate.artist.split(',')[0].trim().toLowerCase();
         const primaryCurrentArtist = currentTrack.artist.split(',')[0].trim().toLowerCase();
         if (primaryCandidateArtist === primaryCurrentArtist) currentScore += 40; 
@@ -764,17 +683,10 @@
     }
 
     function executeCrossfadeTransition() {
-      if (isCrossfading || isAdCurrentlyPlaying) return;
+      if (isCrossfading) return;
       
-      generalSongsPlayedCounter++;
-      const nextIndex = predictNextTrackIndex();
-      
-      if(generalSongsPlayedCounter >= 3) {
-        executeCrossfadeTransitionToAd();
-        return;
-      }
-
       isCrossfading = true;
+      const nextIndex = predictNextTrackIndex();
       const targetSong = songs[nextIndex];
       const fadeOutAudio = audioPrimary.src === audio.src ? audioPrimary : audioSecondary;
       const fadeInAudio = fadeOutAudio === audioPrimary ? audioSecondary : audioPrimary;
@@ -808,40 +720,11 @@
       }, duration / steps);
     }
 
-    function executeCrossfadeTransitionToAd() {
-      isCrossfading = true;
-      const adSongObject = songs.find(s => s.id === "s10");
-      const fadeOutAudio = audioPrimary.src === audio.src ? audioPrimary : audioSecondary;
-      
-      let steps = 20, duration = 2000, currentStep = 0;
-      let targetVolume = audioPrimary.volume || 1;
-      
-      let crossInterval = setInterval(() => {
-        currentStep++;
-        let ratio = currentStep / steps;
-        fadeOutAudio.volume = Math.max(0, targetVolume * (1 - ratio));
-        if(currentStep >= steps) {
-          clearInterval(crossInterval);
-          fadeOutAudio.pause();
-          fadeOutAudio.volume = targetVolume;
-          isCrossfading = false;
-          triggerSpotifyAudioAdSystem(predictNextTrackIndex());
-        }
-      }, duration / steps);
-    }
-
     function handleSongCompletionRoute() {
-      if (isCrossfading || isAdCurrentlyPlaying) return;
-      
-      generalSongsPlayedCounter++;
-      if (generalSongsPlayedCounter >= 3) {
-        triggerSpotifyAudioAdSystem(predictNextTrackIndex());
-      } else {
-        playSong(predictNextTrackIndex());
-      }
+      if (isCrossfading) return;
+      playSong(predictNextTrackIndex());
     }
 
-    // RECO ENGINE LAYER - REAL-TIME SEED MAPPING BASED ON ACTIVE METADATA
     function renderHybridUpNextQueue() {
       const container = document.getElementById('hybrid-up-next-queue');
       container.innerHTML = '';
@@ -850,14 +733,13 @@
       let scoringPool = [];
 
       songs.forEach((candidate, idx) => {
-        if (candidate.id === "s10" || candidate.id === currentTrack.id) return;
+        if (candidate.id === currentTrack.id) return;
         let points = 0;
         candidate.tags.forEach(t => { if (currentTrack.tags.includes(t)) points += 20; });
         if (candidate.artist.split(',')[0].trim().toLowerCase() === currentTrack.artist.split(',')[0].trim().toLowerCase()) points += 35;
         scoringPool.push({ song: candidate, indexId: idx, score: points });
       });
 
-      // Pure API Metadata Tag Sorting Logic
       scoringPool.sort((a, b) => b.score - a.score);
       
       document.getElementById('queue-header-title').innerText = "Recommended Up Next";
@@ -866,7 +748,7 @@
         const row = document.createElement('div');
         row.className = "queue-row flex items-center justify-between p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.02] transition-all duration-300 cursor-pointer group";
         row.style.animationDelay = `${sequentialOrder * 60}ms`;
-        row.onclick = () => { if(!isAdCurrentlyPlaying) playSong(item.indexId); };
+        row.onclick = () => { playSong(item.indexId); };
         row.innerHTML = `
           <div class="flex items-center space-x-3 truncate flex-1 min-w-0">
             <img src="${item.song.cover}" class="w-8 h-8 rounded-lg object-cover shadow-md">
@@ -884,7 +766,6 @@
       });
     }
 
-    // SEARCH HISTORY STORAGE CONTROLLER LOGIC (MAX 10 RECENT ITEMS API)
     function appendSearchTermToHistory(term) {
       if (!term || !currentUser) return;
       term = term.trim();
@@ -1008,7 +889,6 @@
       if (user) {
         currentUser = user; document.getElementById('auth-screen').style.display = 'none';
         
-        // Local history cache pull validation
         const localHist = localStorage.getItem(`pulse_search_history_${user.uid}`);
         if (localHist) searchHistory = JSON.parse(localHist);
 
@@ -1034,12 +914,6 @@
       if(targetArray.length === 0) { wrapperElement.innerHTML = `<p class="text-xs text-neutral-500 p-2 italic">No matches available.</p>`; return; }
       
       targetArray.forEach((song) => {
-        if(song.id === "s10") {
-          const isBrowseContainer = wrapperElement.id === "songs-container";
-          const timesPlayed = songPlayCounts[song.id] || 0;
-          if (isBrowseContainer && timesPlayed === 0) return;
-        }
-        
         const globalIdx = songs.findIndex(s => s.id === song.id);
         const row = document.createElement('div');
         row.className = "flex items-center justify-between p-3 rounded-2xl bg-neutral-800/40 hover:bg-neutral-800 transition cubic-bezier(0.4, 0, 0.2, 1) duration-200 cursor-pointer group";
@@ -1065,19 +939,12 @@
     }
 
     function playSong(index) {
-      if(isCrossfading || isAdCurrentlyPlaying) return;
+      if(isCrossfading) return;
       
-      generalSongsPlayedCounter++;
-      if(generalSongsPlayedCounter >= 4) {
-        triggerSpotifyAudioAdSystem(index);
-        return;
-      }
-
       currentSongIndex = index;
       const song = songs[currentSongIndex];
       audio.src = song.src;
       
-      // Force loading of resource to update underlying player status instantly
       audio.load();
       audio.play().then(() => {
         initializeMediaSession(song);
@@ -1096,7 +963,6 @@
     }
 
     function updatePlayerUI(song) {
-      if(isAdCurrentlyPlaying) return; 
       document.getElementById('player-title').innerText = song.title;
       document.getElementById('player-artist').innerText = song.artist;
       document.getElementById('player-cover').src = song.cover;
@@ -1129,7 +995,6 @@
       else if (repeatMode === 2) { repBtn.className = "text-pink-500 text-lg p-1 relative"; indicator.classList.remove('hidden'); }
     }
 
-    // HIGHLY ROBUST lock screen MEDIA SESSION CONFIGURATION ENGINE 
     function initializeMediaSession(song) {
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
@@ -1148,7 +1013,6 @@
 
         navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
 
-        // Permanent continuous state handler loops mapping
         navigator.mediaSession.setActionHandler('play', () => {
           audio.play();
           navigator.mediaSession.playbackState = "playing";
@@ -1162,14 +1026,13 @@
         });
 
         navigator.mediaSession.setActionHandler('previoustrack', () => { 
-          if(!isAdCurrentlyPlaying) playSong((currentSongIndex - 1 + (songs.length - 1)) % (songs.length - 1)); 
+          playSong((currentSongIndex - 1 + songs.length) % songs.length); 
         });
         
         navigator.mediaSession.setActionHandler('nexttrack', () => {
           handleSongCompletionRoute();
         });
 
-        // Seek position mapping synchronization directly to lock screen hardware slider
         try {
           navigator.mediaSession.setActionHandler('seekto', (details) => {
             if (details.fastSeek && 'fastSeek' in audio) {
@@ -1196,7 +1059,6 @@
     }
 
     function togglePlayback() {
-      if(isAdCurrentlyPlaying) return;
       const fsPlayBtn = document.getElementById('btn-fs-play-pause');
       const miniPlayBtn = document.getElementById('btn-mini-play');
       const artWrapper = document.getElementById('fs-art-wrapper');
@@ -1221,7 +1083,7 @@
     });
 
     document.getElementById('btn-heart').addEventListener('click', async () => {
-      if(!currentUser || isAdCurrentlyPlaying) return;
+      if(!currentUser) return;
       const song = songs[currentSongIndex];
       const favRef = ref(db, `users/${currentUser.uid}/favorites/${song.id}`);
       if(userFavorites.some(s => s.id === song.id)) {
@@ -1233,7 +1095,7 @@
     });
 
     const playlistModal = document.getElementById('playlist-modal');
-    document.getElementById('btn-trigger-playlist-modal').addEventListener('click', () => { if(!isAdCurrentlyPlaying) playlistModal.classList.remove('hidden'); });
+    document.getElementById('btn-trigger-playlist-modal').addEventListener('click', () => { playlistModal.classList.remove('hidden'); });
     document.getElementById('btn-close-modal').addEventListener('click', () => playlistModal.classList.add('hidden'));
 
     document.getElementById('btn-create-playlist').addEventListener('click', () => {
@@ -1247,7 +1109,6 @@
     });
 
     window.openPlaylistAssignmentModal = function(songId) {
-      if(isAdCurrentlyPlaying) return;
       const listContainer = document.getElementById('playlist-selector-list'); listContainer.innerHTML = '';
       const arr = Object.values(userPlaylists);
       if(arr.length === 0) listContainer.innerHTML = `<p class="text-xs text-neutral-500 text-center py-2">Create a playlist first!</p>`;
@@ -1308,21 +1169,19 @@
         wavesurfer.setTime(activeEngine.currentTime);
       }
       
-      // Real-time lock screen position slider position matching ticks updates
       if (Math.floor(activeEngine.currentTime) % 1 === 0) {
         updateMediaSessionPositionState();
       }
 
-      if (activeEngine.duration - activeEngine.currentTime <= 5 && !isCrossfading && repeatMode !== 2 && !isAdCurrentlyPlaying) {
+      if (activeEngine.duration - activeEngine.currentTime <= 5 && !isCrossfading && repeatMode !== 2) {
         executeCrossfadeTransition();
       }
-      if (!isAdCurrentlyPlaying && Math.floor(activeEngine.currentTime) % 2 === 0) savePlaybackProgressState();
+      if (Math.floor(activeEngine.currentTime) % 2 === 0) savePlaybackProgressState();
     }
 
     audioPrimary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
     audioSecondary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
     
-    // Explicit trigger tracking for lock screen audio plays states mapping
     audioPrimary.addEventListener('play', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing"; });
     audioSecondary.addEventListener('play', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing"; });
     audioPrimary.addEventListener('pause', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused"; });
@@ -1335,14 +1194,13 @@
     document.getElementById('btn-fs-play-pause').addEventListener('click', togglePlayback);
     document.getElementById('btn-fs-next').addEventListener('click', handleSongCompletionRoute);
     document.getElementById('btn-mini-next').addEventListener('click', handleSongCompletionRoute);
-    document.getElementById('btn-fs-prev').addEventListener('click', () => { if(!isAdCurrentlyPlaying) playSong((currentSongIndex - 1 + (songs.length - 1)) % (songs.length - 1)); });
+    document.getElementById('btn-fs-prev').addEventListener('click', () => { playSong((currentSongIndex - 1 + songs.length) % songs.length); });
     document.getElementById('mini-player-trigger').addEventListener('click', () => { fullscreenPlayer.classList.add('active'); });
     document.getElementById('btn-close-fullscreen').addEventListener('click', () => fullscreenPlayer.classList.remove('active'));
     document.getElementById('btn-fs-options').addEventListener('click', () => openPlaylistAssignmentModal(songs[currentSongIndex].id));
     document.getElementById('btn-fs-repeat').addEventListener('click', () => { repeatMode = (repeatMode + 1) % 3; updateRepeatUIState(); });
     
     document.getElementById('fs-seekbar').addEventListener('input', (e) => { 
-      if(isAdCurrentlyPlaying) return;
       audio.currentTime = e.target.value; 
       if(wavesurfer) wavesurfer.setTime(audio.currentTime);
       updateMediaSessionPositionState();
