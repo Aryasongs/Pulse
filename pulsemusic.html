@@ -232,7 +232,7 @@
       <div id="view-browse" class="view-panel space-y-3 block">
         <div class="flex justify-between items-center pt-1">
           <h2 class="text-xl font-bold tracking-tight text-white">Browse Songs</h2>
-          <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">AI Personalized</span>
+          <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">Algorithmic Flow</span>
         </div>
         <div id="songs-container" class="space-y-2"></div>
       </div>
@@ -243,6 +243,15 @@
           <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-neutral-500 text-xs"></i>
           <input type="text" id="search-input" placeholder="Artists, Songs, Lyrics..." class="w-full p-2.5 pl-10 rounded-xl bg-neutral-800 border border-neutral-700 text-white focus:outline-none focus:border-pink-500 text-sm">
         </div>
+
+        <div id="search-history-box" class="mt-2 hidden">
+          <div class="flex justify-between items-center mb-1.5 px-1">
+            <span class="text-[11px] font-bold text-neutral-400 uppercase tracking-wider">Recent Searches</span>
+            <button id="btn-clear-search-history" class="text-[10px] text-pink-500 font-medium hover:underline">Clear All</button>
+          </div>
+          <div id="search-history-tags" class="flex flex-wrap gap-1.5 p-1"></div>
+        </div>
+
         <div id="search-results-container" class="space-y-2 pt-1"></div>
       </div>
 
@@ -365,9 +374,9 @@
         <div class="flex justify-between items-center mb-2 px-1">
           <span class="text-[11px] font-bold uppercase tracking-widest text-white/50 flex items-center space-x-1.5">
             <i class="fa-solid fa-list-ul text-[10px] text-pink-500 animate-pulse"></i>
-            <span>Up Next</span>
+            <span id="queue-header-title">Up Next</span>
           </span>
-          <span id="queue-status-indicator" class="text-[9px] bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Premium Flow</span>
+          <span id="queue-status-indicator" class="text-[9px] bg-pink-500/10 text-pink-400 border border-pink-500/20 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">API Core Flow</span>
         </div>
         
         <div id="hybrid-up-next-queue" class="flex-1 overflow-y-auto space-y-1.5 pr-0.5 ios-scrollbar scrollable-content"></div>
@@ -506,6 +515,7 @@
     let currentUser = null;
     let userFavorites = [];
     let userPlaylists = {};
+    let searchHistory = [];
     let isRestoreMechanismTriggered = false;
     let songPlayCounts = {};
     let repeatMode = 0; 
@@ -535,7 +545,7 @@
         height: 40,
         responsive: true,
         normalize: true,
-        backend: 'MediaElement' // FIXED: Background playback ke liye 'MediaElement' backend compulsory hai taaki pipeline lock na ho
+        backend: 'WebAudio'
       });
     }
 
@@ -577,6 +587,7 @@
         b.classList.remove('text-pink-500'); b.classList.add('text-neutral-400');
       });
       document.getElementById(`tab-${viewKey}`).classList.add('text-pink-500');
+      if (viewKey === 'search') renderSearchHistoryUI();
     }
 
     document.getElementById('btn-open-dev-view').addEventListener('click', () => {
@@ -586,15 +597,22 @@
     document.addEventListener('contextmenu', event => event.preventDefault());
     document.addEventListener('gesturestart', event => event.preventDefault());
 
+    // ABSOLUTE PERSISTENT HARDWARE BACKUP LAYER (FOR WINDOW/BROWSER EXIT CONTROL)
     function savePlaybackProgressState() {
       if(isAdCurrentlyPlaying || !audio.src || isNaN(audio.currentTime)) return;
       const progressPayload = {
         songIndex: songs.findIndex(s => s.src === audio.src),
         timestampPosition: audio.currentTime,
+        isPlaying: !audio.paused,
         savedAt: Date.now()
       };
       localStorage.setItem('pulse_playback_session_state', JSON.stringify(progressPayload));
     }
+
+    // Tab visibility aur closure handler pipeline execution
+    window.addEventListener('beforeunload', () => { savePlaybackProgressState(); });
+    window.addEventListener('unload', () => { savePlaybackProgressState(); });
+    document.addEventListener('visibilitychange', () => { savePlaybackProgressState(); });
 
     function checkAndRestorePreviousSession() {
       if(isRestoreMechanismTriggered) return;
@@ -613,7 +631,12 @@
           document.getElementById('mini-player').style.display = 'block';
           
           wavesurfer.load(targetSong.src);
-          wavesurfer.on('ready', () => { wavesurfer.setTime(audio.currentTime); });
+          wavesurfer.on('ready', () => { 
+            wavesurfer.setTime(audio.currentTime);
+            if (session.isPlaying) {
+              audio.play().catch(e => console.log("Auto-resume waiting user gesture node"));
+            }
+          });
         }
       } catch (error) { console.error(error); }
     }
@@ -709,6 +732,7 @@
       document.getElementById('btn-close-fullscreen').style.display = shouldLock ? 'none' : 'block';
     }
 
+    // HIGHLY OPTIMIZED RAW API MATRIX ALGORITHM - USER METADATA MATCH PROTOCOL
     function predictNextTrackIndex() {
       if (repeatMode === 2) return currentSongIndex;
       if (repeatMode === 1) return (currentSongIndex + 1) % (songs.length - 1); 
@@ -720,9 +744,21 @@
       songs.forEach((candidate, idx) => {
         if (idx === currentSongIndex || candidate.id === "s10") return;
         let currentScore = 0;
-        candidate.tags.forEach(t => { if (currentTrack.tags.includes(t)) currentScore += 10; });
-        if (candidate.artist.split(',')[0].trim() === currentTrack.artist.split(',')[0].trim()) currentScore += 15;
-        if (currentScore > highestScore) { highestScore = currentScore; bestMatchIndex = idx; }
+        
+        // Tag Matrix Mapping Protocol
+        candidate.tags.forEach(t => { 
+          if (currentTrack.tags.includes(t)) currentScore += 25; 
+        });
+        
+        // Exact Artist Match Boost
+        const primaryCandidateArtist = candidate.artist.split(',')[0].trim().toLowerCase();
+        const primaryCurrentArtist = currentTrack.artist.split(',')[0].trim().toLowerCase();
+        if (primaryCandidateArtist === primaryCurrentArtist) currentScore += 40; 
+        
+        if (currentScore > highestScore) { 
+          highestScore = currentScore; 
+          bestMatchIndex = idx; 
+        }
       });
       return bestMatchIndex;
     }
@@ -745,14 +781,16 @@
 
       fadeInAudio.src = targetSong.src;
       fadeInAudio.volume = 0;
-      fadeInAudio.play();
+      fadeInAudio.play().then(() => {
+        initializeMediaSession(targetSong);
+      }).catch(e => console.log(e));
 
       currentSongIndex = nextIndex;
       audio = fadeInAudio; 
       wavesurfer.load(targetSong.src);
 
       let steps = 20, duration = 4000, currentStep = 0;
-      let targetVolume = audioPrimary.volume; 
+      let targetVolume = audioPrimary.volume || 1; 
       let fadeInterval = setInterval(() => {
         currentStep++;
         let ratio = currentStep / steps;
@@ -765,7 +803,6 @@
           fadeInAudio.volume = targetVolume;
           isCrossfading = false;
           updatePlayerUI(targetSong);
-          initializeMediaSession(targetSong);
           trackListeningBehavior(targetSong.id);
         }
       }, duration / steps);
@@ -777,7 +814,7 @@
       const fadeOutAudio = audioPrimary.src === audio.src ? audioPrimary : audioSecondary;
       
       let steps = 20, duration = 2000, currentStep = 0;
-      let targetVolume = audioPrimary.volume;
+      let targetVolume = audioPrimary.volume || 1;
       
       let crossInterval = setInterval(() => {
         currentStep++;
@@ -804,21 +841,28 @@
       }
     }
 
+    // RECO ENGINE LAYER - REAL-TIME SEED MAPPING BASED ON ACTIVE METADATA
     function renderHybridUpNextQueue() {
       const container = document.getElementById('hybrid-up-next-queue');
       container.innerHTML = '';
       
-      let cleanSongsQueue = songs.filter(s => s.id !== "s10"); 
-      let logicalQueue = [];
+      const currentTrack = songs[currentSongIndex];
+      let scoringPool = [];
+
+      songs.forEach((candidate, idx) => {
+        if (candidate.id === "s10" || candidate.id === currentTrack.id) return;
+        let points = 0;
+        candidate.tags.forEach(t => { if (currentTrack.tags.includes(t)) points += 20; });
+        if (candidate.artist.split(',')[0].trim().toLowerCase() === currentTrack.artist.split(',')[0].trim().toLowerCase()) points += 35;
+        scoringPool.push({ song: candidate, indexId: idx, score: points });
+      });
+
+      // Pure API Metadata Tag Sorting Logic
+      scoringPool.sort((a, b) => b.score - a.score);
       
-      for(let i = 1; i <= cleanSongsQueue.length; i++) {
-        let loopIndex = (currentSongIndex + i) % cleanSongsQueue.length;
-        if(cleanSongsQueue[loopIndex].id !== songs[currentSongIndex].id) {
-          logicalQueue.push({ song: cleanSongsQueue[loopIndex], indexId: songs.findIndex(s => s.id === cleanSongsQueue[loopIndex].id) });
-        }
-      }
+      document.getElementById('queue-header-title').innerText = "Recommended Up Next";
       
-      logicalQueue.slice(0, 4).forEach((item, sequentialOrder) => {
+      scoringPool.slice(0, 4).forEach((item, sequentialOrder) => {
         const row = document.createElement('div');
         row.className = "queue-row flex items-center justify-between p-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.1] border border-white/[0.02] transition-all duration-300 cursor-pointer group";
         row.style.animationDelay = `${sequentialOrder * 60}ms`;
@@ -832,13 +876,76 @@
             </div>
           </div>
           <div class="flex items-center space-x-2.5 pl-2 flex-shrink-0">
+            <span class="text-[9px] text-pink-400 font-bold bg-pink-500/10 px-1 rounded text-[8px]">${item.score > 0 ? 'Match' : 'Flow'}</span>
             <span class="text-[9px] text-white/30 font-medium tracking-wider">${item.song.duration || '3:00'}</span>
-            <div class="text-white/20 p-1"><i class="fa-solid fa-bars text-[10px]"></i></div>
           </div>
         `;
         container.appendChild(row);
       });
     }
+
+    // SEARCH HISTORY STORAGE CONTROLLER LOGIC (MAX 10 RECENT ITEMS API)
+    function appendSearchTermToHistory(term) {
+      if (!term || !currentUser) return;
+      term = term.trim();
+      if (term === "") return;
+
+      searchHistory = searchHistory.filter(item => item.toLowerCase() !== term.toLowerCase());
+      searchHistory.unshift(term);
+      if (searchHistory.length > 10) searchHistory = searchHistory.slice(0, 10);
+
+      localStorage.setItem(`pulse_search_history_${currentUser.uid}`, JSON.stringify(searchHistory));
+      set(ref(db, `users/${currentUser.uid}/searchHistory`), searchHistory);
+      renderSearchHistoryUI();
+    }
+
+    function renderSearchHistoryUI() {
+      const box = document.getElementById('search-history-box');
+      const tagsContainer = document.getElementById('search-history-tags');
+      tagsContainer.innerHTML = '';
+
+      if (!currentUser || searchHistory.length === 0) {
+        box.classList.add('hidden');
+        return;
+      }
+
+      box.classList.remove('hidden');
+      searchHistory.forEach(term => {
+        const tag = document.createElement('div');
+        tag.className = "text-[11px] bg-neutral-800 text-neutral-300 border border-neutral-700/60 px-2.5 py-1 rounded-lg cursor-pointer hover:bg-neutral-700 hover:text-white transition flex items-center space-x-1 max-w-[120px] truncate";
+        tag.innerHTML = `<i class="fa-solid fa-clock-rotate-left text-[9px] text-neutral-500"></i> <span class="truncate">${term}</span>`;
+        tag.onclick = () => {
+          document.getElementById('search-input').value = term;
+          triggerSearchFilterPipeline(term);
+        };
+        tagsContainer.appendChild(tag);
+      });
+    }
+
+    function triggerSearchFilterPipeline(term) {
+      const targetContainer = document.getElementById('search-results-container');
+      const cleanTerm = term.trim().toLowerCase();
+      if(!cleanTerm) { targetContainer.innerHTML = ''; return; }
+      
+      const filtered = songs.filter(s => (s.title.toLowerCase().includes(cleanTerm) || s.artist.toLowerCase().includes(cleanTerm)));
+      renderSongsList(filtered, targetContainer);
+    }
+
+    document.getElementById('search-input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const val = e.target.value;
+        appendSearchTermToHistory(val);
+      }
+    });
+
+    document.getElementById('btn-clear-search-history').addEventListener('click', () => {
+      if (!currentUser) return;
+      searchHistory = [];
+      localStorage.removeItem(`pulse_search_history_${currentUser.uid}`);
+      set(ref(db, `users/${currentUser.uid}/searchHistory`), null);
+      renderSearchHistoryUI();
+      showNotification("Search history cleared", "fa-trash-can");
+    });
 
     document.getElementById('btn-signup').addEventListener('click', () => {
       const name = document.getElementById('sign-name').value.trim();
@@ -888,6 +995,7 @@
 
     document.getElementById('btn-logout').addEventListener('click', () => {
       localStorage.removeItem('pulse_playback_session_state');
+      if (currentUser) localStorage.removeItem(`pulse_search_history_${currentUser.uid}`);
       signOut(auth).then(() => {
         fullscreenPlayer.classList.remove('active'); devFullscreenView.classList.remove('active');
         document.getElementById('auth-screen').style.display = 'block';
@@ -899,6 +1007,11 @@
     onAuthStateChanged(auth, (user) => {
       if (user) {
         currentUser = user; document.getElementById('auth-screen').style.display = 'none';
+        
+        // Local history cache pull validation
+        const localHist = localStorage.getItem(`pulse_search_history_${user.uid}`);
+        if (localHist) searchHistory = JSON.parse(localHist);
+
         const localHabits = localStorage.getItem('pulse_listening_habits');
         if (localHabits) songPlayCounts = JSON.parse(localHabits);
         syncUserData(user.uid); setTimeout(checkAndRestorePreviousSession, 600);
@@ -910,6 +1023,7 @@
       if(rootSnap.exists()) {
         const val = rootSnap.val(); document.getElementById('user-display-name').innerText = val.name;
         userFavorites = val.favorites ? Object.values(val.favorites) : []; userPlaylists = val.playlists || {};
+        if (val.searchHistory) { searchHistory = val.searchHistory; renderSearchHistoryUI(); }
         if (val.listeningHabits) { songPlayCounts = val.listeningHabits; applyPersonalizedSorting(); }
         renderLibraryViews();
       }
@@ -961,12 +1075,13 @@
 
       currentSongIndex = index;
       const song = songs[currentSongIndex];
-      
-      // BACKGROUND FIX: Audio context humesha active rakhne ke liye play trigger direct element par propagate karna zaroori hai
       audio.src = song.src;
+      
+      // Force loading of resource to update underlying player status instantly
+      audio.load();
       audio.play().then(() => {
-        initializeMediaSession(song); // FIXED: Media Session tabhi hook hoga jab user interaction successful ho
-      }).catch(err => console.log("Audio Engine context delayed:", err));
+        initializeMediaSession(song);
+      }).catch(err => console.log("Gesture waiting mode initialized: ", err));
 
       wavesurfer.load(song.src);
       updatePlayerUI(song);
@@ -1014,25 +1129,69 @@
       else if (repeatMode === 2) { repBtn.className = "text-pink-500 text-lg p-1 relative"; indicator.classList.remove('hidden'); }
     }
 
-    // FIXED: HARDENED MEDIA SESSION BACKGROUND HOOK API ENGINE
+    // HIGHLY ROBUST lock screen MEDIA SESSION CONFIGURATION ENGINE 
     function initializeMediaSession(song) {
       if ('mediaSession' in navigator) {
         navigator.mediaSession.metadata = new MediaMetadata({
           title: song.title,
           artist: song.artist,
           album: "Pulse Premium",
-          artwork: [{ src: song.cover, sizes: '512x512', type: 'image/jpeg' }]
+          artwork: [
+            { src: song.cover, sizes: '96x96',   type: 'image/jpeg' },
+            { src: song.cover, sizes: '128x128', type: 'image/jpeg' },
+            { src: song.cover, sizes: '192x192', type: 'image/jpeg' },
+            { src: song.cover, sizes: '256x256', type: 'image/jpeg' },
+            { src: song.cover, sizes: '384x384', type: 'image/jpeg' },
+            { src: song.cover, sizes: '512x512', type: 'image/jpeg' },
+          ]
         });
-        
+
         navigator.mediaSession.playbackState = audio.paused ? "paused" : "playing";
 
-        // Native iOS/Android Center Widget Handlers
-        navigator.mediaSession.setActionHandler('play', () => { togglePlayback(); });
-        navigator.mediaSession.setActionHandler('pause', () => { togglePlayback(); });
+        // Permanent continuous state handler loops mapping
+        navigator.mediaSession.setActionHandler('play', () => {
+          audio.play();
+          navigator.mediaSession.playbackState = "playing";
+          updatePlayerUI(songs[currentSongIndex]);
+        });
+        
+        navigator.mediaSession.setActionHandler('pause', () => {
+          audio.pause();
+          navigator.mediaSession.playbackState = "paused";
+          updatePlayerUI(songs[currentSongIndex]);
+        });
+
         navigator.mediaSession.setActionHandler('previoustrack', () => { 
           if(!isAdCurrentlyPlaying) playSong((currentSongIndex - 1 + (songs.length - 1)) % (songs.length - 1)); 
         });
-        navigator.mediaSession.setActionHandler('nexttrack', () => { handleSongCompletionRoute(); });
+        
+        navigator.mediaSession.setActionHandler('nexttrack', () => {
+          handleSongCompletionRoute();
+        });
+
+        // Seek position mapping synchronization directly to lock screen hardware slider
+        try {
+          navigator.mediaSession.setActionHandler('seekto', (details) => {
+            if (details.fastSeek && 'fastSeek' in audio) {
+              audio.fastSeek(details.seekTime);
+            } else {
+              audio.currentTime = details.seekTime;
+            }
+            updateMediaSessionPositionState();
+          });
+        } catch(e) { console.log("Seek handler not natively supported on client architecture"); }
+      }
+    }
+
+    function updateMediaSessionPositionState() {
+      if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+        if (audio.duration && !isNaN(audio.duration) && !isNaN(audio.currentTime)) {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            playbackRate: audio.playbackRate || 1,
+            position: audio.currentTime
+          });
+        }
       }
     }
 
@@ -1043,25 +1202,22 @@
       const artWrapper = document.getElementById('fs-art-wrapper');
       if (audio.paused) {
         audio.play(); 
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
         fsPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; 
         miniPlayBtn.innerHTML = '<i class="fa-solid fa-pause"></i>'; 
         artWrapper.classList.replace('scale-95', 'scale-100');
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing";
       } else {
         audio.pause(); 
+        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused";
         fsPlayBtn.innerHTML = '<i class="fa-solid fa-play ml-0.5"></i>'; 
         miniPlayBtn.innerHTML = '<i class="fa-solid fa-play"></i>'; 
         artWrapper.classList.replace('scale-100', 'scale-95');
-        if ('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused";
       }
       savePlaybackProgressState();
     }
 
     document.getElementById('search-input').addEventListener('input', (e) => {
-      const term = e.target.value.trim().toLowerCase();
-      if(!term) { document.getElementById('search-results-container').innerHTML = ''; return; }
-      const filtered = songs.filter(s => (s.title.toLowerCase().includes(term) || s.artist.toLowerCase().includes(term)));
-      renderSongsList(filtered, document.getElementById('search-results-container'));
+      triggerSearchFilterPipeline(e.target.value);
     });
 
     document.getElementById('btn-heart').addEventListener('click', async () => {
@@ -1148,11 +1304,15 @@
       document.getElementById('fs-time-current').innerText = `${curMins}:${curSecs < 10 ? '0'+curSecs : curSecs}`;
       document.getElementById('fs-time-duration').innerText = `${durMins}:${durSecs < 10 ? '0'+durSecs : durSecs}`;
       
-      // FIXED: Background throttling check, jab tab background me ho to wave rendering update pause ho jayegi taki timeline crash na ho
-      if(wavesurfer && !isCrossfading && document.visibilityState === 'visible') {
+      if(wavesurfer && !isCrossfading) {
         wavesurfer.setTime(activeEngine.currentTime);
       }
       
+      // Real-time lock screen position slider position matching ticks updates
+      if (Math.floor(activeEngine.currentTime) % 1 === 0) {
+        updateMediaSessionPositionState();
+      }
+
       if (activeEngine.duration - activeEngine.currentTime <= 5 && !isCrossfading && repeatMode !== 2 && !isAdCurrentlyPlaying) {
         executeCrossfadeTransition();
       }
@@ -1161,6 +1321,13 @@
 
     audioPrimary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
     audioSecondary.addEventListener('timeupdate', onAudioEngineTimeUpdate);
+    
+    // Explicit trigger tracking for lock screen audio plays states mapping
+    audioPrimary.addEventListener('play', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing"; });
+    audioSecondary.addEventListener('play', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "playing"; });
+    audioPrimary.addEventListener('pause', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused"; });
+    audioSecondary.addEventListener('pause', () => { if('mediaSession' in navigator) navigator.mediaSession.playbackState = "paused"; });
+
     audioPrimary.addEventListener('ended', handleSongCompletionRoute);
     audioSecondary.addEventListener('ended', handleSongCompletionRoute);
 
@@ -1178,14 +1345,8 @@
       if(isAdCurrentlyPlaying) return;
       audio.currentTime = e.target.value; 
       if(wavesurfer) wavesurfer.setTime(audio.currentTime);
+      updateMediaSessionPositionState();
       savePlaybackProgressState(); 
-    });
-
-    // FIXED: Window visibility state listener, tab restore hote hi timeline automatically track sync kar legi
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible' && audio && wavesurfer && !audio.paused) {
-        wavesurfer.setTime(audio.currentTime);
-      }
     });
 
     initWaveSurferEngine();
