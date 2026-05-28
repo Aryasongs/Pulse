@@ -42,24 +42,6 @@
             font-size: 8px;
             margin-left: 4px;
         }
-
-        /* Animated Waveform for Ad Screen */
-        .waveform-bar {
-            width: 4px;
-            height: 15px;
-            background-color: #ef4444;
-            animation: pulse-wave 1.2s ease-in-out infinite alternate;
-            border-radius: 2px;
-        }
-        .waveform-bar:nth-child(2) { animation-delay: 0.2s; height: 25px; }
-        .waveform-bar:nth-child(3) { animation-delay: 0.4s; height: 35px; background-color: #f43f5e; }
-        .waveform-bar:nth-child(4) { animation-delay: 0.1s; height: 20px; }
-        .waveform-bar:nth-child(5) { animation-delay: 0.3s; height: 30px; }
-
-        @keyframes pulse-wave {
-            0% { transform: scaleY(0.4); }
-            100% { transform: scaleY(1.2); }
-        }
     </style>
 </head>
 <body class="bg-black text-white h-screen flex flex-col justify-between">
@@ -78,6 +60,28 @@
             </div>
         </div>
     </header>
+
+    <div id="ad-lock-overlay" class="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-6 hidden">
+        <div class="text-center space-y-6 max-w-sm">
+            <div class="relative w-48 h-48 mx-auto rounded-2xl overflow-hidden shadow-2xl border border-zinc-700">
+                <img id="ad-cover-art" src="" class="w-full h-full object-cover animate-pulse" alt="Ad Poster">
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <i class="fa-solid fa-rectangle-ad text-white text-4xl"></i>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <span class="text-xs font-bold tracking-widest text-zinc-500 uppercase bg-zinc-900 px-2.5 py-1 rounded-full border border-zinc-800">Sponsor Advertisement</span>
+                <h2 id="ad-title" class="text-xl font-black text-white"></h2>
+                <p id="ad-artist" class="text-sm text-zinc-400"></p>
+            </div>
+            <div class="w-full bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+                <div id="ad-progress" class="bg-red-500 h-full w-0 transition-all duration-300"></div>
+            </div>
+            <p class="text-xs text-red-400 font-mono flex items-center justify-center gap-2">
+                <i class="fa-solid fa-lock animate-bounce"></i> Non-Skippable Ad Playing... <span id="ad-timer">0</span>s left
+            </p>
+        </div>
+    </div>
 
     <main class="flex-1 overflow-y-auto hide-scrollbar pb-24">
         
@@ -151,14 +155,17 @@
                             <span>Image Canvas Architecture Engine</span>
                             <button onclick="closeEditor()" class="text-red-400"><i class="fa-solid fa-times"></i></button>
                         </div>
+                        
                         <div id="crop-wrapper" class="overflow-hidden bg-zinc-900 mx-auto flex items-center justify-center transition-all duration-300" style="width: 100%; max-height: 280px;">
                             <img id="editor-preview-img" class="filter-normal object-cover w-full h-full" src="" alt="Preview">
                         </div>
+
                         <div class="flex justify-center gap-2 border-t border-zinc-900 pt-2">
                             <button onclick="changeAspect('1:1')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">1:1 Square</button>
                             <button onclick="changeAspect('4:5')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">4:5 Portrait</button>
                             <button onclick="changeAspect('16:9')" class="text-[11px] bg-zinc-900 px-2 py-1 rounded border border-zinc-800">16:9 Wide</button>
                         </div>
+
                         <div class="grid grid-cols-5 gap-1 pt-1">
                             <button onclick="applyFilter('filter-normal')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">Normal</button>
                             <button onclick="applyFilter('filter-bw')" class="text-[10px] bg-zinc-900 py-1 rounded border border-zinc-800">M-B&W</button>
@@ -172,7 +179,8 @@
                 </div>
             </div>
 
-            <div id="posts-timeline" class="space-y-6"></div>
+            <div id="posts-timeline" class="space-y-6">
+                </div>
         </section>
 
         <section id="screen-chat" class="p-4 max-w-lg mx-auto hidden flex flex-col h-[70vh]">
@@ -186,7 +194,8 @@
                 </button>
             </div>
             
-            <div id="chat-messages-box" class="flex-1 bg-zinc-950 border border-zinc-800 p-4 overflow-y-auto space-y-3 hide-scrollbar"></div>
+            <div id="chat-messages-box" class="flex-1 bg-zinc-950 border border-zinc-800 p-4 overflow-y-auto space-y-3 hide-scrollbar">
+                </div>
 
             <div class="apple-blur p-2 rounded-b-2xl border border-zinc-800 border-t-0 flex gap-2">
                 <input type="text" id="chat-input-message" placeholder="Type verified encrypted message here..." class="flex-1 bg-zinc-900 border border-zinc-800 px-3 py-2 rounded-xl text-sm text-white focus:outline-none">
@@ -195,36 +204,32 @@
         </section>
 
         <section id="screen-music" class="p-4 max-w-xl mx-auto space-y-6 hidden">
-            <div id="quick-categories" class="grid grid-cols-2 gap-2 text-center text-xs font-semibold">
-                <div class="bg-zinc-900 p-3 rounded-xl border border-zinc-800 text-red-400"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Recently Added</div>
-                <div class="bg-zinc-900 p-3 rounded-xl border border-zinc-800 text-zinc-400"><i class="fa-solid fa-list-ul mr-1"></i> Up Next Queue</div>
-            </div>
-
-            <div class="apple-blur border border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center relative overflow-hidden">
+            <div class="apple-blur border border-zinc-800 rounded-3xl p-6 shadow-2xl flex flex-col items-center text-center">
                 <div class="w-56 h-56 rounded-2xl overflow-hidden shadow-xl mb-4 border border-zinc-800 bg-zinc-900">
-                    <img id="player-track-cover" src="" alt="Track Art" class="w-full h-full object-cover">
+                    <img id="player-track-cover" src="https://aryasongs.github.io/Pulse/IMG_6103.jpeg" alt="Track Art" class="w-full h-full object-cover">
                 </div>
-                <h2 id="player-track-title" class="text-xl font-bold tracking-tight text-white mb-0.5">---</h2>
-                <p id="player-track-artist" class="text-sm text-zinc-400 mb-4">---</p>
+                <h2 id="player-track-title" class="text-xl font-bold tracking-tight text-white mb-0.5">Waaka</h2>
+                <p id="player-track-artist" class="text-sm text-zinc-400 mb-4">Nirvair Pannu</p>
                 
                 <div class="w-full flex items-center gap-2 mb-4">
                     <span id="player-time-current" class="text-[10px] text-zinc-500 font-mono w-8 text-right">0:00</span>
                     <div onclick="seekTrack(event)" id="player-progress-container" class="flex-1 h-1 bg-zinc-800 rounded-full cursor-pointer relative">
                         <div id="player-progress-bar" class="h-full bg-white rounded-full w-0"></div>
                     </div>
-                    <span id="player-time-total" class="text-[10px] text-zinc-500 font-mono w-8 text-left">0:00</span>
+                    <span id="player-time-total" class="text-[10px] text-zinc-500 font-mono w-8 text-left">0:30</span>
                 </div>
 
                 <div class="flex items-center gap-6">
-                    <button onclick="prevTrack()" id="btn-player-prev" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-backward-step"></i></button>
+                    <button onclick="prevTrack()" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-backward-step"></i></button>
                     <button onclick="togglePlayback()" id="btn-main-play" class="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center transition hover:scale-105 text-xl pl-1"><i class="fa-solid fa-play"></i></button>
-                    <button onclick="nextTrack()" id="btn-player-next" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-forward-step"></i></button>
+                    <button onclick="nextTrack()" class="text-zinc-400 hover:text-white transition text-xl"><i class="fa-solid fa-forward-step"></i></button>
                 </div>
             </div>
 
             <div>
                 <h3 class="text-base font-bold tracking-tight mb-3 text-zinc-300 pl-1">Tracks Library Catalogue</h3>
-                <div id="music-catalogue-container" class="space-y-2"></div>
+                <div id="music-catalogue-container" class="space-y-1">
+                    </div>
             </div>
         </section>
 
@@ -267,58 +272,11 @@
 
     </main>
 
-    <div id="screen-premium-ad-interruption" class="fixed inset-0 z-50 bg-black/95 flex flex-col justify-between p-6 transition-all duration-500 ease-in-out opacity-0 pointer-events-none transform scale-105">
-        <div id="ad-blur-bg" class="absolute inset-0 -z-10 bg-cover bg-center filter blur-3xl opacity-30 transition-all duration-500"></div>
-        
-        <div class="flex justify-between items-center mt-4">
-            <div class="text-white font-bold tracking-wider text-sm flex items-center gap-1.5 opacity-80">
-                <i class="fa-solid fa-bolt text-red-500 animate-pulse"></i> PULSE MUSIC
-            </div>
-            <div class="bg-zinc-900/80 border border-zinc-800/60 text-[11px] font-bold text-zinc-400 px-3 py-1 rounded-full uppercase tracking-widest">
-                Advertisement
-            </div>
-        </div>
-
-        <div class="flex flex-col items-center justify-center text-center space-y-6 my-auto">
-            <p class="text-sm font-semibold tracking-wide text-zinc-400 uppercase">Sponsored by Pulse Premium</p>
-            
-            <div class="w-64 h-64 md:w-72 md:h-72 rounded-2xl overflow-hidden shadow-[0_0_50px_rgba(239,68,68,0.25)] border border-zinc-800 bg-zinc-950 transform transition duration-500 hover:scale-102">
-                <img id="ad-media-cover-display" src="" alt="Ad Media Resource Graphic Illustration Artwork" class="w-full h-full object-cover">
-            </div>
-
-            <div class="space-y-1">
-                <h2 class="text-2xl font-black tracking-tight text-white" id="ad-title-label">911</h2>
-                <p class="text-base font-medium text-red-400" id="ad-artist-label">Abigail Claire, Sharan Pooni</p>
-            </div>
-
-            <div class="flex items-center gap-1.5 h-10 justify-center py-2" id="ad-waveform-box">
-                <div class="waveform-bar"></div>
-                <div class="waveform-bar"></div>
-                <div class="waveform-bar"></div>
-                <div class="waveform-bar"></div>
-                <div class="waveform-bar"></div>
-            </div>
-
-            <div class="space-y-2 max-w-xs">
-                <div class="text-xs font-mono font-bold text-zinc-500 tracking-wider uppercase">
-                    Your music resumes in <span id="ad-countdown-timer-node" class="text-white text-sm font-bold bg-zinc-900 px-2 py-0.5 rounded border border-zinc-800 mx-0.5">19</span> seconds
-                </div>
-                <p class="text-[11px] text-zinc-400 italic">Audio streaming sequence locked on promotional bypass filters parameters framework...</p>
-            </div>
-        </div>
-
-        <div class="w-full max-w-sm mx-auto mb-6 text-center space-y-4">
-            <p class="text-xs text-zinc-400">Upgrade to Premium for uninterrupted high-fidelity audio music tracks playback.</p>
-            <button onclick="alert('Redirecting to Pulse Premium billing infrastructure gateway parameters...')" class="w-full bg-gradient-to-r from-red-600 via-rose-600 to-red-700 hover:opacity-95 text-white font-bold py-3.5 rounded-2xl text-sm shadow-[0_4px_20px_rgba(225,29,72,0.3)] border border-rose-500/30 tracking-wide transition duration-300">
-                Go Premium
-            </button>
-        </div>
-    </div>
-
     <div id="custom-permission-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="apple-blur border border-zinc-800 max-w-sm w-full rounded-2xl p-5 shadow-2xl">
             <h3 class="text-base font-bold text-white mb-2"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i> Custom Privacy Panel</h3>
             <p class="text-xs text-zinc-400 mb-4">Pulse manages system event layers internally without requesting web-browser notification APIs.</p>
+            
             <div class="space-y-3">
                 <div class="flex justify-between items-center p-2.5 bg-zinc-900 rounded-xl border border-zinc-800">
                     <div>
@@ -371,7 +329,8 @@
                 <button onclick="closeUserDirectory()" class="text-zinc-500 hover:text-white"><i class="fa-solid fa-times"></i></button>
             </div>
             <p class="text-[11px] text-zinc-400 mb-3">Blocking hides avatars and overrides identities to 'Pulse User' with total message suppression protocols.</p>
-            <div id="directory-users-list" class="flex-1 overflow-y-auto space-y-2 hide-scrollbar"></div>
+            <div id="directory-users-list" class="flex-1 overflow-y-auto space-y-2 hide-scrollbar">
+                </div>
         </div>
     </div>
 
@@ -382,14 +341,15 @@
         </div>
         <div class="space-y-3">
             <p class="text-[11px] text-zinc-400">Grant or revoke verified status ticks dynamically inside Firebase nodes across any profiles below.</p>
-            <div id="admin-users-payload-target" class="space-y-1.5 max-h-40 overflow-y-auto hide-scrollbar"></div>
+            <div id="admin-users-payload-target" class="space-y-1.5 max-h-40 overflow-y-auto hide-scrollbar">
+                </div>
         </div>
     </div>
 
     <audio id="global-audio-node" preload="auto"></audio>
 
     <nav id="app-navigation-bar" class="apple-blur border-t border-zinc-800 fixed bottom-0 inset-x-0 p-2 flex justify-around items-center z-40 hidden">
-        <button onclick="navigateToScreen('feed')" id="nav-feed" class="flex flex-col items-center gap-0.5 text-zinc-500 transition">
+        <button onclick="navigateToScreen('feed')" id="nav-feed" class="flex flex-col items-center gap-0.5 text-red-500 transition">
             <i class="fa-solid fa-rss text-lg"></i><span class="text-[10px] font-medium">Feed</span>
         </button>
         <button onclick="navigateToScreen('chat')" id="nav-chat" class="flex flex-col items-center gap-0.5 text-zinc-500 transition relative">
@@ -406,7 +366,7 @@
 
 
     <script>
-        // 1. INJECT INLINE STRIPPED INTERPOLATED CONFIG RULES
+        // 1. FIREBASE AUTH CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -422,31 +382,35 @@
         }
         const database = firebase.database();
 
-        // 2. SONG ASSET LIBRARY MATRICES (UPGRADED WITH THE NEW TRACK PRESETS)
+        // 2. SONG ASSET LIBRARY MATRICES (With New Ad Song Included)
         const songs = [
-            { title: "911", artist: "Abigail Claire, Sharan Pooni", src: "https://aryasongs.github.io/Pulse/audio.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg" },
             { title: "Barota", artist: "Sidhu Moose Wala, The Kidd", src: "https://aryasongs.github.io/Pulse/barota.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg" },
             { title: "California Love", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/california%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg" },
             { title: "Lovely", artist: "Kanika Kapoor", src: "https://aryasongs.github.io/Pulse/lovely.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6104.jpeg" },
             { title: "Jackpot", artist: "Cheema Y, Gur Sidhu", src: "https://aryasongs.github.io/Pulse/jackpot.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6105.png" },
             { title: "Waka Waka (This Time for Africa)", artist: "Shakira", src: "https://aryasongs.github.io/Pulse/shakira.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6108.jpeg" },
             { title: "5-7", artist: "Karan Aujla", src: "https://aryasongs.github.io/Pulse/5-7.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6109.jpeg" },
-            { title: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6103.jpeg" }
+            { title: "Waaka", artist: "Nirvair Pannu", src: "https://aryasongs.github.io/Pulse/dozera.mp3.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6103.jpeg" },
+            { title: "911", artist: "Abigail Claire, Sharan Pooni", src: "https://aryasongs.github.io/Pulse/audio.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg" }
         ];
 
         // State Machine Storage Matrices
         let currentUser = null;
         let globalUsersObject = {};
-        let currentTrackIndex = 0; // Default track initialization pointers set to "911"
+        let currentTrackIndex = 6; 
         let activeImageEditorFilter = 'filter-normal';
         let activeImageEditorBase64 = null;
         let audioNode = document.getElementById('global-audio-node');
 
-        // SPOTIFY NON-SKIPPABLE AUDIO ADS LOGIC CONTROL REGISTERS
-        let totalSongsPlayedCounter = 0;
-        let isAdvertisementCurrentlyActive = false;
-        let adSavedStateBackup = { currentTrackIdx: 0, trackingProgressTime: 0, playbackState: false };
+        // Spotify Style Ad Engine State Machine
+        let songsListenedCount = 0;
+        let isAdPlaying = false;
+        const targetAdSongIndex = 7; // Index of '911'
+        const adStartTime = 33;
+        const adEndTime = 54;
+        const adTotalDuration = adEndTime - adStartTime; // 21 Seconds
 
+        // Initialization execution hooks
         document.addEventListener("DOMContentLoaded", () => {
             populateMusicCatalogues();
             attachAudioPlayerListeners();
@@ -486,6 +450,7 @@
             }
 
             const cleanEmailKey = email.replace(/[.#$\[\]]/g, "_");
+            
             database.ref('users/' + cleanEmailKey).once('value', snapshot => {
                 if (snapshot.exists()) {
                     alert("Account configuration already deployment matrix found for this email address.");
@@ -549,9 +514,6 @@
             initializeRealtimeDataMirrors();
             navigateToScreen('music');
             updateProfileDashboardMetrics();
-            
-            // Sync initial standard player loading display matrices
-            selectAndStreamSpecificTrackIndex(0, false);
         }
 
         function checkSavedSession() {
@@ -571,6 +533,7 @@
             location.reload();
         }
 
+        // 4. FORGOT PASSWORD SYSTEM DESK
         function openForgotModal() { document.getElementById('forgot-password-modal').classList.remove('hidden'); }
         function closeForgotModal() { document.getElementById('forgot-password-modal').classList.add('hidden'); }
 
@@ -604,10 +567,9 @@
             });
         }
 
-        // 4. NAVIGATION ROUTER CONTROL LAYERS
+        // 5. NAVIGATION LAYERS INTERACTION ARCHITECTURE ROUTER
         function navigateToScreen(targetScreenId) {
-            if (isAdvertisementCurrentlyActive) return; // Lock transitions out completely
-
+            if (isAdPlaying) return; // Prevent navigation when Ad is active
             const screens = ['auth', 'feed', 'chat', 'music', 'profile'];
             screens.forEach(s => {
                 const element = document.getElementById(`screen-${s}`);
@@ -627,7 +589,7 @@
             logSessionUserActivity(`Mapsd to view node scene: ${targetScreenId}`);
         }
 
-        // 5. FIREBASE ENGINE SUBSCRIBERS MAPPING DATA MIRRORS
+        // 6. REALTIME SYNCHRONIZER STORAGE STREAMS
         function initializeRealtimeDataMirrors() {
             database.ref('users').on('value', snapshot => {
                 if (snapshot.exists()) {
@@ -652,7 +614,8 @@
             });
         }
 
-        function openPermissionPanel() { if (!isAdvertisementCurrentlyActive) document.getElementById('custom-permission-modal').classList.remove('hidden'); }
+        // 7. PRIVACY PERMISSIONS MANAGEMENT
+        function openPermissionPanel() { if(!isAdPlaying) document.getElementById('custom-permission-modal').classList.remove('hidden'); }
         function closePermissionPanel() { document.getElementById('custom-permission-modal').classList.add('hidden'); }
         
         function syncInternalPermissions() {
@@ -673,7 +636,7 @@
             if(counter) counter.innerText = parseInt(counter.innerText) + 1;
         }
 
-        // 6. PHOTO EDITOR SUBSYSTEM MATRIX LAYERS
+        // 8. INSTAGRAM-STYLE ADVANCED PHOTO EDITOR 
         function initImageEditor(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -685,29 +648,42 @@
             };
             fileReader.readAsDataURL(file);
         }
+
         function applyFilter(filterClassName) {
             document.getElementById('editor-preview-img').className = "object-cover w-full h-full " + filterClassName;
             activeImageEditorFilter = filterClassName;
         }
+
+        document.getElementById("editor-preview-img").addEventListener("error", function () {
+            this.src = "https://aryasongs.github.io/Pulse/IMG_6103.jpeg";
+        });
+
         function changeAspect(ratioString) {
             const wrapper = document.getElementById('crop-wrapper');
             if (ratioString === '1:1') { wrapper.style.aspectRatio = "1 / 1"; wrapper.style.height = "280px"; }
             else if (ratioString === '4:5') { wrapper.style.aspectRatio = "4 / 5"; wrapper.style.height = "320px"; }
             else if (ratioString === '16:9') { wrapper.style.aspectRatio = "16 / 9"; wrapper.style.height = "180px"; }
         }
+
         function closeEditor() {
             document.getElementById('image-editor-box').classList.add('hidden');
             activeImageEditorBase64 = null;
             document.getElementById('post-image-file').value = "";
         }
 
-        // 7. TIMELINE LOGISTIC STREAM BROADCASTS
+        // 9. FEED LOGIC PUBLICATION & TIMELINE
         function submitPost() {
             const caption = document.getElementById('post-caption').value.trim();
             const songSelectionIndex = document.getElementById('post-song-select').value;
-            if (!caption && !activeImageEditorBase64) return;
+            
+            if (!caption && !activeImageEditorBase64) {
+                alert("Cannot broadcast structural empty components inside post timeline framework logs.");
+                return;
+            }
 
-            let songPayload = songSelectionIndex !== "" ? songs[parseInt(songSelectionIndex)] : null;
+            let songPayload = null;
+            if (songSelectionIndex !== "") { songPayload = songs[parseInt(songSelectionIndex)]; }
+
             const postObject = {
                 authorEmail: currentUser.email,
                 authorName: currentUser.name,
@@ -737,9 +713,10 @@
             database.ref('feed_posts').once('value', snapshot => {
                 container.innerHTML = "";
                 if (!snapshot.exists()) {
-                    container.innerHTML = `<div class="text-center text-zinc-600 text-xs py-8">Timeline workspace empty.</div>`;
+                    container.innerHTML = `<div class="text-center text-zinc-600 text-xs py-8">Timeline stream workspace is currently empty.</div>`;
                     return;
                 }
+
                 let trackingPostsList = [];
                 snapshot.forEach(child => {
                     let post = child.val(); post.key = child.key; trackingPostsList.unshift(post);
@@ -747,53 +724,89 @@
 
                 trackingPostsList.forEach(post => {
                     const authorCleanKey = post.authorEmail.replace(/[.#$\[\]]/g, "_");
-                    if (currentUser?.blockedUsers?.[authorCleanKey]) return;
+                    const authorProfileNode = globalUsersObject[authorCleanKey] || {};
+                    
+                    if (currentUser && currentUser.blockedUsers && currentUser.blockedUsers[authorCleanKey]) return;
 
-                    const nameString = globalUsersObject[authorCleanKey]?.verified ? `${post.authorName} <span class="verified-tick"><i class="fa-solid fa-check"></i></span>` : post.authorName;
-                    const isLiked = post.likedByArray?.[currentUser?.email.replace(/[.#$\[\]]/g, "_")];
+                    const isAuthorVerified = authorProfileNode.verified || false;
+                    const nameString = isAuthorVerified ? `${post.authorName} <span class="verified-tick"><i class="fa-solid fa-check"></i></span>` : post.authorName;
+                    let currentPostLikesTotal = post.likesCount || 0;
+                    
+                    let imageSectionMarkup = "";
+                    if (post.imageDataMatrix) {
+                        imageSectionMarkup = `
+                            <div class="relative overflow-hidden bg-zinc-950 mt-2 border border-zinc-900 rounded-xl max-h-[360px] flex items-center justify-center cursor-pointer" 
+                                 onclick="handlePostMediaSingleTap('${post.key}')" 
+                                 ondblclick="handlePostMediaInstagramDoubleTap('${post.key}', event)">
+                                <img src="${post.imageDataMatrix}" class="w-full h-full object-cover ${post.imageFilterClass}" alt="Post Media">
+                                <div id="heart-overlay-${post.key}" class="absolute text-white text-5xl opacity-0 scale-50 pointer-events-none transition-all duration-300"><i class="fa-solid fa-heart text-red-500"></i></div>
+                            </div>
+                        `;
+                    }
 
-                    container.innerHTML += `
+                    let songSectionMarkup = "";
+                    if (post.attachedSong) {
+                        songSectionMarkup = `
+                            <div class="bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl mt-3 flex items-center justify-between">
+                                <div class="flex items-center gap-2.5 truncate">
+                                    <img src="${post.attachedSong.cover}" class="w-10 h-10 rounded-lg object-cover border border-zinc-800">
+                                    <div class="truncate">
+                                        <p class="text-xs font-bold text-white truncate">${post.attachedSong.title}</p>
+                                        <p class="text-[10px] text-zinc-400 truncate">${post.attachedSong.artist}</p>
+                                    </div>
+                                </div>
+                                <button onclick="injectTrackOverridingEngine('${post.attachedSong.title}')" class="text-xs text-red-500 font-semibold bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white transition">
+                                    <i class="fa-solid fa-play mr-1"></i> Stream Track
+                                </button>
+                            </div>
+                        `;
+                    }
+
+                    const postBlockMarkupCard = `
                         <div class="apple-blur border border-zinc-800 rounded-2xl p-4 space-y-2 relative shadow-md">
                             <div class="flex justify-between items-center">
                                 <div class="flex items-center gap-2">
-                                    <div class="w-8 h-8 rounded-full bg-zinc-800 text-xs font-bold flex items-center justify-center text-white border border-zinc-700">${post.authorName.charAt(0).toUpperCase()}</div>
+                                    <div class="w-8 h-8 rounded-full bg-zinc-800 text-xs font-bold flex items-center justify-center text-white border border-zinc-700">
+                                        ${post.authorName.charAt(0).toUpperCase()}
+                                    </div>
                                     <div>
                                         <h4 class="text-xs font-bold flex items-center text-zinc-200">${nameString}</h4>
                                         <p class="text-[9px] text-zinc-500 font-mono">${new Date(post.timestamp).toLocaleTimeString()}</p>
                                     </div>
                                 </div>
+                                ${currentUser && currentUser.email === post.authorEmail ? `
+                                    <button onclick="deleteTargetedPost('${post.key}')" class="text-zinc-600 hover:text-red-400 text-xs transition"><i class="fa-solid fa-trash-can"></i></button>
+                                ` : ''}
                             </div>
                             <p class="text-xs text-zinc-300 leading-relaxed pt-1">${post.caption}</p>
-                            ${post.imageDataMatrix ? `
-                                <div class="relative overflow-hidden bg-zinc-950 mt-2 border border-zinc-900 rounded-xl max-h-[360px] flex items-center justify-center cursor-pointer" onclick="handlePostMediaSingleTap('${post.key}')" ondblclick="handlePostMediaInstagramDoubleTap('${post.key}', event)">
-                                    <img src="${post.imageDataMatrix}" class="w-full h-full object-cover ${post.imageFilterClass}">
-                                    <div id="heart-overlay-${post.key}" class="absolute text-white text-5xl opacity-0 scale-50 pointer-events-none transition-all duration-300"><i class="fa-solid fa-heart text-red-500"></i></div>
-                                </div>
-                            ` : ''}
-                            ${post.attachedSong ? `
-                                <div class="bg-zinc-900 border border-zinc-800 p-2.5 rounded-xl mt-3 flex items-center justify-between">
-                                    <div class="flex items-center gap-2.5 truncate">
-                                        <img src="${post.attachedSong.cover}" class="w-10 h-10 rounded-lg object-cover border border-zinc-800">
-                                        <div class="truncate">
-                                            <p class="text-xs font-bold text-white truncate">${post.attachedSong.title}</p>
-                                            <p class="text-[10px] text-zinc-400 truncate">${post.attachedSong.artist}</p>
-                                        </div>
-                                    </div>
-                                    <button onclick="injectTrackOverridingEngine('${post.attachedSong.title}')" class="text-xs text-red-500 font-semibold bg-red-500/10 px-3 py-1.5 rounded-lg border border-red-500/20 hover:bg-red-500 hover:text-white transition"><i class="fa-solid fa-play mr-1"></i> Stream</button>
-                                </div>
-                            ` : ''}
+                            ${imageSectionMarkup}
+                            ${songSectionMarkup}
                             <div class="flex items-center gap-4 text-xs pt-2 border-t border-zinc-900 text-zinc-500">
                                 <button onclick="togglePostLikeStructure('${post.key}')" class="hover:text-red-400 flex items-center gap-1 transition">
-                                    <i class="fa-solid fa-heart ${isLiked ? 'text-red-500' : ''}"></i> <span class="font-mono text-[11px]">${post.likesCount || 0} Likes</span>
+                                    <i class="fa-solid fa-heart ${post.likedByArray && currentUser && post.likedByArray[currentUser.email.replace(/[.#$\[\]]/g, "_")] ? 'text-red-500' : ''}"></i> 
+                                    <span class="font-mono text-[11px]">${currentPostLikesTotal} Likes</span>
                                 </button>
                             </div>
                         </div>
                     `;
+                    container.innerHTML += postBlockMarkupCard;
                 });
             });
         }
 
-        function handlePostMediaSingleTap() { audioNode.muted = !audioNode.muted; }
+        function deleteTargetedPost(postKey) {
+            if(confirm("Confirm system transaction logic deletion command parameters across targeted tracking node?")) {
+                database.ref(`feed_posts/${postKey}`).remove(() => {
+                    logSessionUserActivity("Permanently stripped an authorized asset post node from active realtime cloud tables.");
+                });
+            }
+        }
+
+        // 10. POST MEDIA INTERACTION ENGINE
+        function handlePostMediaSingleTap(postKey) {
+            if(audioNode) { audioNode.muted = !audioNode.muted; }
+        }
+
         function handlePostMediaInstagramDoubleTap(postKey, event) {
             event.preventDefault();
             const heart = document.getElementById(`heart-overlay-${postKey}`);
@@ -801,8 +814,15 @@
                 heart.classList.remove('opacity-0', 'scale-50'); heart.classList.add('opacity-100', 'scale-100');
                 setTimeout(() => { heart.classList.remove('opacity-100', 'scale-100'); heart.classList.add('opacity-0', 'scale-50'); }, 700);
             }
-            togglePostLikeStructure(postKey);
+            const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
+            database.ref(`feed_posts/${postKey}`).once('value', snapshot => {
+                if (snapshot.exists()) {
+                    let postData = snapshot.val();
+                    if(!postData.likedByArray || !postData.likedByArray[cleanEmailKey]) { togglePostLikeStructure(postKey); }
+                }
+            });
         }
+
         function togglePostLikeStructure(postKey) {
             const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
             database.ref(`feed_posts/${postKey}`).transaction(post => {
@@ -810,20 +830,20 @@
                     if (!post.likedByArray) post.likedByArray = {};
                     if (post.likedByArray[cleanEmailKey]) { post.likesCount--; delete post.likedByArray[cleanEmailKey]; }
                     else { post.likesCount++; post.likedByArray[cleanEmailKey] = true; }
-                } return post;
+                }
+                return post;
             });
         }
 
-        // 8. CHAT INFRASTRUCTURE ROOM PROTOCOLS
+        // 11. GLOBAL CHAT ROOM MATRIX
         function sendChatMessage() {
             const msgText = document.getElementById('chat-input-message').value.trim();
             if (!msgText) return;
-            database.ref('global_chat_messages').push({
-                senderEmail: currentUser.email,
-                senderName: currentUser.name,
-                message: msgText,
-                timestamp: Date.now()
-            }, () => { document.getElementById('chat-input-message').value = ""; });
+
+            const messagePayload = { senderEmail: currentUser.email, senderName: currentUser.name, message: msgText, timestamp: Date.now() };
+            database.ref('global_chat_messages').push(messagePayload, err => {
+                if (!err) { document.getElementById('chat-input-message').value = ""; }
+            });
         }
 
         function renderGlobalChatPayload() {
@@ -832,124 +852,206 @@
 
             database.ref('global_chat_messages').limitToLast(40).once('value', snapshot => {
                 box.innerHTML = "";
-                if (!snapshot.exists()) return;
+                if (!snapshot.exists()) {
+                    box.innerHTML = `<div class="text-center text-zinc-600 text-xs py-12">No communication threads stored.</div>`;
+                    return;
+                }
+
                 snapshot.forEach(child => {
                     const msg = child.val();
                     const senderCleanKey = msg.senderEmail.replace(/[.#$\[\]]/g, "_");
-                    if (currentUser?.blockedUsers?.[senderCleanKey]) return;
+                    const senderProfileDataNode = globalUsersObject[senderCleanKey] || {};
+                    
+                    if (currentUser && currentUser.blockedUsers && currentUser.blockedUsers[senderCleanKey]) return; 
+
+                    let isUserSenderBlockedBySomeone = false;
+                    if (senderProfileDataNode.blockedUsers && currentUser) {
+                        const myCleanKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
+                        if (senderProfileDataNode.blockedUsers[myCleanKey]) { isUserSenderBlockedBySomeone = true; }
+                    }
+
+                    const isSenderVerified = senderProfileDataNode.verified || false;
+                    let displayNameString = isUserSenderBlockedBySomeone ? "Pulse User" : msg.senderName;
+                    if (isSenderVerified && !isUserSenderBlockedBySomeone) { displayNameString += ` <span class="verified-tick"><i class="fa-solid fa-check"></i></span>`; }
 
                     const isMe = msg.senderEmail === currentUser.email;
-                    const isAnon = globalUsersObject[senderCleanKey]?.blockedUsers?.[currentUser.email.replace(/[.#$\[\]]/g, "_")];
-                    const nameStr = isAnon ? "Pulse User" : msg.senderName;
+                    const alignmentsClass = isMe ? "ml-auto bg-red-600 text-white rounded-br-none" : "mr-auto bg-zinc-900 text-zinc-200 rounded-bl-none";
+                    const avatarNodeMarkup = isMe || isUserSenderBlockedBySomeone ? "" : `
+                        <div class="w-6 h-6 rounded-full bg-zinc-800 text-[10px] font-mono font-bold flex items-center justify-center text-zinc-400 border border-zinc-700">
+                            ${msg.senderName.charAt(0).toUpperCase()}
+                        </div>
+                    `;
 
-                    box.innerHTML += `
+                    const messageBubbleCard = `
                         <div class="flex items-end gap-2 max-w-[85%] ${isMe ? 'ml-auto' : 'mr-auto'}">
-                            <div class="p-3 rounded-2xl text-xs space-y-0.5 shadow-sm ${isMe ? 'ml-auto bg-red-600 text-white rounded-br-none' : 'mr-auto bg-zinc-900 text-zinc-200 rounded-bl-none'}">
-                                ${!isMe ? `<p class="text-[9px] font-bold text-zinc-400 block pb-0.5">${nameStr}</p>` : ''}
+                            ${!isMe ? avatarNodeMarkup : ''}
+                            <div class="p-3 rounded-2xl text-xs space-y-0.5 shadow-sm ${alignmentsClass}">
+                                ${!isMe ? `<p class="text-[9px] font-bold text-zinc-400 block pb-0.5">${displayNameString}</p>` : ''}
                                 <p class="leading-relaxed font-sans break-all">${msg.message}</p>
+                                <p class="text-[8px] font-mono text-zinc-500 text-right pt-0.5">${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
                             </div>
                         </div>
                     `;
+                    box.innerHTML += messageBubbleCard;
                 });
                 box.scrollTop = box.scrollHeight;
                 document.getElementById('chat-alert-dot').classList.add('hidden');
             });
         }
 
+        // 12. RELATIONSHIP DIRECTORY
         function openUserDirectory() { document.getElementById('user-directory-modal').classList.remove('hidden'); renderUserManagementDirectory(); }
         function closeUserDirectory() { document.getElementById('user-directory-modal').classList.add('hidden'); }
+
         function renderUserManagementDirectory() {
             const container = document.getElementById('directory-users-list');
-            if(!container) return; container.innerHTML = "";
+            if(!container) return;
+            container.innerHTML = "";
             Object.keys(globalUsersObject).forEach(key => {
                 const userItem = globalUsersObject[key];
                 if (userItem.email === currentUser.email) return;
-                const isBlocked = currentUser.blockedUsers?.[key];
-                container.innerHTML += `
+                const isBlockedByMe = currentUser.blockedUsers && currentUser.blockedUsers[key] ? true : false;
+                
+                const userRowTemplate = `
                     <div class="flex items-center justify-between p-2 bg-zinc-900 rounded-xl border border-zinc-800 text-xs">
-                        <div class="truncate pr-2"><p class="font-bold text-white truncate">${userItem.name}</p></div>
-                        <button onclick="toggleBlockTransactionProfile('${key}')" class="px-2.5 py-1 rounded text-[11px] font-bold ${isBlocked ? 'bg-red-500/20 text-red-400':'bg-zinc-800 text-zinc-400'}">
-                            ${isBlocked ? 'Blocked':'Restrict'}
+                        <div class="truncate pr-2">
+                            <p class="font-bold text-white truncate flex items-center">${userItem.name} ${userItem.verified ? '<span class="verified-tick"><i class="fa-solid fa-check"></i></span>':''}</p>
+                            <p class="text-[10px] text-zinc-500 truncate">${userItem.email}</p>
+                        </div>
+                        <button onclick="toggleBlockTransactionProfile('${key}')" class="px-2.5 py-1 rounded text-[11px] font-bold transition ${isBlockedByMe ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white':'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-white'}">
+                            ${isBlockedByMe ? '<i class="fa-solid fa-user-slash mr-1"></i> Blocked':'<i class="fa-solid fa-user-check mr-1"></i> Restrict'}
                         </button>
                     </div>
                 `;
-            });
-        }
-        function toggleBlockTransactionProfile(targetKey) {
-            const myKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
-            database.ref(`users/${myKey}/blockedUsers/${targetKey}`).once('value', snap => {
-                if(snap.exists()) database.ref(`users/${myKey}/blockedUsers/${targetKey}`).remove();
-                else database.ref(`users/${myKey}/blockedUsers/${targetKey}`).set(true);
+                container.innerHTML += userRowTemplate;
             });
         }
 
-        // 9. HIGH FIDELITY CORE AUDIO ENGINE (POWERED BY SPOTIFY AD INTERRUPTIONS MATRIX)
+        function toggleBlockTransactionProfile(targetUserCleanKey) {
+            const currentLoggedCleanKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
+            database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).once('value', snapshot => {
+                if(snapshot.exists()) {
+                    database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).remove();
+                } else {
+                    database.ref(`users/${currentLoggedCleanKey}/blockedUsers/${targetUserCleanKey}`).set(true);
+                }
+            });
+        }
+
+        // 13. MUSIC PLAYER REVOLUTIONARY ENGINE (With Clean Original UI Layout)
         function populateMusicCatalogues() {
             const catalogueContainer = document.getElementById('music-catalogue-container');
             const selectorPostDropdown = document.getElementById('post-song-select');
+            
             if(!catalogueContainer) return;
-
             catalogueContainer.innerHTML = "";
-            songs.forEach((song, idx) => {
-                if(selectorPostDropdown && idx > 0) {
-                    let opt = document.createElement('option'); opt.value = idx;
+
+            if(selectorPostDropdown && selectorPostDropdown.options.length <= 1) {
+                songs.forEach((song, idx) => {
+                    let opt = document.createElement('option');
+                    opt.value = idx;
                     opt.innerText = `${song.title} - ${song.artist}`;
                     selectorPostDropdown.appendChild(opt);
-                }
-                catalogueContainer.innerHTML += `
-                    <div onclick="selectAndStreamSpecificTrackIndex(${idx})" class="flex items-center justify-between p-3 rounded-xl transition hover:bg-zinc-900 group cursor-pointer ${currentTrackIndex === idx ? 'bg-zinc-900/80 border border-zinc-800' : 'border border-transparent'}">
+                });
+            }
+
+            // Beautiful Minimalist Apple Music Row Layout Restored
+            songs.forEach((song, idx) => {
+                const row = `
+                    <div onclick="selectAndStreamSpecificTrackIndex(${idx})" class="flex items-center justify-between p-2.5 rounded-xl transition hover:bg-zinc-900/60 group cursor-pointer ${currentTrackIndex === idx ? 'bg-zinc-900' : ''}">
                         <div class="flex items-center gap-3 truncate">
-                            <div class="w-11 h-11 rounded-lg overflow-hidden relative flex-shrink-0 bg-zinc-800 border border-zinc-800">
-                                <img src="${song.cover}" class="w-full h-full object-cover">
-                                ${currentTrackIndex === idx ? `<div class="absolute inset-0 bg-black/60 flex items-center justify-center text-red-500 text-xs"><i class="fa-solid fa-volume-high animate-bounce"></i></div>` : ''}
-                            </div>
+                            <img src="${song.cover}" class="w-10 h-10 rounded-lg object-cover border border-zinc-800 flex-shrink-0">
                             <div class="truncate">
-                                <h4 class="text-xs font-bold truncate ${currentTrackIndex === idx ? 'text-red-500' : 'text-white'}">${song.title}</h4>
-                                <p class="text-[10px] text-zinc-400 truncate mt-0.5">${song.artist}</p>
+                                <h4 class="text-sm font-semibold truncate ${currentTrackIndex === idx ? 'text-red-500' : 'text-zinc-200'}">${song.title}</h4>
+                                <p class="text-xs text-zinc-500 truncate">${song.artist}</p>
                             </div>
                         </div>
-                        <div class="text-zinc-500 group-hover:text-white transition pl-2 text-xs"><i class="fa-solid ${currentTrackIndex === idx ? 'fa-pause' : 'fa-play'}"></i></div>
+                        <div class="text-zinc-600 group-hover:text-zinc-300 transition pr-2 text-xs">
+                            <i class="fa-solid ${currentTrackIndex === idx ? 'fa-square-poll-vertical text-red-500 animate-pulse' : 'fa-play'}"></i>
+                        </div>
                     </div>
                 `;
+                catalogueContainer.innerHTML += row;
             });
         }
 
         function attachAudioPlayerListeners() {
             audioNode.addEventListener('timeupdate', () => {
-                // EXPLICIT AD BOUNDARY INTERACTION MATRIX INTERCEPT
-                if (isAdvertisementCurrentlyActive) {
-                    // Force ceiling boundary rule limits tracking evaluation loop execution block
-                    if (audioNode.currentTime >= 54.0) {
-                        terminatePromotionalAdSequenceBypass();
-                        return;
+                if (isAdPlaying) {
+                    // Spotify Advertisement Execution Bounds Lock Rules
+                    if (audioNode.currentTime >= adEndTime) {
+                        terminateAudioAdSession();
+                    } else {
+                        const currentAdProgressTime = audioNode.currentTime - adStartTime;
+                        const adTimeLeft = Math.max(0, Math.ceil(adEndTime - audioNode.currentTime));
+                        document.getElementById('ad-timer').innerText = adTimeLeft;
+                        
+                        const percentAd = (currentAdProgressTime / adTotalDuration) * 100;
+                        document.getElementById('ad-progress').style.width = `${percentAd}%`;
                     }
-                    
-                    // Render real-time ad interface variables values countdown meters
-                    const operationalRemainingSeconds = Math.max(0, Math.ceil(54.0 - audioNode.currentTime));
-                    document.getElementById('ad-countdown-timer-node').innerText = operationalRemainingSeconds;
-                    
-                    // Maintain standard UI bar sync references during ad playback
-                    document.getElementById('player-time-current').innerText = formatTrackTimeMetrics(audioNode.currentTime - 33);
-                    document.getElementById('player-time-total').innerText = "0:19";
-                    document.getElementById('player-progress-bar').style.width = `${((audioNode.currentTime - 33) / 19) * 100}%`;
                     return; 
                 }
 
-                // Normal Track Execution Logic Mapping Pipeline Channels
                 const current = audioNode.currentTime;
-                const duration = audioNode.duration || 0;
+                const duration = audioNode.duration || 30; 
+                
                 document.getElementById('player-time-current').innerText = formatTrackTimeMetrics(current);
                 document.getElementById('player-time-total').innerText = formatTrackTimeMetrics(duration);
-                document.getElementById('player-progress-bar').style.width = `${duration ? (current / duration) * 100 : 0}%`;
+                
+                const percent = (current / duration) * 100;
+                document.getElementById('player-progress-bar').style.width = `${percent}%`;
             });
 
             audioNode.addEventListener('ended', () => {
-                if (isAdvertisementCurrentlyActive) {
-                    terminatePromotionalAdSequenceBypass();
+                if (isAdPlaying) {
+                    terminateAudioAdSession();
                 } else {
-                    processSongCompletionAdCounterMetric();
+                    songsListenedCount++;
+                    if (songsListenedCount === 3) {
+                        triggerSpotifyStyleAudioAd();
+                    } else {
+                        nextTrack();
+                    }
                 }
             });
+        }
+
+        // SPOTIFY NON-SKIPPABLE AD ENGINE CONTROLLERS
+        function triggerSpotifyStyleAudioAd() {
+            isAdPlaying = true;
+            audioNode.pause();
+            
+            const adTrack = songs[targetAdSongIndex];
+            
+            // Set UI details on overlay
+            document.getElementById('ad-cover-art').src = adTrack.cover;
+            document.getElementById('ad-title').innerText = adTrack.title;
+            document.getElementById('ad-artist').innerText = adTrack.artist;
+            document.getElementById('ad-timer').innerText = adTotalDuration;
+            document.getElementById('ad-progress').style.width = "0%";
+            
+            // Unhide non-skippable panel frame
+            document.getElementById('ad-lock-overlay').classList.remove('hidden');
+            
+            // Configure hardware audio node to exact ad time bounds
+            audioNode.src = adTrack.src;
+            audioNode.currentTime = adStartTime;
+            
+            audioNode.play().catch(e => {
+                console.log("Ad auto-play failed. Resolving bypass:", e);
+                terminateAudioAdSession(); 
+            });
+        }
+
+        function terminateAudioAdSession() {
+            isAdPlaying = false;
+            document.getElementById('ad-lock-overlay').classList.add('hidden');
+            
+            // Reset counter to allow future track logs tracking
+            songsListenedCount = 0; 
+            
+            // Return to next song sequence routing 
+            nextTrack();
         }
 
         function formatTrackTimeMetrics(secondsValue) {
@@ -959,9 +1061,9 @@
             return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
 
-        function selectAndStreamSpecificTrackIndex(index, autoPlayFlag = true) {
-            if (isAdvertisementCurrentlyActive) return; // Drop processing commands entirely
-
+        function selectAndStreamSpecificTrackIndex(index) {
+            if (isAdPlaying) return; 
+            
             currentTrackIndex = index;
             const targetTrack = songs[currentTrackIndex];
             
@@ -970,23 +1072,30 @@
             document.getElementById('player-track-title').innerText = targetTrack.title;
             document.getElementById('player-track-artist').innerText = targetTrack.artist;
             
-            if (autoPlayFlag) {
-                audioNode.play().then(() => {
-                    document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-pause"></i>`;
-                }).catch(e => console.log("Stream payload error: ", e));
-            } else {
-                document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-play"></i>`;
-            }
+            audioNode.play().then(() => {
+                document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-pause"></i>`;
+            }).catch(e => console.log("Stream engine structural start block intercepted path: ", e));
 
             if(currentUser) {
-                database.ref(`users/${currentUser.email.replace(/[.#$\[\]]/g, "_")}/currentStreamingTrack`).set(targetTrack.title);
+                const cleanEmailKey = currentUser.email.replace(/[.#$\[\]]/g, "_");
+                database.ref(`users/${cleanEmailKey}/currentStreamingTrack`).set(targetTrack.title);
                 document.getElementById('analytics-track-title').innerText = targetTrack.title;
             }
 
             populateMusicCatalogues();
+            logSessionUserActivity(`Initiated high fidelity playback track stream: ${targetTrack.title}`);
+        }
+
+        function injectTrackOverridingEngine(trackTitleString) {
+            const indexFound = songs.findIndex(s => s.title.toLowerCase().trim() === trackTitleString.toLowerCase().trim());
+            if (indexFound !== -1) {
+                navigateToScreen('music');
+                selectAndStreamSpecificTrackIndex(indexFound);
+            }
         }
 
         function togglePlayback() {
+            if (isAdPlaying) return;
             if (audioNode.paused) {
                 audioNode.play();
                 document.getElementById('btn-main-play').innerHTML = `<i class="fa-solid fa-pause"></i>`;
@@ -997,118 +1106,32 @@
         }
 
         function nextTrack() {
-            if (isAdvertisementCurrentlyActive) return;
-            processSongCompletionAdCounterMetric();
+            if (isAdPlaying) return;
+            let nextIdx = currentTrackIndex + 1;
+            if (nextIdx >= songs.length) nextIdx = 0;
+            if (nextIdx === targetAdSongIndex) nextIdx = 0; // Skip playing the ad track naturally in rotation
+            selectAndStreamSpecificTrackIndex(nextIdx);
         }
 
         function prevTrack() {
-            if (isAdvertisementCurrentlyActive) return;
+            if (isAdPlaying) return;
             let prevIdx = currentTrackIndex - 1;
             if (prevIdx < 0) prevIdx = songs.length - 1;
+            if (prevIdx === targetAdSongIndex) prevIdx = songs.length - 2;
             selectAndStreamSpecificTrackIndex(prevIdx);
         }
 
         function seekTrack(event) {
-            if (isAdvertisementCurrentlyActive) return; // Block seeking completely
+            if (isAdPlaying) return;
             const container = document.getElementById('player-progress-container');
             const rect = container.getBoundingClientRect();
-            const percentageTargetValue = (event.clientX - rect.left) / rect.width;
-            if(audioNode.duration) {
-                audioNode.currentTime = percentageTargetValue * audioNode.duration;
-            }
+            const clickPositionX = event.clientX - rect.left;
+            const totalWidthContainer = rect.width;
+            const percentageTargetValue = clickPositionX / totalWidthContainer;
+            if(audioNode.duration) { audioNode.currentTime = percentageTargetValue * audioNode.duration; }
         }
 
-        function injectTrackOverridingEngine(trackTitleString) {
-            const idx = songs.findIndex(s => s.title.toLowerCase().trim() === trackTitleString.toLowerCase().trim());
-            if (idx !== -1) { navigateToScreen('music'); selectAndStreamSpecificTrackIndex(idx); }
-        }
-
-        // 10. DETERMINISTIC AD INTERRUPTION EVALUATION TRIGGER SYSTEM
-        function processSongCompletionAdCounterMetric() {
-            totalSongsPlayedCounter++;
-            logSessionUserActivity(`Completed stream tracking rotation cycle. Current global index tally: ${totalSongsPlayedCounter}`);
-
-            let evaluationRulePassedBypassFlag = false;
-            if (totalSongsPlayedCounter === 3) {
-                evaluationRulePassedBypassFlag = true;
-            } else if (totalSongsPlayedCounter > 3 && (totalSongsPlayedCounter - 3) % 4 === 0) {
-                evaluationRulePassedBypassFlag = true;
-            }
-
-            if (evaluationRulePassedBypassFlag) {
-                deployPromotionalAudioAdInterruption();
-            } else {
-                // Advance standard queue sequence tracking maps
-                let nextIdx = currentTrackIndex + 1;
-                if (nextIdx >= songs.length) nextIdx = 0;
-                selectAndStreamSpecificTrackIndex(nextIdx);
-            }
-        }
-
-        // 11. PREMIUM SPOTIFY AD LAYOUT COMPONENT INJECTION HANDLERS
-        function deployPromotionalAudioAdInterruption() {
-            isAdvertisementCurrentlyActive = true;
-            logSessionUserActivity("Bypassing normal player streams. Injecting Spotify Non-Skippable Advertisements Layer.");
-
-            // Backup existing active playback node arrays parameters metrics
-            adSavedStateBackup.currentTrackIdx = currentTrackIndex;
-            adSavedStateBackup.trackingProgressTime = audioNode.currentTime;
-            adSavedStateBackup.playbackState = !audioNode.paused;
-
-            // Enforce control lockout transformations configurations states UI
-            document.getElementById('btn-player-prev').style.opacity = "0.2";
-            document.getElementById('btn-player-next').style.opacity = "0.2";
-            document.getElementById('player-progress-container').style.pointerEvents = "none";
-
-            // Map and load targeted ad element track ("911" is at index 0)
-            const adTrackRef = songs[0];
-            audioNode.src = adTrackRef.src;
-            
-            // Build visual mirror components canvas layers
-            document.getElementById('ad-media-cover-display').src = adTrackRef.cover;
-            document.getElementById('ad-blur-bg').style.backgroundImage = `url('${adTrackRef.cover}')`;
-            
-            // Unveil cinematic modal view container desk nodes
-            const adModal = document.getElementById('screen-premium-ad-interruption');
-            adModal.classList.remove('opacity-0', 'pointer-events-none', 'scale-105');
-            adModal.classList.add('opacity-100', 'transform', 'scale-100');
-
-            // Force operational currentTime boundary rule metrics values
-            audioNode.currentTime = 33.0;
-            audioNode.play().catch(e => console.log("Ad initialization playback blocked: ", e));
-        }
-
-        function terminatePromotionalAdSequenceBypass() {
-            isAdvertisementCurrentlyActive = false;
-            logSessionUserActivity("Advertisement sequence criteria bounds met successfully. Restoring audio channels framework.");
-
-            // Remove modal layout overlay structures
-            const adModal = document.getElementById('screen-premium-ad-interruption');
-            adModal.classList.add('opacity-0', 'pointer-events-none', 'scale-105');
-            adModal.classList.remove('opacity-100', 'scale-100');
-
-            // Restore user interaction functionality states metrics controls
-            document.getElementById('btn-player-prev').style.opacity = "1";
-            document.getElementById('btn-player-next').style.opacity = "1";
-            document.getElementById('player-progress-container').style.pointerEvents = "auto";
-
-            // Recover tracking data state configurations parameters pointers
-            currentTrackIndex = adSavedStateBackup.currentTrackIdx;
-            const originalTrack = songs[currentTrackIndex];
-            
-            audioNode.src = originalTrack.src;
-            document.getElementById('player-track-cover').src = originalTrack.cover;
-            document.getElementById('player-track-title').innerText = originalTrack.title;
-            document.getElementById('player-track-artist').innerText = originalTrack.artist;
-            
-            // Advance automatically to next sequential track to fulfill continuous playback rules
-            let nextCircularIdx = currentTrackIndex + 1;
-            if (nextCircularIdx >= songs.length) nextCircularIdx = 0;
-            
-            selectAndStreamSpecificTrackIndex(nextCircularIdx, true);
-        }
-
-        // 12. PROFILE METRICS SYSTEM VIEW REFRESH DATA NODES
+        // 14. PROFILE LOGISTICS DATA REFRESH
         function updateProfileDashboardMetrics() {
             if (!currentUser) return;
             document.getElementById('profile-initials').innerText = currentUser.name.charAt(0).toUpperCase();
@@ -1116,35 +1139,42 @@
             document.getElementById('profile-display-email').innerText = currentUser.email;
             document.getElementById('profile-display-dob').innerText = `DOB: ${currentUser.dob}`;
             
-            if (currentUser.verified) document.getElementById('profile-verified-badge').classList.remove('hidden');
-            else document.getElementById('profile-verified-badge').classList.add('hidden');
+            if (currentUser.verified) { document.getElementById('profile-verified-badge').classList.remove('hidden'); }
+            else { document.getElementById('profile-verified-badge').classList.add('hidden'); }
 
             document.getElementById('analytics-track-title').innerText = currentUser.currentStreamingTrack || "None";
         }
 
+        // 15. DYNAMIC VERIFICATION DESK
         function toggleAdminPanel() {
             const panel = document.getElementById('admin-verified-panel');
             panel.classList.toggle('hidden');
-            if(!panel.classList.contains('hidden')) renderAdminAuthorityPanel();
+            if(!panel.classList.contains('hidden')) { renderAdminAuthorityPanel(); }
         }
 
         function renderAdminAuthorityPanel() {
             const container = document.getElementById('admin-users-payload-target');
-            if(!container) return; container.innerHTML = "";
+            if(!container) return;
+            container.innerHTML = "";
             Object.keys(globalUsersObject).forEach(key => {
                 const user = globalUsersObject[key];
-                container.innerHTML += `
+                const verifiedStatus = user.verified || false;
+                
+                const adminRow = `
                     <div class="flex items-center justify-between bg-zinc-900/60 p-2 rounded border border-zinc-800 text-[11px] font-mono">
                         <span class="text-zinc-300 truncate max-w-[180px]">${user.name}</span>
-                        <button onclick="executeAdminVerificationToggle('${key}', ${user.verified || false})" class="px-2 py-0.5 rounded text-[10px] font-bold ${user.verified ? 'bg-blue-600' : 'bg-zinc-800'}">Verify</button>
+                        <button onclick="executeAdminVerificationToggle('${key}', ${verifiedStatus})" class="px-2 py-0.5 rounded text-[10px] font-bold ${verifiedStatus ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}">
+                            ${verifiedStatus ? 'Verified' : 'Grant Tick'}
+                        </button>
                     </div>
                 `;
+                container.innerHTML += adminRow;
             });
         }
 
         function executeAdminVerificationToggle(userCleanKey, currentStatusFlag) {
-            database.ref(`users/${userCleanKey}/verified`).set(!currentStatusFlag, () => {
-                updateProfileDashboardMetrics();
+            database.ref(`users/${userCleanKey}/verified`).set(!currentStatusFlag, err => {
+                if(!err) { updateProfileDashboardMetrics(); }
             });
         }
     </script>
