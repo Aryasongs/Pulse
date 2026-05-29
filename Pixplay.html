@@ -3,46 +3,47 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Pixplay V3 - Fixed Premium Engine</title>
+  <title>Pixplay - Fixed Authentication Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; touch-action: manipulation; }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
     body {
       background-color: #ffffff;
       color: #111111;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow-x: hidden;
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
     .masonry-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-      grid-auto-rows: 10px;
+      grid-auto-rows: 8px;
       justify-content: center;
       gap: 0px 12px;
     }
     @media (min-width: 640px) {
-      .masonry-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); grid-auto-rows: 10px; gap: 0px 16px; }
+      .masonry-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: 10px; gap: 0px 16px; }
     }
     .masonry-item { 
+      grid-row-end: span 26; 
       margin-bottom: 12px;
       will-change: transform;
       transform: translateZ(0);
     }
     @media (min-width: 640px) { .masonry-item { margin-bottom: 20px; } }
-    
-    /* Dynamic height calculation frames based on upload aspect ratio */
-    .size-tall { grid-row-end: span 38; }
-    .size-square { grid-row-end: span 26; }
-    .size-wide { grid-row-end: span 18; }
-
+    .size-small { grid-row-end: span 20; }
+    .size-medium { grid-row-end: span 28; }
+    .size-large { grid-row-end: span 38; }
     ::-webkit-scrollbar { display: none; }
+    .restricted-pix { filter: blur(35px) brightness(0.4); pointer-events: none; }
     .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
     .active-nav-item { color: #dc2626 !important; transform: scale(1.1); }
-    
+
     .skeleton-shimmer {
       background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
       background-size: 200% 100%;
@@ -52,9 +53,13 @@
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
     }
-    
-    /* Crop box utility container */
-    .crop-wrap { max-height: 320px; width: 100%; background-color: #111; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+
+    .lqip-placeholder {
+      filter: blur(20px) saturate(1.2);
+      transform: scale(1.05);
+      transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+      will-change: filter, opacity;
+    }
   </style>
 </head>
 <body class="pb-24 md:pb-4">
@@ -69,7 +74,7 @@
 
     <div class="flex-1 max-w-2xl mx-6 relative">
       <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
-      <input type="text" id="search-input-desktop" placeholder="Search ideas, photos, short videos instantly..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
+      <input type="text" id="search-input-desktop" placeholder="Search ideas instantly..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
     </div>
 
     <div class="flex items-center space-x-4">
@@ -79,7 +84,7 @@
       
       <div id="user-zone-desktop" class="hidden flex items-center space-x-3">
         <div onclick="switchTab('profile')" id="avatar-desktop" class="w-8 h-8 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center cursor-pointer uppercase border shadow-sm">U</div>
-        <button onclick="handleLogoutWorkflow()" class="text-gray-400 hover:text-red-600 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <button id="btn-logout-desktop" class="text-gray-400 hover:text-red-600 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
       <div id="guest-zone-desktop" class="block">
         <button onclick="openAuthModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-full transition shadow">Sign In</button>
@@ -89,13 +94,13 @@
 
   <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-neutral-900/95 backdrop-blur text-white px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl z-[100] flex items-center space-x-2.5 hidden opacity-0 transition-all duration-300">
     <i id="toast-icon" class="fa-solid fa-circle-info text-red-500"></i>
-    <span id="toast-msg">Database Ready</span>
+    <span id="toast-msg">Database Connected</span>
   </div>
 
   <main class="max-w-[1400px] mx-auto px-3 py-3 md:px-6">
     
     <div class="flex md:hidden items-center justify-between py-2 mb-2 px-1">
-      <span class="text-2xl font-black tracking-tighter text-red-600" onclick="switchTab('home')">Pixplay</span>
+      <span class="text-2xl font-black tracking-tighter text-red-600" onclick="resetAndFetchFeed()">Pixplay</span>
       <div class="flex items-center space-x-3">
         <button onclick="switchTab('settings')" class="text-gray-600 text-lg"><i class="fa-solid fa-gear"></i></button>
         <div id="avatar-mobile-top" onclick="switchTab('profile')" class="w-7 h-7 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center uppercase border">G</div>
@@ -112,46 +117,56 @@
     <div id="view-explore" class="tab-panel hidden space-y-4">
       <div class="relative">
         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
-        <input type="text" id="search-input-mobile" placeholder="Search..." class="w-full bg-gray-100 p-3 pl-11 rounded-full text-sm outline-none">
+        <input type="text" id="search-input-mobile" placeholder="Type query & hit enter..." class="w-full bg-gray-100 p-3 pl-11 rounded-full text-sm outline-none">
       </div>
-      <div class="grid grid-cols-2 gap-2" id="search-trending-tags"></div>
+      <div>
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Aesthetic Hot Topics</h3>
+        <div class="grid grid-cols-2 gap-2" id="search-trending-tags"></div>
+      </div>
     </div>
 
     <div id="view-notifications" class="tab-panel hidden space-y-3">
-      <h2 class="text-lg font-black tracking-tight px-1">Inbox Updates</h2>
+      <div class="flex justify-between items-center px-1 border-b pb-2">
+        <h2 class="text-lg font-black tracking-tight">Notification Inbox</h2>
+        <button onclick="clearAllLocalNotifications()" class="text-xs text-red-600 font-bold">Clear All</button>
+      </div>
       <div class="space-y-2" id="notification-list-box"></div>
     </div>
 
     <div id="view-settings" class="tab-panel hidden max-w-xl mx-auto space-y-4">
-      <h2 class="text-xl font-black tracking-tight px-1">Settings & Terms</h2>
-      <div class="bg-gray-50 rounded-2xl p-2 border space-y-1">
-        <button onclick="openComplianceSlide('privacy')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span>Privacy Policy</span><i class="fa-solid fa-chevron-right text-xs"></i></button>
-        <button onclick="openComplianceSlide('terms')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span>Terms and Conditions</span><i class="fa-solid fa-chevron-right text-xs"></i></button>
+      <h2 class="text-xl font-black tracking-tight px-1">Account & Legal Settings</h2>
+      <div class="bg-gray-50 rounded-2xl p-2 border border-gray-100 space-y-1">
+        <button onclick="openComplianceSlide('privacy')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-user-shield text-gray-400 mr-2.5"></i>Privacy Policy</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
+        <button onclick="openComplianceSlide('terms')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-file-contract text-gray-400 mr-2.5"></i>Terms and Conditions</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
+        <button onclick="openComplianceSlide('guidelines')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-scale-balanced text-gray-400 mr-2.5"></i>Community Guidelines</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
       </div>
     </div>
 
     <div id="view-profile" class="tab-panel hidden space-y-6">
       <div class="text-center py-5 max-w-sm mx-auto bg-gray-50 rounded-3xl p-4 border relative">
-        <button onclick="handleLogoutWorkflow()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <button id="btn-logout-profile" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button>
         <div id="profile-large-avatar" class="w-14 h-14 rounded-full bg-neutral-200 text-gray-700 text-lg font-bold flex items-center justify-center mx-auto shadow-inner mb-2 uppercase">G</div>
         <h2 id="profile-name" class="text-base font-black text-gray-900">Guest Profile</h2>
         <p id="profile-email" class="text-gray-400 text-xs"></p>
       </div>
 
       <div id="admin-console-box" class="hidden bg-red-50/60 rounded-2xl p-4 border border-red-200 max-w-2xl mx-auto space-y-3">
-        <div class="text-red-600 font-black text-xs uppercase tracking-wider"><i class="fa-solid fa-shield"></i> Community Admin Console</div>
+        <div class="flex items-center space-x-2 text-red-600 font-black text-xs uppercase tracking-wider">
+          <i class="fa-solid fa-unlock-keyhole animate-pulse"></i> <span>Live Community Admin Review Console</span>
+        </div>
         <div id="admin-reports-stream" class="space-y-2"></div>
       </div>
 
-      <div class="border-b flex justify-center space-x-6 text-sm font-bold text-gray-400">
+      <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-bold text-gray-400">
         <button onclick="toggleProfileSubTab('created')" id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">Created</button>
         <button onclick="toggleProfileSubTab('saved')" id="subtab-btn-saved" class="pb-2 hover:text-black">Saved</button>
       </div>
       <div class="masonry-grid" id="profile-sub-grid"></div>
     </div>
+
   </main>
 
-  <nav class="fixed bottom-0 left-0 right-0 h-16 glass-nav border-t flex justify-around items-center z-40 md:hidden px-2 shadow-lg">
+  <nav class="fixed bottom-0 left-0 right-0 h-16 glass-nav border-t border-gray-100 flex justify-around items-center z-40 md:hidden px-2 shadow-lg">
     <button onclick="switchTab('home')" id="mob-nav-home" class="flex flex-col items-center justify-center text-gray-400 active-nav-item w-12"><i class="fa-solid fa-house text-lg"></i></button>
     <button onclick="switchTab('explore')" id="mob-nav-explore" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-magnifying-glass text-lg"></i></button>
     <button onclick="protectedActionTrigger('create')" id="mob-nav-create" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-square-plus text-xl text-gray-800"></i></button>
@@ -159,99 +174,113 @@
     <button onclick="switchTab('profile')" id="mob-nav-profile" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-user text-lg"></i></button>
   </nav>
 
-  <div id="pin-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-0 md:p-4 hidden animate-fade-in">
-    <div class="bg-white w-full max-w-5xl h-full md:h-[88vh] md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
-      <button onclick="closePinModal()" class="absolute top-4 left-4 z-50 bg-white/90 text-black w-9 h-9 rounded-full flex items-center justify-center shadow"><i class="fa-solid fa-arrow-left"></i></button>
+  <div id="pin-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end md:items-center justify-center p-0 md:p-4 hidden animate-fade-in">
+    <div class="bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
+      <button onclick="closePinModal()" class="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full flex items-center justify-center shadow md:hidden"><i class="fa-solid fa-chevron-down"></i></button>
+      <button onclick="closePinModal()" class="absolute top-4 right-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full hidden md:flex items-center justify-center shadow hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button>
 
-      <div class="w-full md:w-3/5 h-[50vh] md:h-full bg-neutral-950 flex items-center justify-center p-2 relative">
-        <img id="modal-image" src="" class="max-w-full max-h-full object-contain hidden">
-        <video id="modal-video" class="max-w-full max-h-full object-contain hidden" controls autoplay loop></video>
+      <div class="w-full md:w-1/2 h-[38vh] md:h-full bg-black flex items-center justify-center">
+        <img id="modal-image" src="" class="w-full h-full object-cover">
       </div>
 
-      <div class="w-full md:w-2/5 h-[50vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
-        <div class="flex justify-between items-center pb-3 border-b">
-          <div class="flex space-x-2">
-            <button onclick="triggerToastSystem('Added to Favorites','fa-heart')" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-heart"></i></button>
-            <button id="modal-action-download" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center"><i class="fa-solid fa-arrow-down"></i></button>
-            <button onclick="openReportingWizard()" class="w-9 h-9 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-flag"></i></button>
+      <div class="w-full md:w-1/2 h-[54vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
+        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+          <div class="flex space-x-1.5">
+            <button onclick="triggerToastSystem('Liked Successfully','fa-heart')" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-heart"></i></button>
+            <button id="modal-action-download" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-arrow-down"></i></button>
+            <button onclick="openReportingWizard()" class="w-9 h-9 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-flag"></i></button>
           </div>
-          <button id="modal-action-save" class="bg-red-600 text-white font-bold text-xs px-5 py-2.5 rounded-full shadow">Save</button>
+          <button id="modal-action-save" class="bg-red-600 hover:bg-red-700 text-white font-black text-sm px-5 py-2.5 rounded-full shadow">Save</button>
         </div>
 
-        <div class="flex-1 overflow-y-auto space-y-4 py-3">
+        <div class="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
           <div>
-            <h2 id="modal-title" class="text-lg md:text-xl font-black text-gray-900 leading-tight">Asset Title</h2>
+            <h2 id="modal-title" class="text-lg md:text-xl font-black tracking-tight text-gray-900 leading-tight">Asset Title Layer</h2>
             <p id="modal-desc" class="text-gray-500 text-xs mt-1 leading-relaxed"></p>
           </div>
-          <div id="modal-creator-strip" class="p-2.5 bg-gray-50 rounded-xl text-xs font-bold text-gray-700">@creator</div>
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-2xl text-xs">
+            <span id="modal-creator-name" class="font-bold text-gray-800">@creator</span>
+            <span class="text-gray-400 font-medium">Verified Publisher</span>
+          </div>
           <div>
             <h4 class="text-xs font-bold text-gray-400 uppercase mb-2" id="comments-header-count">Comments (0)</h4>
-            <div id="modal-comments-container" class="space-y-2 max-h-[160px] overflow-y-auto"></div>
+            <div id="modal-comments-container" class="space-y-2 max-h-[140px] overflow-y-auto pr-1"></div>
           </div>
         </div>
 
-        <div class="pt-2 border-t flex items-center space-x-2">
-          <input type="text" id="modal-comment-input" placeholder="Add comment..." class="flex-1 bg-gray-100 text-xs p-3 rounded-xl outline-none">
+        <div class="pt-2 border-t border-gray-100 flex items-center space-x-2">
+          <input type="text" id="modal-comment-input" placeholder="Add discussion response..." class="flex-1 bg-gray-100 text-xs p-3 rounded-xl outline-none">
           <button id="modal-btn-send-comment" class="w-9 h-9 bg-red-50 text-red-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-paper-plane text-xs"></i></button>
         </div>
       </div>
     </div>
   </div>
 
-  <div id="editor-modal" class="fixed inset-0 bg-black/90 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-md rounded-3xl p-5 space-y-4 shadow-2xl">
-      <h3 class="font-black text-base text-gray-900"><i class="fa-solid fa-scissors text-red-600 mr-1"></i> Edit & Crop Image</h3>
-      
-      <div class="crop-wrap rounded-xl">
-        <img id="crop-image-sandbox" src="" class="max-w-full">
-      </div>
-
-      <div class="flex justify-center space-x-2 text-[10px] font-bold">
-        <button onclick="changeCropRatio(1)" class="bg-gray-100 px-3 py-2 rounded-lg hover:bg-red-50 hover:text-red-600">Square (1:1)</button>
-        <button onclick="changeCropRatio(2/3)" class="bg-gray-100 px-3 py-2 rounded-lg hover:bg-red-50 hover:text-red-600">Pinterest (2:3)</button>
-        <button onclick="changeCropRatio(16/9)" class="bg-gray-100 px-3 py-2 rounded-lg hover:bg-red-50 hover:text-red-600">Wide (16:9)</button>
-        <button onclick="rotateCropImage()" class="bg-gray-800 text-white px-3 py-2 rounded-lg"><i class="fa-solid fa-rotate-right"></i></button>
-      </div>
-
-      <div class="flex space-x-2">
-        <button onclick="cancelImageEditing()" class="flex-1 bg-gray-100 text-xs py-3 rounded-full font-bold">Cancel</button>
-        <button onclick="saveCroppedImageResult()" class="flex-1 bg-red-600 text-white text-xs py-3 rounded-full font-bold shadow">Apply & Edit</button>
-      </div>
-    </div>
-  </div>
-
   <div id="report-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
-      <h3 class="font-black text-base">Report Violation</h3>
-      <select id="report-reason-select" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs font-bold outline-none">
-        <option value="harassment">Harassment / Bullying</option>
-        <option value="nsfw">Graphic Content / NSFW</option>
+      <h3 class="font-black text-base text-gray-900"><i class="fa-solid fa-triangle-exclamation text-orange-500 mr-1"></i> Report Content Asset</h3>
+      <select id="report-reason-select" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs font-bold text-gray-700 outline-none">
+        <option value="harassment">Harassment or Bullying</option>
+        <option value="nsfw">Explicit Nudity / Graphic Content</option>
+        <option value="spam">Spam / Misleading Asset File</option>
       </select>
-      <div class="flex space-x-2 pt-1">
-        <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="flex-1 bg-gray-100 text-xs p-2.5 rounded-full font-bold">Cancel</button>
-        <button onclick="submitContentViolationReport()" class="flex-1 bg-red-600 text-white text-xs p-2.5 rounded-full font-bold shadow">Submit</button>
+      <div class="flex space-x-2 pt-2">
+        <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="flex-1 bg-gray-100 text-xs p-3 rounded-full font-bold">Cancel</button>
+        <button onclick="submitContentViolationReport()" class="flex-1 bg-red-600 text-white text-xs p-3 rounded-full font-bold shadow">Submit Report</button>
       </div>
     </div>
   </div>
 
   <div id="compliance-slide-modal" class="fixed inset-0 bg-white z-50 flex flex-col p-6 overflow-y-auto hidden">
-    <div class="max-w-xl mx-auto w-full flex items-center justify-between border-b pb-2 mb-4">
-      <h2 id="compliance-title" class="text-base font-black">Legal Document</h2>
-      <button onclick="document.getElementById('compliance-slide-modal').classList.add('hidden')" class="text-gray-400 text-lg"><i class="fa-solid fa-circle-xmark"></i></button>
+    <div class="flex items-center justify-between border-b pb-3 mb-4 max-w-xl mx-auto w-full">
+      <h2 id="compliance-title" class="text-lg font-black tracking-tight text-gray-900">Legal Document</h2>
+      <button onclick="document.getElementById('compliance-slide-modal').classList.add('hidden')" class="text-gray-400 text-lg hover:text-black"><i class="fa-solid fa-circle-xmark"></i></button>
     </div>
-    <div class="max-w-xl mx-auto w-full text-xs text-gray-600 space-y-3" id="compliance-content-body"></div>
+    <div class="max-w-xl mx-auto w-full text-xs text-gray-600 space-y-4 leading-relaxed font-medium" id="compliance-content-body"></div>
+  </div>
+
+  <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-base">Create dynamic Pix</h3>
+        <button onclick="closeCreateModal()" class="text-gray-400"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="w-full h-36 bg-gray-50 rounded-2xl relative flex flex-col justify-center items-center border-2 border-dashed border-gray-200">
+        <input type="file" id="file-uploader" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+        <div id="dropzone-prompt" class="text-center text-xs text-gray-400 font-bold"><i class="fa-solid fa-cloud-arrow-up text-xl mb-1 text-gray-300"></i><p>Select Graphic Image</p></div>
+        <div id="preview-holder" class="absolute inset-0 hidden bg-white"><img id="image-preview" src="" class="w-full h-full object-cover"></div>
+      </div>
+      <div class="space-y-2">
+        <input type="text" id="pix-title" placeholder="Add structural title..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500 font-bold">
+        <input type="text" id="pix-category" placeholder="Category (e.g. cyberpunk, cars, nature)..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500">
+        <textarea id="pix-desc" placeholder="Add context mapping notes..." rows="2" class="w-full border-b p-2 text-xs outline-none resize-none"></textarea>
+      </div>
+      <button id="btn-publish-pix" class="w-full bg-red-600 text-white p-3 rounded-full font-bold text-xs shadow">Publish Cloud Pix</button>
+    </div>
   </div>
 
   <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-4">
-      <div class="text-center"><h3 id="auth-title" class="text-lg font-black">Welcome to Pixplay V3</h3></div>
-      <div class="space-y-2">
-        <div id="signup-name-wrapper" class="hidden"><input type="text" id="auth-name" placeholder="Name" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none"></div>
-        <input type="email" id="auth-email" placeholder="Email" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
-        <input type="password" id="auth-password" placeholder="Password" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
-        <button id="auth-primary-btn" class="w-full bg-red-600 text-white p-3 rounded-full font-bold text-xs shadow">Validate Token</button>
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400"><i class="fa-solid fa-xmark"></i></button>
+      <div class="text-center">
+        <h3 id="auth-title" class="text-xl font-black text-gray-900">Sign In to Pixplay</h3>
       </div>
-      <center><button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 text-xs font-bold">Create Account</button></center>
+      <div class="space-y-3">
+        <div id="signup-name-wrapper" class="hidden">
+          <input type="text" id="auth-name" placeholder="Full Profile Name" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+        </div>
+        <div>
+          <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+        </div>
+        <div>
+          <input type="password" id="auth-password" placeholder="Password (Min 6 chars)" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+        </div>
+        <button id="auth-primary-btn" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wide transition-all">Continue</button>
+      </div>
+      <div class="text-center text-xs text-gray-500">
+        <span id="auth-toggle-msg">Don't have an account?</span>
+        <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 font-bold ml-1 hover:underline">Create Account</button>
+      </div>
     </div>
   </div>
 
@@ -275,7 +304,7 @@
     let db = getDatabase(app);
 
     let currentUser = null;
-    let authMode = 'login';
+    let authMode = 'login'; // Can be 'login' or 'signup'
     let globalPixStore = [];
     let displayedPixList = [];
     let activeProfileTab = 'created';
@@ -284,12 +313,7 @@
     let currentPageSize = 15;
     let isFetchingNextBatch = false;
     let endOfCloudStream = false;
-
-    // Cropper lifecycle placeholder variable
-    let activeCropperInstance = null;
-    let rawUploadedFileBase64 = null;
-    let finalProcessedPayloadBase64 = null;
-    let detectedUploadType = 'image'; // image or video
+    const sizes = ['size-small', 'size-medium', 'size-large'];
 
     document.addEventListener("DOMContentLoaded", () => {
       triggerInitialSkeletons();
@@ -298,13 +322,14 @@
       setupInfiniteScrollObserver();
       setupUploaderSystem();
       buildTrendingTagsUI();
+      bindAuthClickEvents(); // STABLE BIND ROUTING
     });
 
     onAuthStateChanged(auth, (user) => {
       if(user) {
         currentUser = user;
         updateSystemAuthUI(true, user.email);
-        if(user.email.includes("admin")) {
+        if(user.email.includes("admin") || user.email === "admin@pixplay.com") {
           document.getElementById('admin-console-box').classList.remove('hidden');
           listenReportsAuditStream();
         }
@@ -318,10 +343,9 @@
     function triggerInitialSkeletons() {
       const grid = document.getElementById('pix-container');
       grid.innerHTML = '';
-      const dummySizes = ['size-square', 'size-tall', 'size-wide'];
       for (let i = 0; i < 15; i++) {
         const skeleton = document.createElement('div');
-        skeleton.className = `masonry-item ${dummySizes[i % 3]} skeleton-shimmer rounded-2xl shadow-sm`;
+        skeleton.className = `masonry-item ${sizes[i % 3]} skeleton-shimmer rounded-2xl shadow-sm`;
         grid.appendChild(skeleton);
       }
     }
@@ -340,27 +364,89 @@
         document.getElementById('user-zone-desktop').classList.add('hidden');
         document.getElementById('avatar-mobile-top').innerText = 'G';
         document.getElementById('profile-name').innerText = "Guest Engine";
-        document.getElementById('profile-email').innerText = "Sign in to synchronize database sync";
+        document.getElementById('profile-email').innerText = "Sign in to activate sync";
         document.getElementById('admin-console-box').classList.add('hidden');
       }
     }
 
+    // --- REALTIME SECURE AUTH SYSTEM HANDLERS ENGINE ---
+    function bindAuthClickEvents() {
+      document.getElementById('auth-primary-btn').onclick = () => {
+        const email = document.getElementById('auth-email').value.trim();
+        const pass = document.getElementById('auth-password').value;
+        const name = document.getElementById('auth-name').value.trim();
+
+        if(!email || pass.length < 6) {
+          triggerToastSystem("Invalid email or password character length.", "fa-circle-exclamation");
+          return;
+        }
+
+        if(authMode === 'signup') {
+          // CREATE ACCOUNT PIPELINE
+          triggerToastSystem("Configuring cloud space profile...", "fa-circle-notch");
+          createUserWithEmailAndPassword(auth, email, pass)
+            .then((credential) => {
+              set(ref(db, `users/${credential.user.uid}`), {
+                name: name || email.split('@')[0],
+                email: email,
+                timestamp: Date.now()
+              }).then(() => {
+                triggerToastSystem("Account pipeline ready!", "fa-user-check");
+                closeAuthModal();
+              });
+            })
+            .catch(err => triggerToastSystem(err.message, "fa-bug"));
+        } else {
+          // LOG IN PIPELINE
+          triggerToastSystem("Verifying credentials token...", "fa-circle-notch");
+          signInWithEmailAndPassword(auth, email, pass)
+            .then(() => {
+              triggerToastSystem("Logged in successfully!", "fa-shield-check");
+              closeAuthModal();
+            })
+            .catch(err => triggerToastSystem(err.message, "fa-circle-xmark"));
+        }
+      };
+
+      // LOGOUT ASSIGNMENT CONNECTORS
+      document.getElementById('btn-logout-desktop').onclick = () => signOut(auth);
+      document.getElementById('btn-logout-profile').onclick = () => signOut(auth);
+    }
+
+    window.toggleAuthMode = function() {
+      authMode = authMode === 'login' ? 'signup' : 'login';
+      const title = document.getElementById('auth-title');
+      const nameBox = document.getElementById('signup-name-wrapper');
+      const toggleBtn = document.getElementById('auth-toggle-btn');
+      const toggleMsg = document.getElementById('auth-toggle-msg');
+
+      if(authMode === 'signup') {
+        title.innerText = "Create Account";
+        nameBox.classList.remove('hidden');
+        toggleMsg.innerText = "Already a member?";
+        toggleBtn.innerText = "Sign In";
+      } else {
+        title.innerText = "Sign In to Pixplay";
+        nameBox.classList.add('hidden');
+        toggleMsg.innerText = "Don't have an account?";
+        toggleBtn.innerText = "Create Account";
+      }
+    };
+
+    // --- IMAGE FEED DISCOVERY STORAGE MAPS ---
     async function fetchMasterCloudCatalog() {
       const FallbackNodes = ['nature','minimalist','cars','cyberpunk','travel','design'];
       let list = [];
-      const gridClasses = ['size-wide', 'size-square', 'size-tall'];
-      
       FallbackNodes.forEach((node, k) => {
         for(let i=0; i<4; i++) {
           const unsplashId = getAssetSeed(node, i);
           list.push({
             id: `static_node_${node}_${k}_${i}`,
-            title: `${node.toUpperCase()} Workspace`,
-            description: 'Premium curated layout architecture model sequence parameter.',
+            title: `${node.toUpperCase()} Composition`,
+            description: 'Refined dynamic structural vector workspace mapping parameters layer asset.',
             lqipUrl: `https://images.unsplash.com/photo-${unsplashId}?w=80&q=20&blur=10`,
             imageUrl: `https://images.unsplash.com/photo-${unsplashId}?w=600&auto=format&fit=crop&q=75`,
-            creator: 'system_framework', creatorUid: 'system', category: node, 
-            size: gridClasses[(k+i) % 3], isRestricted: false, fileType: 'image'
+            creator: 'system_framework', creatorUid: 'system', category: node, size: sizes[(k+i) % 3], isRestricted: false
           });
         }
       });
@@ -374,8 +460,7 @@
               id: id, title: payload.title, description: payload.description, 
               lqipUrl: payload.imageUrl, imageUrl: payload.imageUrl,
               creator: payload.creator || '@anonymous', creatorUid: payload.creatorUid,
-              category: payload.category, size: payload.size || 'size-square', 
-              isRestricted: payload.isRestricted || false, fileType: payload.fileType || 'image'
+              category: payload.category, size: payload.size, isRestricted: payload.isRestricted || false
             });
           });
           globalPixStore = [...fbArray, ...list];
@@ -385,54 +470,36 @@
       resetAndFetchFeed();
     }
 
-    // --- CRITICAL FIXED: CLEAN FLOW ROUTER PREVENTS WHITE BLANK LOG STUCK STAGE ---
-    window.resetAndFetchFeed = function() {
+    function resetAndFetchFeed() {
       currentPageSize = 15;
       endOfCloudStream = false;
       isFetchingNextBatch = false;
-      
-      const infiniteTrigger = document.getElementById('infinite-scroll-trigger');
-      if(infiniteTrigger) infiniteTrigger.classList.remove('hidden');
-      
+      document.getElementById('infinite-scroll-trigger').classList.remove('hidden');
       displayedPixList = [...globalPixStore];
       renderUniversalMasonryGridFeed(false);
-    };
+    }
 
     function renderUniversalMasonryGridFeed(appendMode = false) {
       const grid = document.getElementById('pix-container');
-      if(!grid) return;
       if(!appendMode) grid.innerHTML = '';
 
       const totalSlice = displayedPixList.slice(0, currentPageSize);
       if(totalSlice.length >= displayedPixList.length) {
         endOfCloudStream = true;
-        const trigger = document.getElementById('infinite-scroll-trigger');
-        if(trigger) trigger.classList.add('hidden');
+        document.getElementById('infinite-scroll-trigger').classList.add('hidden');
       }
 
       const activeRenderBatch = appendMode ? displayedPixList.slice(currentPageSize - 15, currentPageSize) : totalSlice;
 
       activeRenderBatch.forEach(pix => {
         const node = document.createElement('div');
-        node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-neutral-100 shadow-sm transition-shadow`;
+        node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-gray-100 shadow-sm transition-shadow duration-200`;
         node.onclick = () => openPinModal(pix);
         
-        let mediaTagPreview = `<img src="${pix.imageUrl}" class="w-full h-full object-cover relative z-10 transition-transform duration-300 group-hover:scale-105 ${pix.isRestricted ? 'restricted-pix' : ''}" loading="lazy">`;
-        
-        // Dynamic Short Video Player Indicator Icon Block Integration
-        if(pix.fileType === 'video') {
-          mediaTagPreview = `
-            <video src="${pix.imageUrl}" class="w-full h-full object-cover relative z-10" muted loop></video>
-            <div class="absolute top-2 right-2 bg-black/60 text-white w-6 h-6 rounded-full flex items-center justify-center z-20 text-[10px]"><i class="fa-solid fa-video"></i></div>
-          `;
-          // Custom micro video auto-play on dynamic workspace card mouse hover
-          node.onmouseenter = () => { node.querySelector('video').play(); };
-          node.onmouseleave = () => { node.querySelector('video').pause(); };
-        }
-
         node.innerHTML = `
-          <img src="${pix.lqipUrl || pix.imageUrl}" class="absolute inset-0 w-full h-full object-cover blur-md scale-105 z-0">
-          ${mediaTagPreview}
+          <img src="${pix.lqipUrl}" class="absolute inset-0 w-full h-full object-cover lqip-placeholder z-0" id="lqip-${pix.id}">
+          <img src="${pix.imageUrl}" class="w-full h-full object-cover opacity-0 relative z-10 transition-all duration-300 ${pix.isRestricted ? 'restricted-pix' : ''}" 
+               onload="triggerProgressiveTransLink('${pix.id}', this)" loading="lazy">
           <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-between p-3 z-20">
             <div class="flex justify-between items-center w-full">
               <span class="text-white text-xs font-bold truncate pr-1">${pix.title}</span>
@@ -448,6 +515,14 @@
       });
     }
 
+    window.triggerProgressiveTransLink = function(id, hdImageElement) {
+      const lqipPlaceholder = document.getElementById(`lqip-${id}`);
+      if(lqipPlaceholder) {
+        hdImageElement.classList.remove('opacity-0');
+        setTimeout(() => { lqipPlaceholder.remove(); }, 400);
+      }
+    };
+
     function setupInfiniteScrollObserver() {
       const trigger = document.getElementById('infinite-scroll-trigger');
       const observer = new IntersectionObserver((entries) => {
@@ -461,7 +536,6 @@
       observer.observe(trigger);
     }
 
-    // --- SEARCH LOGIC ENGINE WRAPPERS ---
     function setupSearchEngineLogic() {
       const desktopBar = document.getElementById('search-input-desktop');
       const mobileBar = document.getElementById('search-input-mobile');
@@ -474,218 +548,9 @@
         );
         renderUniversalMasonryGridFeed(false);
       };
-      if(desktopBar) desktopBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') triggerSearch(e.target.value); });
-      if(mobileBar) mobileBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') { triggerSearch(e.target.value); switchTab('home'); } });
+      desktopBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') triggerSearch(e.target.value); });
+      mobileBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') { triggerSearch(e.target.value); switchTab('home'); } });
     }
-
-    // --- INTERACTIVE CROPPER & STRIKING UPLOADER CONNECTORS ---
-    function setupUploaderSystem() {
-      const fileInput = document.getElementById('file-uploader');
-      
-      fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if(!file) return;
-
-        const fileTypeToken = file.type.split('/')[0];
-        
-        if(fileTypeToken === 'video') {
-          // Video Constraints Flow Validation
-          detectedUploadType = 'video';
-          const videoElement = document.createElement('video');
-          videoElement.preload = 'metadata';
-          videoElement.src = URL.createObjectURL(file);
-          
-          videoElement.onloadedmetadata = () => {
-            window.URL.revokeObjectURL(videoElement.src);
-            if(videoElement.duration > 10.1) {
-              triggerToastSystem("Video constraint alert! Maximum clip duration: 10 seconds.", "fa-video-slash");
-              fileInput.value = '';
-              return;
-            }
-            
-            // Convert valid video asset clip cleanly to structural database string pipeline
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-              finalProcessedPayloadBase64 = evt.target.result;
-              document.getElementById('preview-holder').classList.remove('hidden');
-              document.getElementById('image-preview').src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150'; // Default video placeholder thumbnail
-              triggerToastSystem("Video clip locked successfully (Max 10s verified).", "fa-video");
-            };
-            reader.readAsDataURL(file);
-          };
-        } 
-        else if (fileTypeToken === 'image') {
-          // Image Dynamic Crop Lifecycle Flow Initialization Trigger
-          detectedUploadType = 'image';
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            rawUploadedFileBase64 = evt.target.result;
-            openImageEditorSandbox(rawUploadedFileBase64);
-          };
-          reader.readAsDataURL(file);
-        }
-      });
-
-      document.getElementById('btn-publish-pix').onclick = () => {
-        const title = document.getElementById('pix-title').value.trim();
-        const desc = document.getElementById('pix-desc').value.trim();
-        const cat = document.getElementById('pix-category').value.trim().toLowerCase() || 'nature';
-        const finalAssetData = finalProcessedPayloadBase64;
-
-        if(!title || !finalAssetData) { triggerToastSystem("Missing values or pending edits configuration file.","fa-exclamation"); return; }
-        
-        // Auto-assign Masonry structural scale factor dimensions metric values array blocks
-        let finalSizeClass = 'size-square';
-        if(detectedUploadType === 'image' && activeCropperInstance) {
-          const cropData = activeCropperInstance.getData();
-          if(cropData.height > cropData.width * 1.2) finalSizeClass = 'size-tall';
-          if(cropData.width > cropData.height * 1.2) finalSizeClass = 'size-wide';
-        }
-
-        const payload = {
-          title: title, description: desc || 'V3 architecture dynamic node framework object package layer.', imageUrl: finalAssetData,
-          creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid, category: cat, size: finalSizeClass, isRestricted: false, fileType: detectedUploadType
-        };
-
-        const key = push(ref(db, 'public_pix'));
-        set(key, payload).then(() => {
-          set(ref(db, `users/${currentUser.uid}/created/${key.key}`), payload);
-          triggerToastSystem("Ecosystem published successfully!","fa-circle-check");
-          closeCreateModal(); fetchMasterCloudCatalog();
-        });
-      };
-    }
-
-    // --- CROPPER ACTION MECHANICS FUNCTIONS ---
-    function openImageEditorSandbox(sourceBase64) {
-      document.getElementById('editor-modal').classList.remove('hidden');
-      const sandboxImage = document.getElementById('crop-image-sandbox');
-      sandboxImage.src = sourceBase64;
-
-      if(activeCropperInstance) activeCropperInstance.destroy();
-      
-      // Initialize premium cropper window element presets
-      activeCropperInstance = new Cropper(sandboxImage, {
-        aspectRatio: 2/3, // Default Pinterest premium scale setup config aspect
-        viewMode: 1,
-        background: false,
-        autoCropArea: 1
-      });
-    }
-
-    window.changeCropRatio = function(numericalRatioValue) {
-      if(activeCropperInstance) activeCropperInstance.setAspectRatio(numericalRatioValue);
-    };
-
-    window.rotateCropImage = function() {
-      if(activeCropperInstance) activeCropperInstance.rotate(90);
-    };
-
-    window.cancelImageEditing = function() {
-      document.getElementById('editor-modal').classList.add('hidden');
-      document.getElementById('file-uploader').value = '';
-    };
-
-    window.saveCroppedImageResult = function() {
-      if(!activeCropperInstance) return;
-      // Extract compressed high quality modified base64 asset payload 
-      finalProcessedPayloadBase64 = activeCropperInstance.getClippedCanvas ? activeCropperInstance.getClippedCanvas().toDataURL('image/jpeg', 0.75) : activeCropperInstance.getCroppedCanvas().toDataURL('image/jpeg', 0.75);
-      
-      document.getElementById('preview-holder').classList.remove('hidden');
-      document.getElementById('image-preview').src = finalProcessedPayloadBase64;
-      document.getElementById('editor-modal').classList.add('hidden');
-      triggerToastSystem("Cropped custom layout configuration parameters applied.","fa-wand-magic-sparkles");
-    };
-
-    // --- PRECISE FULL-RESOLUTION OPEN MODAL FLOW ---
-    window.openPinModal = function(pix) {
-      currentSelectedPix = pix;
-      
-      const modalImg = document.getElementById('modal-image');
-      const modalVid = document.getElementById('modal-video');
-      
-      // Reset absolute display variables elements configurations state vectors
-      modalImg.classList.add('hidden');
-      modalVid.classList.add('hidden');
-      modalVid.pause();
-
-      if(pix.fileType === 'video') {
-        modalVid.src = pix.imageUrl;
-        modalVid.classList.remove('hidden');
-        modalVid.play();
-      } else {
-        modalImg.src = pix.imageUrl;
-        modalImg.classList.remove('hidden');
-      }
-
-      document.getElementById('modal-title').innerText = pix.title;
-      document.getElementById('modal-desc').innerText = pix.description;
-      document.getElementById('modal-creator-strip').innerText = `Published by: @${pix.creator}`;
-
-      document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
-      document.getElementById('modal-action-download').onclick = () => { window.open(pix.imageUrl, '_blank'); };
-      
-      // Synchronize Realtime Live Comment Node channels
-      const commBox = document.getElementById('modal-comments-container');
-      commBox.innerHTML = '';
-      onValue(ref(db, `comments/${pix.id}`), (sn) => {
-        commBox.innerHTML = '';
-        if(sn.exists()) {
-          Object.values(sn.val()).forEach(c => {
-            const div = document.createElement('div'); div.className = "text-[11px] bg-gray-50 p-2 rounded-xl text-left font-semibold";
-            div.innerHTML = `<span class="text-red-600">@${c.author}:</span> <span class="text-gray-700">${c.text}</span>`;
-            commBox.appendChild(div);
-          });
-        } else { commBox.innerHTML = '<p class="text-[10px] text-gray-400 italic text-center py-2">No comments here yet.</p>'; }
-      });
-
-      document.getElementById('modal-btn-send-comment').onclick = () => {
-        const inp = document.getElementById('modal-comment-input');
-        if(!inp.value.trim() || !currentUser) return;
-        push(ref(db, `comments/${pix.id}`), { author: currentUser.email.split('@')[0], text: inp.value.trim(), time: Date.now() });
-        inp.value = '';
-      };
-
-      document.getElementById('pin-modal').classList.remove('hidden');
-    };
-
-    window.closePinModal = function() {
-      document.getElementById('pin-modal').classList.add('hidden');
-      document.getElementById('modal-video').pause();
-    };
-
-    // --- SMART RE-ROUTE SWITCH METHOD ELIMINATES STUCK PAGE ACTIONS ---
-    window.switchTab = function(tabId) {
-      document.querySelectorAll('.tab-panel').forEach(p => {
-        p.classList.add('hidden');
-        p.classList.remove('block');
-      });
-      
-      const targetPanel = document.getElementById(`view-${tabId}`);
-      if(targetPanel) {
-        targetPanel.classList.remove('hidden');
-        targetPanel.classList.add('block');
-      }
-      
-      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-nav-item'));
-      const activeMobIcon = document.getElementById(`mob-nav-${tabId}`);
-      if(activeMobIcon) activeMobIcon.classList.add('active-nav-item');
-      
-      // Clean pipeline fetch triggers when moving back to main view panel loop
-      if(tabId === 'home' || tabId === 'feed') {
-        resetAndFetchFeed();
-      }
-      if(tabId === 'profile') syncUserProfileSubDashboard();
-    };
-
-    window.protectedActionTrigger = function(type, id) {
-      if(!currentUser) { openAuthModal(); return; }
-      if(type === 'create') document.getElementById('create-modal').classList.remove('hidden');
-      if(type === 'save') {
-        const matched = globalPixStore.find(p => p.id === id);
-        if(matched) set(ref(db, `users/${currentUser.uid}/saved/${id}`), matched).then(() => triggerToastSystem("Saved to cloud cluster collections dashboard.","fa-bookmark"));
-      }
-    };
 
     window.openReportingWizard = function() {
       if(!currentUser) { openAuthModal(); return; }
@@ -701,7 +566,7 @@
         reason: selectReason, timestamp: Date.now()
       }).then(() => {
         document.getElementById('report-modal').classList.add('hidden'); closePinModal();
-        triggerToastSystem("Report sent to admin team validation audit index.","fa-shield-halved");
+        triggerToastSystem("Report registered successfully.","fa-shield-halved");
       });
     };
 
@@ -725,7 +590,9 @@
             `;
             streamBox.appendChild(row);
           });
-        } else { streamBox.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-2">No pending flags audits logs profiles.</p>'; }
+        } else {
+          streamBox.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-2">No pending audits.</p>';
+        }
       });
     }
 
@@ -750,31 +617,111 @@
       const container = document.getElementById('notification-list-box');
       const badgeDot = document.getElementById('notif-badge-dot');
       onValue(ref(db, `notifications/${uid}`), (snapshot) => {
-        if(!container) return;
         container.innerHTML = '';
         if(snapshot.exists()) {
-          if(badgeDot) badgeDot.classList.remove('hidden');
+          badgeDot.classList.remove('hidden');
           Object.values(snapshot.val()).reverse().forEach(notif => {
             const card = document.createElement('div');
-            card.className = `p-3 rounded-xl text-xs font-bold ${notif.type === 'alert' ? 'bg-red-50 text-red-900' : 'bg-gray-50 text-gray-800'}`;
-            card.innerHTML = `<p>${notif.text}</p>`;
+            card.className = `p-3.5 rounded-2xl text-xs font-bold ${notif.type === 'alert' ? 'bg-red-50 text-red-900' : 'bg-gray-50 text-gray-800'}`;
+            card.innerHTML = `<p>${notif.text}</p><span class="text-[9px] text-gray-400 block mt-1">${new Date(notif.timestamp).toLocaleString()}</span>`;
             container.appendChild(card);
           });
-        } else { if(badgeDot) badgeDot.classList.add('hidden'); container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-4">Inbox clear.</p>'; }
+        } else { badgeDot.classList.add('hidden'); container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">Inbox folder empty.</p>'; }
       });
+    }
+
+    window.clearAllLocalNotifications = function() { if(currentUser) remove(ref(db, `notifications/${currentUser.uid}`)); };
+
+    window.openComplianceSlide = function(docType) {
+      const title = document.getElementById('compliance-title');
+      const body = document.getElementById('compliance-content-body');
+      const databaseMockLegal = {
+        privacy: `<h3 class="font-black text-gray-900 text-sm">Privacy Policy</h3><p>We process secure cloud encryption metrics parameters data under explicit user token configuration controls profiles.</p>`,
+        terms: `<h3 class="font-black text-gray-900 text-sm">Terms and Conditions</h3><p>By registering active accounts channels inside Pixplay, you assert confirmation to comply with guidelines.</p>`,
+        guidelines: `<h3 class="font-black text-gray-900 text-sm">Community Guidelines</h3><p>Our platform maintains a strict zero-tolerance enforcement protocol framework against safety violations.</p>`
+      };
+      title.innerText = docType === 'privacy' ? 'Privacy Policy' : docType === 'terms' ? 'Terms & Conditions' : 'Community Guidelines';
+      body.innerHTML = databaseMockLegal[docType];
+      document.getElementById('compliance-slide-modal').classList.remove('hidden');
+    };
+
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.replace('block', 'hidden'));
+      document.getElementById(`view-${tabId}`).classList.replace('hidden', 'block');
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-nav-item'));
+      const activeMobIcon = document.getElementById(`mob-nav-${tabId}`);
+      if(activeMobIcon) activeMobIcon.classList.add('active-nav-item');
+      if(tabId === 'profile') syncUserProfileSubDashboard();
+    };
+
+    window.openPinModal = function(pix) {
+      currentSelectedPix = pix;
+      document.getElementById('modal-image').src = pix.imageUrl;
+      document.getElementById('modal-title').innerText = pix.title;
+      document.getElementById('modal-desc').innerText = pix.description;
+      document.getElementById('modal-creator-name').innerText = `@${pix.creator}`;
+      document.getElementById('modal-creator-avatar').innerText = pix.creator.charAt(0).toUpperCase();
+      document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
+      document.getElementById('modal-action-download').onclick = () => { window.open(pix.imageUrl, '_blank'); };
+      document.getElementById('pin-modal').classList.remove('hidden');
+    };
+
+    window.closePinModal = function() { document.getElementById('pin-modal').classList.add('hidden'); };
+
+    window.protectedActionTrigger = function(type, id) {
+      if(!currentUser) { openAuthModal(); return; }
+      if(type === 'create') document.getElementById('create-modal').classList.remove('hidden');
+      if(type === 'save') {
+        const matched = globalPixStore.find(p => p.id === id);
+        if(matched) set(ref(db, `users/${currentUser.uid}/saved/${id}`), matched).then(() => triggerToastSystem("Saved to dashboard folder!","fa-bookmark"));
+      }
+    };
+
+    function setupUploaderSystem() {
+      document.getElementById('file-uploader').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if(file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            document.getElementById('preview-holder').classList.remove('hidden');
+            document.getElementById('image-preview').src = evt.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+
+      document.getElementById('btn-publish-pix').onclick = () => {
+        const title = document.getElementById('pix-title').value.trim();
+        const desc = document.getElementById('pix-desc').value.trim();
+        const cat = document.getElementById('pix-category').value.trim().toLowerCase() || 'nature';
+        const img = document.getElementById('image-preview').src;
+
+        if(!title || img.length < 100) return;
+
+        const payload = {
+          title: title, description: desc || 'System integration node matrix package.', imageUrl: img,
+          creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid, category: cat, size: sizes[Math.floor(Math.random()*3)], isRestricted: false
+        };
+
+        const key = push(ref(db, 'public_pix'));
+        set(key, payload).then(() => {
+          set(ref(db, `users/${currentUser.uid}/created/${key.key}`), payload);
+          triggerToastSystem("Content upload completed.","fa-circle-check");
+          closeCreateModal(); fetchMasterCloudCatalog();
+        });
+      };
     }
 
     function syncUserProfileSubDashboard() {
       if(!currentUser) return;
       get(child(ref(db), `users/${currentUser.uid}`)).then(snap => {
-        const subgrid = document.getElementById('profile-sub-grid'); if(!subgrid) return;
-        subgrid.innerHTML = '';
+        const subgrid = document.getElementById('profile-sub-grid'); subgrid.innerHTML = '';
         if(snap.exists()) {
           const d = snap.val();
           const target = activeProfileTab === 'created' ? (d.created ? Object.values(d.created) : []) : (d.saved ? Object.values(d.saved) : []);
-          if(target.length === 0) { subgrid.innerHTML = '<p class="col-span-full text-center text-gray-400 text-xs py-6 italic">Folder folder empty.</p>'; return; }
+          if(target.length === 0) { subgrid.innerHTML = '<p class="col-span-full text-center text-gray-400 text-xs py-6 italic">Folder empty.</p>'; return; }
           target.forEach(pix => {
-            const node = document.createElement('div'); node.className = `masonry-item size-square rounded-xl overflow-hidden shadow-sm`;
+            const node = document.createElement('div'); node.className = `masonry-item ${pix.size} rounded-xl overflow-hidden shadow-sm`;
             node.innerHTML = `<img src="${pix.imageUrl}" class="w-full h-full object-cover">`;
             subgrid.appendChild(node);
           });
@@ -789,18 +736,10 @@
       syncUserProfileSubDashboard();
     };
 
-    window.openComplianceSlide = function(docType) {
-      const title = document.getElementById('compliance-title');
-      const body = document.getElementById('compliance-content-body');
-      title.innerText = docType === 'privacy' ? 'Privacy Policy' : 'Terms & Conditions';
-      body.innerHTML = `<p>Pixplay legal infrastructure terms verification framework system controls data handling nodes.</p>`;
-      document.getElementById('compliance-slide-modal').classList.remove('hidden');
-    };
-
     function buildTrendingTagsUI() {
-      const box = document.getElementById('search-trending-tags'); if(!box) return; box.innerHTML = '';
+      const box = document.getElementById('search-trending-tags'); box.innerHTML = '';
       ['Cyberpunk', 'Cars', 'Minimalist', 'Aesthetic'].forEach(t => {
-        const div = document.createElement('div'); div.className = "bg-neutral-900 text-white rounded-xl h-14 flex items-center justify-center font-bold text-xs cursor-pointer";
+        const div = document.createElement('div'); div.className = "bg-neutral-900 text-white rounded-xl h-16 flex items-center justify-center font-bold text-xs cursor-pointer";
         div.onclick = () => { document.getElementById('search-input-mobile').value = t; setupSearchEngineLogic(); switchTab('home'); };
         div.innerHTML = `<span>${t}</span>`; box.appendChild(div);
       });
@@ -809,19 +748,6 @@
     window.openAuthModal = function() { document.getElementById('auth-modal').classList.remove('hidden'); };
     window.closeAuthModal = function() { document.getElementById('auth-modal').classList.add('hidden'); };
     window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); document.getElementById('preview-holder').classList.add('hidden'); };
-    window.toggleAuthMode = function() { authMode = authMode === 'login' ? 'signup' : 'login'; };
-
-    document.getElementById('auth-primary-btn').onclick = () => {
-      const email = document.getElementById('auth-email').value.trim();
-      const pass = document.getElementById('auth-password').value;
-      const name = document.getElementById('auth-name').value.trim();
-      if(!email || pass.length < 6) return;
-      if(authMode === 'signup') {
-        createUserWithEmailAndPassword(auth, email, pass).then(c => { set(ref(db, `users/${c.user.uid}`), { name: name || 'User', email: email }); closeAuthModal(); });
-      } else { signInWithEmailAndPassword(auth, email, pass).then(() => closeAuthModal()); }
-    };
-
-    window.handleLogoutWorkflow = function() { signOut(auth); };
 
     function triggerToastSystem(m, i) {
       const toast = document.getElementById('toast'); document.getElementById('toast-msg').innerText = m;
