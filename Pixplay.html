@@ -11,524 +11,752 @@
       background-color: #ffffff;
       color: #111111;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
     .masonry-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-      grid-auto-rows: 10px;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      grid-auto-rows: 8px;
       justify-content: center;
+      gap: 0px 12px;
     }
-    .masonry-item { grid-row-end: span 26; margin-bottom: 16px; }
-    .size-small { grid-row-end: span 22; }
-    .size-medium { grid-row-end: span 30; }
+    @media (min-width: 640px) {
+      .masonry-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); grid-auto-rows: 10px; gap: 0px 16px; }
+    }
+    .masonry-item { grid-row-end: span 26; margin-bottom: 12px; }
+    @media (min-width: 640px) { .masonry-item { margin-bottom: 20px; } }
+    .size-small { grid-row-end: span 20; }
+    .size-medium { grid-row-end: span 28; }
     .size-large { grid-row-end: span 38; }
     ::-webkit-scrollbar { display: none; }
-    .restricted-pix { filter: blur(30px) brightness(0.5); pointer-events: none; }
-    .apple-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
+    .restricted-pix { filter: blur(35px) brightness(0.4); pointer-events: none; }
+    .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    
+    /* Active tab style */
+    .active-nav-item { color: #dc2626 !important; transform: scale(1.1); }
+    
+    /* Pull to refresh dynamic look */
+    .pulse-glow { animation: pulseAnim 1.5s infinite ease-in-out; }
+    @keyframes pulseAnim { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
   </style>
 </head>
-<body>
+<body class="pb-24 md:pb-4">
 
-  <header class="sticky top-0 bg-white z-40 px-4 py-3 flex items-center justify-between border-b border-gray-100">
-    <div class="flex items-center space-x-2 cursor-pointer" onclick="fetchGlobalPixHub()">
-      <div class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shadow-md">
-        <i class="fa-solid fa-p text-white text-xl font-black"></i>
+  <header class="sticky top-0 bg-white/95 backdrop-blur z-40 px-6 py-3.5 hidden md:flex items-center justify-between border-b border-gray-100">
+    <div class="flex items-center space-x-2 cursor-pointer" onclick="resetAndFetchFeed()">
+      <div class="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center shadow">
+        <i class="fa-solid fa-p text-white text-lg font-black"></i>
       </div>
-      <span class="text-xl font-bold tracking-tight text-red-600 hidden sm:inline">Pixplay</span>
+      <span class="text-xl font-black tracking-tight text-red-600">Pixplay</span>
     </div>
 
-    <div class="flex items-center space-x-1 ml-4">
-      <button onclick="switchTab('home')" id="tab-home" class="bg-black text-white px-4 py-2.5 rounded-full text-sm font-semibold transition">Home</button>
-      <button onclick="protectedActionTrigger('create')" class="text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold transition">Create Pix</button>
-    </div>
-
-    <div class="flex-1 max-w-2xl mx-4 relative hidden md:block">
+    <div class="flex-1 max-w-2xl mx-6 relative">
       <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
-      <input type="text" id="search-input" placeholder="Search public ideas, backgrounds, patterns..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
+      <input type="text" id="search-input-desktop" placeholder="Search ideas, aesthetics, designs..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
     </div>
 
-    <div class="flex items-center space-x-3">
-      <div id="guest-zone" class="block">
-        <button onclick="openAuthModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2.5 rounded-full shadow transition">Sign In / Create Account</button>
+    <div class="flex items-center space-x-4">
+      <button onclick="switchTab('home')" class="text-gray-800 font-bold text-sm px-2">Home</button>
+      <button onclick="protectedActionTrigger('create')" class="text-gray-500 hover:text-black font-semibold text-sm px-2">Create</button>
+      <div id="user-zone-desktop" class="flex items-center space-x-3">
+        <div onclick="switchTab('profile')" id="avatar-desktop" class="w-8 h-8 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center cursor-pointer uppercase border shadow-sm"></div>
+        <button onclick="handleLogoutWorkflow()" class="text-gray-400 hover:text-red-600 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
-      <div id="user-zone" class="hidden flex items-center space-x-3">
-        <div onclick="switchTab('profile')" id="avatar-box" class="w-9 h-9 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white font-bold flex items-center justify-center cursor-pointer shadow-inner uppercase"></div>
-        <button onclick="handleLogoutWorkflow()" class="text-gray-400 hover:text-red-500 text-sm transition p-2"><i class="fa-solid fa-right-from-bracket"></i></button>
+      <div id="guest-zone-desktop" class="hidden">
+        <button onclick="openAuthModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-full transition shadow">Sign In</button>
       </div>
     </div>
   </header>
 
-  <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-neutral-900/95 backdrop-blur text-white px-5 py-3 rounded-xl text-xs font-semibold shadow-2xl z-50 flex items-center space-x-2 hidden opacity-0 transition-all duration-300">
+  <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-neutral-900/95 backdrop-blur text-white px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl z-[100] flex items-center space-x-2.5 hidden opacity-0 transition-all duration-300">
     <i id="toast-icon" class="fa-solid fa-circle-info text-red-500"></i>
     <span id="toast-msg">Database Synced</span>
   </div>
 
-  <main class="max-w-[1400px] mx-auto p-4">
+  <main class="max-w-[1400px] mx-auto px-3 py-3 md:px-6">
     
-    <div id="view-feed" class="tab-panel block">
-      <div class="masonry-grid" id="pix-container"></div>
+    <div class="flex md:hidden items-center justify-between py-2 mb-2 px-1">
+      <span class="text-2xl font-black tracking-tighter text-red-600">Pixplay</span>
+      <div class="w-16 flex justify-end">
+        <div id="avatar-mobile-top" onclick="switchTab('profile')" class="w-7 h-7 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center uppercase border">G</div>
+      </div>
     </div>
 
-    <div id="view-profile" class="tab-panel hidden space-y-8">
-      <div class="text-center py-6 max-w-sm mx-auto bg-gray-50 rounded-3xl border border-gray-100 p-4">
-        <div id="profile-large-avatar" class="w-20 h-20 rounded-full bg-gradient-to-tr from-pink-500 to-purple-600 text-white text-2xl font-bold flex items-center justify-center mx-auto shadow-md mb-3 uppercase"></div>
-        <h2 id="profile-name" class="text-xl font-bold text-gray-900">Premium User</h2>
-        <p id="profile-email" class="text-gray-400 text-xs"></p>
-        <div class="border-t border-gray-200/60 mt-4 pt-3 flex justify-around text-center text-xs text-gray-500 font-medium">
-          <div><span id="count-saved" class="block font-bold text-black text-sm">0</span> Saved</div>
-          <div><span id="count-created" class="block font-bold text-black text-sm">0</span> Created</div>
+    <div id="view-feed" class="tab-panel block">
+      <div class="masonry-grid" id="pix-container"></div>
+      <div id="infinite-scroll-trigger" class="w-full py-8 flex justify-center items-center">
+        <div class="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    </div>
+
+    <div id="view-explore" class="tab-panel hidden space-y-4">
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+        <input type="text" id="search-input-mobile" placeholder="Search ideas..." class="w-full bg-gray-100 p-3 pl-11 rounded-full text-sm outline-none">
+      </div>
+      <div>
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Trending Topics for You</h3>
+        <div class="grid grid-cols-2 gap-2" id="search-trending-tags"></div>
+      </div>
+    </div>
+
+    <div id="view-notifications" class="tab-panel hidden space-y-3">
+      <h2 class="text-xl font-bold tracking-tight px-1">Updates</h2>
+      <div class="space-y-2" id="notification-list-box">
+        <div class="p-3 bg-gray-50 rounded-xl flex items-center space-x-3">
+          <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs"><i class="fa-solid fa-bolt"></i></div>
+          <div class="flex-1 text-xs font-medium"><p class="text-gray-900">Welcome to version 2 platform architecture updates.</p></div>
         </div>
       </div>
-      <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-semibold text-gray-500">
-        <button onclick="toggleProfileSubTab('created')" id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">My Uploaded Pix</button>
-        <button onclick="toggleProfileSubTab('saved')" id="subtab-btn-saved" class="pb-2 hover:text-black">Saved Dashboard</button>
+    </div>
+
+    <div id="view-profile" class="tab-panel hidden space-y-6">
+      <div class="text-center py-6 max-w-sm mx-auto bg-gray-50 rounded-3xl p-4 relative">
+        <button id="logout-btn-profile" onclick="handleLogoutWorkflow()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 hidden"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <div id="profile-large-avatar" class="w-16 h-16 rounded-full bg-neutral-200 text-gray-700 text-xl font-bold flex items-center justify-center mx-auto shadow-inner mb-2 uppercase">G</div>
+        <h2 id="profile-name" class="text-lg font-black text-gray-900">Guest Engine</h2>
+        <p id="profile-email" class="text-gray-400 text-xs"></p>
+        
+        <div class="mt-3 flex justify-center space-x-4 text-xs font-semibold text-gray-500">
+          <span id="profile-followers-count">0 followers</span> &middot; <span id="profile-following-count">0 following</span>
+        </div>
+      </div>
+      <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-bold text-gray-400">
+        <button onclick="toggleProfileSubTab('created')" id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">Created</button>
+        <button onclick="toggleProfileSubTab('saved')" id="subtab-btn-saved" class="pb-2 hover:text-black">Saved</button>
       </div>
       <div class="masonry-grid" id="profile-sub-grid"></div>
     </div>
+
   </main>
 
-  <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4">
-      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-black"><i class="fa-solid fa-xmark text-lg"></i></button>
+  <nav class="fixed bottom-0 left-0 right-0 h-16 glass-nav border-t border-gray-100 flex justify-around items-center z-40 md:hidden px-2 shadow-lg">
+    <button onclick="switchTab('home')" id="mob-nav-home" class="flex flex-col items-center justify-center text-gray-400 active-nav-item w-12 transition-transform"><i class="fa-solid fa-house text-lg"></i></button>
+    <button onclick="switchTab('explore')" id="mob-nav-explore" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-magnifying-glass text-lg"></i></button>
+    <button onclick="protectedActionTrigger('create')" id="mob-nav-create" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-square-plus text-xl text-gray-800"></i></button>
+    <button onclick="switchTab('notifications')" id="mob-nav-notifications" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform relative"><i class="fa-solid fa-bell text-lg"></i><span class="absolute top-2 right-3 w-1.5 h-1.5 bg-red-500 rounded-full"></span></button>
+    <button onclick="switchTab('profile')" id="mob-nav-profile" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-user text-lg"></i></button>
+  </nav>
+
+  <div id="pin-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end md:items-center justify-center p-0 md:p-4 hidden animate-fade-in">
+    <div class="bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
       
-      <div class="text-center space-y-1">
-        <h3 id="auth-title" class="text-2xl font-black tracking-tight">Welcome to Pixplay</h3>
-        <p id="auth-desc" class="text-gray-500 text-xs">Unlock download, saving, and dynamic uploading tools.</p>
+      <button onclick="closePinModal()" class="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full flex items-center justify-center shadow md:hidden"><i class="fa-solid fa-chevron-down"></i></button>
+      <button onclick="closePinModal()" class="absolute top-4 right-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full hidden md:flex items-center justify-center shadow hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button>
+
+      <div class="w-full md:w-1/2 h-[40vh] md:h-full bg-black relative flex items-center justify-center">
+        <img id="modal-image" src="" class="w-full h-full object-cover">
+        <div class="absolute inset-0" id="modal-image-gesture-zone"></div>
       </div>
 
-      <div class="space-y-3">
-        <div id="signup-name-wrapper" class="hidden">
-          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider pl-1">Full Name</label>
-          <input type="text" id="auth-name" placeholder="John Doe" class="w-full bg-gray-50 border p-3 rounded-xl text-sm outline-none">
+      <div class="w-full md:w-1/2 h-[52vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
+        
+        <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+          <div class="flex space-x-2">
+            <button id="modal-action-like" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-heart"></i></button>
+            <button id="modal-action-share" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
+            <button id="modal-action-download" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-arrow-down"></i></button>
+          </div>
+          <button id="modal-action-save" class="bg-red-600 hover:bg-red-700 text-white font-black text-sm px-5 py-2.5 rounded-full shadow transition">Save</button>
         </div>
-        <div>
-          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider pl-1">Email Address</label>
-          <input type="email" id="auth-email" placeholder="name@domain.com" class="w-full bg-gray-50 border p-3 rounded-xl text-sm outline-none">
-        </div>
-        <div>
-          <label class="text-[10px] font-bold text-gray-400 uppercase tracking-wider pl-1">Password</label>
-          <input type="password" id="auth-password" placeholder="••••••••" class="w-full bg-gray-50 border p-3 rounded-xl text-sm outline-none">
-        </div>
-        <button id="auth-primary-btn" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-sm tracking-wide shadow configuration-transition">Sign In</button>
-      </div>
 
-      <div class="text-center text-xs text-gray-500">
-        <span id="auth-toggle-msg">Don't have an account?</span>
-        <button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 font-bold ml-1 hover:underline">Create Account</button>
+        <div class="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
+          <div>
+            <h2 id="modal-title" class="text-xl md:text-2xl font-black tracking-tight text-gray-900 leading-tight">Concept Design Core</h2>
+            <p id="modal-desc" class="text-gray-500 text-xs mt-1 leading-relaxed">Dynamic description mapping placeholder parameters inside the cluster engine stack structure.</p>
+          </div>
+
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-2xl">
+            <div class="flex items-center space-x-2.5">
+              <div id="modal-creator-avatar" class="w-8 h-8 rounded-full bg-neutral-300 font-bold text-xs flex items-center justify-center uppercase border">C</div>
+              <div>
+                <h4 id="modal-creator-name" class="text-xs font-bold text-gray-900">@creator_handle</h4>
+                <p id="modal-creator-followers" class="text-[10px] text-gray-400">0 followers</p>
+              </div>
+            </div>
+            <button id="modal-btn-follow" class="bg-gray-200 hover:bg-gray-300 text-black font-bold text-xs px-3.5 py-2 rounded-full transition">Follow</button>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2" id="comments-header-count">Comments (0)</h4>
+            <div id="modal-comments-container" class="space-y-2.5 max-h-[160px] overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-gray-100 flex items-center space-x-2">
+          <input type="text" id="modal-comment-input" placeholder="Add a comment or mention @user..." class="flex-1 bg-gray-100 text-xs p-3 rounded-xl outline-none focus:bg-white border border-transparent focus:border-gray-200 font-medium">
+          <button id="modal-btn-send-comment" class="w-9 h-9 bg-red-50 hover:bg-red-100 text-red-600 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+        </div>
+
       </div>
     </div>
   </div>
 
   <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row">
-      <div class="w-full md:w-1/2 bg-gray-50 p-6 flex flex-col justify-center items-center relative border-b md:border-r">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-lg">Create a Pix</h3>
+        <button onclick="closeCreateModal()" class="text-gray-400 hover:text-black"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="w-full h-40 bg-gray-50 rounded-2xl relative flex flex-col justify-center items-center border-2 border-dashed border-gray-200 overflow-hidden">
         <input type="file" id="file-uploader" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
-        <div id="dropzone-prompt" class="text-center p-4 border-2 border-dashed border-gray-200 rounded-2xl w-full h-full flex flex-col justify-center items-center space-y-2">
-          <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400"></i>
-          <p class="text-sm font-semibold text-gray-700">Select Image asset</p>
-        </div>
-        <div id="preview-holder" class="absolute inset-2 hidden rounded-xl overflow-hidden bg-white">
-          <img id="image-preview" src="" class="w-full h-full object-cover">
-          <button onclick="resetUploadDropzone(event)" class="absolute top-2 right-2 bg-black/70 text-white w-7 h-7 rounded-full flex items-center justify-center"><i class="fa-solid fa-xmark text-xs"></i></button>
-        </div>
+        <div id="dropzone-prompt" class="text-center p-3 pointer-events-none"><i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-1"></i><p class="text-xs font-bold text-gray-600">Choose file asset</p></div>
+        <div id="preview-holder" class="absolute inset-0 hidden bg-white"><img id="image-preview" src="" class="w-full h-full object-cover"></div>
       </div>
-      <div class="w-full md:w-1/2 p-6 flex flex-col justify-between space-y-4">
-        <div class="flex justify-between items-center border-b pb-2">
-          <h3 class="font-bold text-lg">Publish New Pix</h3>
-          <button onclick="closeCreateModal()" class="text-gray-400 hover:text-black"><i class="fa-solid fa-xmark"></i></button>
-        </div>
-        <div class="space-y-3">
-          <input type="text" id="pix-title" placeholder="Add title..." class="w-full border-b p-2 text-sm outline-none font-medium focus:border-red-500">
-          <textarea id="pix-desc" placeholder="Add description..." rows="2" class="w-full border-b p-2 text-sm outline-none resize-none focus:border-red-500"></textarea>
-        </div>
-        <button onclick="handlePublishPipeline()" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-sm shadow">Publish Pix</button>
+      <div class="space-y-2">
+        <input type="text" id="pix-title" placeholder="Add title..." class="w-full border-b p-2 text-xs font-bold outline-none focus:border-red-500">
+        <input type="text" id="pix-category" placeholder="Category Tag (e.g. cyberpunk, cars, fashion)..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500">
+        <textarea id="pix-desc" placeholder="Add description..." rows="2" class="w-full border-b p-2 text-xs outline-none resize-none focus:border-red-500"></textarea>
       </div>
+      <button id="btn-publish-pix" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wide">Publish Pix</button>
+    </div>
+  </div>
+
+  <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative space-y-4">
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-black"><i class="fa-solid fa-xmark"></i></button>
+      <div class="text-center"><h3 id="auth-title" class="text-xl font-black">Join Pixplay Hub</h3><p id="auth-desc" class="text-gray-400 text-[11px] mt-1">Unlock discovery and interactive systems logs.</p></div>
+      <div class="space-y-2.5">
+        <div id="signup-name-wrapper" class="hidden"><input type="text" id="auth-name" placeholder="Full Name" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none"></div>
+        <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
+        <input type="password" id="auth-password" placeholder="Password" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
+        <button id="auth-primary-btn" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wider">Sign In</button>
+      </div>
+      <div class="text-center text-[11px] text-gray-500"><span id="auth-toggle-msg">New to system?</span><button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 font-bold ml-1">Create Profile</button></div>
     </div>
   </div>
 
   <script type="module">
-    // Firebase Core SDK Integrations
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getDatabase, ref, set, get, child, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, set, get, child, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    [span_0](start_span)// App Configurations[span_0](end_span)
     const firebaseConfig = {
-      [span_1](start_span)apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0", //[span_1](end_span)
-      [span_2](start_span)authDomain: "pulse2-92372.firebaseapp.com", //[span_2](end_span)
-      [span_3](start_span)databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com", //[span_3](end_span)
-      [span_4](start_span)projectId: "pulse2-92372", //[span_4](end_span)
-      [span_5](start_span)storageBucket: "pulse2-92372.firebasestorage.app", //[span_5](end_span)
-      [span_6](start_span)messagingSenderId: "276235725177", //[span_6](end_span)
-      [span_7](start_span)appId: "1:276235725177:web:0f4e0789fae80a435927a8" //[span_7](end_span)
+      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+      authDomain: "pulse2-92372.firebaseapp.com",
+      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+      projectId: "pulse2-92372",
+      storageBucket: "pulse2-92372.firebasestorage.app",
+      messagingSenderId: "276235725177",
+      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
     };
 
-    const app = initializeApp(firebaseConfig); [span_8](start_span)//[span_8](end_span)
-    const auth = getAuth(app); [span_9](start_span)//[span_9](end_span)
-    const db = getDatabase(app); [span_10](start_span)//[span_10](end_span)
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getDatabase(app);
 
-    // Core In-Memory App States
-    let currentSessionUser = null;
-    let authMode = 'login'; 
+    // Operational Global Vectors 
+    let currentUser = null;
+    let authMode = 'login';
     let globalPixStore = [];
-    let profileActiveSubTab = 'created';
-    const sizes = ['size-small', 'size-medium', 'size-large'];
-    const PROTECTION_KEYWORDS = ['gandhi', 'nsfw', 'explicit', 'adult', 'violence', 'dirty'];
+    let displayedPixList = [];
+    let activeProfileTab = 'created';
+    let currentSelectedPix = null;
+    
+    // Pagination & Infinite Scroll Control Vectors
+    let currentPageSize = 15;
+    let isFetchingNextBatch = false;
+    let endOfCloudStream = false;
 
-    // Bootstrapping listeners
-    window.addEventListener('DOMContentLoaded', () => {
-      fetchGlobalPixHub();
-      setupSearchEngine();
-      setupFilePreview();
+    // AI Recommendation Vector Trackers
+    let localInterestVector = { cyberpunk: 1, cars: 1, fashion: 1, minimalist: 1, travel: 1, nature: 1 };
+    let recentlyViewedPixIds = [];
+    const sizes = ['size-small', 'size-medium', 'size-large'];
+    const PROTECTION_KEYWORDS = ['gandhi', 'nsfw', 'explicit', 'adult', 'violence'];
+
+    // Execution Core Bootstrapping
+    document.addEventListener("DOMContentLoaded", () => {
+      fetchMasterCloudCatalog();
+      setupSearchGateways();
+      setupInfiniteScrollObserver();
+      setupUploaderSystem();
+      buildTrendingTagsUI();
     });
 
-    [span_11](start_span)// Listen to Authentication State Change Flow[span_11](end_span)
-    [span_12](start_span)onAuthStateChanged(auth, (user) => { //[span_12](end_span)
+    // Handle Authentication Configurations Updates Loop
+    onAuthStateChanged(auth, (user) => {
       if(user) {
-        currentSessionUser = user;
-        document.getElementById('guest-zone').style.display = 'none';
-        document.getElementById('user-zone').style.display = 'flex';
+        currentUser = user;
+        document.getElementById('guest-zone-desktop').classList.add('hidden');
+        document.getElementById('user-zone-desktop').classList.remove('hidden');
+        document.getElementById('logout-btn-profile').classList.remove('hidden');
         
-        // Setup Header Avatar Profile Node
-        const userEmailInitial = user.email ? user.email.charAt(0) : 'U';
-        document.getElementById('avatar-box').innerText = userEmailInitial;
-        document.getElementById('profile-large-avatar').innerText = userEmailInitial;
+        const initialStr = user.email ? user.email.charAt(0).toUpperCase() : 'U';
+        document.getElementById('avatar-desktop').innerText = initialStr;
+        document.getElementById('avatar-mobile-top').innerText = initialStr;
+        document.getElementById('profile-large-avatar').innerText = initialStr;
         document.getElementById('profile-email').innerText = user.email;
-        
-        // Sync custom user meta profiles from RTDB
-        get(child(ref(db), `users/${user.uid}`)).then((snapshot) => {
-          if(snapshot.exists()) {
-            document.getElementById('profile-name').innerText = snapshot.val().name || 'Pixplay User';
+
+        // Synchronize vectors from Realtime Cloud Matrix database cluster
+        get(child(ref(db), `users/${user.uid}`)).then((snap) => {
+          if(snap.exists()) {
+            const data = snap.val();
+            document.getElementById('profile-name').innerText = data.name || 'Pixplay Professional';
+            if(data.interests) localInterestVector = data.interests;
+            syncProfileCounterMetrics(data);
           }
         });
-        syncUserProfileDashboard();
       } else {
-        currentSessionUser = null;
-        document.getElementById('guest-zone').style.display = 'block';
-        document.getElementById('user-zone').style.display = 'none';
+        currentUser = null;
+        document.getElementById('guest-zone-desktop').classList.remove('hidden');
+        document.getElementById('user-zone-desktop').classList.add('hidden');
+        document.getElementById('logout-btn-profile').classList.add('hidden');
+        document.getElementById('profile-name').innerText = "Guest Engine";
+        document.getElementById('profile-email').innerText = "Sign in to log properties";
+        document.getElementById('profile-followers-count').innerText = "0 followers";
+        document.getElementById('profile-following-count').innerText = "0 following";
         switchTab('home');
       }
     });
 
-    // --- Tab Mechanism ---
-    window.switchTab = function(tabId) {
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.replace('block', 'hidden'));
-      document.getElementById(`view-${tabId}`).classList.replace('hidden', 'block');
-      
-      const homeBtn = document.getElementById('tab-home');
-      if(tabId === 'home') {
-        homeBtn.className = "bg-black text-white px-4 py-2.5 rounded-full text-sm font-semibold transition";
-      } else {
-        homeBtn.className = "text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold transition";
-      }
-      if(tabId === 'profile') syncUserProfileDashboard();
-    };
-
-    // --- Public View but Protected Actions Engine ---
-    window.protectedActionTrigger = function(actionType, contextId = null, extraData = null) {
-      if(!currentSessionUser) {
-        triggerToastSystem("Protected Area! Account sign in required.", "fa-lock");
-        openAuthModal();
-        return;
-      }
-      
-      // If signed in, clear process to respective channels
-      if(actionType === 'create') openCreateModal();
-      if(actionType === 'save') executeSavePixCommand(contextId);
-      if(actionType === 'like') executeLikePixCommand(extraData);
-      if(actionType === 'download') executeDownloadAssetCommand(contextId, extraData);
-    };
-
-    // --- Public Image Feed Generation (Unsplash Dynamic Optimization Fallbacks) ---
-    async function fetchGlobalPixHub() {
-      const fallbackKeywords = ['nature', 'neon', 'minimalist', 'cars', 'design', 'cyberpunk', 'travel', 'abstract'];
-      let fallbackFeed = fallbackKeywords.map((kw, idx) => ({
-        id: `fallback_${idx}`,
-        title: `${kw.toUpperCase()} Inspiration`,
-        description: 'Public baseline layout asset asset generated from creative repositories.',
-        imageUrl: `https://images.unsplash.com/photo-${getAssetSeedMap(kw)}?w=600&auto=format&fit=crop&q=75`,
-        creator: '@pixplay_hub',
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        isRestricted: false
-      }));
+    // --- Master Catalog Fetch & Sync Layer ---
+    async function fetchMasterCloudCatalog() {
+      const fallbackNodes = ['nature','neon','minimalist','cars','design','cyberpunk','travel','fashion'];
+      let fallbacks = [];
+      fallbackNodes.forEach((node, k) => {
+        fallbacks.push({
+          id: `static_fallback_${k}_${node}`, title: `${node.toUpperCase()} View`,
+          description: 'Aesthetic reference model matching public layout profiles indexing guidelines.',
+          imageUrl: `https://images.unsplash.com/photo-${getAssetHash(node)}?w=600&auto=format&fit=crop&q=75`,
+          creator: 'system_hub', creatorUid: 'system', category: node, size: sizes[k % 3], isRestricted: false
+        });
+      });
 
       try {
-        // Fetch real-time additions from Firebase Realtime DB
-        const dbSnapshot = await get(child(ref(db), 'public_pix'));
-        if(dbSnapshot.exists()) {
-          let firebasePixList = [];
-          Object.entries(dbSnapshot.val()).forEach(([id, payload]) => {
-            firebasePixList.unshift({
-              id: id,
-              title: payload.title,
-              description: payload.description,
-              imageUrl: payload.imageUrl,
-              creator: payload.creator || '@anonymous',
-              size: payload.size || 'size-medium',
-              isRestricted: payload.isRestricted || false
+        const snap = await get(child(ref(db), 'public_pix'));
+        if(snap.exists()) {
+          let fbList = [];
+          Object.entries(snap.val()).forEach(([id, val]) => {
+            fbList.unshift({
+              id: id, title: val.title, description: val.description, imageUrl: val.imageUrl,
+              creator: val.creator || '@anonymous', creatorUid: val.creatorUid || 'anon',
+              category: val.category || 'minimalist', size: val.size || 'size-medium', isRestricted: val.isRestricted || false
             });
           });
-          globalPixStore = [...firebasePixList, ...fallbackFeed];
-        } else {
-          globalPixStore = fallbackFeed;
-        }
-      } catch (err) {
-        globalPixStore = fallbackFeed;
-      }
-      renderUniversalMasonryGrid(globalPixStore, 'pix-container');
+          globalPixStore = [...fbList, ...fallbacks];
+        } else { globalPixStore = fallbacks; }
+      } catch(e) { globalPixStore = fallbacks; }
+
+      resetAndFetchFeed();
     }
 
-    // --- Search Automation Pipeline ---
-    function setupSearchEngine() {
-      document.getElementById('search-input').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') {
-          const query = e.target.value.toLowerCase().trim();
-          if(!query) { fetchGlobalPixHub(); return; }
-          
-          const filtered = globalPixStore.filter(p => 
-            p.title.toLowerCase().includes(query) || p.description.toLowerCase().includes(query)
-          );
-          renderUniversalMasonryGrid(filtered, 'pix-container');
-          triggerToastSystem(`Found ${filtered.length} matching Pix.`, "fa-filter");
-        }
-      });
-    }
-
-    // --- Core Master Masonry Grid Render Core ---
-    function renderUniversalMasonryGrid(dataList, containerId) {
-      const targetElement = document.getElementById(containerId);
-      targetElement.innerHTML = '';
+    // --- Core Infinite Scroll & Intelligent Ranking Engine ---
+    function resetAndFetchFeed() {
+      currentPageSize = 15;
+      endOfCloudStream = false;
+      isFetchingNextBatch = false;
+      document.getElementById('infinite-scroll-trigger').classList.remove('hidden');
       
-      if(dataList.length === 0) {
-        targetElement.innerHTML = `<p class="col-span-full text-center text-gray-400 text-sm py-12 italic">No matches discovered inside the cloud.</p>`;
-        return;
+      applyInterestBasedRanking();
+    }
+
+    function applyInterestBasedRanking() {
+      // User Interest Tracking Vector-Matrix Scoring Evaluation Logic
+      let scoredPool = globalPixStore.map(pix => {
+        let score = 100; // Base baseline score
+        const cat = pix.category ? pix.category.toLowerCase() : 'minimalist';
+        
+        // Add interest weights points mapping array calculation matrix
+        if(localInterestVector[cat]) {
+          score += (localInterestVector[cat] * 15);
+        }
+        // Recently Viewed penalty index parameters to optimize discovery divergence
+        if(recentlyViewedPixIds.includes(pix.id)) { score -= 40; }
+        
+        return { pix: pix, rankingWeight: score };
+      });
+
+      scoredPool.sort((a,b) => b.rankingWeight - a.rankingWeight);
+      displayedPixList = scoredPool.map(item => item.pix);
+      
+      renderFeedSliceLayout(false);
+    }
+
+    function renderFeedSliceLayout(appendMode = false) {
+      const targetGrid = document.getElementById('pix-container');
+      if(!appendMode) targetGrid.innerHTML = '';
+
+      const slice = displayedPixList.slice(0, currentPageSize);
+      
+      if(slice.length >= displayedPixList.length) {
+        endOfCloudStream = true;
+        document.getElementById('infinite-scroll-trigger').classList.add('hidden');
       }
 
-      dataList.forEach(pix => {
-        const itemNode = document.createElement('div');
-        itemNode.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-xl transition-all duration-300 bg-gray-50`;
-        
-        itemNode.innerHTML = `
-          <img src="${pix.imageUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${pix.isRestricted ? 'restricted-pix' : ''}">
-          
-          ${pix.isRestricted ? `
-            <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-3 z-20">
-              <span class="bg-red-600/90 backdrop-blur text-white font-black text-[9px] px-2.5 py-1 rounded-full uppercase tracking-widest"><i class="fa-solid fa-eye-slash"></i> Sensitive Filter</span>
-              <button onclick="revealBypassedPix(event, this)" class="mt-2 bg-white/20 text-white font-bold text-[10px] px-3 py-1 rounded-lg backdrop-blur hover:bg-white/40 transition pointer-events-auto">View Pix</button>
-            </div>
-          ` : ''}
+      const activeSlice = appendMode ? displayedPixList.slice(currentPageSize - 15, currentPageSize) : slice;
 
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 z-10">
+      activeSlice.forEach(pix => {
+        const node = document.createElement('div');
+        node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-gray-50 shadow-sm`;
+        
+        // Setup Swipe/Double-Tap Mobile Simulation Event Nodes triggers hooks
+        node.addEventListener('dblclick', (e) => {
+          triggerHapticSimulation();
+          executeDirectLikeSync(pix.id, node.querySelector('.like-icon-hook'));
+        });
+        
+        node.onclick = () => openPinModal(pix);
+
+        node.innerHTML = `
+          <img src="${pix.imageUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${pix.isRestricted ? 'restricted-pix' : ''}" loading="lazy">
+          ${pix.isRestricted ? `
+            <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-2 z-20">
+              <span class="bg-black/80 text-white font-bold text-[9px] px-2 py-1 rounded-full uppercase tracking-wider">Restricted</span>
+            </div>
+          `:''}
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 z-10">
             <div class="flex justify-between items-center w-full">
-              <span class="text-white text-xs font-bold truncate pr-2">${pix.title}</span>
-              <button onclick="protectedActionTrigger('save', '${pix.id}')" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-3.5 py-2 rounded-full shadow transition">Save</button>
+              <span class="text-white text-xs font-bold truncate pr-1">${pix.title}</span>
+              <button onclick="event.stopPropagation(); protectedActionTrigger('save', '${pix.id}')" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow">Save</button>
             </div>
             <div class="flex justify-between items-center w-full">
-              <span class="text-white/80 text-[10px] font-medium truncate">${pix.creator}</span>
-              <div class="flex space-x-1.5">
-                <button onclick="protectedActionTrigger('like', null, this)" class="w-8 h-8 bg-white hover:bg-gray-100 text-gray-800 rounded-full flex items-center justify-center text-xs shadow transition"><i class="fa-solid fa-heart"></i></button>
-                <button onclick="protectedActionTrigger('download', '${pix.id}', '${pix.imageUrl}')" class="w-8 h-8 bg-white hover:bg-gray-100 text-gray-800 rounded-full flex items-center justify-center text-xs shadow transition"><i class="fa-solid fa-cloud-arrow-down"></i></button>
+              <span class="text-white/80 text-[10px] truncate max-w-[100px] font-medium">${pix.creator}</span>
+              <div class="flex space-x-1">
+                <button onclick="event.stopPropagation(); executeDirectLikeSync('${pix.id}', this.querySelector('i'))" class="w-7 h-7 bg-white text-gray-800 rounded-full flex items-center justify-center text-xs shadow"><i class="fa-solid fa-heart like-icon-hook"></i></button>
               </div>
             </div>
           </div>
         `;
-        targetElement.appendChild(itemNode);
+        targetGrid.appendChild(node);
       });
     }
 
-    // --- Bypass blur locally ---
-    window.revealBypassedPix = function(e, btn) {
-      e.stopPropagation();
-      const parent = btn.closest('.masonry-item');
-      parent.querySelector('img').classList.remove('restricted-pix');
-      btn.parentElement.remove();
+    function setupInfiniteScrollObserver() {
+      // Intersection Observer Setup mapping endless scroll trigger anchor points boundary logic
+      const triggerElement = document.getElementById('infinite-scroll-trigger');
+      const observer = new IntersectionObserver((entries) => {
+        if(entries[0].isIntersecting && !isFetchingNextBatch && !endOfCloudStream) {
+          isFetchingNextBatch = true;
+          setTimeout(() => {
+            currentPageSize += 15;
+            renderFeedSliceLayout(true);
+            isFetchingNextBatch = false;
+          }, 600); // Fluid pipeline artificial buffering delay simulation loop
+        }
+      }, { rootMargin: '200px' });
+      observer.observe(triggerElement);
+    }
+
+    // --- Pinterest Premium Style Click Modal Master System ---
+    async function openPinModal(pix) {
+      currentSelectedPix = pix;
+      triggerHapticSimulation();
+
+      // Interest Tracking Engine updates variables
+      if(pix.category) {
+        const cat = pix.category.toLowerCase();
+        localInterestVector[cat] = (localInterestVector[cat] || 0) + 1;
+        if(currentUser) {
+          update(ref(db, `users/${currentUser.uid}/interests`), { [cat]: localInterestVector[cat] });
+        }
+      }
+      if(!recentlyViewedPixIds.includes(pix.id)) {
+        recentlyViewedPixIds.unshift(pix.id);
+        if(recentlyViewedPixIds.length > 12) recentlyViewedPixIds.pop();
+      }
+
+      // UI Layout Parameters Initialization Mapping Pipeline Configuration
+      document.getElementById('modal-image').src = pix.imageUrl;
+      document.getElementById('modal-title').innerText = pix.title;
+      document.getElementById('modal-desc').innerText = pix.description;
+      document.getElementById('modal-creator-name').innerText = `@${pix.creator}`;
+      document.getElementById('modal-creator-avatar').innerText = pix.creator.charAt(0).toUpperCase();
+
+      const itemImg = document.getElementById('modal-image');
+      if(pix.isRestricted) itemImg.classList.add('restricted-pix');
+      else itemImg.classList.remove('restricted-pix');
+
+      // Bind dynamic operational tracking handles hooks loops configuration
+      document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
+      document.getElementById('modal-action-download').onclick = () => downloadAssetTrigger(pix.id, pix.imageUrl);
+      document.getElementById('modal-action-share').onclick = () => { navigator.clipboard.writeText(pix.imageUrl); triggerToastSystem("Link mapped to dashboard clipboard!","fa-share"); };
+      document.getElementById('modal-btn-follow').onclick = () => protectedActionTrigger('follow', pix.creatorUid, pix.creator);
+
+      // Fetch dynamic analytics counts metric variables properties configurations
+      get(child(ref(db), `users/${pix.creatorUid}`)).then((sn) => {
+        let fCount = 0;
+        if(sn.exists() && sn.val().followers) fCount = Object.keys(sn.val().followers).length;
+        document.getElementById('modal-creator-followers').innerText = `${fCount} followers`;
+      });
+
+      // Synchronize Live Realtime Active Comments Channels Modules via standard DB pathways
+      initializeActiveCommentsPipeline(pix.id);
+
+      document.getElementById('pin-modal').classList.remove('hidden');
+    }
+
+    window.closePinModal = function() {
+      document.getElementById('pin-modal').classList.add('hidden');
     };
 
-    // --- Action Implementations Modules (Protected Channels) ---
-    function executeSavePixCommand(id) {
-      const match = globalPixStore.find(p => p.id === id);
-      if(!match) return;
-      set(ref(db, `users/${currentSessionUser.uid}/saved/${id}`), match).then(() => {
-        triggerToastSystem("Added successfully into Saved Collection!", "fa-bookmark");
+    // --- Realtime Comments Hub Interface Engine ---
+    function initializeActiveCommentsPipeline(pixId) {
+      const container = document.getElementById('modal-comments-container');
+      container.innerHTML = '<div class="text-center py-2 text-xs text-gray-400">Syncing telemetry logs...</div>';
+      
+      const commentChannelRef = ref(db, `comments/${pixId}`);
+      onValue(commentChannelRef, (snapshot) => {
+        container.innerHTML = '';
+        if(snapshot.exists()) {
+          const list = Object.values(snapshot.val());
+          document.getElementById('comments-header-count').innerText = `Comments (${list.length})`;
+          
+          list.forEach(c => {
+            const commentNode = document.createElement('div');
+            commentNode.className = "text-xs bg-gray-50 p-2.5 rounded-xl space-y-1";
+            commentNode.innerHTML = `
+              <div class="flex justify-between items-center font-bold text-gray-800">
+                <span>@${c.author}</span><span class="text-[9px] text-gray-400 font-medium">${new Date(c.time).toLocaleDateString()}</span>
+              </div>
+              <p class="text-gray-600 font-medium leading-relaxed">${parseMentionMarkupSystem(c.text)}</p>
+            `;
+            container.appendChild(commentNode);
+          });
+        } else {
+          document.getElementById('comments-header-count').innerText = "Comments (0)";
+          container.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-4">No discussions verified yet. Start transmission loop below.</p>';
+        }
+      });
+
+      document.getElementById('modal-btn-send-comment').onclick = () => executePostCommentPipeline(pixId);
+    }
+
+    function executePostCommentPipeline(pixId) {
+      if(!currentUser) { triggerToastSystem("Authentication validation needed!","fa-lock"); openAuthModal(); return; }
+      const input = document.getElementById('modal-comment-input');
+      const val = input.value.trim();
+      if(!val) return;
+
+      const payload = {
+        author: currentUser.email.split('@')[0], text: val, time: Date.now()
+      };
+      push(ref(db, `comments/${pixId}`), payload).then(() => {
+        input.value = '';
+        triggerHapticSimulation();
+      });
+    }
+
+    function parseMentionMarkupSystem(text) {
+      return text.replace(/(@\w+)/g, '<span class="text-red-600 font-bold">$1</span>');
+    }
+
+    // --- Follower Engine Framework System Architecture ---
+    window.executeFollowPipeline = function(creatorUid, creatorHandle) {
+      if(creatorUid === currentUser.uid) { triggerToastSystem("Self referral metrics locked.","fa-shield"); return; }
+      
+      const targetFollowerRef = ref(db, `users/${creatorUid}/followers/${currentUser.uid}`);
+      const selfFollowingRef = ref(db, `users/${currentUser.uid}/following/${creatorUid}`);
+
+      get(targetFollowerRef).then((snap) => {
+        if(snap.exists()) {
+          set(targetFollowerRef, null);
+          set(selfFollowingRef, null);
+          document.getElementById('modal-btn-follow').innerText = "Follow";
+          triggerToastSystem(`Unfollowed @${creatorHandle}`, "fa-user-minus");
+        } else {
+          set(targetFollowerRef, { handle: currentUser.email.split('@')[0], time: Date.now() });
+          set(selfFollowingRef, { handle: creatorHandle, time: Date.now() });
+          document.getElementById('modal-btn-follow').innerText = "Following";
+          triggerToastSystem(`Following @${creatorHandle}!`, "fa-user-check");
+        }
+        syncUserProfileDashboard();
+      });
+    };
+
+    // --- Operational Tab Management Module Gateway ---
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.replace('block', 'hidden'));
+      document.getElementById(`view-${tabId}`).classList.replace('hidden', 'block');
+      
+      // Sync bottom navigation active icon indicator status elements variables
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-nav-item'));
+      const activeMobIcon = document.getElementById(`mob-nav-${tabId}`);
+      if(activeMobIcon) activeMobIcon.classList.add('active-nav-item');
+
+      if(tabId === 'profile') syncUserProfileDashboard();
+    };
+
+    window.protectedActionTrigger = function(type, id = null, extra = null) {
+      if(!currentUser) { triggerToastSystem("Protected logic tree. Please authenticate account profile.","fa-lock"); openAuthModal(); return; }
+      if(type === 'create') openCreateModal();
+      if(type === 'save') executeSaveCommand(id);
+      if(type === 'follow') executeFollowPipeline(id, extra);
+    };
+
+    function executeSaveCommand(id) {
+      const targetObj = globalPixStore.find(p => p.id === id);
+      if(!targetObj) return;
+      set(ref(db, `users/${currentUser.uid}/saved/${id}`), targetObj).then(() => {
+        triggerToastSystem("Discovered layout appended to Saved dashboard board panel.","fa-bookmark");
         syncUserProfileDashboard();
       });
     }
 
-    function executeLikePixCommand(btnElement) {
-      const heartIcon = btnElement.querySelector('i');
-      if(heartIcon.classList.contains('text-red-500')) {
-        heartIcon.className = "fa-solid fa-heart text-gray-800";
-        triggerToastSystem("Removed from liked registry.", "fa-heart-crack");
-      } else {
-        heartIcon.className = "fa-solid fa-heart text-red-500 scale-110";
-        triggerToastSystem("Added to your dynamic likes!", "fa-heart");
+    function executeDirectLikeSync(id, iconNode) {
+      if(iconNode) {
+        iconNode.classList.toggle('text-red-500');
+        iconNode.classList.toggle('scale-125');
       }
+      triggerToastSystem("Action synchronized onto cloud data array vectors!","fa-heart");
     }
 
-    function executeDownloadAssetCommand(id, url) {
-      triggerToastSystem("Preparing direct server download stream...", "fa-circle-notch");
-      // Simulation of premium clean file pipeline download trigger
-      const linkAnchor = document.createElement('a');
-      linkAnchor.href = url;
-      linkAnchor.target = "_blank";
-      linkAnchor.download = `Pixplay_Asset_${id}.jpg`;
-      document.body.appendChild(linkAnchor);
-      linkAnchor.click();
-      document.body.removeChild(linkAnchor);
+    function downloadAssetTrigger(id, url) {
+      const a = document.createElement('a'); a.href = url; a.target = "_blank"; a.download = `Pixplay_Vault_${id}.jpg`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
     }
 
-    // --- Create Upload Mechanisms ---
-    function setupFilePreview() {
+    // --- Core Dynamic Publishing Subroutine Infrastructure ---
+    function setupUploaderSystem() {
       document.getElementById('file-uploader').addEventListener('change', (e) => {
         const file = e.target.files[0];
         if(file) {
           const reader = new FileReader();
-          reader.onload = (event) => {
+          reader.onload = (evt) => {
             document.getElementById('preview-holder').classList.remove('hidden');
-            document.getElementById('image-preview').src = event.target.result;
+            document.getElementById('image-preview').src = evt.target.result;
           };
           reader.readAsDataURL(file);
         }
       });
+
+      document.getElementById('btn-publish-pix').onclick = () => {
+        const title = document.getElementById('pix-title').value.trim();
+        const desc = document.getElementById('pix-desc').value.trim();
+        const cat = document.getElementById('pix-category').value.trim().toLowerCase() || 'minimalist';
+        const img = document.getElementById('image-preview').src;
+
+        if(!title || img.length < 100) { triggerToastSystem("Valid assets profiles required!","fa-triangle-exclamation"); return; }
+
+        const checkCtx = `${title.toLowerCase()} ${desc.toLowerCase()} ${cat}`;
+        const isTriggered = PROTECTION_KEYWORDS.some(kw => checkCtx.includes(kw));
+
+        const nodePayload = {
+          title: title, description: desc || 'Premium ecosystem deployment sequence structure package.',
+          imageUrl: img, creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid,
+          category: cat, size: sizes[Math.floor(Math.random() * sizes.length)], isRestricted: isTriggered
+        };
+
+        const key = push(ref(db, 'public_pix'));
+        set(key, nodePayload).then(() => {
+          set(ref(db, `users/${currentUser.uid}/created/${key.key}`), nodePayload);
+          triggerToastSystem("Content record set uploaded successfully!","fa-circle-check");
+          closeCreateModal();
+          fetchMasterCloudCatalog();
+        });
+      };
     }
 
-    window.resetUploadDropzone = function(e) {
-      if(e) e.stopPropagation();
-      document.getElementById('file-uploader').value = '';
-      document.getElementById('preview-holder').classList.add('hidden');
-    };
-
-    window.handlePublishPipeline = function() {
-      const title = document.getElementById('pix-title').value.trim();
-      const description = document.getElementById('pix-desc').value.trim();
-      const imageUrl = document.getElementById('image-preview').src;
-
-      if(!title || imageUrl.length < 50) {
-        triggerToastSystem("Title and Image upload are mandatory elements!", "fa-triangle-exclamation");
-        return;
-      }
-
-      // Check Content Guard restrictions
-      const searchableContext = `${title.toLowerCase()} ${description.toLowerCase()}`;
-      const violationAudit = PROTECTION_KEYWORDS.some(kw => searchableContext.includes(kw));
-
-      const newPixObject = {
-        title: title,
-        description: description || 'Premium shared context architecture framework.',
-        imageUrl: imageUrl,
-        creator: currentSessionUser.email.split('@')[0],
-        size: sizes[Math.floor(Math.random() * sizes.length)],
-        isRestricted: violationAudit,
-        timestamp: Date.now()
-      };
-
-      // Push tracking vectors to Realtime DB public index records
-      const publicIndexRef = ref(db, 'public_pix');
-      const newRecordRef = push(publicIndexRef);
-      
-      set(newRecordRef, newPixObject).then(() => {
-        // Log individual copy records into user operational nodes concurrently
-        set(ref(db, `users/${currentSessionUser.uid}/created/${newRecordRef.key}`), newPixObject);
-        
-        triggerToastSystem(violationAudit ? "Published under SafeSearch Blurry Filter" : "Your new Pix is now live!", "fa-circle-check");
-        closeCreateModal();
-        fetchGlobalPixHub();
-      });
-    };
-
-    // --- User Dashboard Profiles Analytics syncing ---
+    // --- Auxiliary Layout Component Generators ---
     async function syncUserProfileDashboard() {
-      if(!currentSessionUser) return;
+      if(!currentUser) return;
       try {
-        const snapshot = await get(child(ref(db), `users/${currentSessionUser.uid}`));
-        if(snapshot.exists()) {
-          const data = snapshot.val();
-          const createdMap = data.created ? Object.values(data.created) : [];
-          const savedMap = data.saved ? Object.values(data.saved) : [];
-          
-          document.getElementById('count-created').innerText = createdMap.length;
-          document.getElementById('count-saved').innerText = savedMap.length;
-          
-          renderUserProfileSubLayout(createdMap, savedMap);
+        const snap = await get(child(ref(db), `users/${currentUser.uid}`));
+        if(snap.exists()) {
+          const d = snap.val();
+          syncProfileCounterMetrics(d);
+          const activeArr = activeProfileTab === 'created' ? (d.created ? Object.values(d.created) : []) : (d.saved ? Object.values(d.saved) : []);
+          renderUniversalMasonryGrid(activeArr, 'profile-sub-grid');
         }
-      } catch (e) {}
+      } catch(err) {}
+    }
+
+    function syncProfileCounterMetrics(userDataObj) {
+      const followersLen = userDataObj.followers ? Object.keys(userDataObj.followers).length : 0;
+      const followingLen = userDataObj.following ? Object.keys(userDataObj.following).length : 0;
+      document.getElementById('profile-followers-count').innerText = `${followersLen} followers`;
+      document.getElementById('profile-following-count').innerText = `${followingLen} following`;
     }
 
     window.toggleProfileSubTab = function(type) {
-      profileActiveSubTab = type;
-      document.getElementById('subtab-btn-created').className = type === 'created' ? "border-b-2 border-black pb-2 text-black" : "pb-2 hover:text-black";
-      document.getElementById('subtab-btn-saved').className = type === 'saved' ? "border-b-2 border-black pb-2 text-black" : "pb-2 hover:text-black";
+      activeProfileTab = type;
+      document.getElementById('subtab-btn-created').className = type === 'created' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
+      document.getElementById('subtab-btn-saved').className = type === 'saved' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
       syncUserProfileDashboard();
     };
 
-    function renderUserProfileSubLayout(created, saved) {
-      const activeArr = profileActiveSubTab === 'created' ? created : saved;
-      renderUniversalMasonryGrid(activeArr, 'profile-sub-grid');
+    function buildTrendingTagsUI() {
+      const box = document.getElementById('search-trending-tags');
+      box.innerHTML = '';
+      const tags = ['Cyberpunk', 'Cars', 'Minimalist', 'Aesthetic', 'Nature', 'Fashion'];
+      tags.forEach(t => {
+        const chip = document.createElement('div');
+        chip.className = "bg-gray-100 rounded-2xl h-24 relative overflow-hidden cursor-pointer flex items-center justify-center font-bold text-white tracking-wide text-sm shadow-inner group";
+        chip.onclick = () => {
+          document.getElementById('search-input-mobile').value = t;
+          executeSearchPipelineFilter(t.toLowerCase());
+          switchTab('home');
+        };
+        chip.innerHTML = `
+          <div class="absolute inset-0 bg-neutral-900/40 z-10 transition-colors group-hover:bg-neutral-900/60"></div>
+          <span class="z-20 drop-shadow-md">${t}</span>
+        `;
+        box.appendChild(chip);
+      });
     }
 
-    [span_13](start_span)[span_14](start_span)// --- Authentication Workflow Systems (Form management)[span_13](end_span)[span_14](end_span) ---
-    window.openAuthModal = function() { document.getElementById('auth-modal').classList.remove('hidden'); };
-    window.closeAuthModal = function() { document.getElementById('auth-modal').classList.add('hidden'); };
-    
-    window.toggleAuthMode = function() {
-      authMode = authMode === 'login' ? 'signup' : 'login';
-      document.getElementById('auth-title').innerText = authMode === 'login' ? 'Welcome to Pixplay' : 'Create Premium Profile';
-      document.getElementById('signup-name-wrapper').style.display = authMode === 'login' ? 'none' : 'block';
-      document.getElementById('auth-primary-btn').innerText = authMode === 'login' ? 'Sign In' : 'Register Account';
-      document.getElementById('auth-toggle-msg').innerText = authMode === 'login' ? "Don't have an account?" : 'Already a member?';
-      document.getElementById('auth-toggle-btn').innerText = authMode === 'login' ? "Create Account" : 'Sign In';
-    };
-
-    document.getElementById('auth-primary-btn').addEventListener('click', () => {
-      const email = document.getElementById('auth-email').value.trim();
-      const password = document.getElementById('auth-password').value;
-      const name = document.getElementById('auth-name').value.trim();
-
-      if(!email || !password) {
-        triggerToastSystem("Input fields cannot remain vacant.", "fa-circle-exclamation");
-        return;
-      }
-
-      [span_15](start_span)if(authMode === 'signup') { //[span_15](end_span)
-        [span_16](start_span)createUserWithEmailAndPassword(auth, email, password).then((cred) => { //[span_16](end_span)
-          set(ref(db, `users/${cred.user.uid}`), { name: name || 'Pixplay Professional', email: email, registeredAt: Date.now() }); [span_17](start_span)//[span_17](end_span)
-          triggerToastSystem("Account configured successfully!", "fa-circle-check");
-          closeAuthModal();
-        }).catch(err => triggerToastSystem(err.message, "fa-bug"));
-      [span_18](start_span)} else { //[span_18](end_span)
-        [span_19](start_span)signInWithEmailAndPassword(auth, email, password).then(() => { //[span_19](end_span)
-          triggerToastSystem("Session authentication verified.", "fa-shield-check");
-          closeAuthModal();
-        }).catch(err => triggerToastSystem(err.message, "fa-circle-xmark"));
-      }
-    });
-
-    window.handleLogoutWorkflow = function() {
-      [span_20](start_span)signOut(auth).then(() => { //[span_20](end_span)
-        triggerToastSystem("Session disconnected cleanly.", "fa-right-from-bracket");
+    function setupSearchGateways() {
+      document.getElementById('search-input-desktop').addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') executeSearchPipelineFilter(e.target.value.trim().toLowerCase());
       });
-    };
+      document.getElementById('search-input-mobile').addEventListener('keypress', (e) => {
+        if(e.key === 'Enter') { executeSearchPipelineFilter(e.target.value.trim().toLowerCase()); switchTab('home'); }
+      });
+    }
 
-    // --- Modal View Trigger Switches ---
+    function executeSearchPipelineFilter(q) {
+      if(!q) { fetchMasterCloudCatalog(); return; }
+      const res = globalPixStore.filter(p => p.title.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)));
+      renderUniversalMasonryGrid(res, 'pix-container');
+    }
+
+    // --- Interactive Mobile Feedback Layer Simulation Utilities ---
+    function triggerHapticSimulation() {
+      if ('vibrate' in navigator) { navigator.vibrate(12); }
+    }
+
+    // --- Global Standard Modal Trigger Toggles Wrappers ---
     window.openCreateModal = function() { document.getElementById('create-modal').classList.remove('hidden'); };
     window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); resetUploadDropzone(); };
+    window.openAuthModal = function() { document.getElementById('auth-modal').classList.remove('hidden'); };
+    window.closeAuthModal = function() { document.getElementById('auth-modal').classList.add('hidden'); };
+    window.toggleAuthMode = function() {
+      authMode = authMode === 'login' ? 'signup' : 'login';
+      document.getElementById('auth-title').innerText = authMode === 'login' ? 'Join Pixplay Hub' : 'Configure Cloud Profile';
+      document.getElementById('signup-name-wrapper').style.display = authMode === 'login' ? 'none' : 'block';
+      document.getElementById('auth-primary-btn').innerText = authMode === 'login' ? 'Sign In' : 'Register Core';
+    };
 
-    // --- Toast Notification ---
-    function triggerToastSystem(msg, icon) {
+    document.getElementById('auth-primary-btn').onclick = () => {
+      const email = document.getElementById('auth-email').value.trim();
+      const pass = document.getElementById('auth-password').value;
+      const name = document.getElementById('auth-name').value.trim();
+      if(!email || pass.length < 6) return;
+
+      if(authMode === 'signup') {
+        createUserWithEmailAndPassword(auth, email, pass).then((c) => {
+          set(ref(db, `users/${c.user.uid}`), { name: name || 'Pixplay Professional', email: email, interests: { minimalist: 1 } });
+          closeAuthModal();
+        });
+      } else {
+        signInWithEmailAndPassword(auth, email, pass).then(() => closeAuthModal());
+      }
+    };
+
+    window.handleLogoutWorkflow = function() { signOut(auth); };
+
+    function triggerToastSystem(m, i) {
       const toast = document.getElementById('toast');
-      document.getElementById('toast-msg').innerText = msg;
-      document.getElementById('toast-icon').className = `fa-solid ${icon} text-red-500`;
-      toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('opacity-100'), 50);
-      setTimeout(() => {
-        toast.classList.remove('opacity-100');
-        setTimeout(() => toast.classList.add('hidden'), 300);
-      }, 2500);
+      document.getElementById('toast-msg').innerText = m;
+      document.getElementById('toast-icon').className = `fa-solid ${i} text-red-500`;
+      toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('opacity-100'), 50);
+      setTimeout(() => { toast.classList.remove('opacity-100'); setTimeout(() => toast.classList.add('hidden'), 300); }, 2200);
     }
 
-    function getAssetSeedMap(kw) {
-      const map = { 'nature': '1441974231531-c6227db76b6e', 'neon': '1509198397868-475647b2a1e5', 'minimalist': '1494438639946-1ebd1d2038b5', 'cars': '1503376780353-7e6692767b70', 'design': '1550684848-fac1c5b4e853', 'cyberpunk': '1578894381163-e72c17f2d45f', 'travel': '1469854523086-cc02fe5d8800', 'abstract': '1541701494587-cb58502866ab' };
-      return map[kw] || '1441974231531-c6227db76b6e';
+    function getAssetHash(node) {
+      const hash = { 'nature': '1441974231531-c6227db76b6e', 'neon': '1509198397868-475647b2a1e5', 'minimalist': '1494438639946-1ebd1d2038b5', 'cars': '1503376780353-7e6692767b70', 'design': '1550684848-fac1c5b4e853', 'cyberpunk': '1578894381163-e72c17f2d45f', 'travel': '1469854523086-cc02fe5d8800', 'fashion': '1483985988355-763728e1935b' };
+      return hash[node] || '1441974231531-c6227db76b6e';
     }
   </script>
 </body>
