@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Pixplay - BlurHash & Fullscreen Modal Optimized Engine</title>
+  <title>Pixplay - Fully Functional Firebase Share Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -53,19 +53,12 @@
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
     }
-
-    .lqip-placeholder {
-      filter: blur(20px) saturate(1.2);
-      transform: scale(1.05);
-      transition: opacity 0.4s cubic-bezier(0.25, 1, 0.5, 1);
-      will-change: filter, opacity;
-    }
   </style>
 </head>
 <body class="pb-24 md:pb-4">
 
   <header class="sticky top-0 bg-white/95 backdrop-blur z-40 px-6 py-3.5 hidden md:flex items-center justify-between border-b border-gray-100">
-    <div class="flex items-center space-x-2 cursor-pointer" onclick="resetAndFetchFeed()">
+    <div class="flex items-center space-x-2 cursor-pointer" id="logo-desktop">
       <div class="w-9 h-9 bg-red-600 rounded-full flex items-center justify-center shadow">
         <i class="fa-solid fa-p text-white text-lg font-black"></i>
       </div>
@@ -94,13 +87,13 @@
 
   <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-neutral-900/95 backdrop-blur text-white px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl z-[100] flex items-center space-x-2.5 hidden opacity-0 transition-all duration-300">
     <i id="toast-icon" class="fa-solid fa-circle-info text-red-500"></i>
-    <span id="toast-msg">Database Connected</span>
+    <span id="toast-msg">System Processing</span>
   </div>
 
   <main class="max-w-[1400px] mx-auto px-3 py-3 md:px-6">
     
     <div class="flex md:hidden items-center justify-between py-2 mb-2 px-1">
-      <span class="text-2xl font-black tracking-tighter text-red-600" onclick="resetAndFetchFeed()">Pixplay</span>
+      <span class="text-2xl font-black tracking-tighter text-red-600" id="logo-mobile">Pixplay</span>
       <div class="flex items-center space-x-3">
         <button onclick="switchTab('settings')" class="text-gray-600 text-lg"><i class="fa-solid fa-gear"></i></button>
         <div id="avatar-mobile-top" onclick="switchTab('profile')" class="w-7 h-7 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center uppercase border">G</div>
@@ -128,7 +121,7 @@
     <div id="view-notifications" class="tab-panel hidden space-y-3">
       <div class="flex justify-between items-center px-1 border-b pb-2">
         <h2 class="text-lg font-black tracking-tight">Notification Inbox</h2>
-        <button onclick="clearAllLocalNotifications()" class="text-xs text-red-600 font-bold">Clear All</button>
+        <button id="btn-clear-notifications" class="text-xs text-red-600 font-bold">Clear All</button>
       </div>
       <div class="space-y-2" id="notification-list-box"></div>
     </div>
@@ -158,8 +151,8 @@
       </div>
 
       <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-bold text-gray-400">
-        <button onclick="toggleProfileSubTab('created')" id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">Created</button>
-        <button onclick="toggleProfileSubTab('saved')" id="subtab-btn-saved" class="pb-2 hover:text-black">Saved</button>
+        <button id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">Created</button>
+        <button id="subtab-btn-saved" class="pb-2 hover:text-black">Saved</button>
       </div>
       <div class="masonry-grid" id="profile-sub-grid"></div>
     </div>
@@ -186,7 +179,7 @@
       <div class="w-full md:w-1/2 h-[54vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
         <div class="flex justify-between items-center pb-2 border-b border-gray-100">
           <div class="flex space-x-1.5">
-            <button onclick="triggerToastSystem('Liked Successfully','fa-heart')" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-heart"></i></button>
+            <button id="modal-btn-like" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-heart"></i></button>
             <button id="modal-action-download" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-arrow-down"></i></button>
             <button onclick="openReportingWizard()" class="w-9 h-9 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold"><i class="fa-solid fa-flag"></i></button>
           </div>
@@ -195,7 +188,7 @@
 
         <div class="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
           <div>
-            <h2 id="modal-title" class="text-lg md:text-xl font-black tracking-tight text-gray-900 leading-tight">Asset Title Layer</h2>
+            <h2 id="modal-title" class="text-lg md:text-xl font-black tracking-tight text-gray-900 leading-tight">Asset Title</h2>
             <p id="modal-desc" class="text-gray-500 text-xs mt-1 leading-relaxed"></p>
           </div>
           <div class="flex items-center justify-between p-2 bg-gray-50 rounded-2xl text-xs">
@@ -226,7 +219,7 @@
       </select>
       <div class="flex space-x-2 pt-2">
         <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="flex-1 bg-gray-100 text-xs p-3 rounded-full font-bold">Cancel</button>
-        <button onclick="submitContentViolationReport()" class="flex-1 bg-red-600 text-white text-xs p-3 rounded-full font-bold shadow">Submit Report</button>
+        <button id="btn-submit-report" class="flex-1 bg-red-600 text-white text-xs p-3 rounded-full font-bold shadow">Submit Report</button>
       </div>
     </div>
   </div>
@@ -267,13 +260,13 @@
       </div>
       <div class="space-y-3">
         <div id="signup-name-wrapper" class="hidden">
-          <input type="text" id="auth-name" placeholder="Full Profile Name" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+          <input type="text" id="auth-name" placeholder="Full Profile Name" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none">
         </div>
         <div>
-          <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+          <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none">
         </div>
         <div>
-          <input type="password" id="auth-password" placeholder="Password (Min 6 chars)" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none focus:ring-2 focus:ring-red-400">
+          <input type="password" id="auth-password" placeholder="Password (Min 6 chars)" class="w-full bg-gray-50 border p-3 rounded-xl text-xs outline-none">
         </div>
         <button id="auth-primary-btn" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wide transition-all">Continue</button>
       </div>
@@ -299,10 +292,12 @@
       appId: "1:276235725177:web:0f4e0789fae80a435927a8"
     };
 
+    // Initialize Firebase
     let app = initializeApp(firebaseConfig);
     let auth = getAuth(app);
     let db = getDatabase(app);
 
+    // Global App Engine States
     let currentUser = null;
     let authMode = 'login';
     let globalPixStore = [];
@@ -315,6 +310,7 @@
     let endOfCloudStream = false;
     const sizes = ['size-small', 'size-medium', 'size-large'];
 
+    // Bootstrapping listeners explicitly
     document.addEventListener("DOMContentLoaded", () => {
       triggerInitialSkeletons();
       fetchMasterCloudCatalog();
@@ -322,9 +318,10 @@
       setupInfiniteScrollObserver();
       setupUploaderSystem();
       buildTrendingTagsUI();
-      bindAuthClickEvents(); // Dynamic Auth Fixed Mapping
+      bindCoreClickActions(); // BIND WORKFLOW FIX
     });
 
+    // Track User Session State Changes
     onAuthStateChanged(auth, (user) => {
       if(user) {
         currentUser = user;
@@ -338,6 +335,7 @@
         currentUser = null;
         updateSystemAuthUI(false);
       }
+      if(document.getElementById('view-profile').classList.contains('block')) syncUserProfileSubDashboard();
     });
 
     function triggerInitialSkeletons() {
@@ -364,24 +362,26 @@
         document.getElementById('user-zone-desktop').classList.add('hidden');
         document.getElementById('avatar-mobile-top').innerText = 'G';
         document.getElementById('profile-name').innerText = "Guest Engine";
-        document.getElementById('profile-email').innerText = "Sign in to activate dynamic sync";
+        document.getElementById('profile-email').innerText = "Sign in to activate sync";
         document.getElementById('admin-console-box').classList.add('hidden');
       }
     }
 
-    function bindAuthClickEvents() {
+    // --- BIND EVENT LISTENERS SYSTEMATICALLY ---
+    function bindCoreClickActions() {
+      // Auth Trigger Submission
       document.getElementById('auth-primary-btn').onclick = () => {
         const email = document.getElementById('auth-email').value.trim();
         const pass = document.getElementById('auth-password').value;
         const name = document.getElementById('auth-name').value.trim();
 
         if(!email || pass.length < 6) {
-          triggerToastSystem("Invalid email or password character length.", "fa-circle-exclamation");
+          triggerToastSystem("Invalid email or short password length.", "fa-circle-exclamation");
           return;
         }
 
         if(authMode === 'signup') {
-          triggerToastSystem("Configuring profile...", "fa-circle-notch");
+          triggerToastSystem("Registering account context...", "fa-circle-notch");
           createUserWithEmailAndPassword(auth, email, pass)
             .then((credential) => {
               set(ref(db, `users/${credential.user.uid}`), {
@@ -389,13 +389,13 @@
                 email: email,
                 timestamp: Date.now()
               }).then(() => {
-                triggerToastSystem("Account pipeline ready!", "fa-user-check");
+                triggerToastSystem("Registration Complete!", "fa-user-check");
                 closeAuthModal();
               });
             })
             .catch(err => triggerToastSystem(err.message, "fa-bug"));
         } else {
-          triggerToastSystem("Verifying credentials...", "fa-circle-notch");
+          triggerToastSystem("Authenticating session...", "fa-circle-notch");
           signInWithEmailAndPassword(auth, email, pass)
             .then(() => {
               triggerToastSystem("Logged in successfully!", "fa-shield-check");
@@ -405,8 +405,36 @@
         }
       };
 
+      // Logout buttons
       document.getElementById('btn-logout-desktop').onclick = () => signOut(auth);
       document.getElementById('btn-logout-profile').onclick = () => signOut(auth);
+
+      // Logo resets
+      document.getElementById('logo-desktop').onclick = () => resetAndFetchFeed();
+      document.getElementById('logo-mobile').onclick = () => resetAndFetchFeed();
+
+      // Clear notifications
+      document.getElementById('btn-clear-notifications').onclick = () => {
+        if(currentUser) remove(ref(db, `notifications/${currentUser.uid}`));
+      };
+
+      // Submit violation report
+      document.getElementById('btn-submit-report').onclick = () => {
+        const reason = document.getElementById('report-reason-select').value;
+        if(!currentSelectedPix) return;
+        push(ref(db, 'reported_content'), {
+          pixId: currentSelectedPix.id, title: currentSelectedPix.title, imageUrl: currentSelectedPix.imageUrl,
+          reporterUid: currentUser.uid, reportedCreatorUid: currentSelectedPix.creatorUid || 'unknown_node',
+          reason: reason, timestamp: Date.now()
+        }).then(() => {
+          document.getElementById('report-modal').classList.add('hidden'); closePinModal();
+          triggerToastSystem("Report logged under audit board.","fa-shield-halved");
+        });
+      };
+
+      // Profile Sub-tab toggles
+      document.getElementById('subtab-btn-created').onclick = () => toggleProfileSubTab('created');
+      document.getElementById('subtab-btn-saved').onclick = () => toggleProfileSubTab('saved');
     }
 
     window.toggleAuthMode = function() {
@@ -429,6 +457,7 @@
       }
     };
 
+    // --- PICTURE LAYOUT CATALOG STREAM ---
     async function fetchMasterCloudCatalog() {
       const FallbackNodes = ['nature','minimalist','cars','cyberpunk','travel','design'];
       let list = [];
@@ -438,8 +467,7 @@
           list.push({
             id: `static_node_${node}_${k}_${i}`,
             title: `${node.toUpperCase()} Composition`,
-            description: 'Refined structural baseline preview assets vector mapping framework.',
-            lqipUrl: `https://images.unsplash.com/photo-%7BunsplashId%7D?w=80&q=20&blur=10`,
+            description: 'Refined dynamic structural vector workspace mapping parameters layer asset.',
             imageUrl: `https://images.unsplash.com/photo-${unsplashId}?w=600&auto=format&fit=crop&q=75`,
             creator: 'system_framework', creatorUid: 'system', category: node, size: sizes[(k+i) % 3], isRestricted: false
           });
@@ -453,7 +481,7 @@
           Object.entries(snap.val()).forEach(([id, payload]) => {
             fbArray.unshift({
               id: id, title: payload.title, description: payload.description, 
-              lqipUrl: payload.imageUrl, imageUrl: payload.imageUrl,
+              imageUrl: payload.imageUrl,
               creator: payload.creator || '@anonymous', creatorUid: payload.creatorUid,
               category: payload.category, size: payload.size, isRestricted: payload.isRestricted || false
             });
@@ -465,16 +493,17 @@
       resetAndFetchFeed();
     }
 
-    function resetAndFetchFeed() {
+    window.resetAndFetchFeed = function() {
       currentPageSize = 15;
       endOfCloudStream = false;
       isFetchingNextBatch = false;
       document.getElementById('infinite-scroll-trigger').classList.remove('hidden');
       displayedPixList = [...globalPixStore];
       renderUniversalMasonryGridFeed(false);
-    }
+      switchTab('home');
+    };
 
-    // --- LQIP MASONRY GENERATOR WITH PROPER MODAL CALLBACK LINK ---
+    // --- MASONRY GRID BUILDER (CRITICAL: TRIGGERS POPUP EVENT ONCLICK) ---
     function renderUniversalMasonryGridFeed(appendMode = false) {
       const grid = document.getElementById('pix-container');
       if(!appendMode) grid.innerHTML = '';
@@ -491,7 +520,7 @@
         const node = document.createElement('div');
         node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-gray-100 shadow-sm transition-shadow duration-200`;
         
-        // REPAIRED: Native full block click map listener to trigger full screen overlay window
+        // CRITICAL FIXED: Native binding method invocation mapping image details directly on block click
         node.onclick = () => openPinModal(pix);
         
         node.innerHTML = `
@@ -510,6 +539,64 @@
         grid.appendChild(node);
       });
     }
+
+    // --- PINTEREST MASTER POPUP VIEW CONFIGURATION ---
+    window.openPinModal = function(pix) {
+      currentSelectedPix = pix;
+      
+      // Target elements population vectors
+      document.getElementById('modal-image').src = pix.imageUrl;
+      document.getElementById('modal-title').innerText = pix.title;
+      document.getElementById('modal-desc').innerText = pix.description || 'No complementary context metrics provided.';
+      document.getElementById('modal-creator-name').innerText = `@${pix.creator}`;
+      document.getElementById('modal-creator-avatar').innerText = pix.creator.charAt(0).toUpperCase();
+      
+      // Mapping action anchors
+      document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
+      document.getElementById('modal-action-download').onclick = () => { window.open(pix.imageUrl, '_blank'); };
+      
+      // Dynamic Like Sync Toggle UI
+      const likeBtn = document.getElementById('modal-btn-like');
+      likeBtn.onclick = () => {
+        likeBtn.querySelector('i').classList.toggle('text-red-500');
+        triggerToastSystem("Engagement catalog synchronized.","fa-heart");
+      };
+
+      // Stream Comments via Firebase pathways channels
+      const commBox = document.getElementById('modal-comments-container');
+      commBox.innerHTML = '';
+      onValue(ref(db, `comments/${pix.id}`), (sn) => {
+        commBox.innerHTML = '';
+        if(sn.exists()) {
+          Object.values(sn.val()).forEach(c => {
+            const div = document.createElement('div'); div.className = "text-[11px] bg-gray-50 p-2 rounded-xl text-left";
+            div.innerHTML = `<span class="font-black text-gray-800">@${c.author}:</span> <span class="text-gray-600">${c.text}</span>`;
+            commBox.appendChild(div);
+          });
+          document.getElementById('comments-header-count').innerText = `Comments (${Object.keys(sn.val()).length})`;
+        } else { 
+          commBox.innerHTML = '<p class="text-[10px] text-gray-400 italic text-center py-2">No comments published.</p>'; 
+          document.getElementById('comments-header-count').innerText = "Comments (0)";
+        }
+      });
+
+      // Send comments event binding safely
+      document.getElementById('modal-btn-send-comment').onclick = () => {
+        const inp = document.getElementById('modal-comment-input');
+        if(!inp.value.trim()) return;
+        if(!currentUser) { openAuthModal(); return; }
+        push(ref(db, `comments/${pix.id}`), { 
+          author: currentUser.email.split('@')[0], 
+          text: inp.value.trim(), 
+          time: Date.now() 
+        });
+        inp.value = '';
+      };
+
+      document.getElementById('pin-modal').classList.remove('hidden');
+    };
+
+    window.closePinModal = function() { document.getElementById('pin-modal').classList.add('hidden'); };
 
     function setupInfiniteScrollObserver() {
       const trigger = document.getElementById('infinite-scroll-trigger');
@@ -545,19 +632,6 @@
       document.getElementById('report-modal').classList.remove('hidden');
     };
 
-    window.submitContentViolationReport = function() {
-      const selectReason = document.getElementById('report-reason-select').value;
-      if(!currentSelectedPix) return;
-      push(ref(db, 'reported_content'), {
-        pixId: currentSelectedPix.id, title: currentSelectedPix.title, imageUrl: currentSelectedPix.imageUrl,
-        reporterUid: currentUser.uid, reportedCreatorUid: currentSelectedPix.creatorUid || 'unknown_node',
-        reason: selectReason, timestamp: Date.now()
-      }).then(() => {
-        document.getElementById('report-modal').classList.add('hidden'); closePinModal();
-        triggerToastSystem("Report registered successfully.","fa-shield-halved");
-      });
-    };
-
     function listenReportsAuditStream() {
       const streamBox = document.getElementById('admin-reports-stream');
       onValue(ref(db, 'reported_content'), (snapshot) => {
@@ -579,7 +653,7 @@
             streamBox.appendChild(row);
           });
         } else {
-          streamBox.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-2">No pending audits.</p>';
+          streamBox.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-2">No pending content warnings generated.</p>';
         }
       });
     }
@@ -614,19 +688,17 @@
             card.innerHTML = `<p>${notif.text}</p><span class="text-[9px] text-gray-400 block mt-1">${new Date(notif.timestamp).toLocaleString()}</span>`;
             container.appendChild(card);
           });
-        } else { badgeDot.classList.add('hidden'); container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">Inbox folder empty.</p>'; }
+        } else { badgeDot.classList.add('hidden'); container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">Notification inbox clear.</p>'; }
       });
     }
-
-    window.clearAllLocalNotifications = function() { if(currentUser) remove(ref(db, `notifications/${currentUser.uid}`)); };
 
     window.openComplianceSlide = function(docType) {
       const title = document.getElementById('compliance-title');
       const body = document.getElementById('compliance-content-body');
       const databaseMockLegal = {
-        privacy: `<h3 class="font-black text-gray-900 text-sm">Privacy Policy</h3><p>We process secure cloud encryption parameters data under explicit user token configuration controls profiles.</p>`,
-        terms: `<h3 class="font-black text-gray-900 text-sm">Terms and Conditions</h3><p>By registering active accounts channels inside Pixplay, you assert confirmation to comply with guidelines.</p>`,
-        guidelines: `<h3 class="font-black text-gray-900 text-sm">Community Guidelines</h3><p>Our platform maintains a strict zero-tolerance enforcement protocol framework against safety violations.</p>`
+        privacy: `<h3 class="font-black text-gray-900 text-sm">Privacy Policy</h3><p>We log minimal configuration strings locally. Your dashboard profile security matrix maps into production clusters encrypted at rest fields.</p>`,
+        terms: `<h3 class="font-black text-gray-900 text-sm">Terms and Conditions</h3><p>By logging active sessions nodes inside the network array, you comply to retain pure community compliance codes loops.</p>`,
+        guidelines: `<h3 class="font-black text-gray-900 text-sm">Community Guidelines</h3><p>Explicit, dangerous material nodes or bullying trackers remain strictly banned under operational protection rules framework.</p>`
       };
       title.innerText = docType === 'privacy' ? 'Privacy Policy' : docType === 'terms' ? 'Terms & Conditions' : 'Community Guidelines';
       body.innerHTML = databaseMockLegal[docType];
@@ -642,50 +714,12 @@
       if(tabId === 'profile') syncUserProfileSubDashboard();
     };
 
-    // --- REPAIRED MODAL HUB DATA POPULATION WINDOW TRIGGER ---
-    window.openPinModal = function(pix) {
-      currentSelectedPix = pix;
-      document.getElementById('modal-image').src = pix.imageUrl;
-      document.getElementById('modal-title').innerText = pix.title;
-      document.getElementById('modal-desc').innerText = pix.description;
-      document.getElementById('modal-creator-name').innerText = `@${pix.creator}`;
-      document.getElementById('modal-creator-avatar').innerText = pix.creator.charAt(0).toUpperCase();
-      
-      document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
-      document.getElementById('modal-action-download').onclick = () => { window.open(pix.imageUrl, '_blank'); };
-      
-      // Real-time Discussion Boards sync loop
-      const commBox = document.getElementById('modal-comments-container');
-      commBox.innerHTML = '';
-      onValue(ref(db, `comments/${pix.id}`), (sn) => {
-        commBox.innerHTML = '';
-        if(sn.exists()) {
-          Object.values(sn.val()).forEach(c => {
-            const div = document.createElement('div'); div.className = "text-[11px] bg-gray-50 p-2 rounded-xl text-left";
-            div.innerHTML = `<span class="font-black text-gray-800">@${c.author}:</span> <span class="text-gray-600">${c.text}</span>`;
-            commBox.appendChild(div);
-          });
-        } else { commBox.innerHTML = '<p class="text-[10px] text-gray-400 italic text-center py-2">Empty discussion tree.</p>'; }
-      });
-
-      document.getElementById('modal-btn-send-comment').onclick = () => {
-        const inp = document.getElementById('modal-comment-input');
-        if(!inp.value.trim() || !currentUser) { openAuthModal(); return; }
-        push(ref(db, `comments/${pix.id}`), { author: currentUser.email.split('@')[0], text: inp.value.trim(), time: Date.now() });
-        inp.value = '';
-      };
-
-      document.getElementById('pin-modal').classList.remove('hidden');
-    };
-
-    window.closePinModal = function() { document.getElementById('pin-modal').classList.add('hidden'); };
-
     window.protectedActionTrigger = function(type, id) {
       if(!currentUser) { openAuthModal(); return; }
       if(type === 'create') document.getElementById('create-modal').classList.remove('hidden');
       if(type === 'save') {
         const matched = globalPixStore.find(p => p.id === id);
-        if(matched) set(ref(db, `users/${currentUser.uid}/saved/${id}`), matched).then(() => triggerToastSystem("Saved to dashboard folder!","fa-bookmark"));
+        if(matched) set(ref(db, `users/${currentUser.uid}/saved/${id}`), matched).then(() => triggerToastSystem("Saved to board collection!","fa-bookmark"));
       }
     };
 
@@ -711,14 +745,14 @@
         if(!title || img.length < 100) return;
 
         const payload = {
-          title: title, description: desc || 'System integration node matrix package.', imageUrl: img,
+          title: title, description: desc || 'Custom asset upload compilation block.', imageUrl: img,
           creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid, category: cat, size: sizes[Math.floor(Math.random()*3)], isRestricted: false
         };
 
         const key = push(ref(db, 'public_pix'));
         set(key, payload).then(() => {
           set(ref(db, `users/${currentUser.uid}/created/${key.key}`), payload);
-          triggerToastSystem("Content upload completed.","fa-circle-check");
+          triggerToastSystem("Asset published successfully live.","fa-circle-check");
           closeCreateModal(); fetchMasterCloudCatalog();
         });
       };
@@ -731,22 +765,23 @@
         if(snap.exists()) {
           const d = snap.val();
           const target = activeProfileTab === 'created' ? (d.created ? Object.values(d.created) : []) : (d.saved ? Object.values(d.saved) : []);
-          if(target.length === 0) { subgrid.innerHTML = '<p class="col-span-full text-center text-gray-400 text-xs py-6 italic">Folder empty.</p>'; return; }
+          if(target.length === 0) { subgrid.innerHTML = '<p class="col-span-full text-center text-gray-400 text-xs py-6 italic">Folder pristine empty.</p>'; return; }
           target.forEach(pix => {
             const node = document.createElement('div'); node.className = `masonry-item ${pix.size} rounded-xl overflow-hidden shadow-sm`;
             node.innerHTML = `<img src="${pix.imageUrl}" class="w-full h-full object-cover">`;
+            node.onclick = () => openPinModal(pix);
             subgrid.appendChild(node);
           });
         }
       });
     }
 
-    window.toggleProfileSubTab = function(type) {
+    function toggleProfileSubTab(type) {
       activeProfileTab = type;
       document.getElementById('subtab-btn-created').className = type === 'created' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
       document.getElementById('subtab-btn-saved').className = type === 'saved' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
       syncUserProfileSubDashboard();
-    };
+    }
 
     function buildTrendingTagsUI() {
       const box = document.getElementById('search-trending-tags'); box.innerHTML = '';
