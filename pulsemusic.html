@@ -233,6 +233,13 @@
           <h2 class="text-xl font-bold tracking-tight text-white">Browse Songs</h2>
           <span class="text-[9px] bg-pink-500/20 text-pink-400 font-bold px-2 py-0.5 rounded-full tracking-wider uppercase">Premium Flow</span>
         </div>
+        
+        <div class="mb-2">
+          <h3 class="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2 ml-1">Verified Creators</h3>
+          <div id="verified-artists-flash-container" class="flex space-x-3 overflow-x-auto pb-2 scrollable-content">
+            </div>
+        </div>
+
         <div id="songs-container" class="space-y-2"></div>
       </div>
 
@@ -480,7 +487,7 @@
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { getDatabase, ref, set, get, child, update, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
@@ -508,6 +515,13 @@
       { id: "s9", title: "KALLA KALLA TAARA", artist: "Kulbir Jhinjer , Deep Jandu", src: "https://aryasongs.github.io/Pulse/kalla.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6118.jpeg", duration: "3:30", tags: ["punjabi", "hiphop", "jhinjer"] },
       { id: "s10", title: "911", artist: "Abigail Claire , Sharan Pooni", src: "https://aryasongs.github.io/Pulse/audio.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg", duration: "3:12", tags: ["urban", "hiphop", "sharanpooni"] },
       { id: "s11", title: "Cartel", artist: "Cheema Y , Gur Sidhu", src: "https://aryasongs.github.io/Pulse/Cartel%20.mp3", cover: "https://aryasongs.github.io/Pulse/IMG_6140.jpeg", duration: "3:15", tags: ["punjabi", "hiphop", "cheema", "urban"] }
+    ];
+
+    // CENTRALIZED ARTIST SYNC NODE MAPS (FOR INCOMING ARTIST APP EXTENSION)
+    let artistProfiles = [
+      { artistId: "art_s_pooni", name: "Sharan Pooni", verified: true, listeners: "1.4M", streams: "42.8M", cover: "https://aryasongs.github.io/Pulse/IMG_5964.jpg" },
+      { artistId: "art_sidhu", name: "Sidhu Moose Wala", verified: true, listeners: "18.5M", streams: "920M", cover: "https://aryasongs.github.io/Pulse/IMG_6107.jpeg" },
+      { artistId: "art_cheema", name: "Cheema Y", verified: true, listeners: "3.2M", streams: "85.4M", cover: "https://aryasongs.github.io/Pulse/IMG_6106.jpeg" }
     ];
 
     let currentSongIndex = 0;
@@ -641,6 +655,49 @@
       localStorage.setItem('pulse_listening_habits', JSON.stringify(songPlayCounts));
       if (currentUser) set(ref(db, `users/${currentUser.uid}/listeningHabits/${songId}`), songPlayCounts[songId]);
       applyPersonalizedSorting();
+    }
+
+    // DISCOVERY PANEL FLASH GENERATION FOR REAL-TIME APPROVED ARTISTS
+    function flashVerifiedArtistProfiles() {
+      const wrapper = document.getElementById('verified-artists-flash-container');
+      if(!wrapper) return;
+      wrapper.innerHTML = '';
+      
+      artistProfiles.forEach(art => {
+        const block = document.createElement('div');
+        block.className = "flex-shrink-0 w-24 text-center cursor-pointer group";
+        block.onclick = () => {
+          document.getElementById('search-input').value = art.name;
+          switchTab('search');
+          triggerSearchFilterPipeline(art.name);
+        };
+        block.innerHTML = `
+          <div class="relative w-16 h-16 mx-auto mb-1.5 rounded-full overflow-hidden border-2 border-neutral-800 group-hover:border-pink-500 transition-all duration-300 shadow-md">
+            <img src="${art.cover}" class="w-full h-full object-cover">
+            <div class="absolute bottom-0 right-0 bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[8px] border border-neutral-900">
+              <i class="fa-solid fa-check"></i>
+            </div>
+          </div>
+          <p class="text-[10px] text-white font-medium truncate px-1">${art.name}</p>
+          <p class="text-[8px] text-neutral-400">${art.listeners} Monthly</p>
+        `;
+        wrapper.appendChild(block);
+      });
+    }
+
+    // REAL-TIME BACKEND EVENT SYNC LISTENERS MAPS (TRIGGERS AUTOMATICALLY WHEN ARTIST DATA IS UPDATED/APPROVED)
+    function listenToArtistRealtimeApprovals() {
+      if (!currentUser) return;
+      const approvedArtistsRef = ref(db, 'approvedArtists');
+      onValue(approvedArtistsRef, (snapshot) => {
+        if(snapshot.exists()) {
+          const cloudData = Object.values(snapshot.val());
+          if(cloudData && cloudData.length > 0) {
+            artistProfiles = cloudData;
+            flashVerifiedArtistProfiles();
+          }
+        }
+      });
     }
 
     function applyPersonalizedSorting() {
@@ -803,7 +860,7 @@
       });
     }
 
-    function triggerSearchFilterPipeline(term) {
+    window.triggerSearchFilterPipeline = function(term) {
       const targetContainer = document.getElementById('search-results-container');
       const cleanTerm = term.trim().toLowerCase();
       if(!cleanTerm) { targetContainer.innerHTML = ''; return; }
@@ -894,7 +951,9 @@
 
         const localHabits = localStorage.getItem('pulse_listening_habits');
         if (localHabits) songPlayCounts = JSON.parse(localHabits);
-        syncUserData(user.uid); setTimeout(checkAndRestorePreviousSession, 600);
+        syncUserData(user.uid); 
+        listenToArtistRealtimeApprovals();
+        setTimeout(checkAndRestorePreviousSession, 600);
       } else { document.getElementById('auth-screen').style.display = 'block'; }
     });
 
@@ -923,7 +982,10 @@
           <div class="flex items-center space-x-4 truncate flex-1 min-w-0">
             <img src="${song.cover}" class="w-12 h-12 rounded-xl object-cover flex-shrink-0 shadow-md">
             <div class="truncate flex-1 min-w-0">
-              <h4 class="font-semibold text-sm text-white group-hover:text-pink-500 transition truncate">${song.title}</h4>
+              <h4 class="font-semibold text-sm text-white group-hover:text-pink-500 transition truncate flex items-center space-x-1">
+                <span>${song.title}</span>
+                ${song.artist.includes('Sharan Pooni') || song.artist.includes('Sidhu') ? '<i class="fa-solid fa-circle-check text-blue-400 text-[10px]" title="Verified Release"></i>' : ''}
+              </h4>
               <p class="text-xs text-neutral-400 truncate mt-0.5">${song.artist}</p>
             </div>
           </div>
@@ -1210,6 +1272,7 @@
     initWaveSurferEngine();
     renderSongsList(songs, document.getElementById('songs-container'));
     renderHybridUpNextQueue();
+    flashVerifiedArtistProfiles();
   </script>
 </body>
 </html>
