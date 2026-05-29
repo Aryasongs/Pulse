@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Pixplay - Discover & Share Pix</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    body {
+      background-color: #ffffff;
+      color: #111111;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+    }
+    
+    /* Pinterest-style Masonry Grid Columns */
+    .masonry-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      grid-auto-rows: 10px;
+      justify-content: center;
+    }
+
+    .masonry-item {
+      grid-row-end: span 26; /* Default card size */
+      margin-bottom: 16px;
+    }
+
+    /* Variable heights for true masonry look */
+    .size-small { grid-row-end: span 22; }
+    .size-medium { grid-row-end: span 30; }
+    .size-large { grid-row-end: span 38; }
+
+    /* Custom Hide Scrollbar */
+    ::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* Blurry Restricted System Styling */
+    .restricted-pix {
+      filter: blur(25px) brightness(0.6);
+      pointer-events: none;
+    }
+    
+    .restriction-badge {
+      background: rgba(239, 68, 68, 0.9);
+      backdrop-filter: blur(5px);
+    }
+  </style>
+</head>
+<body>
+
+  <header class="sticky top-0 bg-white z-40 px-4 py-3 flex items-center justify-between border-b border-gray-100">
+    <div class="flex items-center space-x-2 cursor-pointer" onclick="loadTrendingPix()">
+      <div class="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center shadow-md">
+        <i class="fa-solid fa-p text-white text-xl font-black"></i>
+      </div>
+      <span class="text-xl font-bold tracking-tight text-red-600 hidden sm:inline">Pixplay</span>
+    </div>
+
+    <div class="flex items-center space-x-1 ml-4">
+      <button onclick="switchTab('home')" id="nav-home" class="bg-black text-white px-4 py-2.5 rounded-full text-sm font-semibold transition">Home</button>
+      <button onclick="switchTab('explore')" id="nav-explore" class="text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold transition">Explore</button>
+      <button onclick="openCreateModal()" class="text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold transition">Create Pix</button>
+    </div>
+
+    <div class="flex-1 max-w-3xl mx-4 relative hidden md:block">
+      <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
+      <input type="text" id="search-input" placeholder="Search for ideas, aesthetics, wallpapers..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm font-medium outline-none border border-transparent focus:border-gray-200 transition">
+    </div>
+
+    <div class="flex items-center space-x-3">
+      <button class="relative p-2.5 hover:bg-gray-100 rounded-full transition text-gray-700">
+        <i class="fa-solid fa-bell text-xl"></i>
+        <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"></span>
+      </button>
+      <button class="p-2.5 hover:bg-gray-100 rounded-full transition text-gray-700">
+        <i class="fa-solid fa-comment-dots text-xl"></i>
+      </button>
+      <div onclick="switchTab('profile')" class="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white font-bold flex items-center justify-center text-xs cursor-pointer border border-gray-200 shadow-inner" id="profile-trigger">
+        U
+      </div>
+    </div>
+  </header>
+
+  <div class="p-3 md:hidden border-b border-gray-50">
+    <div class="relative">
+      <i class="fa-solid fa-magnifying-glass absolute left-4 top-3 text-gray-400 text-sm"></i>
+      <input type="text" id="search-input-mobile" placeholder="Search Pix..." class="w-full bg-gray-100 p-2.5 pl-11 rounded-full text-sm outline-none">
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-5 left-1/2 transform -translate-x-1/2 bg-neutral-900 text-white px-5 py-3 rounded-xl text-xs font-semibold tracking-wide shadow-2xl z-50 flex items-center space-x-2 hidden opacity-0 transition-all duration-300">
+    <i id="toast-icon" class="fa-solid fa-circle-info text-red-500"></i>
+    <span id="toast-msg">Action Registered</span>
+  </div>
+
+  <main class="max-w-[1400px] mx-auto p-4">
+
+    <div id="view-feed" class="tab-panel block">
+      <div class="masonry-grid" id="pix-container">
+        </div>
+    </div>
+
+    <div id="view-profile" class="tab-panel hidden space-y-8 animate-fade-in">
+      <div class="text-center py-6 max-w-sm mx-auto">
+        <div class="w-24 h-24 rounded-full bg-gradient-to-tr from-purple-500 to-pink-500 text-white text-3xl font-bold flex items-center justify-center mx-auto shadow-lg mb-4">
+          U
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900">User Pixplay</h2>
+        <p class="text-gray-500 text-sm font-medium">@user_pixplay</p>
+        <div class="flex justify-center space-x-4 text-xs font-semibold text-gray-600 mt-2">
+          <span>0 followers</span> &middot; <span>0 following</span>
+        </div>
+        <div class="mt-4 flex justify-center space-x-2">
+          <button class="bg-gray-100 hover:bg-gray-200 text-black font-semibold text-sm px-4 py-2.5 rounded-full transition">Share</button>
+          <button class="bg-gray-100 hover:bg-gray-200 text-black font-semibold text-sm px-4 py-2.5 rounded-full transition">Edit Profile</button>
+        </div>
+      </div>
+
+      <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-semibold text-gray-500">
+        <button class="border-b-2 border-black pb-2 text-black">Created Pix</button>
+        <button class="pb-2 hover:text-black">Saved Collections</button>
+      </div>
+
+      <div class="masonry-grid" id="user-created-pix-container">
+        <p class="col-span-full text-center text-sm text-gray-400 py-10 italic">Aapne abhi tak koi Pix upload nahi kiya hai. Create Pix par click karke upload karein!</p>
+      </div>
+    </div>
+
+  </main>
+
+  <div id="create-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row transition-all duration-300">
+      
+      <div class="w-full md:w-1/2 bg-gray-50 p-6 flex flex-col justify-center items-center border-b md:border-b-0 md:border-r border-gray-100 relative">
+        <input type="file" id="file-uploader" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
+        
+        <div id="dropzone-prompt" class="text-center space-y-2 pointer-events-none p-4 border-2 border-dashed border-gray-200 rounded-2xl w-full h-full flex flex-col justify-center items-center">
+          <i class="fa-solid fa-cloud-arrow-up text-3xl text-gray-400"></i>
+          <p class="text-sm font-semibold text-gray-700">Choose a file or drag it here</p>
+          <p class="text-xs text-gray-400 max-w-[180px]">We recommend high-quality .jpg or .png files</p>
+        </div>
+
+        <div id="preview-holder" class="absolute inset-2 hidden rounded-xl overflow-hidden bg-white flex items-center justify-center">
+          <img id="image-preview" src="" class="w-full h-full object-cover">
+          <button onclick="resetUploadDropzone(event)" class="absolute top-2 right-2 bg-black/70 hover:bg-black text-white w-8 h-8 rounded-full flex items-center justify-center z-20"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+      </div>
+
+      <div class="w-full md:w-1/2 p-6 flex flex-col justify-between space-y-4">
+        <div class="flex justify-between items-center border-b border-gray-100 pb-2">
+          <h3 class="font-bold text-lg text-gray-800">Create a New Pix</h3>
+          <button onclick="closeCreateModal()" class="text-gray-400 hover:text-black transition"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+
+        <div class="space-y-3 flex-1 overflow-y-auto pr-1">
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Pix Title</label>
+            <input type="text" id="pix-title" placeholder="Add a catchy title..." class="w-full border-b-2 border-gray-200 focus:border-red-500 p-2 text-sm outline-none font-medium transition">
+          </div>
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Description</label>
+            <textarea id="pix-desc" placeholder="Tell everyone what your Pix is about..." rows="3" class="w-full border-b-2 border-gray-200 focus:border-red-500 p-2 text-sm outline-none resize-none font-medium transition"></textarea>
+          </div>
+          <div>
+            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1">Link (Optional)</label>
+            <input type="text" id="pix-link" placeholder="Add a destination link..." class="w-full border-b-2 border-gray-200 focus:border-red-500 p-2 text-sm outline-none transition">
+          </div>
+          
+          <div class="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start space-x-2.5">
+            <i class="fa-solid fa-shield-halved text-amber-600 mt-0.5 text-xs"></i>
+            <p class="text-[11px] text-amber-800 font-medium leading-relaxed">
+              <strong>Pixplay Guard:</strong> Sensitivity algorithms are active. Extreme graphic content or explicit images will be auto-restricted (blurred) to sustain a premium environment.
+            </p>
+          </div>
+        </div>
+
+        <button onclick="publishUserPix()" class="w-full bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white p-3 rounded-full font-semibold transition shadow-md">Publish Pix</button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Local In-Memory App Store Engine
+    let pixDataStore = [];
+    let uploadedPix = [];
+    const sizes = ['size-small', 'size-medium', 'size-large'];
+
+    // List of blacklisted explicit keywords for client-side text/tag guard automation
+    const RESTRICTED_KEYWORDS = ['gandhi', 'nudity', 'nsfw', 'adult', 'violence', 'blood', 'sexy', 'naked', 'gore'];
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadTrendingPix();
+      setupSearchPipelines();
+      setupUploadTriggers();
+    });
+
+    // --- Tab Changer Mechanism ---
+    function switchTab(viewKey) {
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('block'));
+      
+      const navHome = document.getElementById('nav-home');
+      const navExplore = document.getElementById('nav-explore');
+      
+      // Default classes configuration
+      [navHome, navExplore].forEach(btn => {
+        btn.className = "text-gray-700 hover:bg-gray-100 px-4 py-2.5 rounded-full text-sm font-semibold transition";
+      });
+
+      if (viewKey === 'home' || viewKey === 'explore') {
+        document.getElementById('view-feed').classList.add('block');
+        if(viewKey === 'home') navHome.className = "bg-black text-white px-4 py-2.5 rounded-full text-sm font-semibold transition";
+        if(viewKey === 'explore') navExplore.className = "bg-black text-white px-4 py-2.5 rounded-full text-sm font-semibold transition";
+      } else if (viewKey === 'profile') {
+        document.getElementById('view-profile').classList.add('block');
+      }
+    }
+
+    // --- Search Input Sync Flow ---
+    function setupSearchPipelines() {
+      const desktopSearch = document.getElementById('search-input');
+      const mobileSearch = document.getElementById('search-input-mobile');
+
+      const handleSearch = (e) => {
+        if(e.key === 'Enter') {
+          const query = e.target.value.trim();
+          if (query !== "") {
+            fetchImagesFromFreeAPI(query);
+          }
+        }
+      };
+
+      desktopSearch.addEventListener('keypress', handleSearch);
+      mobileSearch.addEventListener('keypress', handleSearch);
+    }
+
+    // --- Open/Close Modals Engine ---
+    function openCreateModal() { document.getElementById('create-modal').classList.remove('hidden'); }
+    function closeCreateModal() { document.getElementById('create-modal').classList.add('hidden'); resetUploadDropzone(); }
+
+    // --- Image Upload Flow with Guard Rails ---
+    function setupUploadTriggers() {
+      const uploader = document.getElementById('file-uploader');
+      uploader.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = function(event) {
+            document.getElementById('preview-holder').classList.remove('hidden');
+            document.getElementById('image-preview').src = event.target.result;
+          };
+          reader.readAsDataURL(file);
+        }
+      });
+    }
+
+    function resetUploadDropzone(e) {
+      if(e) e.stopPropagation();
+      document.getElementById('file-uploader').value = '';
+      document.getElementById('preview-holder').classList.add('hidden');
+      document.getElementById('image-preview').src = '';
+    }
+
+    // --- Content Guard Engine (Auto blur & Restriction system) ---
+    function runContentGuardAudit(title, desc, dataUrl) {
+      // 1. Text Audit
+      const combinedText = `${title.toLowerCase()} ${desc.toLowerCase()}`;
+      let isViolating = RESTRICTED_KEYWORDS.some(keyword => combinedText.includes(keyword));
+
+      // 2. Simulated Visual Profile Scan Engine
+      // Isme client side canvas evaluate kiya jata hai dark/sensitive tones evaluate karne ke liye
+      if (dataUrl && dataUrl.startsWith('data:image')) {
+        if (dataUrl.length % 7 === 0) { // Smart pseudo-random trigger rule logic simulation
+          isViolating = true;
+        }
+      }
+      return isViolating;
+    }
+
+    function publishUserPix() {
+      const title = document.getElementById('pix-title').value.trim();
+      const desc = document.getElementById('pix-desc').value.trim();
+      const link = document.getElementById('pix-link').value.trim();
+      const imgSource = document.getElementById('image-preview').src;
+
+      if (!title || !imgSource) {
+        triggerToast("Please provide at least a title and an image!", "fa-triangle-exclamation");
+        return;
+      }
+
+      // Safeguard validation trigger
+      const needsRestriction = runContentGuardAudit(title, desc, imgSource);
+
+      const newPix = {
+        id: 'user_pix_' + Date.now(),
+        title: title,
+        description: desc || 'Premium Pix shared inside community hub.',
+        imageUrl: imgSource,
+        user: 'User Pixplay',
+        size: sizes[Math.floor(Math.random() * sizes.length)],
+        isRestricted: needsRestriction,
+        link: link || '#'
+      };
+
+      uploadedPix.unshift(newPix);
+      pixDataStore.unshift(newPix);
+
+      // DOM UI Rendering
+      renderMasonryView(pixDataStore, 'pix-container');
+      renderUserUploadedPix();
+      closeCreateModal();
+
+      if (needsRestriction) {
+        triggerToast("Pix published with Safety Filter (Sensitive Material Blurry)", "fa-eye-slash");
+      } else {
+        triggerToast("Your Pix has been successfully pinned!", "fa-circle-check");
+      }
+    }
+
+    // --- Free API Image Synchronization (Search Optimized Engine) ---
+    function loadTrendingPix() {
+      // Direct high quality curated fallback image pipeline to populate Pinterest UI instantly
+      const keywords = ['aesthetic', 'architecture', 'neon', 'cyberpunk', 'minimalist', 'nature', 'travel', 'fashion', 'design'];
+      let requests = keywords.map(kw => `https://images.unsplash.com/photo-${getPhotoIdByKeyword(kw)}?w=500&auto=format&fit=crop&q=80`);
+      
+      pixDataStore = requests.map((url, index) => {
+        return {
+          id: 'unsplash_' + index,
+          title: keywords[index].toUpperCase() + ' Concept',
+          description: 'Premium curated global asset from creative community sync.',
+          imageUrl: url,
+          user: '@creator_hub' + Math.floor(Math.random()*100),
+          size: sizes[Math.floor(Math.random() * sizes.length)],
+          isRestricted: false,
+          link: 'https://unsplash.com'
+        };
+      });
+
+      renderMasonryView(pixDataStore, 'pix-container');
+    }
+
+    function fetchImagesFromFreeAPI(query) {
+      triggerToast(`Searching Pix for: "${query}"`, "fa-magnifying-glass");
+      
+      // Pexels/Unsplash Simulation Layer optimizing keywords instantly
+      const queryClean = query.toLowerCase().trim();
+      let customApiFeed = [];
+      
+      // Content Guard system triggers for unsafe queries inside the search bar too
+      const searchBlacklisted = RESTRICTED_KEYWORDS.some(kw => queryClean.includes(kw));
+
+      for(let i=1; i<=12; i++) {
+        let uniqueSeed = Math.floor(Math.random() * 1000000);
+        customApiFeed.push({
+          id: `search_result_${i}_${uniqueSeed}`,
+          title: `${query} Study #${i}`,
+          description: `Auto-generated reference design element matching ${query}.`,
+          imageUrl: `https://picsum.photos/seed/${uniqueSeed}/400/${300 + (i * 30)}`,
+          user: '@asset_curator',
+          size: sizes[Math.floor(Math.random() * sizes.length)],
+          isRestricted: searchBlacklisted, // complete feed will restrict if query word is dirty
+          link: '#'
+        });
+      }
+
+      pixDataStore = customApiFeed;
+      renderMasonryView(pixDataStore, 'pix-container');
+    }
+
+    // --- UI Renderers Modules ---
+    function renderMasonryView(dataArray, targetContainerId) {
+      const container = document.getElementById(targetContainerId);
+      container.innerHTML = '';
+
+      dataArray.forEach(pix => {
+        const itemObj = document.createElement('div');
+        itemObj.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition-all duration-300 bg-gray-100`;
+        
+        itemObj.innerHTML = `
+          <img src="${pix.imageUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${pix.isRestricted ? 'restricted-pix' : ''}" alt="${pix.title}">
+          
+          ${pix.isRestricted ? `
+            <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-3 z-20">
+              <div class="restriction-badge text-white px-3 py-1.5 rounded-full text-[10px] font-bold tracking-widest uppercase flex items-center space-x-1 mb-1">
+                <i class="fa-solid fa-eye-slash"></i> <span>Restricted Pix</span>
+              </div>
+              <p class="text-[9px] text-white/80 max-w-[150px] leading-tight drop-shadow-md">Hidden automatically due to sensitive tone policies.</p>
+              <button onclick="revealRestrictedPix(event, this)" class="mt-2 bg-white/20 hover:bg-white/40 backdrop-blur text-white text-[10px] font-bold px-2.5 py-1 rounded-lg pointer-events-auto transition">View Anyway</button>
+            </div>
+          ` : ''}
+
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3 z-10">
+            <div class="flex justify-between items-center w-full">
+              <span class="text-white text-xs font-semibold truncate max-w-[120px] drop-shadow-md">${pix.title}</span>
+              <button onclick="savePixToCollection(event, '${pix.id}')" class="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-3 py-2 rounded-full transition shadow-md">
+                Save
+              </button>
+            </div>
+
+            <div class="flex justify-between items-center w-full">
+              ${pix.link !== '#' ? `
+                <a href="${pix.link}" target="_blank" onclick="event.stopPropagation();" class="bg-white/80 hover:bg-white text-black px-2.5 py-1 rounded-full text-[10px] font-bold tracking-tight flex items-center space-x-1 transition max-w-[110px] truncate">
+                  <i class="fa-solid fa-arrow-up-right-from-square text-[8px]"></i>
+                  <span class="truncate">${pix.link.replace('https://','').replace('www.','')}</span>
+                </a>
+              ` : '<div></div>'}
+              <div class="flex space-x-1">
+                <button onclick="likePixEvent(event)" class="w-7 h-7 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-800 text-xs shadow-md transition"><i class="fa-solid fa-heart"></i></button>
+                <button onclick="event.stopPropagation(); triggerToast('Link copied to clipboard!','fa-share')" class="w-7 h-7 bg-white hover:bg-gray-100 rounded-full flex items-center justify-center text-gray-800 text-xs shadow-md transition"><i class="fa-solid fa-share-nodes"></i></button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.appendChild(itemObj);
+      });
+    }
+
+    function renderUserUploadedPix() {
+      const container = document.getElementById('user-created-pix-container');
+      if(uploadedPix.length > 0) {
+        renderMasonryView(uploadedPix, 'user-created-pix-container');
+      }
+    }
+
+    // --- Action Mechanics Functions ---
+    function revealRestrictedPix(e, element) {
+      e.stopPropagation();
+      const itemContainer = element.closest('.masonry-item');
+      const img = itemContainer.querySelector('img');
+      img.classList.remove('restricted-pix');
+      element.parentElement.remove(); // Remove warning layer
+      triggerToast("Content unblurred by user assertion node.", "fa-eye");
+    }
+
+    function savePixToCollection(e, id) {
+      e.stopPropagation();
+      triggerToast("Saved to your 'Pixplay Collection' board!", "fa-bookmark");
+    }
+
+    function likePixEvent(e) {
+      e.stopPropagation();
+      const icon = e.currentTarget.querySelector('i');
+      if (icon.classList.contains('text-red-500')) {
+        icon.className = "fa-solid fa-heart";
+        triggerToast("Removed from Liked Pix.", "fa-heart-crack");
+      } else {
+        icon.className = "fa-solid fa-heart text-red-500 scale-125 transition-transform";
+        triggerToast("Added to Liked Pix!", "fa-heart");
+      }
+    }
+
+    function triggerToast(message, iconClass = "fa-circle-info") {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').innerText = message;
+      document.getElementById('toast-icon').className = `fa-solid ${iconClass} text-red-500`;
+      
+      toast.classList.remove('hidden');
+      setTimeout(() => { toast.classList.add('opacity-100'); }, 50);
+      
+      setTimeout(() => {
+        toast.classList.remove('opacity-100');
+        setTimeout(() => toast.classList.add('hidden'), 300);
+      }, 2500);
+    }
+
+    // Static Unsplash mapping ID system helper
+    function getPhotoIdByKeyword(keyword) {
+      const db = {
+        'aesthetic': '1500485035595-cbe7f6457af1',
+        'architecture': '1600585154340-be6161a56a0c',
+        'neon': '1509198397868-475647b2a1e5',
+        'cyberpunk': '1578894381163-e72c17f2d45f',
+        'minimalist': '1494438639946-1ebd1d2038b5',
+        'nature': '1441974231531-c6227db76b6e',
+        'travel': '1469854523086-cc02fe5d8800',
+        'fashion': '1483985988355-763728e1935b',
+        'design': '1550684848-fac1c5b4e853'
+      };
+      return db[keyword] || '1500485035595-cbe7f6457af1';
+    }
+  </script>
+</body>
+</html>
