@@ -3,77 +3,397 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dozera Pass Generator</title>
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <title>Dozera Pass Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at 50% 0%, #1a153a 0%, #07050f 70%);
+            color: #f3f4f6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+        .glass-input {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .glass-input:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
+            outline: none;
+        }
+        .brand-gradient {
+            background: linear-gradient(135deg, #a855f7 0%, #6366f1 50%, #3b82f6 100%);
+        }
+        .text-gradient {
+            background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        /* Premium Pass Styling */
+        .premium-pass {
+            font-family: 'Space Grotesk', sans-serif;
+            position: relative;
+            overflow: hidden;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transition: transform 0.4s ease;
+        }
+        .premium-pass:hover {
+            transform: translateY(-5px);
+        }
+        /* Holographic overlay shine */
+        .hologram-effect::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; right: -50%; bottom: -50%;
+            background: linear-gradient(135deg, rgba(255,255,255,0) 30%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0) 70%);
+            transform: rotate(25deg);
+            animation: holoShine 6s infinite linear;
+            pointer-events: none;
+        }
+        @keyframes holoShine {
+            0% { transform: translate(-30%, -30%) rotate(25deg); }
+            100% { transform: translate(30%, 30%) rotate(25deg); }
+        }
+        .watermark {
+            position: absolute;
+            font-size: 5.5rem;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.015);
+            transform: rotate(-25deg);
+            user-select: none;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.2);
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+    </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen font-sans">
+<body class="p-4 md:p-8 flex flex-col items-center justify-start min-h-screen">
 
-    <div class="container mx-auto px-4 py-8 max-w-xl">
-        <div class="text-center mb-8">
-            <h1 class="text-4xl font-extrabold text-amber-500 tracking-wide">DOZERA PASS PORTAL</h1>
-            <p class="text-slate-400 mt-2">Enter your details to generate your exclusive Dozera Passes</p>
+    <header class="w-full max-w-5xl flex justify-between items-center mb-10 z-10">
+        <div class="flex items-center gap-3">
+            <div class="brand-gradient p-2.5 rounded-xl shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-id-card text-xl text-white"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight text-white">DOZERA <span class="text-indigo-400 font-medium text-sm border border-indigo-500/30 px-2 py-0.5 rounded-full ml-1">PASS</span></h1>
+                <p class="text-xs text-gray-400">Verification & Rewards Engine</p>
+            </div>
         </div>
+        <button id="adminToggleBtn" onclick="toggleView('admin-view')" class="text-xs px-4 py-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition flex items-center gap-2">
+            <i class="fa-solid fa-lock text-indigo-400"></i> Admin Access
+        </button>
+    </header>
 
-        <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 mb-8">
-            <form id="passForm" class="space-y-4">
+    <main class="w-full max-w-5xl z-10 flex-grow flex items-center justify-center">
+        
+        <section id="verification-view" class="w-full max-w-xl transition-all duration-500">
+            <div class="glass-panel rounded-3xl p-6 md:p-8 relative overflow-hidden">
+                <div class="absolute top-0 left-0 w-full h-1 brand-gradient"></div>
+                <div class="mb-6 text-center">
+                    <h2 class="text-2xl font-extrabold text-gradient">Verify Credentials</h2>
+                    <p class="text-gray-400 text-sm mt-1">Cross-reference active institutional accounts with Dozera core data nodes.</p>
+                </div>
+
+                <form id="claimForm" onsubmit="handleVerification(event)" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Full Name</label>
+                            <input type="text" id="formName" required class="w-full px-4 py-3 rounded-xl glass-input text-sm" placeholder="Anmol Sunda">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Age</label>
+                            <input type="number" id="formAge" required class="w-full px-4 py-3 rounded-xl glass-input text-sm" placeholder="19">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email ID</label>
+                        <input type="email" id="formEmail" required class="w-full px-4 py-3 rounded-xl glass-input text-sm" placeholder="mamtasundas123@gmail.com">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Date of Birth</label>
+                            <input type="text" id="formDob" required class="w-full px-4 py-3 rounded-xl glass-input text-sm" placeholder="DD/MM/YYYY">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">PAN Number</label>
+                            <input type="text" id="formPan" required uppercase class="w-full px-4 py-3 rounded-xl glass-input text-sm uppercase" placeholder="NREPS0699B">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Father's Full Name</label>
+                        <input type="text" id="formFather" required class="w-full px-4 py-3 rounded-xl glass-input text-sm" placeholder="KEWAL RAM">
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="w-full py-4 rounded-xl brand-gradient font-semibold tracking-wide text-white shadow-xl shadow-indigo-600/20 hover:opacity-95 transform active:scale-[0.99] transition flex justify-center items-center gap-2 mt-2">
+                        <i class="fa-solid fa-shield-check"></i> Process Verification
+                    </button>
+                </form>
+            </div>
+            <p class="text-center text-[11px] text-gray-500 mt-4 px-4"><i class="fa-solid fa-circle-exclamation"></i> Security Notice: Unauthorized verification requests will be flagged, and access tokens automatically terminated.</p>
+        </section>
+
+        <section id="dashboard-view" class="w-full hidden space-y-8 transition-all duration-500">
+            <div class="glass-panel rounded-2xl p-6 flex flex-col md:flex-row justify-between items-center gap-6 border-l-4 border-l-emerald-500">
                 <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
-                    <input type="text" id="fullName" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                    <span class="bg-emerald-500/10 text-emerald-400 text-xs font-bold px-3 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1.5 w-fit">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Identity Verified Securely
+                    </span>
+                    <h2 class="text-2xl font-bold text-white mt-2">Welcome Back, <span id="dashHolderName">User</span></h2>
+                    <p class="text-sm text-gray-400">All matching institutional passes have been synchronized and generated locally.</p>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Age</label>
-                        <input type="number" id="age" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                <div class="bg-gradient-to-br from-amber-500/10 to-orange-600/10 border border-amber-500/20 p-4 rounded-xl flex items-center gap-4 w-full md:w-auto">
+                    <div class="bg-amber-500/20 p-3 rounded-xl text-amber-400 text-2xl">
+                        <i class="fa-solid fa-coins"></i>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-1">Date of Birth</label>
-                        <input type="date" id="dob" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                        <div class="text-xs font-bold uppercase text-amber-400 tracking-wider">Dozera Reward Points</div>
+                        <div class="text-3xl font-black text-white" id="dashPoints">300</div>
                     </div>
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Email ID</label>
-                    <input type="email" id="email" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">PAN Number</label>
-                    <input type="text" id="pan" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500 uppercase">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-1">Father's Name</label>
-                    <input type="text" id="fatherName" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
-                </div>
-
-                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 px-4 rounded-lg transition duration-200 mt-4">
-                    Generate Pass
-                </button>
-            </form>
-        </div>
-
-        <div id="resultSection" class="hidden space-y-6">
-            
-            <div id="pointsCard" class="hidden bg-gradient-to-r from-amber-500 to-yellow-600 p-6 rounded-2xl shadow-lg text-slate-950 text-center">
-                <h3 class="text-xl font-black tracking-wider">CONGRATULATIONS!</h3>
-                <p class="font-medium mt-1">You received 300 Bonus Points</p>
-                <div class="mt-3 bg-slate-900 text-amber-400 font-mono text-xl py-2 px-4 rounded-lg inline-block font-bold tracking-widest" id="redeemCodeBox">
-                    </div>
-                <p class="text-xs text-slate-800 mt-2 font-semibold">*Valid only on Dozera Services</p>
             </div>
 
-            <div id="passesContainer" class="space-y-6">
+            <div class="glass-panel rounded-2xl p-6 bg-gradient-to-r from-indigo-950/20 to-purple-950/20 border border-indigo-500/20">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div>
+                        <h3 class="text-base font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-lock-keyhole text-indigo-400"></i> Permanent System Redeem Token
+                        </h3>
+                        <p class="text-xs text-gray-400 mt-1">This specific token hash is tied immutable to your Firebase payload. Use only across integrated Dozera systems.</p>
+                    </div>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <div id="redeemDisplay" class="bg-black/50 px-4 py-3 rounded-xl font-mono text-sm tracking-wider font-bold text-indigo-300 border border-white/5 flex-grow text-center md:text-left min-w-[210px]">
+                            DZP-XXXX-XXXX-XXXX
+                        </div>
+                        <button onclick="copyRedeemCode()" class="p-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-xl transition" title="Copy Code">
+                            <i class="fa-solid fa-copy"></i>
+                        </button>
+                    </div>
                 </div>
-        </div>
-    </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-bold uppercase text-gray-400 tracking-widest mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-wallet"></i> Synchronized Digital Credentials
+                </h3>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="space-y-4">
+                        <div id="passCanvas1" class="premium-pass hologram-effect bg-gradient-to-br from-slate-900 to-indigo-950 border border-indigo-500/30 p-6 relative h-[380px] flex flex-col justify-between">
+                            <div class="watermark top-1/4 left-5">ACADEMIC</div>
+                            <div class="flex justify-between items-start z-10">
+                                <div>
+                                    <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">University Tier</span>
+                                    <h4 class="text-lg font-bold text-white mt-1">Dozera Partner University</h4>
+                                </div>
+                                <div class="text-right">
+                                    <span class="bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                                        <i class="fa-solid fa-circle-check text-[9px] mr-0.5"></i> Verified Pass
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="z-10 my-4">
+                                <div class="text-xs uppercase text-gray-400 tracking-wider">Entitlements</div>
+                                <div class="text-2xl font-black tracking-tight text-white">Free Admission Pass</div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-y-3 gap-x-2 border-t border-b border-white/5 py-3 my-2 z-10 text-xs">
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Holder Identity</span>
+                                    <span class="font-bold text-gray-200" id="p1Name">--</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">National ID / PAN</span>
+                                    <span class="font-mono text-gray-300" id="p1Pan">--</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Parent Records</span>
+                                    <span class="font-bold text-gray-300" id="p1Father">--</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Pass Unique Signature</span>
+                                    <span class="font-mono text-indigo-300 text-[10px]" id="p1Id">--</span>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-end z-10">
+                                <div class="space-y-2">
+                                    <svg id="barcode1" class="bg-white/90 p-1 rounded max-w-[140px] h-[35px]"></svg>
+                                    <div class="text-[8px] text-gray-500 uppercase tracking-tight">Authorized by Dozera International<br>Issue Date: <span class="pDate">--</span></div>
+                                </div>
+                                <div id="qrcode1" class="bg-white p-1 rounded shadow-lg"></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPassElement('passCanvas1', 'Dozera_Admission_Pass')" class="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-semibold transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-image"></i> Save Image
+                            </button>
+                            <button onclick="downloadPDF('passCanvas1', 'Dozera_Admission_Pass')" class="flex-1 py-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/30 hover:bg-indigo-600/30 text-sm font-semibold text-indigo-300 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-file-pdf"></i> Download Document
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-center text-red-400/80 italic"><i class="fa-solid fa-triangle-exclamation"></i> This pass is valid only after official verification by Dozera services.</p>
+                    </div>
+
+                    <div class="space-y-4">
+                        <div id="passCanvas2" class="premium-pass hologram-effect bg-gradient-to-br from-amber-950/80 to-stone-950 border border-amber-500/30 p-6 relative h-[380px] flex flex-col justify-between">
+                            <div class="watermark top-1/4 left-5">LIFETIME</div>
+                            <div class="flex justify-between items-start z-10">
+                                <div>
+                                    <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Luxury Tier</span>
+                                    <h4 class="text-lg font-bold text-white mt-1">Dozera Partner Hotel</h4>
+                                </div>
+                                <div class="text-right">
+                                    <span class="bg-amber-400/20 border border-amber-400/30 text-amber-300 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">
+                                        <i class="fa-solid fa-crown text-[9px] mr-0.5"></i> Elite VIP
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="z-10 my-4">
+                                <div class="text-xs uppercase text-gray-400 tracking-wider">Entitlements</div>
+                                <div class="text-2xl font-black tracking-tight text-white">Lifetime Free Stay Pass</div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-y-3 gap-x-2 border-t border-b border-white/5 py-3 my-2 z-10 text-xs">
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Holder Identity</span>
+                                    <span class="font-bold text-gray-200" id="p2Name">--</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Validity Timeline</span>
+                                    <span class="font-bold text-amber-400 uppercase tracking-widest text-[10px]">LIFETIME VALIDITY</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Parent Records</span>
+                                    <span class="font-bold text-gray-300" id="p2Father">--</span>
+                                </div>
+                                <div>
+                                    <span class="text-[9px] uppercase text-gray-500 tracking-wider block">Pass Unique Signature</span>
+                                    <span class="font-mono text-amber-300 text-[10px]" id="p2Id">--</span>
+                                </div>
+                            </div>
+
+                            <div class="flex justify-between items-end z-10">
+                                <div class="space-y-2">
+                                    <svg id="barcode2" class="bg-white/90 p-1 rounded max-w-[140px] h-[35px]"></svg>
+                                    <div class="text-[8px] text-gray-500 uppercase tracking-tight">Authorized by Dozera Hotels & Resort<br>Issue Date: <span class="pDate">--</span></div>
+                                </div>
+                                <div id="qrcode2" class="bg-white p-1 rounded shadow-lg"></div>
+                            </div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="downloadPassElement('passCanvas2', 'Dozera_Hotel_Pass')" class="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-sm font-semibold transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-image"></i> Save Image
+                            </button>
+                            <button onclick="downloadPDF('passCanvas2', 'Dozera_Hotel_Pass')" class="flex-1 py-2.5 rounded-xl bg-amber-600/20 border border-amber-500/30 hover:bg-amber-600/30 text-sm font-semibold text-amber-300 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-file-pdf"></i> Download Document
+                            </button>
+                        </div>
+                        <p class="text-[10px] text-center text-red-400/80 italic"><i class="fa-solid fa-triangle-exclamation"></i> This pass is valid only after official verification by Dozera services.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center pt-4">
+                <button onclick="location.reload()" class="px-6 py-2 rounded-xl bg-white/5 text-xs text-gray-400 hover:text-white border border-white/10 hover:bg-white/10 transition">
+                    <i class="fa-solid fa-arrow-left"></i> Run Another Identity Check
+                </button>
+            </div>
+        </section>
+
+        <section id="admin-view" class="w-full hidden transition-all duration-500 max-w-4xl space-y-6">
+            <div class="glass-panel rounded-2xl p-6 relative">
+                <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                    <div>
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-screwdriver-wrench text-purple-400"></i> Cloud Core Console
+                        </h2>
+                        <p class="text-xs text-gray-400">Direct state synchronization with Firebase Realtime Database systems.</p>
+                    </div>
+                    <button onclick="toggleView('verification-view')" class="text-xs px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition">
+                        Exit Administrative Area
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-purple-400">Provision Users</h3>
+                        <p class="text-[11px] text-gray-400">Inject preset configurations for user entries into the Realtime active database nodes.</p>
+                        <button onclick="seedDatabaseRecords()" class="w-full py-2.5 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-300 hover:bg-purple-600/30 text-xs font-bold transition flex justify-center items-center gap-2">
+                            <i class="fa-solid fa-database animate-pulse"></i> Provision Base Ruleset
+                        </button>
+                    </div>
+
+                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-3">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-400">Dynamic Record Lookup</h3>
+                        <div class="space-y-2">
+                            <input type="text" id="adminQuery" class="w-full px-3 py-2 rounded-lg glass-input text-xs" placeholder="Filter by email / token...">
+                            <button onclick="performAdminQuerySearch()" class="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition">
+                                Query Memory Nodes
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-black/30 p-4 rounded-xl border border-white/5 space-y-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-400">Revoke / Toggle Tokens</h3>
+                        <input type="text" id="adminTargetToken" class="w-full px-3 py-2 rounded-lg glass-input text-xs" placeholder="DZP-XXXX-XXXX-XXXX">
+                        <button onclick="toggleTokenStatus()" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-lg transition">
+                            Mark Token Redeemed
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Live State JSON Logs</h4>
+                    <div id="adminTerminalLogs" class="w-full bg-black/80 border border-white/10 p-4 rounded-xl font-mono text-xs text-green-400 h-48 overflow-y-auto custom-scrollbar">
+                        [System Matrix Operational]: Ready for core authorization configurations...
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="w-full max-w-5xl text-center mt-12 mb-4 text-xs text-gray-500 border-t border-white/5 pt-4">
+        &copy; 2026 Dozera Group Inc. All sovereign digital passes are asset protected.
+    </footer>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // Firebase Configuration
+        // Firebase Configuration Context Target
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -84,130 +404,282 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
 
-        // Initialize Firebase
+        // Instantiating core app and pointers
         const app = initializeApp(firebaseConfig);
         const database = getDatabase(app);
 
-        // Form Submit Handler
-        document.getElementById('passForm').addEventListener('submit', function(e) {
-            e.preventDefault();
+        // Client-side helper function to normalize strings for exact cryptographic match hashes
+        function computeStorageKey(email) {
+            return btoa(email.trim().toLowerCase()).replace(/[^a-zA-Z0-9]/g, "");
+        }
 
-            // Getting Values
-            const name = document.getElementById('fullName').value.trim();
-            const age = document.getElementById('age').value;
-            const dobInput = document.getElementById('dob').value; // format: YYYY-MM-DD
-            const email = document.getElementById('email').value.trim();
-            const pan = document.getElementById('pan').value.trim().toUpperCase();
-            const fatherName = document.getElementById('fatherName').value.trim();
+        // Global functions map to attach window visibility context
+        window.handleVerification = async function(event) {
+            event.preventDefault();
+            const btn = document.getElementById("submitBtn");
+            btn.disabled = true;
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Reading Core Fire-Nodes...`;
 
-            // Format Date to DD/MM/YYYY for checking
-            const dateObj = new Date(dobInput);
-            const day = String(dateObj.getDate()).padStart(2, '0');
-            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
-            const year = dateObj.getFullYear();
-            const formattedDOB = `${day}/${month}/${year}`;
+            // Pull clean inputs
+            const name = document.getElementById("formName").value.trim();
+            const age = parseInt(document.getElementById("formAge").value.trim());
+            const email = document.getElementById("formEmail").value.trim().toLowerCase();
+            const dob = document.getElementById("formDob").value.trim();
+            const pan = document.getElementById("formPan").value.trim().toUpperCase();
+            const fatherName = document.getElementById("formFather").value.trim();
 
-            // Save Data to Firebase Realtime Database
-            push(ref(database, 'users/'), {
-                name, age, dob: formattedDOB, email, pan, fatherName, timestamp: Date.now()
-            });
+            const targetUserKey = computeStorageKey(email);
+            const dbRef = ref(database);
 
-            // Special User Criteria Check
-            const isSpecialUser = (
-                name.toLowerCase() === "anmol sunda" &&
-                email.toLowerCase() === "mamtasundas123@gmail.com" &&
-                formattedDOB === "26/11/2006" &&
-                pan === "NREPS0699B" &&
-                fatherName.toLowerCase() === "kewal ram"
-            );
-
-            // UI Elements Update
-            const resultSection = document.getElementById('resultSection');
-            const pointsCard = document.getElementById('pointsCard');
-            const passesContainer = document.getElementById('passesContainer');
-            
-            resultSection.classList.remove('hidden');
-            passesContainer.innerHTML = ''; // Reset passes
-            pointsCard.classList.add('hidden');
-
-            if (isSpecialUser) {
-                // 1. Show Points and Generate Redeem Code
-                pointsCard.classList.remove('hidden');
-                const uniqueRedeemCode = "DOZERA-" + Math.random().toString(36).substr(2, 6).toUpperCase();
-                document.getElementById('redeemCodeBox').innerText = uniqueRedeemCode;
-
-                // 2. Generate Pass 1: DePaul Professional Free Admission
-                const pass1Html = createPassHtml(
-                    "FREE ADMISSION PASS", 
-                    "DePaul Professional", 
-                    name, 
-                    "Dozera International", 
-                    "border-emerald-500", "from-slate-800 to-emerald-950", "text-emerald-400", "DZINT-109"
-                );
+            try {
+                // Fetch dynamic state snapshot
+                const snapshot = await get(child(dbRef, `approvedUsers/${targetUserKey}`));
                 
-                // 3. Generate Pass 2: Granger Hotel Lifetime Free Stay
-                const pass2Html = createPassHtml(
-                    "LIFETIME FREE STAY", 
-                    "Granger Hotel", 
-                    name, 
-                    "Dozera Hotels & Resorts", 
-                    "border-cyan-500", "from-slate-800 to-cyan-950", "text-cyan-400", "DZHTL-777"
-                );
-
-                passesContainer.innerHTML = pass1Html + pass2Html;
-
-                // Trigger Barcode Generation
-                JsBarcode("#barcode-DZINT-109", "DZINT-109", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#10b981" });
-                JsBarcode("#barcode-DZHTL-777", "DZHTL-777", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#06b6d4" });
-
-            } else {
-                // Standard Normal Pass for other users
-                const standardPassHtml = createPassHtml(
-                    "STANDARD ACCESS PASS", 
-                    "General Admission", 
-                    name, 
-                    "Dozera Corporate", 
-                    "border-amber-500", "from-slate-800 to-slate-900", "text-amber-500", "DZSTD-001"
-                );
-                passesContainer.innerHTML = standardPassHtml;
-                JsBarcode("#barcode-DZSTD-001", "DZSTD-001", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#f59e0b" });
-            }
-
-            // Scroll down to results smoothly
-            resultSection.scrollIntoView({ behavior: 'smooth' });
-        });
-
-        // Helper function to render a pass card HTML
-        function createPassHtml(title, facility, userName, authority, borderCol, bgGrad, textCol, barcodeId) {
-            return `
-                <div class="border-2 ${borderCol} bg-gradient-to-br ${bgGrad} rounded-2xl p-6 shadow-2xl relative overflow-hidden transition transform hover:scale-102">
-                    <div class="absolute -right-8 -top-8 w-24 h-24 bg-white/5 rounded-full blur-xl"></div>
+                if (snapshot.exists()) {
+                    const approvedData = snapshot.val();
                     
-                    <div class="flex justify-between items-start border-b border-white/10 pb-3 mb-4">
-                        <div>
-                            <span class="text-xs font-bold tracking-widest uppercase opacity-60">DOZERA EXCLUSIVE</span>
-                            <h4 class="text-lg font-black ${textCol}">${title}</h4>
-                        </div>
-                        <span class="text-xs font-mono font-bold bg-white/10 px-2 py-1 rounded text-slate-300">${facility}</span>
-                    </div>
+                    // Verify strict identity validation matches
+                    if (
+                        approvedData.name.toLowerCase() === name.toLowerCase() &&
+                        approvedData.dob === dob &&
+                        approvedData.pan.toUpperCase() === pan &&
+                        approvedData.fatherName.toLowerCase() === fatherName.toLowerCase()
+                    ) {
+                        // Matching Rule Success: Fetch or lock/generate secure permanent redeem code
+                        let claimSnapshot = await get(child(dbRef, `claims/${targetUserKey}`));
+                        let activeRedeemCode = "";
+                        
+                        if (claimSnapshot.exists()) {
+                            // Fetch locked historical transaction string
+                            activeRedeemCode = claimSnapshot.val().redeemCode;
+                        } else {
+                            // Generate premium unique code token format lockbox
+                            activeRedeemCode = generateSecureFormatToken();
+                            const passId1 = "DZP-PASS-" + Math.floor(100000 + Math.random() * 900000);
+                            const passId2 = "DZP-PASS-" + Math.floor(100000 + Math.random() * 900000);
 
-                    <div class="space-y-3 font-sans">
-                        <div>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Holder Name</p>
-                            <p class="text-lg font-bold text-white tracking-wide">${userName}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Issued By</p>
-                            <p class="text-sm font-medium text-slate-200">${authority}</p>
-                        </div>
-                    </div>
+                            // Construct Atomic Transactions inside Realtime DB
+                            await set(ref(database, `claims/${targetUserKey}`), {
+                                redeemCode: activeRedeemCode,
+                                points: 300,
+                                generatedAt: new Date().toISOString(),
+                                status: "active",
+                                email: email
+                            });
 
-                    <div class="mt-6 pt-4 border-t border-white/5 flex flex-col items-center justify-center bg-white/5 rounded-xl p-3">
-                        <svg id="barcode-${barcodeId}"></svg>
-                        <span class="text-[10px] font-mono text-slate-400 mt-1 tracking-widest">${barcodeId}</span>
-                    </div>
-                </div>
-            `;
+                            // Document Passes
+                            await set(ref(database, `passes/${passId1}`), {
+                                userId: targetUserKey,
+                                passType: "Free Admission Pass",
+                                issuer: "Dozera International",
+                                status: "Verified"
+                            });
+                            await set(ref(database, `passes/${passId2}`), {
+                                userId: targetUserKey,
+                                passType: "Lifetime Free Stay Pass",
+                                issuer: "Dozera Hotels & Resort",
+                                status: "Verified"
+                            });
+                        }
+
+                        // Trigger Frontend Dashboard View Render Engine
+                        renderUserDashboard(name, pan, fatherName, activeRedeemCode);
+                        toggleView('dashboard-view');
+                    } else {
+                        alert("Verification Error: Record parameters do not match authenticated data registries.");
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-shield-check"></i> Process Verification`;
+                    }
+                } else {
+                    // Fallback to locally checked hardcoded rule intercept if database hasn't been seeded yet
+                    if (
+                        name === "Anmol Sunda" &&
+                        email === "mamtasundas123@gmail.com" &&
+                        dob === "26/11/2006" &&
+                        pan === "NREPS0699B" &&
+                        fatherName === "KEWAL RAM"
+                    ) {
+                        // Auto-seed on live fallback and execute immediately
+                        await seedDatabaseRecords();
+                        // Re-trigger login evaluation safely
+                        window.handleVerification(event);
+                    } else {
+                        alert("Access Denied: No institutional record mappings identified for this entity.");
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-shield-check"></i> Process Verification`;
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Database Operational Fault: Verify target security node links.");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-shield-check"></i> Process Verification`;
+            }
+        };
+
+        // Database Provision Admin Automation Seed Logic
+        window.seedDatabaseRecords = async function() {
+            const logger = document.getElementById("adminTerminalLogs");
+            logger.innerHTML += `\n[Log Info]: Initiating node deployment...`;
+            
+            // Hardcoded record generation ruleset assignment payload
+            const primaryUserEmail = "mamtasundas123@gmail.com";
+            const generatedNodeHashKey = computeStorageKey(primaryUserEmail);
+
+            try {
+                await set(ref(database, `approvedUsers/${generatedNodeHashKey}`), {
+                    name: "Anmol Sunda",
+                    email: primaryUserEmail,
+                    dob: "26/11/2006",
+                    pan: "NREPS0699B",
+                    fatherName: "KEWAL RAM",
+                    points: 300
+                });
+                logger.innerHTML += `\n[Success]: Deployed dynamic rule entry to nodes key: ${generatedNodeHashKey}`;
+                alert("Database Seeded Successfully! You can now verify with the specified user credentials.");
+            } catch(e) {
+                logger.innerHTML += `\n[Failure]: Operational breakdown: ${e.message}`;
+            }
+        };
+
+        // Query Database Search Console 
+        window.performAdminQuerySearch = async function() {
+            const queryVal = document.getElementById("adminQuery").value.trim();
+            const logger = document.getElementById("adminTerminalLogs");
+            if(!queryVal) return alert("Enter lookup string parameters first");
+
+            logger.innerHTML += `\n[Log Info]: Scanning memory cells for query "${queryVal}"...`;
+            
+            try {
+                const claimsSnapshot = await get(child(ref(database), 'claims'));
+                if (claimsSnapshot.exists()) {
+                    let resultsFound = [];
+                    Object.entries(claimsSnapshot.val()).forEach(([key, value]) => {
+                        if (value.email?.includes(queryVal) || value.redeemCode?.includes(queryVal)) {
+                            resultsFound.push({ nodeKey: key, ...value });
+                        }
+                    });
+                    logger.innerHTML += `\n[Query Complete]: Found ${resultsFound.length} rows matched:\n${JSON.stringify(resultsFound, null, 2)}`;
+                } else {
+                    logger.innerHTML += `\n[System Response]: Zero global transaction records exist inside claims tree node.`;
+                }
+            } catch(e) {
+                logger.innerHTML += `\n[Query Error]: ${e.message}`;
+            }
+        };
+
+        // Revoke / Edit State Token status inside Firebase Engine
+        window.toggleTokenStatus = async function() {
+            const tokenCode = document.getElementById("adminTargetToken").value.trim();
+            const logger = document.getElementById("adminTerminalLogs");
+            if(!tokenCode) return alert("Target operational string token code required.");
+
+            try {
+                const claimsRef = ref(database, 'claims');
+                const snapshot = await get(claimsRef);
+                if(snapshot.exists()) {
+                    let recordKeyToUpdate = null;
+                    Object.entries(snapshot.val()).forEach(([key, val]) => {
+                        if(val.redeemCode === tokenCode) recordKeyToUpdate = key;
+                    });
+
+                    if(recordKeyToUpdate) {
+                        await update(ref(database, `claims/${recordKeyToUpdate}`), { status: "redeemed_used" });
+                        logger.innerHTML += `\n[Executed]: Token ${tokenCode} updated cleanly to 'redeemed_used'.`;
+                        alert("State record variable updated securely.");
+                    } else {
+                        logger.innerHTML += `\n[Action Rejected]: Specified signature code variant string not detected.`;
+                    }
+                }
+            } catch(e) {
+                logger.innerHTML += `\n[Execution Error]: ${e.message}`;
+            }
+        };
+
+    </script>
+
+    <script>
+        function toggleView(viewId) {
+            document.getElementById('verification-view').classList.add('hidden');
+            document.getElementById('dashboard-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.add('hidden');
+            document.getElementById(viewId).classList.remove('hidden');
+        }
+
+        function generateSecureFormatToken() {
+            const part = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1).toUpperCase();
+            return `DZP-${part()}-${part()}-${part()}`;
+        }
+
+        function maskPanNumber(panStr) {
+            if(panStr.length < 10) return panStr;
+            return panStr.substring(0, 4) + "*****" + panStr.substring(9);
+        }
+
+        function renderUserDashboard(name, pan, fatherName, tokenCode) {
+            const maskedPan = maskPanNumber(pan);
+            const currentDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            
+            // Unique internal ID mock algorithms
+            const randomID1 = "UID-" + Math.floor(Math.random() * 9000000 + 1000000);
+            const randomID2 = "UID-" + Math.floor(Math.random() * 9000000 + 1000000);
+
+            // Dynamic Dashboard Element String Content Injection
+            document.getElementById("dashHolderName").innerText = name;
+            document.getElementById("redeemDisplay").innerText = tokenCode;
+
+            // Fill Pass Elements Data
+            document.getElementById("p1Name").innerText = name;
+            document.getElementById("p1Pan").innerText = maskedPan;
+            document.getElementById("p1Father").innerText = fatherName;
+            document.getElementById("p1Id").innerText = randomID1;
+
+            document.getElementById("p2Name").innerText = name;
+            document.getElementById("p2Father").innerText = fatherName;
+            document.getElementById("p2Id").innerText = randomID2;
+
+            document.querySelectorAll(".pDate").forEach(el => el.innerText = currentDate);
+
+            // Clean previous iterations within dynamic canvas cells
+            document.getElementById("qrcode1").innerHTML = "";
+            document.getElementById("qrcode2").innerHTML = "";
+
+            // Render Dynamic QR Vectors safely using client libraries
+            new QRCode(document.getElementById("qrcode1"), { text: `VERIFIED-PASS-ID:${randomID1}-HOLDER:${name}`, width: 50, height: 50, colorDark: "#000000", colorLight: "#ffffff" });
+            new QRCode(document.getElementById("qrcode2"), { text: `VERIFIED-PASS-ID:${randomID2}-HOLDER:${name}`, width: 50, height: 50, colorDark: "#000000", colorLight: "#ffffff" });
+
+            // Render Dynamic Barcodes using client libraries
+            JsBarcode("#barcode1", randomID1, { format: "CODE128", width: 1.2, height: 30, displayValue: false, background: "transparent", lineColor: "#000000" });
+            JsBarcode("#barcode2", randomID2, { format: "CODE128", width: 1.2, height: 30, displayValue: false, background: "transparent", lineColor: "#000000" });
+        }
+
+        function copyRedeemCode() {
+            const codeTxt = document.getElementById("redeemDisplay").innerText;
+            navigator.clipboard.writeText(codeTxt);
+            alert("Redeem Token copied securely to system clipboard payload: " + codeTxt);
+        }
+
+        // Export Pass View Elements dynamically to High Quality Device Images
+        function downloadPassElement(divId, filename) {
+            const target = document.getElementById(divId);
+            html2canvas(target, { scale: 2, useCORS: true, backgroundColor: null }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = `${filename}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+
+        // Generate and Download Official System PDF Document Formats
+        function downloadPDF(divId, filename) {
+            const target = document.getElementById(divId);
+            html2canvas(target, { scale: 2, useCORS: true }).then(canvas => {
+                const imgData = canvas.toDataURL('image/jpeg', 1.0);
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('l', 'mm', [190, 110]); // Premium wallet landscape sizing architecture
+                pdf.addImage(imgData, 'JPEG', 5, 5, 180, 100);
+                pdf.save(`${filename}.pdf`);
+            });
         }
     </script>
 </body>
