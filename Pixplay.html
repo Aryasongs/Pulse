@@ -3,10 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Pixplay - Premium Share Engine</title>
+  <title>Pixplay - Ultra Fast Optimized Share Engine</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
+    /* Premium hardware-acceleration parameters to eliminate mobile scrolling lags */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
     body {
       background-color: #ffffff;
       color: #111111;
@@ -17,15 +22,20 @@
     }
     .masonry-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
       grid-auto-rows: 8px;
       justify-content: center;
       gap: 0px 12px;
     }
     @media (min-width: 640px) {
-      .masonry-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); grid-auto-rows: 10px; gap: 0px 16px; }
+      .masonry-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-rows: 10px; gap: 0px 16px; }
     }
-    .masonry-item { grid-row-end: span 26; margin-bottom: 12px; }
+    .masonry-item { 
+      grid-row-end: span 26; 
+      margin-bottom: 12px;
+      will-change: transform;
+      transform: translateZ(0); /* Forces GPU rendering to eliminate lag */
+    }
     @media (min-width: 640px) { .masonry-item { margin-bottom: 20px; } }
     .size-small { grid-row-end: span 20; }
     .size-medium { grid-row-end: span 28; }
@@ -33,13 +43,7 @@
     ::-webkit-scrollbar { display: none; }
     .restricted-pix { filter: blur(35px) brightness(0.4); pointer-events: none; }
     .glass-nav { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
-    
-    /* Active tab style */
     .active-nav-item { color: #dc2626 !important; transform: scale(1.1); }
-    
-    /* Pull to refresh dynamic look */
-    .pulse-glow { animation: pulseAnim 1.5s infinite ease-in-out; }
-    @keyframes pulseAnim { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
   </style>
 </head>
 <body class="pb-24 md:pb-4">
@@ -54,17 +58,19 @@
 
     <div class="flex-1 max-w-2xl mx-6 relative">
       <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
-      <input type="text" id="search-input-desktop" placeholder="Search ideas, aesthetics, designs..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
+      <input type="text" id="search-input-desktop" placeholder="Search ideas, aesthetics, designs instantly..." class="w-full bg-gray-100 hover:bg-gray-200 focus:bg-white focus:ring-4 focus:ring-red-100 p-3 pl-11 rounded-full text-sm outline-none transition">
     </div>
 
     <div class="flex items-center space-x-4">
       <button onclick="switchTab('home')" class="text-gray-800 font-bold text-sm px-2">Home</button>
       <button onclick="protectedActionTrigger('create')" class="text-gray-500 hover:text-black font-semibold text-sm px-2">Create</button>
-      <div id="user-zone-desktop" class="flex items-center space-x-3">
-        <div onclick="switchTab('profile')" id="avatar-desktop" class="w-8 h-8 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center cursor-pointer uppercase border shadow-sm"></div>
+      <button onclick="switchTab('settings')" class="text-gray-500 hover:text-black text-lg px-1"><i class="fa-solid fa-gear"></i></button>
+      
+      <div id="user-zone-desktop" class="hidden flex items-center space-x-3">
+        <div onclick="switchTab('profile')" id="avatar-desktop" class="w-8 h-8 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center cursor-pointer uppercase border shadow-sm">U</div>
         <button onclick="handleLogoutWorkflow()" class="text-gray-400 hover:text-red-600 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
-      <div id="guest-zone-desktop" class="hidden">
+      <div id="guest-zone-desktop" class="block">
         <button onclick="openAuthModal()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-4 py-2 rounded-full transition shadow">Sign In</button>
       </div>
     </div>
@@ -72,57 +78,71 @@
 
   <div id="toast" class="fixed top-6 left-1/2 transform -translate-x-1/2 bg-neutral-900/95 backdrop-blur text-white px-5 py-3 rounded-2xl text-xs font-bold shadow-2xl z-[100] flex items-center space-x-2.5 hidden opacity-0 transition-all duration-300">
     <i id="toast-icon" class="fa-solid fa-circle-info text-red-500"></i>
-    <span id="toast-msg">Database Synced</span>
+    <span id="toast-msg">Database Pipeline Connected</span>
   </div>
 
   <main class="max-w-[1400px] mx-auto px-3 py-3 md:px-6">
     
     <div class="flex md:hidden items-center justify-between py-2 mb-2 px-1">
-      <span class="text-2xl font-black tracking-tighter text-red-600">Pixplay</span>
-      <div class="w-16 flex justify-end">
+      <span class="text-2xl font-black tracking-tighter text-red-600" onclick="resetAndFetchFeed()">Pixplay</span>
+      <div class="flex items-center space-x-3">
+        <button onclick="switchTab('settings')" class="text-gray-600 text-lg"><i class="fa-solid fa-gear"></i></button>
         <div id="avatar-mobile-top" onclick="switchTab('profile')" class="w-7 h-7 rounded-full bg-neutral-200 font-bold text-xs flex items-center justify-center uppercase border">G</div>
       </div>
     </div>
 
     <div id="view-feed" class="tab-panel block">
       <div class="masonry-grid" id="pix-container"></div>
-      <div id="infinite-scroll-trigger" class="w-full py-8 flex justify-center items-center">
-        <div class="w-6 h-6 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
+      <div id="infinite-scroll-trigger" class="w-full py-6 flex justify-center items-center">
+        <div class="w-5 h-5 border-2 border-red-600 border-t-transparent rounded-full animate-spin"></div>
       </div>
     </div>
 
     <div id="view-explore" class="tab-panel hidden space-y-4">
       <div class="relative">
         <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-gray-400 text-sm"></i>
-        <input type="text" id="search-input-mobile" placeholder="Search ideas..." class="w-full bg-gray-100 p-3 pl-11 rounded-full text-sm outline-none">
+        <input type="text" id="search-input-mobile" placeholder="Type query & hit enter..." class="w-full bg-gray-100 p-3 pl-11 rounded-full text-sm outline-none">
       </div>
       <div>
-        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Trending Topics for You</h3>
+        <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-1">Aesthetic Hot Topics</h3>
         <div class="grid grid-cols-2 gap-2" id="search-trending-tags"></div>
       </div>
     </div>
 
     <div id="view-notifications" class="tab-panel hidden space-y-3">
-      <h2 class="text-xl font-bold tracking-tight px-1">Updates</h2>
+      <div class="flex justify-between items-center px-1 border-b pb-2">
+        <h2 class="text-lg font-black tracking-tight">Notification Inbox</h2>
+        <button onclick="clearAllLocalNotifications()" class="text-xs text-red-600 font-bold">Clear All</button>
+      </div>
       <div class="space-y-2" id="notification-list-box">
-        <div class="p-3 bg-gray-50 rounded-xl flex items-center space-x-3">
-          <div class="w-8 h-8 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs"><i class="fa-solid fa-bolt"></i></div>
-          <div class="flex-1 text-xs font-medium"><p class="text-gray-900">Welcome to version 2 platform architecture updates.</p></div>
         </div>
+    </div>
+
+    <div id="view-settings" class="tab-panel hidden max-w-xl mx-auto space-y-4">
+      <h2 class="text-xl font-black tracking-tight px-1">Account & Legal Settings</h2>
+      <div class="bg-gray-50 rounded-2xl p-2 border border-gray-100 space-y-1">
+        <button onclick="openComplianceSlide('privacy')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-user-shield text-gray-400 mr-2.5"></i>Privacy Policy</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
+        <button onclick="openComplianceSlide('terms')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-file-contract text-gray-400 mr-2.5"></i>Terms and Conditions</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
+        <button onclick="openComplianceSlide('guidelines')" class="w-full p-3.5 text-left text-sm font-bold text-gray-700 hover:bg-gray-100 rounded-xl flex justify-between items-center transition"><span><i class="fa-solid fa-scale-balanced text-gray-400 mr-2.5"></i>Community Guidelines</span><i class="fa-solid fa-chevron-right text-xs text-gray-400"></i></button>
       </div>
     </div>
 
     <div id="view-profile" class="tab-panel hidden space-y-6">
-      <div class="text-center py-6 max-w-sm mx-auto bg-gray-50 rounded-3xl p-4 relative">
-        <button id="logout-btn-profile" onclick="handleLogoutWorkflow()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 hidden"><i class="fa-solid fa-right-from-bracket"></i></button>
-        <div id="profile-large-avatar" class="w-16 h-16 rounded-full bg-neutral-200 text-gray-700 text-xl font-bold flex items-center justify-center mx-auto shadow-inner mb-2 uppercase">G</div>
-        <h2 id="profile-name" class="text-lg font-black text-gray-900">Guest Engine</h2>
+      <div class="text-center py-5 max-w-sm mx-auto bg-gray-50 rounded-3xl p-4 border relative">
+        <button onclick="handleLogoutWorkflow()" class="absolute top-4 right-4 text-gray-400 hover:text-red-500"><i class="fa-solid fa-right-from-bracket"></i></button>
+        <div id="profile-large-avatar" class="w-14 h-14 rounded-full bg-neutral-200 text-gray-700 text-lg font-bold flex items-center justify-center mx-auto shadow-inner mb-2 uppercase">G</div>
+        <h2 id="profile-name" class="text-base font-black text-gray-900">Guest Profile</h2>
         <p id="profile-email" class="text-gray-400 text-xs"></p>
-        
-        <div class="mt-3 flex justify-center space-x-4 text-xs font-semibold text-gray-500">
-          <span id="profile-followers-count">0 followers</span> &middot; <span id="profile-following-count">0 following</span>
-        </div>
       </div>
+
+      <div id="admin-console-box" class="hidden bg-red-50/60 rounded-2xl p-4 border border-red-200 max-w-2xl mx-auto space-y-3">
+        <div class="flex items-center space-x-2 text-red-600 font-black text-xs uppercase tracking-wider">
+          <i class="fa-solid fa-unlock-keyhole animate-pulse"></i> <span>Live Community Admin Review Console</span>
+        </div>
+        <div id="admin-reports-stream" class="space-y-2">
+          </div>
+      </div>
+
       <div class="border-b border-gray-100 flex justify-center space-x-6 text-sm font-bold text-gray-400">
         <button onclick="toggleProfileSubTab('created')" id="subtab-btn-created" class="border-b-2 border-black pb-2 text-black">Created</button>
         <button onclick="toggleProfileSubTab('saved')" id="subtab-btn-saved" class="pb-2 hover:text-black">Saved</button>
@@ -133,105 +153,119 @@
   </main>
 
   <nav class="fixed bottom-0 left-0 right-0 h-16 glass-nav border-t border-gray-100 flex justify-around items-center z-40 md:hidden px-2 shadow-lg">
-    <button onclick="switchTab('home')" id="mob-nav-home" class="flex flex-col items-center justify-center text-gray-400 active-nav-item w-12 transition-transform"><i class="fa-solid fa-house text-lg"></i></button>
-    <button onclick="switchTab('explore')" id="mob-nav-explore" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-magnifying-glass text-lg"></i></button>
-    <button onclick="protectedActionTrigger('create')" id="mob-nav-create" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-square-plus text-xl text-gray-800"></i></button>
-    <button onclick="switchTab('notifications')" id="mob-nav-notifications" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform relative"><i class="fa-solid fa-bell text-lg"></i><span class="absolute top-2 right-3 w-1.5 h-1.5 bg-red-500 rounded-full"></span></button>
-    <button onclick="switchTab('profile')" id="mob-nav-profile" class="flex flex-col items-center justify-center text-gray-400 w-12 transition-transform"><i class="fa-solid fa-user text-lg"></i></button>
+    <button onclick="switchTab('home')" id="mob-nav-home" class="flex flex-col items-center justify-center text-gray-400 active-nav-item w-12"><i class="fa-solid fa-house text-lg"></i></button>
+    <button onclick="switchTab('explore')" id="mob-nav-explore" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-magnifying-glass text-lg"></i></button>
+    <button onclick="protectedActionTrigger('create')" id="mob-nav-create" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-square-plus text-xl text-gray-800"></i></button>
+    <button onclick="switchTab('notifications')" id="mob-nav-notifications" class="flex flex-col items-center justify-center text-gray-400 w-12 relative"><i class="fa-solid fa-bell text-lg"></i><span id="notif-badge-dot" class="absolute top-2 right-3 w-1.5 h-1.5 bg-red-500 rounded-full hidden"></span></button>
+    <button onclick="switchTab('profile')" id="mob-nav-profile" class="flex flex-col items-center justify-center text-gray-400 w-12"><i class="fa-solid fa-user text-lg"></i></button>
   </nav>
 
   <div id="pin-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-end md:items-center justify-center p-0 md:p-4 hidden animate-fade-in">
     <div class="bg-white w-full max-w-4xl h-[92vh] md:h-auto md:max-h-[85vh] rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
-      
       <button onclick="closePinModal()" class="absolute top-4 left-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full flex items-center justify-center shadow md:hidden"><i class="fa-solid fa-chevron-down"></i></button>
       <button onclick="closePinModal()" class="absolute top-4 right-4 z-30 bg-white/80 backdrop-blur text-black w-8 h-8 rounded-full hidden md:flex items-center justify-center shadow hover:bg-white transition"><i class="fa-solid fa-xmark"></i></button>
 
-      <div class="w-full md:w-1/2 h-[40vh] md:h-full bg-black relative flex items-center justify-center">
+      <div class="w-full md:w-1/2 h-[38vh] md:h-full bg-black flex items-center justify-center">
         <img id="modal-image" src="" class="w-full h-full object-cover">
-        <div class="absolute inset-0" id="modal-image-gesture-zone"></div>
       </div>
 
-      <div class="w-full md:w-1/2 h-[52vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
-        
+      <div class="w-full md:w-1/2 h-[54vh] md:h-full flex flex-col justify-between p-4 md:p-6 bg-white overflow-hidden">
         <div class="flex justify-between items-center pb-2 border-b border-gray-100">
-          <div class="flex space-x-2">
-            <button id="modal-action-like" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-heart"></i></button>
-            <button id="modal-action-share" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
-            <button id="modal-action-download" class="w-9 h-9 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-sm transition"><i class="fa-solid fa-arrow-down"></i></button>
+          <div class="flex space-x-1.5">
+            <button onclick="triggerToastSystem('Liked Successfully','fa-heart')" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-heart"></i></button>
+            <button id="modal-action-download" class="w-9 h-9 bg-gray-100 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-arrow-down"></i></button>
+            <button onclick="openReportingWizard()" class="w-9 h-9 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center text-sm font-bold" title="Report Content Management Violation"><i class="fa-solid fa-flag"></i></button>
           </div>
-          <button id="modal-action-save" class="bg-red-600 hover:bg-red-700 text-white font-black text-sm px-5 py-2.5 rounded-full shadow transition">Save</button>
+          <button id="modal-action-save" class="bg-red-600 hover:bg-red-700 text-white font-black text-xs px-5 py-2.5 rounded-full shadow">Save</button>
         </div>
 
         <div class="flex-1 overflow-y-auto space-y-4 py-3 pr-1">
           <div>
-            <h2 id="modal-title" class="text-xl md:text-2xl font-black tracking-tight text-gray-900 leading-tight">Concept Design Core</h2>
-            <p id="modal-desc" class="text-gray-500 text-xs mt-1 leading-relaxed">Dynamic description mapping placeholder parameters inside the cluster engine stack structure.</p>
+            <h2 id="modal-title" class="text-lg md:text-xl font-black tracking-tight text-gray-900 leading-tight">Asset Title Layer</h2>
+            <p id="modal-desc" class="text-gray-500 text-xs mt-1 leading-relaxed"></p>
           </div>
-
-          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-2xl">
-            <div class="flex items-center space-x-2.5">
-              <div id="modal-creator-avatar" class="w-8 h-8 rounded-full bg-neutral-300 font-bold text-xs flex items-center justify-center uppercase border">C</div>
-              <div>
-                <h4 id="modal-creator-name" class="text-xs font-bold text-gray-900">@creator_handle</h4>
-                <p id="modal-creator-followers" class="text-[10px] text-gray-400">0 followers</p>
-              </div>
-            </div>
-            <button id="modal-btn-follow" class="bg-gray-200 hover:bg-gray-300 text-black font-bold text-xs px-3.5 py-2 rounded-full transition">Follow</button>
+          <div class="flex items-center justify-between p-2 bg-gray-50 rounded-2xl text-xs">
+            <span id="modal-creator-name" class="font-bold text-gray-800">@creator</span>
+            <span class="text-gray-400 font-medium">Verified Publisher</span>
           </div>
-
           <div>
-            <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2" id="comments-header-count">Comments (0)</h4>
-            <div id="modal-comments-container" class="space-y-2.5 max-h-[160px] overflow-y-auto pr-1"></div>
+            <h4 class="text-xs font-bold text-gray-400 uppercase mb-2" id="comments-header-count">Comments (0)</h4>
+            <div id="modal-comments-container" class="space-y-2 max-h-[140px] overflow-y-auto pr-1"></div>
           </div>
         </div>
 
         <div class="pt-2 border-t border-gray-100 flex items-center space-x-2">
-          <input type="text" id="modal-comment-input" placeholder="Add a comment or mention @user..." class="flex-1 bg-gray-100 text-xs p-3 rounded-xl outline-none focus:bg-white border border-transparent focus:border-gray-200 font-medium">
-          <button id="modal-btn-send-comment" class="w-9 h-9 bg-red-50 hover:bg-red-100 text-red-600 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-paper-plane text-xs"></i></button>
+          <input type="text" id="modal-comment-input" placeholder="Add discussion response..." class="flex-1 bg-gray-100 text-xs p-3 rounded-xl outline-none">
+          <button id="modal-btn-send-comment" class="w-9 h-9 bg-red-50 text-red-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-paper-plane text-xs"></i></button>
         </div>
-
       </div>
     </div>
   </div>
 
-  <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-4">
-      <div class="flex justify-between items-center border-b pb-2">
-        <h3 class="font-black text-lg">Create a Pix</h3>
-        <button onclick="closeCreateModal()" class="text-gray-400 hover:text-black"><i class="fa-solid fa-xmark"></i></button>
+  <div id="report-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 shadow-2xl">
+      <h3 class="font-black text-base text-gray-900"><i class="fa-solid fa-triangle-exclamation text-orange-500 mr-1"></i> Report Content Asset</h3>
+      <p class="text-gray-400 text-xs">Help us verify our community protection standard compliance rules guidelines.</p>
+      <select id="report-reason-select" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs font-bold text-gray-700 outline-none">
+        <option value="harassment">Harassment or Bullying</option>
+        <option value="nsfw">Explicit Nudity / Graphic Content</option>
+        <option value="spam">Spam / Misleading Asset File</option>
+        <option value="hate">Hate Speech / Dangerous Statements</option>
+      </select>
+      <div class="flex space-x-2 pt-2">
+        <button onclick="document.getElementById('report-modal').classList.add('hidden')" class="flex-1 bg-gray-100 text-xs p-3 rounded-full font-bold">Cancel</button>
+        <button onclick="submitContentViolationReport()" class="flex-1 bg-red-600 text-white text-xs p-3 rounded-full font-bold shadow">Submit Report</button>
       </div>
-      <div class="w-full h-40 bg-gray-50 rounded-2xl relative flex flex-col justify-center items-center border-2 border-dashed border-gray-200 overflow-hidden">
+    </div>
+  </div>
+
+  <div id="compliance-slide-modal" class="fixed inset-0 bg-white z-50 flex flex-col p-6 overflow-y-auto hidden">
+    <div class="flex items-center justify-between border-b pb-3 mb-4 max-w-xl mx-auto w-full">
+      <h2 id="compliance-title" class="text-lg font-black tracking-tight text-gray-900">Legal Document Documentation</h2>
+      <button onclick="document.getElementById('compliance-slide-modal').classList.add('hidden')" class="text-gray-400 text-lg hover:text-black"><i class="fa-solid fa-circle-xmark"></i></button>
+    </div>
+    <div class="max-w-xl mx-auto w-full text-xs text-gray-600 space-y-4 leading-relaxed font-medium" id="compliance-content-body">
+      </div>
+  </div>
+
+  <div id="create-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white w-full max-w-md rounded-3xl p-6 shadow-2xl relative space-y-3">
+      <div class="flex justify-between items-center border-b pb-2">
+        <h3 class="font-black text-base">Create dynamic Pix</h3>
+        <button onclick="closeCreateModal()" class="text-gray-400"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="w-full h-36 bg-gray-50 rounded-2xl relative flex flex-col justify-center items-center border-2 border-dashed border-gray-200">
         <input type="file" id="file-uploader" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer z-10">
-        <div id="dropzone-prompt" class="text-center p-3 pointer-events-none"><i class="fa-solid fa-cloud-arrow-up text-2xl text-gray-400 mb-1"></i><p class="text-xs font-bold text-gray-600">Choose file asset</p></div>
+        <div id="dropzone-prompt" class="text-center text-xs text-gray-400 font-bold"><i class="fa-solid fa-cloud-arrow-up text-xl mb-1 text-gray-300"></i><p>Select Graphic Image</p></div>
         <div id="preview-holder" class="absolute inset-0 hidden bg-white"><img id="image-preview" src="" class="w-full h-full object-cover"></div>
       </div>
       <div class="space-y-2">
-        <input type="text" id="pix-title" placeholder="Add title..." class="w-full border-b p-2 text-xs font-bold outline-none focus:border-red-500">
-        <input type="text" id="pix-category" placeholder="Category Tag (e.g. cyberpunk, cars, fashion)..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500">
-        <textarea id="pix-desc" placeholder="Add description..." rows="2" class="w-full border-b p-2 text-xs outline-none resize-none focus:border-red-500"></textarea>
+        <input type="text" id="pix-title" placeholder="Add structural title..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500 font-bold">
+        <input type="text" id="pix-category" placeholder="Category (e.g. cyberpunk, cars, nature)..." class="w-full border-b p-2 text-xs outline-none focus:border-red-500">
+        <textarea id="pix-desc" placeholder="Add context mapping notes..." rows="2" class="w-full border-b p-2 text-xs outline-none resize-none"></textarea>
       </div>
-      <button id="btn-publish-pix" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wide">Publish Pix</button>
+      <button id="btn-publish-pix" class="w-full bg-red-600 text-white p-3 rounded-full font-bold text-xs shadow">Publish Cloud Pix</button>
     </div>
   </div>
 
   <div id="auth-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl relative space-y-4">
-      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400 hover:text-black"><i class="fa-solid fa-xmark"></i></button>
-      <div class="text-center"><h3 id="auth-title" class="text-xl font-black">Join Pixplay Hub</h3><p id="auth-desc" class="text-gray-400 text-[11px] mt-1">Unlock discovery and interactive systems logs.</p></div>
+      <button onclick="closeAuthModal()" class="absolute top-4 right-4 text-gray-400"><i class="fa-solid fa-xmark"></i></button>
+      <div class="text-center"><h3 id="auth-title" class="text-xl font-black">Join Pixplay Engine</h3></div>
       <div class="space-y-2.5">
-        <div id="signup-name-wrapper" class="hidden"><input type="text" id="auth-name" placeholder="Full Name" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none"></div>
+        <div id="signup-name-wrapper" class="hidden"><input type="text" id="auth-name" placeholder="Profile User Name" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none"></div>
         <input type="email" id="auth-email" placeholder="Email Address" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
-        <input type="password" id="auth-password" placeholder="Password" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
-        <button id="auth-primary-btn" class="w-full bg-red-600 hover:bg-red-700 text-white p-3 rounded-full font-bold text-xs shadow tracking-wider">Sign In</button>
+        <input type="password" id="auth-password" placeholder="Key Verification Pass" class="w-full bg-gray-50 border p-2.5 rounded-xl text-xs outline-none">
+        <button id="auth-primary-btn" class="w-full bg-red-600 text-white p-3 rounded-full font-bold text-xs shadow">Validate Token</button>
       </div>
-      <div class="text-center text-[11px] text-gray-500"><span id="auth-toggle-msg">New to system?</span><button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 font-bold ml-1">Create Profile</button></div>
+      <div class="text-center text-[11px] text-gray-500"><button onclick="toggleAuthMode()" id="auth-toggle-btn" class="text-red-600 font-bold">Create Profile Channel</button></div>
     </div>
   </div>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-    import { getDatabase, ref, set, get, child, push, onValue, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getDatabase, ref, set, get, child, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
@@ -243,11 +277,11 @@
       appId: "1:276235725177:web:0f4e0789fae80a435927a8"
     };
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getDatabase(app);
+    let app = initializeApp(firebaseConfig);
+    let auth = getAuth(app);
+    let db = getDatabase(app);
 
-    // Operational Global Vectors 
+    // Operational System Parameters Matrices
     let currentUser = null;
     let authMode = 'login';
     let globalPixStore = [];
@@ -255,359 +289,384 @@
     let activeProfileTab = 'created';
     let currentSelectedPix = null;
     
-    // Pagination & Infinite Scroll Control Vectors
     let currentPageSize = 15;
     let isFetchingNextBatch = false;
     let endOfCloudStream = false;
-
-    // AI Recommendation Vector Trackers
-    let localInterestVector = { cyberpunk: 1, cars: 1, fashion: 1, minimalist: 1, travel: 1, nature: 1 };
-    let recentlyViewedPixIds = [];
     const sizes = ['size-small', 'size-medium', 'size-large'];
-    const PROTECTION_KEYWORDS = ['gandhi', 'nsfw', 'explicit', 'adult', 'violence'];
 
-    // Execution Core Bootstrapping
     document.addEventListener("DOMContentLoaded", () => {
       fetchMasterCloudCatalog();
-      setupSearchGateways();
+      setupSearchEngineLogic();
       setupInfiniteScrollObserver();
       setupUploaderSystem();
       buildTrendingTagsUI();
     });
 
-    // Handle Authentication Configurations Updates Loop
     onAuthStateChanged(auth, (user) => {
       if(user) {
         currentUser = user;
-        document.getElementById('guest-zone-desktop').classList.add('hidden');
-        document.getElementById('user-zone-desktop').classList.remove('hidden');
-        document.getElementById('logout-btn-profile').classList.remove('hidden');
+        updateSystemAuthUI(true, user.email);
         
-        const initialStr = user.email ? user.email.charAt(0).toUpperCase() : 'U';
-        document.getElementById('avatar-desktop').innerText = initialStr;
-        document.getElementById('avatar-mobile-top').innerText = initialStr;
-        document.getElementById('profile-large-avatar').innerText = initialStr;
-        document.getElementById('profile-email').innerText = user.email;
+        // STRIKING FEATURE: If admin email log match, trigger review operations stream interface
+        if(user.email === "admin@pixplay.com" || user.email === "aryasongs@github.io" || user.email.includes("admin")) {
+          document.getElementById('admin-console-box').classList.remove('hidden');
+          listenReportsAuditStream();
+        } else {
+          document.getElementById('admin-console-box').classList.add('hidden');
+        }
 
-        // Synchronize vectors from Realtime Cloud Matrix database cluster
-        get(child(ref(db), `users/${user.uid}`)).then((snap) => {
-          if(snap.exists()) {
-            const data = snap.val();
-            document.getElementById('profile-name').innerText = data.name || 'Pixplay Professional';
-            if(data.interests) localInterestVector = data.interests;
-            syncProfileCounterMetrics(data);
-          }
-        });
+        // Connect Realtime User Notifications Stream Channel
+        listenUserNotificationsInbox(user.uid);
       } else {
         currentUser = null;
-        document.getElementById('guest-zone-desktop').classList.remove('hidden');
-        document.getElementById('user-zone-desktop').classList.add('hidden');
-        document.getElementById('logout-btn-profile').classList.add('hidden');
-        document.getElementById('profile-name').innerText = "Guest Engine";
-        document.getElementById('profile-email').innerText = "Sign in to log properties";
-        document.getElementById('profile-followers-count').innerText = "0 followers";
-        document.getElementById('profile-following-count').innerText = "0 following";
-        switchTab('home');
+        updateSystemAuthUI(false);
       }
     });
 
-    // --- Master Catalog Fetch & Sync Layer ---
+    function updateSystemAuthUI(isLoggedIn, email = '') {
+      if (isLoggedIn) {
+        document.getElementById('guest-zone-desktop').classList.add('hidden');
+        document.getElementById('user-zone-desktop').classList.remove('hidden');
+        document.getElementById('avatar-desktop').innerText = email.charAt(0).toUpperCase();
+        document.getElementById('avatar-mobile-top').innerText = email.charAt(0).toUpperCase();
+        document.getElementById('profile-large-avatar').innerText = email.charAt(0).toUpperCase();
+        document.getElementById('profile-email').innerText = email;
+        document.getElementById('profile-name').innerText = email.split('@')[0];
+      } else {
+        document.getElementById('guest-zone-desktop').classList.remove('hidden');
+        document.getElementById('user-zone-desktop').classList.add('hidden');
+        document.getElementById('avatar-mobile-top').innerText = 'G';
+        document.getElementById('profile-name').innerText = "Guest Engine";
+        document.getElementById('profile-email').innerText = "Sign in to synchronize tracking";
+        document.getElementById('admin-console-box').classList.add('hidden');
+      }
+    }
+
+    // --- High Frequency Image Data Source Integration Loader ---
     async function fetchMasterCloudCatalog() {
-      const fallbackNodes = ['nature','neon','minimalist','cars','design','cyberpunk','travel','fashion'];
-      let fallbacks = [];
-      fallbackNodes.forEach((node, k) => {
-        fallbacks.push({
-          id: `static_fallback_${k}_${node}`, title: `${node.toUpperCase()} View`,
-          description: 'Aesthetic reference model matching public layout profiles indexing guidelines.',
-          imageUrl: `https://images.unsplash.com/photo-${getAssetHash(node)}?w=600&auto=format&fit=crop&q=75`,
-          creator: 'system_hub', creatorUid: 'system', category: node, size: sizes[k % 3], isRestricted: false
-        });
+      const FallbackNodes = ['nature','minimalist','cars','cyberpunk','travel','design'];
+      let list = [];
+      FallbackNodes.forEach((node, k) => {
+        for(let i=0; i<4; i++) {
+          list.push({
+            id: `static_node_${node}_${k}_${i}`, title: `${node.toUpperCase()} Composition Core`,
+            description: 'Refined standard dynamic vector workspace mapping layout reference parameters.',
+            imageUrl: `https://images.unsplash.com/photo-${getAssetSeed(node, i)}?w=500&auto=format&fit=crop&q=70`,
+            creator: 'system_curator', creatorUid: 'system', category: node, size: sizes[(k+i) % 3], isRestricted: false
+          });
+        }
       });
 
       try {
         const snap = await get(child(ref(db), 'public_pix'));
         if(snap.exists()) {
-          let fbList = [];
-          Object.entries(snap.val()).forEach(([id, val]) => {
-            fbList.unshift({
-              id: id, title: val.title, description: val.description, imageUrl: val.imageUrl,
-              creator: val.creator || '@anonymous', creatorUid: val.creatorUid || 'anon',
-              category: val.category || 'minimalist', size: val.size || 'size-medium', isRestricted: val.isRestricted || false
+          let fbArray = [];
+          Object.entries(snap.val()).forEach(([id, payload]) => {
+            fbArray.unshift({
+              id: id, title: payload.title, description: payload.description, imageUrl: payload.imageUrl,
+              creator: payload.creator || '@anonymous', creatorUid: payload.creatorUid,
+              category: payload.category, size: payload.size, isRestricted: payload.isRestricted || false
             });
           });
-          globalPixStore = [...fbList, ...fallbacks];
-        } else { globalPixStore = fallbacks; }
-      } catch(e) { globalPixStore = fallbacks; }
+          globalPixStore = [...fbArray, ...list];
+        } else { globalPixStore = list; }
+      } catch(e) { globalPixStore = list; }
 
       resetAndFetchFeed();
     }
 
-    // --- Core Infinite Scroll & Intelligent Ranking Engine ---
     function resetAndFetchFeed() {
       currentPageSize = 15;
       endOfCloudStream = false;
       isFetchingNextBatch = false;
       document.getElementById('infinite-scroll-trigger').classList.remove('hidden');
-      
-      applyInterestBasedRanking();
+      displayedPixList = [...globalPixStore];
+      renderUniversalMasonryGridFeed(false);
     }
 
-    function applyInterestBasedRanking() {
-      // User Interest Tracking Vector-Matrix Scoring Evaluation Logic
-      let scoredPool = globalPixStore.map(pix => {
-        let score = 100; // Base baseline score
-        const cat = pix.category ? pix.category.toLowerCase() : 'minimalist';
-        
-        // Add interest weights points mapping array calculation matrix
-        if(localInterestVector[cat]) {
-          score += (localInterestVector[cat] * 15);
-        }
-        // Recently Viewed penalty index parameters to optimize discovery divergence
-        if(recentlyViewedPixIds.includes(pix.id)) { score -= 40; }
-        
-        return { pix: pix, rankingWeight: score };
-      });
+    function renderUniversalMasonryGridFeed(appendMode = false) {
+      const grid = document.getElementById('pix-container');
+      if(!appendMode) grid.innerHTML = '';
 
-      scoredPool.sort((a,b) => b.rankingWeight - a.rankingWeight);
-      displayedPixList = scoredPool.map(item => item.pix);
-      
-      renderFeedSliceLayout(false);
-    }
-
-    function renderFeedSliceLayout(appendMode = false) {
-      const targetGrid = document.getElementById('pix-container');
-      if(!appendMode) targetGrid.innerHTML = '';
-
-      const slice = displayedPixList.slice(0, currentPageSize);
-      
-      if(slice.length >= displayedPixList.length) {
+      const totalSlice = displayedPixList.slice(0, currentPageSize);
+      if(totalSlice.length >= displayedPixList.length) {
         endOfCloudStream = true;
         document.getElementById('infinite-scroll-trigger').classList.add('hidden');
       }
 
-      const activeSlice = appendMode ? displayedPixList.slice(currentPageSize - 15, currentPageSize) : slice;
+      const activeRenderBatch = appendMode ? displayedPixList.slice(currentPageSize - 15, currentPageSize) : totalSlice;
 
-      activeSlice.forEach(pix => {
+      activeRenderBatch.forEach(pix => {
         const node = document.createElement('div');
-        node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-gray-50 shadow-sm`;
-        
-        // Setup Swipe/Double-Tap Mobile Simulation Event Nodes triggers hooks
-        node.addEventListener('dblclick', (e) => {
-          triggerHapticSimulation();
-          executeDirectLikeSync(pix.id, node.querySelector('.like-icon-hook'));
-        });
-        
+        node.className = `masonry-item ${pix.size} relative group rounded-2xl overflow-hidden cursor-pointer bg-gray-100 shadow-sm`;
         node.onclick = () => openPinModal(pix);
-
         node.innerHTML = `
-          <img src="${pix.imageUrl}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${pix.isRestricted ? 'restricted-pix' : ''}" loading="lazy">
-          ${pix.isRestricted ? `
-            <div class="absolute inset-0 flex flex-col justify-center items-center text-center p-2 z-20">
-              <span class="bg-black/80 text-white font-bold text-[9px] px-2 py-1 rounded-full uppercase tracking-wider">Restricted</span>
-            </div>
-          `:''}
-          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3 z-10">
+          <img src="${pix.imageUrl}" class="w-full h-full object-cover ${pix.isRestricted ? 'restricted-pix' : ''}" loading="lazy">
+          <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex flex-col justify-between p-3 z-10">
             <div class="flex justify-between items-center w-full">
               <span class="text-white text-xs font-bold truncate pr-1">${pix.title}</span>
-              <button onclick="event.stopPropagation(); protectedActionTrigger('save', '${pix.id}')" class="bg-red-600 hover:bg-red-700 text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow">Save</button>
+              <button onclick="event.stopPropagation(); protectedActionTrigger('save', '${pix.id}')" class="bg-red-600 text-white text-[10px] font-black px-3 py-1.5 rounded-full shadow">Save</button>
             </div>
             <div class="flex justify-between items-center w-full">
-              <span class="text-white/80 text-[10px] truncate max-w-[100px] font-medium">${pix.creator}</span>
-              <div class="flex space-x-1">
-                <button onclick="event.stopPropagation(); executeDirectLikeSync('${pix.id}', this.querySelector('i'))" class="w-7 h-7 bg-white text-gray-800 rounded-full flex items-center justify-center text-xs shadow"><i class="fa-solid fa-heart like-icon-hook"></i></button>
-              </div>
+              <span class="text-white/80 text-[10px] truncate max-w-[90px]">@${pix.creator}</span>
+              <div class="w-6 h-6 bg-white rounded-full flex items-center justify-center text-xs text-gray-800"><i class="fa-solid fa-heart"></i></div>
             </div>
           </div>
         `;
-        targetGrid.appendChild(node);
+        grid.appendChild(node);
       });
     }
 
     function setupInfiniteScrollObserver() {
-      // Intersection Observer Setup mapping endless scroll trigger anchor points boundary logic
-      const triggerElement = document.getElementById('infinite-scroll-trigger');
+      const trigger = document.getElementById('infinite-scroll-trigger');
       const observer = new IntersectionObserver((entries) => {
         if(entries[0].isIntersecting && !isFetchingNextBatch && !endOfCloudStream) {
           isFetchingNextBatch = true;
           setTimeout(() => {
             currentPageSize += 15;
-            renderFeedSliceLayout(true);
+            renderUniversalMasonryGridFeed(true);
             isFetchingNextBatch = false;
-          }, 600); // Fluid pipeline artificial buffering delay simulation loop
+          }, 350);
         }
-      }, { rootMargin: '200px' });
-      observer.observe(triggerElement);
+      }, { rootMargin: '100px' });
+      observer.observe(trigger);
     }
 
-    // --- Pinterest Premium Style Click Modal Master System ---
-    async function openPinModal(pix) {
-      currentSelectedPix = pix;
-      triggerHapticSimulation();
+    // --- High Response Fixed Search Engines Operations ---
+    function setupSearchEngineLogic() {
+      const desktopBar = document.getElementById('search-input-desktop');
+      const mobileBar = document.getElementById('search-input-mobile');
 
-      // Interest Tracking Engine updates variables
-      if(pix.category) {
-        const cat = pix.category.toLowerCase();
-        localInterestVector[cat] = (localInterestVector[cat] || 0) + 1;
-        if(currentUser) {
-          update(ref(db, `users/${currentUser.uid}/interests`), { [cat]: localInterestVector[cat] });
+      const triggerSearch = (queryStr) => {
+        const token = queryStr.trim().toLowerCase();
+        if(!token) { resetAndFetchFeed(); return; }
+        
+        // Instant response local dictionary match filtering mapping rule logic
+        displayedPixList = globalPixStore.filter(p => 
+          p.title.toLowerCase().includes(token) || 
+          (p.category && p.category.toLowerCase().includes(token)) ||
+          p.description.toLowerCase().includes(token)
+        );
+        renderUniversalMasonryGridFeed(false);
+        triggerToastSystem(`Discovery localized ${displayedPixList.length} arrays.`, "fa-search");
+      };
+
+      desktopBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') triggerSearch(e.target.value); });
+      mobileBar.addEventListener('keypress', (e) => { if(e.key === 'Enter') { triggerSearch(e.target.value); switchTab('home'); } });
+    }
+
+    // --- Dynamic User Violation Reporting System Module ---
+    window.openReportingWizard = function() {
+      if(!currentUser) { triggerToastSystem("Authentication validated index required.","fa-lock"); openAuthModal(); return; }
+      document.getElementById('report-modal').classList.remove('hidden');
+    };
+
+    window.submitContentViolationReport = function() {
+      const selectReason = document.getElementById('report-reason-select').value;
+      const targetPix = currentSelectedPix;
+      if(!targetPix) return;
+
+      const reportPayload = {
+        pixId: targetPix.id,
+        title: targetPix.title,
+        imageUrl: targetPix.imageUrl,
+        reporterUid: currentUser.uid,
+        reportedCreatorUid: targetPix.creatorUid || 'unknown_node',
+        reason: selectReason,
+        timestamp: Date.now()
+      };
+
+      // Logging parameters onto master Firebase operational database report channel block
+      push(ref(db, 'reported_content'), reportPayload).then(() => {
+        document.getElementById('report-modal').classList.add('hidden');
+        closePinModal();
+        triggerToastSystem("Report logged under Active Admin Audit Queue.","fa-shield-halved");
+      });
+    };
+
+    // --- MASTER REALTIME ADMIN CONSOLE AUTOMATION STREAM ---
+    function listenReportsAuditStream() {
+      const streamBox = document.getElementById('admin-reports-stream');
+      onValue(ref(db, 'reported_content'), (snapshot) => {
+        streamBox.innerHTML = '';
+        if(snapshot.exists()) {
+          Object.entries(snapshot.val()).forEach(([reportId, data]) => {
+            const row = document.createElement('div');
+            row.className = "bg-white p-3 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between text-xs font-bold gap-2";
+            row.innerHTML = `
+              <div class="flex items-center space-x-3">
+                <img src="${data.imageUrl}" class="w-10 h-10 object-cover rounded-lg shadow-inner">
+                <div>
+                  <h4 class="text-gray-900">${data.title}</h4>
+                  <p class="text-orange-600 text-[10px] uppercase font-black">Violation Category: ${data.reason}</p>
+                </div>
+              </div>
+              <div class="flex space-x-1 w-full sm:w-auto">
+                <button onclick="executeAdminResolutionLoop('${reportId}', '${data.pixId}', '${data.reportedCreatorUid}', 'approve')" class="flex-1 sm:flex-initial bg-red-600 text-white px-2.5 py-1.5 rounded-lg text-[10px]">Approve (Remove)</button>
+                <button onclick="executeAdminResolutionLoop('${reportId}', '${data.pixId}', '${data.reportedCreatorUid}', 'reject')" class="flex-1 sm:flex-initial bg-gray-200 text-gray-800 px-2.5 py-1.5 rounded-lg text-[10px]">Reject (Keep)</button>
+              </div>
+            `;
+            streamBox.appendChild(row);
+          });
+        } else {
+          streamBox.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-2">No pending community tracking audits found.</p>';
         }
-      }
-      if(!recentlyViewedPixIds.includes(pix.id)) {
-        recentlyViewedPixIds.unshift(pix.id);
-        if(recentlyViewedPixIds.length > 12) recentlyViewedPixIds.pop();
+      });
+    }
+
+    // --- STRIKING: ADMIN DISPOSITION EXECUTION BRANCH ---
+    window.executeAdminResolutionLoop = function(reportId, pixId, creatorUid, actionDecision) {
+      if(actionDecision === 'approve') {
+        // Option 1: Remove dynamic component from global system paths index
+        if(pixId.startsWith('custom_') || !pixId.includes('static_')) {
+          remove(ref(db, `public_pix/${pixId}`));
+          if(creatorUid && creatorUid !== 'local') remove(ref(db, `users/${creatorUid}/created/${pixId}`));
+        }
+        
+        // Log clean verification compliance alerts pushes back onto target user vectors
+        if(creatorUid && creatorUid !== 'local') {
+          const notificationRef = ref(db, `notifications/${creatorUid}`);
+          push(notificationRef, {
+            text: "This content was removed because it went against our community guidelines.",
+            type: "alert",
+            timestamp: Date.now()
+          });
+        }
+        triggerToastSystem("Content expunged. Compliance notification logged.","fa-trash");
+      } 
+      else if(actionDecision === 'reject') {
+        // Option 2: Decline safety log request. Log standard structural feedback responses
+        if(creatorUid && creatorUid !== 'local') {
+          const notificationRef = ref(db, `notifications/${creatorUid}`);
+          push(notificationRef, {
+            text: "This content wasn't removed, but we still want to help. Our team reviewed the reported material and found it does not go against our standards.",
+            type: "info",
+            timestamp: Date.now()
+          });
+        }
+        triggerToastSystem("Report cleared. Feedback tracking generated.","fa-check");
       }
 
-      // UI Layout Parameters Initialization Mapping Pipeline Configuration
+      // Close processed report token log ticket entry point element
+      remove(ref(db, `reported_content/${reportId}`)).then(() => {
+        fetchMasterCloudCatalog();
+      });
+    };
+
+    // --- LIVE USER NOTIFICATIONS INBOX STREAM ---
+    function listenUserNotificationsInbox(uid) {
+      const container = document.getElementById('notification-list-box');
+      const badgeDot = document.getElementById('notif-badge-dot');
+      
+      onValue(ref(db, `notifications/${uid}`), (snapshot) => {
+        container.innerHTML = '';
+        if(snapshot.exists()) {
+          badgeDot.classList.remove('hidden'); // Activate red indicator element
+          Object.values(snapshot.val()).reverse().forEach(notif => {
+            const card = document.createElement('div');
+            card.className = `p-3.5 rounded-2xl flex items-start space-x-3 text-xs leading-relaxed font-bold shadow-inner ${notif.type === 'alert' ? 'bg-red-50 text-red-900 border border-red-100' : 'bg-gray-50 text-gray-800 border'}`;
+            card.innerHTML = `
+              <div class="mt-0.5">${notif.type==='alert'?'<i class="fa-solid fa-circle-exclamation text-red-600"></i>':'<i class="fa-solid fa-circle-info text-blue-600"></i>'}</div>
+              <div class="flex-1"><p>${notif.text}</p><span class="text-[9px] text-gray-400 block mt-1">${new Date(notif.timestamp).toLocaleString()}</span></div>
+            `;
+            container.appendChild(card);
+          });
+        } else {
+          badgeDot.classList.add('hidden');
+          container.innerHTML = '<p class="text-xs text-gray-400 italic text-center py-8">Inbox folder pristine empty.</p>';
+        }
+      });
+    }
+
+    window.clearAllLocalNotifications = function() {
+      if(currentUser) remove(ref(db, `notifications/${currentUser.uid}`));
+    };
+
+    // --- DYNAMIC SYSTEM COMPLIANCE TERMINALS (SETTINGS CONTENT) ---
+    window.openComplianceSlide = function(docType) {
+      const title = document.getElementById('compliance-title');
+      const body = document.getElementById('compliance-content-body');
+
+      const databaseMockLegal = {
+        privacy: `
+          <h3 class="font-black text-gray-900 text-sm">1. Pixplay Privacy Policy Statement</h3>
+          <p>We process secure cloud encryption metrics data under explicit user token configuration controls profiles. Your data data arrays are encrypted at rest inside our Firebase framework parameters.</p>
+          <h3 class="font-black text-gray-900 text-sm mt-3">2. Metrics Tracking Vectors</h3>
+          <p>We track search index keywords queries categories to build interest arrays profiles seamlessly to supply infinite layout ranking configurations optimization.</p>
+        `,
+        terms: `
+          <h3 class="font-black text-gray-900 text-sm">1. Terms of Engagement</h3>
+          <p>By registering active accounts profiles channels inside Pixplay dashboard systems, you assert confirmation to comply with standard cloud network operational compliance procedures.</p>
+          <p>Explicit distribution loops or copyright content infringement properties components are strictly subject to immediate asset deletion algorithms.</p>
+        `,
+        guidelines: `
+          <h3 class="font-black text-gray-900 text-sm">1. Community Standards Policies</h3>
+          <p>Our platform maintains a strict zero-tolerance enforcement protocol framework against harassment, safety violation parameters, or bullying vectors.</p>
+          <p>All active public images files remain subject to real-time crowd sourced logging flags audits handled instantly via our Admin loop branches channels.</p>
+        `
+      };
+
+      title.innerText = docType === 'privacy' ? 'Privacy Policy Guidelines' : docType === 'terms' ? 'Terms and Conditions Contract' : 'Community Guidelines Regulations';
+      body.innerHTML = databaseMockLegal[docType] || '<p>Document entry path locked.</p>';
+      document.getElementById('compliance-slide-modal').classList.remove('hidden');
+    };
+
+    // --- Standard Architecture Core Connectors Handles Layout Switches ---
+    window.switchTab = function(tabId) {
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.replace('block', 'hidden'));
+      document.getElementById(`view-${tabId}`).classList.replace('hidden', 'block');
+      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-nav-item'));
+      const activeMobIcon = document.getElementById(`mob-nav-${tabId}`);
+      if(activeMobIcon) activeMobIcon.classList.add('active-nav-item');
+      if(tabId === 'profile') syncUserProfileSubDashboard();
+    };
+
+    window.openPinModal = function(pix) {
+      currentSelectedPix = pix;
       document.getElementById('modal-image').src = pix.imageUrl;
       document.getElementById('modal-title').innerText = pix.title;
       document.getElementById('modal-desc').innerText = pix.description;
       document.getElementById('modal-creator-name').innerText = `@${pix.creator}`;
       document.getElementById('modal-creator-avatar').innerText = pix.creator.charAt(0).toUpperCase();
 
-      const itemImg = document.getElementById('modal-image');
-      if(pix.isRestricted) itemImg.classList.add('restricted-pix');
-      else itemImg.classList.remove('restricted-pix');
-
-      // Bind dynamic operational tracking handles hooks loops configuration
       document.getElementById('modal-action-save').onclick = () => protectedActionTrigger('save', pix.id);
-      document.getElementById('modal-action-download').onclick = () => downloadAssetTrigger(pix.id, pix.imageUrl);
-      document.getElementById('modal-action-share').onclick = () => { navigator.clipboard.writeText(pix.imageUrl); triggerToastSystem("Link mapped to dashboard clipboard!","fa-share"); };
-      document.getElementById('modal-btn-follow').onclick = () => protectedActionTrigger('follow', pix.creatorUid, pix.creator);
-
-      // Fetch dynamic analytics counts metric variables properties configurations
-      get(child(ref(db), `users/${pix.creatorUid}`)).then((sn) => {
-        let fCount = 0;
-        if(sn.exists() && sn.val().followers) fCount = Object.keys(sn.val().followers).length;
-        document.getElementById('modal-creator-followers').innerText = `${fCount} followers`;
+      document.getElementById('modal-action-download').onclick = () => { window.open(pix.imageUrl, '_blank'); };
+      
+      // Pull dynamic comments
+      const commBox = document.getElementById('modal-comments-container');
+      commBox.innerHTML = '';
+      onValue(ref(db, `comments/${pix.id}`), (sn) => {
+        commBox.innerHTML = '';
+        if(sn.exists()) {
+          Object.values(sn.val()).forEach(c => {
+            const div = document.createElement('div'); div.className = "text-[11px] bg-gray-50 p-2 rounded-xl text-left";
+            div.innerHTML = `<span class="font-black text-gray-800">@${c.author}:</span> <span class="text-gray-600">${c.text}</span>`;
+            commBox.appendChild(div);
+          });
+        } else { commBox.innerHTML = '<p class="text-[10px] text-gray-400 italic text-center py-2">Empty discussion tree.</p>'; }
       });
 
-      // Synchronize Live Realtime Active Comments Channels Modules via standard DB pathways
-      initializeActiveCommentsPipeline(pix.id);
+      document.getElementById('modal-btn-send-comment').onclick = () => {
+        const inp = document.getElementById('modal-comment-input');
+        if(!inp.value.trim() || !currentUser) return;
+        push(ref(db, `comments/${pix.id}`), { author: currentUser.email.split('@')[0], text: inp.value.trim(), time: Date.now() });
+        inp.value = '';
+      };
 
       document.getElementById('pin-modal').classList.remove('hidden');
-    }
-
-    window.closePinModal = function() {
-      document.getElementById('pin-modal').classList.add('hidden');
     };
 
-    // --- Realtime Comments Hub Interface Engine ---
-    function initializeActiveCommentsPipeline(pixId) {
-      const container = document.getElementById('modal-comments-container');
-      container.innerHTML = '<div class="text-center py-2 text-xs text-gray-400">Syncing telemetry logs...</div>';
-      
-      const commentChannelRef = ref(db, `comments/${pixId}`);
-      onValue(commentChannelRef, (snapshot) => {
-        container.innerHTML = '';
-        if(snapshot.exists()) {
-          const list = Object.values(snapshot.val());
-          document.getElementById('comments-header-count').innerText = `Comments (${list.length})`;
-          
-          list.forEach(c => {
-            const commentNode = document.createElement('div');
-            commentNode.className = "text-xs bg-gray-50 p-2.5 rounded-xl space-y-1";
-            commentNode.innerHTML = `
-              <div class="flex justify-between items-center font-bold text-gray-800">
-                <span>@${c.author}</span><span class="text-[9px] text-gray-400 font-medium">${new Date(c.time).toLocaleDateString()}</span>
-              </div>
-              <p class="text-gray-600 font-medium leading-relaxed">${parseMentionMarkupSystem(c.text)}</p>
-            `;
-            container.appendChild(commentNode);
-          });
-        } else {
-          document.getElementById('comments-header-count').innerText = "Comments (0)";
-          container.innerHTML = '<p class="text-[11px] text-gray-400 italic text-center py-4">No discussions verified yet. Start transmission loop below.</p>';
-        }
-      });
+    window.closePinModal = function() { document.getElementById('pin-modal').classList.add('hidden'); };
 
-      document.getElementById('modal-btn-send-comment').onclick = () => executePostCommentPipeline(pixId);
-    }
-
-    function executePostCommentPipeline(pixId) {
-      if(!currentUser) { triggerToastSystem("Authentication validation needed!","fa-lock"); openAuthModal(); return; }
-      const input = document.getElementById('modal-comment-input');
-      const val = input.value.trim();
-      if(!val) return;
-
-      const payload = {
-        author: currentUser.email.split('@')[0], text: val, time: Date.now()
-      };
-      push(ref(db, `comments/${pixId}`), payload).then(() => {
-        input.value = '';
-        triggerHapticSimulation();
-      });
-    }
-
-    function parseMentionMarkupSystem(text) {
-      return text.replace(/(@\w+)/g, '<span class="text-red-600 font-bold">$1</span>');
-    }
-
-    // --- Follower Engine Framework System Architecture ---
-    window.executeFollowPipeline = function(creatorUid, creatorHandle) {
-      if(creatorUid === currentUser.uid) { triggerToastSystem("Self referral metrics locked.","fa-shield"); return; }
-      
-      const targetFollowerRef = ref(db, `users/${creatorUid}/followers/${currentUser.uid}`);
-      const selfFollowingRef = ref(db, `users/${currentUser.uid}/following/${creatorUid}`);
-
-      get(targetFollowerRef).then((snap) => {
-        if(snap.exists()) {
-          set(targetFollowerRef, null);
-          set(selfFollowingRef, null);
-          document.getElementById('modal-btn-follow').innerText = "Follow";
-          triggerToastSystem(`Unfollowed @${creatorHandle}`, "fa-user-minus");
-        } else {
-          set(targetFollowerRef, { handle: currentUser.email.split('@')[0], time: Date.now() });
-          set(selfFollowingRef, { handle: creatorHandle, time: Date.now() });
-          document.getElementById('modal-btn-follow').innerText = "Following";
-          triggerToastSystem(`Following @${creatorHandle}!`, "fa-user-check");
-        }
-        syncUserProfileDashboard();
-      });
-    };
-
-    // --- Operational Tab Management Module Gateway ---
-    window.switchTab = function(tabId) {
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.replace('block', 'hidden'));
-      document.getElementById(`view-${tabId}`).classList.replace('hidden', 'block');
-      
-      // Sync bottom navigation active icon indicator status elements variables
-      document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active-nav-item'));
-      const activeMobIcon = document.getElementById(`mob-nav-${tabId}`);
-      if(activeMobIcon) activeMobIcon.classList.add('active-nav-item');
-
-      if(tabId === 'profile') syncUserProfileDashboard();
-    };
-
-    window.protectedActionTrigger = function(type, id = null, extra = null) {
-      if(!currentUser) { triggerToastSystem("Protected logic tree. Please authenticate account profile.","fa-lock"); openAuthModal(); return; }
-      if(type === 'create') openCreateModal();
-      if(type === 'save') executeSaveCommand(id);
-      if(type === 'follow') executeFollowPipeline(id, extra);
-    };
-
-    function executeSaveCommand(id) {
-      const targetObj = globalPixStore.find(p => p.id === id);
-      if(!targetObj) return;
-      set(ref(db, `users/${currentUser.uid}/saved/${id}`), targetObj).then(() => {
-        triggerToastSystem("Discovered layout appended to Saved dashboard board panel.","fa-bookmark");
-        syncUserProfileDashboard();
-      });
-    }
-
-    function executeDirectLikeSync(id, iconNode) {
-      if(iconNode) {
-        iconNode.classList.toggle('text-red-500');
-        iconNode.classList.toggle('scale-125');
+    window.protectedActionTrigger = function(type, id) {
+      if(!currentUser) { triggerToastSystem("Profile Verification Core required.","fa-lock"); openAuthModal(); return; }
+      if(type === 'create') document.getElementById('create-modal').classList.remove('hidden');
+      if(type === 'save') {
+        const matched = globalPixStore.find(p => p.id === id);
+        if(matched) set(ref(db, `users/${currentUser.uid}/saved/${id}`), matched).then(() => triggerToastSystem("Appended into Saved folder!","fa-bookmark"));
       }
-      triggerToastSystem("Action synchronized onto cloud data array vectors!","fa-heart");
-    }
+    };
 
-    function downloadAssetTrigger(id, url) {
-      const a = document.createElement('a'); a.href = url; a.target = "_blank"; a.download = `Pixplay_Vault_${id}.jpg`;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    }
-
-    // --- Core Dynamic Publishing Subroutine Infrastructure ---
     function setupUploaderSystem() {
       document.getElementById('file-uploader').addEventListener('change', (e) => {
         const file = e.target.files[0];
@@ -624,108 +683,65 @@
       document.getElementById('btn-publish-pix').onclick = () => {
         const title = document.getElementById('pix-title').value.trim();
         const desc = document.getElementById('pix-desc').value.trim();
-        const cat = document.getElementById('pix-category').value.trim().toLowerCase() || 'minimalist';
+        const cat = document.getElementById('pix-category').value.trim().toLowerCase() || 'nature';
         const img = document.getElementById('image-preview').src;
 
-        if(!title || img.length < 100) { triggerToastSystem("Valid assets profiles required!","fa-triangle-exclamation"); return; }
+        if(!title || img.length < 100) return;
 
-        const checkCtx = `${title.toLowerCase()} ${desc.toLowerCase()} ${cat}`;
-        const isTriggered = PROTECTION_KEYWORDS.some(kw => checkCtx.includes(kw));
-
-        const nodePayload = {
-          title: title, description: desc || 'Premium ecosystem deployment sequence structure package.',
-          imageUrl: img, creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid,
-          category: cat, size: sizes[Math.floor(Math.random() * sizes.length)], isRestricted: isTriggered
+        const payload = {
+          title: title, description: desc || 'System integration node matrix package.', imageUrl: img,
+          creator: currentUser.email.split('@')[0], creatorUid: currentUser.uid, category: cat, size: sizes[Math.floor(Math.random()*3)], isRestricted: false
         };
 
         const key = push(ref(db, 'public_pix'));
-        set(key, nodePayload).then(() => {
-          set(ref(db, `users/${currentUser.uid}/created/${key.key}`), nodePayload);
-          triggerToastSystem("Content record set uploaded successfully!","fa-circle-check");
-          closeCreateModal();
-          fetchMasterCloudCatalog();
+        set(key, payload).then(() => {
+          set(ref(db, `users/${currentUser.uid}/created/${key.key}`), payload);
+          triggerToastSystem("Content broadcast completed successfully.","fa-circle-check");
+          closeCreateModal(); fetchMasterCloudCatalog();
         });
       };
     }
 
-    // --- Auxiliary Layout Component Generators ---
-    async function syncUserProfileDashboard() {
+    function syncUserProfileSubDashboard() {
       if(!currentUser) return;
-      try {
-        const snap = await get(child(ref(db), `users/${currentUser.uid}`));
+      get(child(ref(db), `users/${currentUser.uid}`)).then(snap => {
+        const subgrid = document.getElementById('profile-sub-grid'); subgrid.innerHTML = '';
         if(snap.exists()) {
           const d = snap.val();
-          syncProfileCounterMetrics(d);
-          const activeArr = activeProfileTab === 'created' ? (d.created ? Object.values(d.created) : []) : (d.saved ? Object.values(d.saved) : []);
-          renderUniversalMasonryGrid(activeArr, 'profile-sub-grid');
+          const target = activeProfileTab === 'created' ? (d.created ? Object.values(d.created) : []) : (d.saved ? Object.values(d.saved) : []);
+          if(target.length === 0) { subgrid.innerHTML = '<p class="col-span-full text-center text-gray-400 text-xs py-6 italic">Folder empty.</p>'; return; }
+          target.forEach(pix => {
+            const node = document.createElement('div'); node.className = `masonry-item ${pix.size} rounded-xl overflow-hidden shadow-sm`;
+            node.innerHTML = `<img src="${pix.imageUrl}" class="w-full h-full object-cover">`;
+            subgrid.appendChild(node);
+          });
         }
-      } catch(err) {}
-    }
-
-    function syncProfileCounterMetrics(userDataObj) {
-      const followersLen = userDataObj.followers ? Object.keys(userDataObj.followers).length : 0;
-      const followingLen = userDataObj.following ? Object.keys(userDataObj.following).length : 0;
-      document.getElementById('profile-followers-count').innerText = `${followersLen} followers`;
-      document.getElementById('profile-following-count').innerText = `${followingLen} following`;
+      });
     }
 
     window.toggleProfileSubTab = function(type) {
       activeProfileTab = type;
       document.getElementById('subtab-btn-created').className = type === 'created' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
       document.getElementById('subtab-btn-saved').className = type === 'saved' ? "border-b-2 border-black pb-2 text-black font-bold" : "pb-2 hover:text-black font-semibold";
-      syncUserProfileDashboard();
+      syncUserProfileSubDashboard();
     };
 
     function buildTrendingTagsUI() {
-      const box = document.getElementById('search-trending-tags');
-      box.innerHTML = '';
-      const tags = ['Cyberpunk', 'Cars', 'Minimalist', 'Aesthetic', 'Nature', 'Fashion'];
-      tags.forEach(t => {
-        const chip = document.createElement('div');
-        chip.className = "bg-gray-100 rounded-2xl h-24 relative overflow-hidden cursor-pointer flex items-center justify-center font-bold text-white tracking-wide text-sm shadow-inner group";
-        chip.onclick = () => {
-          document.getElementById('search-input-mobile').value = t;
-          executeSearchPipelineFilter(t.toLowerCase());
-          switchTab('home');
-        };
-        chip.innerHTML = `
-          <div class="absolute inset-0 bg-neutral-900/40 z-10 transition-colors group-hover:bg-neutral-900/60"></div>
-          <span class="z-20 drop-shadow-md">${t}</span>
-        `;
-        box.appendChild(chip);
+      const box = document.getElementById('search-trending-tags'); box.innerHTML = '';
+      ['Cyberpunk', 'Cars', 'Minimalist', 'Aesthetic'].forEach(t => {
+        const div = document.createElement('div'); div.className = "bg-neutral-900 text-white rounded-xl h-16 flex items-center justify-center font-bold text-xs cursor-pointer";
+        div.onclick = () => { document.getElementById('search-input-mobile').value = t; setupSearchEngineLogic(); switchTab('home'); };
+        div.innerHTML = `<span>${t}</span>`; box.appendChild(div);
       });
     }
 
-    function setupSearchGateways() {
-      document.getElementById('search-input-desktop').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') executeSearchPipelineFilter(e.target.value.trim().toLowerCase());
-      });
-      document.getElementById('search-input-mobile').addEventListener('keypress', (e) => {
-        if(e.key === 'Enter') { executeSearchPipelineFilter(e.target.value.trim().toLowerCase()); switchTab('home'); }
-      });
-    }
-
-    function executeSearchPipelineFilter(q) {
-      if(!q) { fetchMasterCloudCatalog(); return; }
-      const res = globalPixStore.filter(p => p.title.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q)));
-      renderUniversalMasonryGrid(res, 'pix-container');
-    }
-
-    // --- Interactive Mobile Feedback Layer Simulation Utilities ---
-    function triggerHapticSimulation() {
-      if ('vibrate' in navigator) { navigator.vibrate(12); }
-    }
-
-    // --- Global Standard Modal Trigger Toggles Wrappers ---
-    window.openCreateModal = function() { document.getElementById('create-modal').classList.remove('hidden'); };
-    window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); resetUploadDropzone(); };
     window.openAuthModal = function() { document.getElementById('auth-modal').classList.remove('hidden'); };
     window.closeAuthModal = function() { document.getElementById('auth-modal').classList.add('hidden'); };
+    window.closeCreateModal = function() { document.getElementById('create-modal').classList.add('hidden'); document.getElementById('preview-holder').classList.add('hidden'); };
     window.toggleAuthMode = function() {
       authMode = authMode === 'login' ? 'signup' : 'login';
-      document.getElementById('auth-title').innerText = authMode === 'login' ? 'Join Pixplay Hub' : 'Configure Cloud Profile';
+      document.getElementById('auth-title').innerText = authMode === 'login' ? 'Join Pixplay Engine' : 'Configure Cloud Channel';
       document.getElementById('signup-name-wrapper').style.display = authMode === 'login' ? 'none' : 'block';
-      document.getElementById('auth-primary-btn').innerText = authMode === 'login' ? 'Sign In' : 'Register Core';
     };
 
     document.getElementById('auth-primary-btn').onclick = () => {
@@ -735,9 +751,8 @@
       if(!email || pass.length < 6) return;
 
       if(authMode === 'signup') {
-        createUserWithEmailAndPassword(auth, email, pass).then((c) => {
-          set(ref(db, `users/${c.user.uid}`), { name: name || 'Pixplay Professional', email: email, interests: { minimalist: 1 } });
-          closeAuthModal();
+        createUserWithEmailAndPassword(auth, email, pass).then(c => {
+          set(ref(db, `users/${c.user.uid}`), { name: name || 'User', email: email }); closeAuthModal();
         });
       } else {
         signInWithEmailAndPassword(auth, email, pass).then(() => closeAuthModal());
@@ -747,16 +762,22 @@
     window.handleLogoutWorkflow = function() { signOut(auth); };
 
     function triggerToastSystem(m, i) {
-      const toast = document.getElementById('toast');
-      document.getElementById('toast-msg').innerText = m;
+      const toast = document.getElementById('toast'); document.getElementById('toast-msg').innerText = m;
       document.getElementById('toast-icon').className = `fa-solid ${i} text-red-500`;
-      toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('opacity-100'), 50);
+      toast.classList.remove('hidden'); setTimeout(() => toast.classList.add('opacity-100'), 5);
       setTimeout(() => { toast.classList.remove('opacity-100'); setTimeout(() => toast.classList.add('hidden'), 300); }, 2200);
     }
 
-    function getAssetHash(node) {
-      const hash = { 'nature': '1441974231531-c6227db76b6e', 'neon': '1509198397868-475647b2a1e5', 'minimalist': '1494438639946-1ebd1d2038b5', 'cars': '1503376780353-7e6692767b70', 'design': '1550684848-fac1c5b4e853', 'cyberpunk': '1578894381163-e72c17f2d45f', 'travel': '1469854523086-cc02fe5d8800', 'fashion': '1483985988355-763728e1935b' };
-      return hash[node] || '1441974231531-c6227db76b6e';
+    function getAssetSeed(node, i) {
+      const db = {
+        'nature': ['1441974231531-c6227db76b6e','1470071459604-3b5ec3a7fe05','1447752875215-b2761acb3c5d','1472214222541-d510753a4907'],
+        'minimalist': ['1494438639946-1ebd1d2038b5','1507525428034-b723cf961d3e','1486406146926-c627a92ad1ab','1518531933037-91b2f5f229cc'],
+        'cars': ['1503376780353-7e6692767b70','1525609004556-c46c7d6cf0a3','1542282088-fe8426682b8f','1552519507-da3b142c6e3d'],
+        'cyberpunk': ['1578894381163-e72c17f2d45f','1542838132-92c53300491e','1509198397868-475647b2a1e5','1515621061946-eff1c2a352bd'],
+        'travel': ['1469854523086-cc02fe5d8800','1501785888041-af3ef285b470','1476514525535-07fb3b4ae5f1','1533105079780-92b9be482077'],
+        'design': ['1550684848-fac1c5b4e853','1618005182384-a83a8bd57fbe','1508921912186-1d1a45ebb3c1','1513542789411-b6a5d4f31634']
+      };
+      return db[node][i] || '1441974231531-c6227db76b6e';
     }
   </script>
 </body>
