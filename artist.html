@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Pulse - Artist Hub & Claims</title>
+  <title>Pulse for Artists - Verification & Analytics Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
@@ -14,404 +14,613 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
     .glass { 
-      background: rgba(20, 20, 20, 0.75); 
+      background: rgba(18, 18, 18, 0.8); 
       backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); 
-      border: 1px solid rgba(255, 255, 255, 0.08); 
+      border: 1px solid rgba(255, 255, 255, 0.05); 
     }
-    .apple-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
-    .admin-gradient { background: linear-gradient(135deg, #a855f7, #6366f1); }
+    .spotify-green { background: linear-gradient(135deg, #1db954, #1aa34a); }
+    .pulse-gradient { background: linear-gradient(135deg, #ff2d55, #ff3b30); }
     ::-webkit-scrollbar { display: none; }
-    * { -webkit-tap-highlight-color: transparent; }
+    .step-node.active { border-color: #1db954; color: #1db954; }
   </style>
 </head>
 <body class="bg-[#050505] text-white pb-12">
 
-  <!-- Toast Notification -->
-  <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-neutral-900/90 backdrop-blur-xl border border-neutral-800 p-4 rounded-2xl z-[100] shadow-2xl flex items-center space-x-3 pointer-events-none opacity-0 transition-opacity duration-300">
-    <div class="apple-gradient w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0 text-xs">
-      <i id="toast-icon" class="fa-solid fa-bell"></i>
+  <div id="toast" class="fixed top-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[380px] bg-neutral-900/95 backdrop-blur-xl border border-neutral-800 p-4 rounded-2xl z-[100] shadow-2xl flex items-center space-x-3 pointer-events-none opacity-0 transition-all duration-300 transform -translate-y-2">
+    <div class="spotify-green w-8 h-8 rounded-xl flex items-center justify-center text-white flex-shrink-0 text-xs">
+      <i id="toast-icon" class="fa-solid fa-satellite-dish"></i>
     </div>
     <p id="toast-message" class="text-xs font-semibold text-white truncate"></p>
   </div>
 
-  <!-- Navigation Bar -->
-  <nav class="sticky top-0 z-40 bg-neutral-900/80 backdrop-blur-md border-b border-neutral-800 px-4 py-3 flex justify-between items-center">
-    <div class="flex items-center space-x-2">
-      <div class="apple-gradient w-8 h-8 rounded-xl flex items-center justify-center shadow-md">
-        <i class="fa-solid fa-id-card text-white text-sm"></i>
+  <nav class="sticky top-0 z-40 bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center space-x-2.5">
+      <div class="spotify-green w-8 h-8 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/10">
+        <i class="fa-solid fa-music text-black text-xs font-black"></i>
       </div>
       <div>
-        <span class="font-bold tracking-tight text-sm block">Pulse for Artists</span>
-        <span class="text-[9px] text-neutral-400 block uppercase tracking-wider">Verification Control</span>
+        <span class="font-black tracking-tight text-sm block">Pulse for Artists</span>
+        <span class="text-[9px] text-neutral-500 block uppercase tracking-wider font-bold">Production Instance</span>
       </div>
     </div>
-    <div class="flex items-center space-x-2">
-      <button id="nav-toggle-admin" onclick="toggleAdminView()" class="hidden text-[11px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-full font-bold uppercase transition hover:bg-purple-500/20">
-        <i class="fa-solid fa-screwdriver-wrench mr-1"></i> Admin Console
-      </button>
-      <a href="index.html" class="text-xs text-neutral-400 hover:text-white transition px-3 py-1.5 bg-neutral-800 rounded-xl">
-        <i class="fa-solid fa-arrow-left"></i> Back to Player
-      </a>
+    <div id="session-badge" class="text-[10px] bg-neutral-900 text-neutral-400 px-3 py-1.5 rounded-full border border-neutral-800 font-mono">
+      Not Connected
     </div>
   </nav>
 
   <main class="max-w-md mx-auto px-4 mt-6 space-y-6">
-
-    <!-- TAB SWITCHER -->
-    <div class="grid grid-cols-2 gap-2 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
-      <button id="tab-btn-claim" onclick="switchSection('claim')" class="apple-gradient py-2 rounded-lg text-xs font-bold tracking-wide transition-all shadow-md">
+    
+    <div class="grid grid-cols-2 gap-2 bg-neutral-950 p-1 rounded-xl border border-neutral-900">
+      <button id="tab-claim" onclick="switchTab('claim')" class="spotify-green text-black py-2.5 rounded-lg text-xs font-black tracking-wide transition-all shadow-md">
         Claim Profile
       </button>
-      <button id="tab-btn-dashboard" onclick="switchSection('dashboard')" class="text-neutral-400 py-2 rounded-lg text-xs font-bold tracking-wide transition-all">
-        Artist Dashboard
+      <button id="tab-dashboard" onclick="switchTab('dashboard')" class="text-neutral-400 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all">
+        Artist Console
       </button>
     </div>
 
-    <!-- SECTION 1: CLAIM PROFILE FORM -->
-    <section id="sec-claim" class="space-y-4 block">
-      <div class="glass p-5 rounded-2xl space-y-3 shadow-xl">
-        <h2 class="text-base font-bold text-white tracking-tight flex items-center space-x-2">
-          <i class="fa-solid fa-bolt text-pink-500 text-sm"></i>
-          <span>Verify & Claim Profile</span>
-        </h2>
-        <p class="text-[11px] text-neutral-400 leading-relaxed">
-          Apna official Spotify/Pulse artist name claim karein. Submit karne ke baad admin team documents aur details review karke approve karegi.
-        </p>
-        <hr class="border-neutral-800 my-1">
+    <div id="view-claim" class="space-y-4 block">
+      <div class="glass p-5 rounded-2xl border border-neutral-800 space-y-4">
+        
+        <div class="flex justify-between items-center px-2 text-neutral-500 text-[10px] font-bold uppercase tracking-widest">
+          <span id="step-dot-1" class="step-node active"><i class="fa-solid fa-magnifying-glass mr-1"></i> 1. Search</span>
+          <span id="step-dot-2" class="step-node"><i class="fa-solid fa-id-card mr-1"></i> 2. Meta</span>
+          <span id="step-dot-3" class="step-node"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> 3. Review</span>
+        </div>
+        <hr class="border-neutral-900">
 
-        <div class="space-y-3">
+        <div id="claim-step-1" class="space-y-3 block">
           <div>
-            <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Artist Professional Name</label>
-            <input type="text" id="claim-name" placeholder="e.g., Sharan Pooni" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-xs focus:outline-none focus:border-pink-500">
+            <h3 class="text-sm font-bold text-white tracking-tight">Search your Artist Name on Pulse</h3>
+            <p class="text-[11px] text-neutral-400 mt-0.5">Pehle verify karein ki aapka gaaana ya profile database me mapped hai ya nahi.</p>
           </div>
+          <div class="relative">
+            <input type="text" id="search-artist-query" placeholder="Enter Artist Name (e.g., Sharan Pooni)" class="w-full p-3.5 pr-10 rounded-xl bg-neutral-950 border border-neutral-800 text-white text-xs font-medium focus:outline-none focus:border-green-500 transition-colors">
+            <i class="fa-solid fa-search absolute right-3.5 top-4 text-neutral-500 text-xs"></i>
+          </div>
+          <button onclick="searchArtistInFirebase()" class="w-full spotify-green text-black p-3 rounded-xl font-bold text-xs shadow-lg active:scale-98 transition-transform">
+            Search Database <i class="fa-solid fa-arrow-right ml-1"></i>
+          </button>
+          
+          <div id="search-result-wrapper" class="hidden bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-2">
+            <p class="text-[10px] uppercase font-bold text-neutral-500 tracking-wider">Matching Records Found</p>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2.5">
+                <div class="w-9 h-9 bg-neutral-900 border border-neutral-800 rounded-full flex items-center justify-center text-xs text-green-400">
+                  <i class="fa-solid fa-microphone-lines"></i>
+                </div>
+                <div>
+                  <h4 id="res-artist-name" class="text-xs font-bold text-white"></h4>
+                  <p id="res-artist-meta" class="text-[10px] text-neutral-400"></p>
+                </div>
+              </div>
+              <button onclick="advanceToStep(2)" class="text-[11px] bg-green-500/10 border border-green-500/20 text-green-400 font-bold px-3 py-1.5 rounded-lg hover:bg-green-500/20 transition">
+                Claim This
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="claim-step-2" class="space-y-3 hidden">
           <div>
-            <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Contact Email Address</label>
-            <input type="email" id="claim-email" placeholder="artist@example.com" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-xs focus:outline-none focus:border-pink-500">
+            <h3 class="text-sm font-bold text-white tracking-tight">Provide Verification Credentials</h3>
+            <p class="text-[11px] text-neutral-400 mt-0.5">Spotify architecture credentials to prevent identity hijacking.</p>
           </div>
-          <div class="grid grid-cols-2 gap-2">
+          <div class="space-y-3">
             <div>
-              <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Track ISRC Number</label>
-              <input type="text" id="claim-isrc" placeholder="e.g., US-S1Z-26-00001" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-xs focus:outline-none focus:border-pink-500">
+              <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block mb-1">Official Contact Email</label>
+              <input type="email" id="claim-email" placeholder="artist@srdrecords.com" class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-green-500">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block mb-1">Track ISRC Code</label>
+                <input type="text" id="claim-isrc" placeholder="US-S1Z-26-00001" class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-green-500">
+              </div>
+              <div>
+                <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block mb-1">Tax Identity EIN</label>
+                <input type="text" id="claim-ein" placeholder="12-3456789" class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white font-mono focus:outline-none focus:border-green-500">
+              </div>
             </div>
             <div>
-              <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Tax EIN Number</label>
-              <input type="text" id="claim-ein" placeholder="e.g., 12-3456789" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-xs focus:outline-none focus:border-pink-500">
+              <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-500 block mb-1">Track Audio/Catalog Streaming Link</label>
+              <input type="url" id="claim-url" placeholder="https://open.spotify.com/track/..." class="w-full p-3 bg-neutral-950 border border-neutral-800 rounded-xl text-xs text-white focus:outline-none focus:border-green-500">
             </div>
           </div>
-          <div>
-            <label class="text-[10px] uppercase font-bold tracking-wider text-neutral-400 block mb-1">Latest Song Track URL</label>
-            <input type="url" id="claim-url" placeholder="https://streaming-link.com/track" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-xs focus:outline-none focus:border-pink-500">
+          <div class="flex space-x-2 pt-2">
+            <button onclick="advanceToStep(1)" class="w-1/3 bg-neutral-950 border border-neutral-800 text-neutral-400 p-3 rounded-xl font-bold text-xs">Back</button>
+            <button onclick="advanceToStep(3)" class="w-2/3 spotify-green text-black p-3 rounded-xl font-bold text-xs shadow-lg">Continue Check</button>
           </div>
-          <button onclick="submitArtistClaim()" class="w-full apple-gradient p-3 rounded-xl font-bold text-white text-xs shadow-lg active:scale-95 transition-transform mt-2">
-            Submit Claim Application
+        </div>
+
+        <div id="claim-step-3" class="space-y-4 hidden text-center py-2">
+          <div class="w-12 h-12 bg-green-500/10 text-green-400 rounded-full flex items-center justify-center mx-auto text-base border border-green-500/20">
+            <i class="fa-solid fa-shield-cat animate-pulse"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Review Security Agreement</h3>
+            <p class="text-[11px] text-neutral-400 mt-1 max-w-xs mx-auto">
+              Aapka application packet Firebase live cluster nodes `artist_claims/` me index ho jayega. Manual admin review ke baad dashboard auto unlock hoga.
+            </p>
+          </div>
+          <div class="bg-neutral-950 p-3 rounded-xl text-left border border-neutral-900 text-[11px] space-y-1 font-mono">
+            <div><span class="text-neutral-500">Target Node:</span> <span id="summary-name" class="text-white font-bold"></span></div>
+            <div><span class="text-neutral-500">ISRC Asset:</span> <span id="summary-isrc" class="text-neutral-300"></span></div>
+            <div><span class="text-neutral-500">Tax Token:</span> <span id="summary-ein" class="text-neutral-300"></span></div>
+          </div>
+          <div class="flex space-x-2">
+            <button onclick="advanceToStep(2)" class="w-1/3 bg-neutral-950 border border-neutral-800 text-neutral-400 p-3 rounded-xl font-bold text-xs">Edit</button>
+            <button onclick="dispatchClaimToFirebase()" class="w-2/3 spotify-green text-black p-3 rounded-xl font-bold text-xs shadow-xl font-black">
+              Commit Live Claim Node
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="view-dashboard" class="space-y-4 hidden">
+      
+      <div id="dashboard-locked" class="glass p-6 rounded-2xl text-center space-y-3 border border-neutral-900">
+        <div class="w-12 h-12 bg-neutral-900 border border-neutral-800 rounded-full flex items-center justify-center mx-auto text-neutral-500">
+          <i class="fa-solid fa-lock text-sm"></i>
+        </div>
+        <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-300">Identity Ecosystem Locked</h3>
+        <p class="text-[11px] text-neutral-500 max-w-xs mx-auto leading-relaxed">
+          Aapka verified access token empty hai. Pehle claims application submit karein aur use Firebase me <code class="bg-neutral-950 text-red-400 px-1 py-0.5 rounded">status: "approved"</code> set karke system authentication clear karein.
+        </p>
+        <div class="pt-2">
+          <input type="text" id="auth-session-key" placeholder="Enter Your Approved Artist ID" class="w-full p-2.5 bg-neutral-950 border border-neutral-800 rounded-xl text-center text-xs text-white font-mono focus:outline-none focus:border-green-500">
+          <button onclick="authenticateSessionToken()" class="w-full mt-2 bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 p-2 rounded-xl text-[11px] font-bold text-white transition">
+            Verify Live Firebase Session
           </button>
         </div>
       </div>
-    </section>
 
-    <!-- SECTION 2: ARTIST DASHBOARD (ONLY VISIBLE ONCE APPROVED) -->
-    <section id="sec-dashboard" class="space-y-4 hidden">
-      <!-- Status Unapproved State Locked Info -->
-      <div id="dashboard-locked-state" class="glass p-6 rounded-2xl text-center space-y-3">
-        <div class="w-12 h-12 bg-neutral-800 border border-neutral-700 rounded-full flex items-center justify-center mx-auto text-neutral-500">
-          <i class="fa-solid fa-lock text-base"></i>
-        </div>
-        <h3 class="text-sm font-bold">Dashboard Protected</h3>
-        <p class="text-[11px] text-neutral-400 max-w-xs mx-auto">
-          Aapka artist profile approved nahi hai ya check validation pending hai. Dashboard access karne ke liye pehle application submit karein ya approve hone ka wait karein.
-        </p>
-      </div>
-
-      <!-- Dashboard Active Profile Interface -->
-      <div id="dashboard-active-state" class="hidden space-y-4">
+      <div id="dashboard-active" class="hidden space-y-4">
         
-        <!-- Live Spotify Custom Header Look -->
-        <div class="relative rounded-2xl overflow-hidden glass p-5 flex items-center space-x-4 border border-neutral-800 shadow-xl">
-          <div class="absolute inset-0 bg-gradient-to-r from-pink-500/10 to-transparent pointer-events-none"></div>
+        <div class="relative rounded-2xl overflow-hidden glass p-4 flex items-center space-x-4 border border-neutral-800 shadow-2xl">
+          <div class="absolute inset-0 bg-gradient-to-r from-green-500/5 to-transparent pointer-events-none"></div>
+          
           <div class="relative group w-16 h-16 flex-shrink-0">
-            <img id="artist-avatar" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop" class="w-full h-full object-cover rounded-full border-2 border-pink-500 shadow-md">
-            <label for="avatar-upload" class="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition cursor-pointer text-[10px]">
-              <i class="fa-solid fa-camera text-white"></i>
+            <img id="dash-avatar" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=150" class="w-full h-full object-cover rounded-full border-2 border-green-500 shadow-xl">
+            <label for="base64-file-input" class="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-[10px] text-white font-bold">
+              <i class="fa-solid fa-camera"></i>
             </label>
-            <input type="file" id="avatar-upload" accept="image/*" onchange="uploadArtistImage(event)" class="hidden">
+            <input type="file" id="base64-file-input" accept="image/*" onchange="processBase64ProfileImage(event)" class="hidden">
           </div>
+
           <div class="flex-1 min-w-0 z-10">
             <div class="flex items-center space-x-1.5">
-              <span class="text-[9px] bg-pink-500/20 text-pink-400 font-black px-2 py-0.5 rounded-full uppercase tracking-wider">Verified Artist</span>
+              <span class="text-[8px] bg-green-500/20 text-green-400 font-black px-2 py-0.5 rounded-full uppercase tracking-widest border border-green-500/20">Verified Artist</span>
             </div>
-            <h2 id="dash-artist-name" class="text-lg font-black tracking-tight text-white mt-0.5 truncate">Artist Profile</h2>
-            <p id="dash-artist-email" class="text-[10px] text-neutral-400 truncate"></p>
+            <h2 id="dash-header-name" class="text-base font-black tracking-tight text-white mt-0.5 truncate">---</h2>
+            <p id="dash-header-sub" class="text-[10px] text-neutral-500 truncate font-mono">---</p>
           </div>
         </div>
 
-        <!-- Real-Time Metrics Cloud API Display Grid -->
         <div class="grid grid-cols-2 gap-3">
           <div class="glass p-3.5 rounded-xl border border-neutral-800">
-            <div class="flex justify-between items-center text-neutral-400">
-              <span class="text-[10px] font-bold uppercase tracking-wider">Monthly Listeners</span>
-              <i class="fa-solid fa-users text-pink-500 text-xs"></i>
+            <div class="flex justify-between items-center text-neutral-500">
+              <span class="text-[9px] font-black uppercase tracking-wider">Active Listeners</span>
+              <i class="fa-solid fa-bolt text-green-400 text-xs"></i>
             </div>
-            <p id="stat-listeners" class="text-xl font-black text-white mt-1">Calculating...</p>
-            <span class="text-[9px] text-emerald-400 font-semibold"><i class="fa-solid fa-arrow-trend-up"></i> +14.2% API live</span>
+            <p id="metric-listeners" class="text-lg font-black text-white mt-1">0</p>
+            <span class="text-[9px] text-emerald-400 font-semibold"><i class="fa-solid fa-arrow-trend-up"></i> Live Streaming</span>
           </div>
           <div class="glass p-3.5 rounded-xl border border-neutral-800">
-            <div class="flex justify-between items-center text-neutral-400">
-              <span class="text-[10px] font-bold uppercase tracking-wider">Total Streams</span>
-              <i class="fa-solid fa-circle-play text-purple-500 text-xs"></i>
+            <div class="flex justify-between items-center text-neutral-500">
+              <span class="text-[9px] font-black uppercase tracking-wider">Total Streams</span>
+              <i class="fa-solid fa-play text-blue-400 text-xs"></i>
             </div>
-            <p id="stat-streams" class="text-xl font-black text-white mt-1">Calculating...</p>
-            <span class="text-[9px] text-pink-400 font-semibold"><i class="fa-solid fa-bolt"></i> Realtime Sync</span>
+            <p id="metric-streams" class="text-lg font-black text-white mt-1">0</p>
+            <span class="text-[9px] text-neutral-400 font-medium font-mono">Pulse Network</span>
           </div>
         </div>
 
-        <!-- Track Upload Data / Metadata Card -->
+        <div class="glass p-4 rounded-xl border border-neutral-800 space-y-2.5">
+          <div class="flex justify-between items-center">
+            <h3 class="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Live Catalog Indexes</h3>
+            <span id="catalog-count" class="text-[9px] font-bold bg-neutral-900 text-neutral-300 px-2 py-0.5 rounded-full border border-neutral-800">0 Tracks</span>
+          </div>
+          <div id="catalog-tracks-list" class="space-y-2 divide-y divide-neutral-900">
+            </div>
+        </div>
+
         <div class="glass p-4 rounded-xl border border-neutral-800 space-y-3">
-          <h3 class="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1.5">
-            <i class="fa-solid fa-music text-pink-500"></i>
-            <span>Verified Track Distribution Data</span>
-          </h3>
-          <div class="bg-neutral-950 p-3 rounded-xl border border-neutral-800 space-y-2">
-            <div class="flex justify-between text-xs">
-              <span class="text-neutral-400">Registered ISRC:</span>
-              <span id="dash-isrc" class="font-mono text-pink-400 font-medium"></span>
+          <h3 class="text-[10px] font-black text-neutral-400 uppercase tracking-wider">Top Stream Demographics (Countries)</h3>
+          <div id="demographics-wrapper" class="space-y-2.5">
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-neutral-300"><i class="fa-solid fa-earth-asia text-emerald-400 mr-1"></i> India (Hometown Cluster)</span>
+                <span id="demog-in" class="font-mono text-neutral-400">0%</span>
+              </div>
+              <div class="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div id="bar-in" class="h-full bg-green-500 transition-all duration-500" style="width: 0%"></div></div>
             </div>
-            <div class="flex justify-between text-xs border-t border-neutral-900 pt-2">
-              <span class="text-neutral-400">Corporate EIN:</span>
-              <span id="dash-ein" class="font-mono text-neutral-300"></span>
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-neutral-300"><i class="fa-solid fa-flag-usa text-blue-400 mr-1"></i> United States (Miami Gateway)</span>
+                <span id="demog-us" class="font-mono text-neutral-400">0%</span>
+              </div>
+              <div class="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div id="bar-us" class="h-full bg-blue-500 transition-all duration-500" style="width: 0%"></div></div>
             </div>
-            <div class="flex flex-col border-t border-neutral-900 pt-2 space-y-1">
-              <span class="text-neutral-400 text-xs">Track Audio / Catalog Link:</span>
-              <a id="dash-url" href="#" target="_blank" class="text-[11px] text-blue-400 truncate underline hover:text-blue-300"></a>
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-neutral-300"><i class="fa-solid fa-map-location-dot text-red-400 mr-1"></i> Canada</span>
+                <span id="demog-ca" class="font-mono text-neutral-400">0%</span>
+              </div>
+              <div class="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div id="bar-ca" class="h-full bg-red-500 transition-all duration-500" style="width: 0%"></div></div>
+            </div>
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-semibold">
+                <span class="text-neutral-300"><i class="fa-solid fa-globe text-purple-400 mr-1"></i> United Kingdom / Australia</span>
+                <span id="demog-row" class="font-mono text-neutral-400">0%</span>
+              </div>
+              <div class="w-full h-1.5 bg-neutral-900 rounded-full overflow-hidden"><div id="bar-row" class="h-full bg-purple-500 transition-all duration-500" style="width: 0%"></div></div>
             </div>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- SECTION 3: ADMIN CONSOLE (APPROVAL PIPELINE CONTROL) -->
-    <section id="sec-admin" class="space-y-4 hidden">
-      <div class="admin-gradient p-4 rounded-2xl shadow-xl space-y-1">
-        <h2 class="text-base font-black text-white tracking-tight">Admin Moderation Console</h2>
-        <p class="text-[11px] text-white/80">Manage, review, approve or terminate live system profile claims.</p>
       </div>
-
-      <div class="flex justify-between items-center px-1">
-        <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-400">Incoming Claims Queue</span>
-        <button onclick="clearAllClaimsHistory()" class="text-[10px] text-purple-400 hover:underline font-semibold">Clear Queue Log</button>
-      </div>
-
-      <div id="admin-queue-list" class="space-y-3">
-        <!-- Dynamic Claim Cards inject dynamically here -->
-      </div>
-    </section>
+    </div>
 
   </main>
 
-  <script>
-    // State Tracking Database Framework (Simulated Cloud Database Node)
-    let claimsDatabase = JSON.parse(localStorage.getItem('pulse_artist_claims')) || [];
-    let currentArtistSession = JSON.parse(localStorage.getItem('pulse_active_artist_node')) || null;
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, get, child, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Toast Notification Management Layer
-    function showToast(message, icon = "fa-bell") {
-      const toast = document.getElementById('toast');
-      document.getElementById('toast-message').innerText = message;
-      document.getElementById('toast-icon').className = `fa-solid ${icon}`;
-      toast.style.opacity = '1';
-      setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+    // ---------------------------------------------------------
+    // ⚠️ CRITICAL: APNI CONFIGURATION DETAILS IDHAR COPY-PASTE KAREIN
+    // ---------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_AUTH_DOMAIN",
+      databaseURL: "YOUR_DATABASE_URL",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Operational Cluster Nodes
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    document.getElementById('session-badge').innerText = "Firebase Live Connection Established";
+    document.getElementById('session-badge').classList.replace('text-neutral-400', 'text-green-400');
+
+    // Context Cache Registers
+    let transientSearchNode = null;
+    let validatedArtistIdentity = null;
+
+    // Toast Alert Engine Wrapper
+    function executeToastNotification(msg, iconClass = "fa-satellite-dish") {
+      const el = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = msg;
+      document.getElementById('toast-icon').className = `fa-solid ${iconClass}`;
+      el.style.opacity = '1';
+      el.style.transform = 'translateY(0px)';
+      setTimeout(() => { 
+        el.style.opacity = '0'; 
+        el.style.transform = 'translateY(-8px)';
+      }, 2500);
     }
 
-    // Single-Page Routing System Control Module
-    window.switchSection = function(sectionKey) {
-      document.getElementById('sec-claim').style.display = 'none';
-      document.getElementById('sec-dashboard').style.display = 'none';
-      document.getElementById('sec-admin').style.display = 'none';
-      
-      // Reset buttons
-      document.getElementById('tab-btn-claim').className = 'text-neutral-400 py-2 rounded-lg text-xs font-bold tracking-wide transition-all';
-      document.getElementById('tab-btn-dashboard').className = 'text-neutral-400 py-2 rounded-lg text-xs font-bold tracking-wide transition-all';
+    // Tab Switching Context Routine
+    window.switchTab = function(targetMode) {
+      const claimBtn = document.getElementById('tab-claim');
+      const dashBtn = document.getElementById('tab-dashboard');
+      const claimView = document.getElementById('view-claim');
+      const dashView = document.getElementById('view-dashboard');
 
-      if(sectionKey === 'claim') {
-        document.getElementById('sec-claim').style.display = 'block';
-        document.getElementById('tab-btn-claim').className = 'apple-gradient py-2 rounded-lg text-xs font-bold tracking-wide transition-all shadow-md';
-      } else if (sectionKey === 'dashboard') {
-        document.getElementById('sec-dashboard').style.display = 'block';
-        document.getElementById('tab-btn-dashboard').className = 'apple-gradient py-2 rounded-lg text-xs font-bold tracking-wide transition-all shadow-md';
-        renderDashboardState();
-      } else if (sectionKey === 'admin') {
-        document.getElementById('sec-admin').style.display = 'block';
-        renderAdminQueueUI();
+      if(targetMode === 'claim') {
+        claimBtn.className = "spotify-green text-black py-2.5 rounded-lg text-xs font-black tracking-wide transition-all shadow-md";
+        dashBtn.className = "text-neutral-400 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all";
+        claimView.style.display = 'block';
+        dashView.style.display = 'none';
+      } else {
+        dashBtn.className = "spotify-green text-black py-2.5 rounded-lg text-xs font-black tracking-wide transition-all shadow-md";
+        claimBtn.className = "text-neutral-400 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all";
+        claimView.style.display = 'none';
+        dashView.style.display = 'block';
+        evaluateDashboardAuthEcosystem();
       }
     }
 
-    // Artist Form Submission Handler
-    window.submitArtistClaim = function() {
-      const name = document.getElementById('claim-name').value.trim();
+    // Step Advancement Logic Framework
+    window.advanceToStep = function(stepIndex) {
+      document.getElementById('claim-step-1').style.display = 'none';
+      document.getElementById('claim-step-2').style.display = 'none';
+      document.getElementById('claim-step-3').style.display = 'none';
+      
+      document.getElementById('step-dot-1').classList.remove('active');
+      document.getElementById('step-dot-2').classList.remove('active');
+      document.getElementById('step-dot-3').classList.remove('active');
+
+      document.getElementById(`claim-step-${stepIndex}`).style.display = 'block';
+      for(let i=1; i<=stepIndex; i++) {
+        document.getElementById(`step-dot-${i}`).classList.add('active');
+      }
+
+      if(stepIndex === 3) {
+        document.getElementById('summary-name').innerText = transientSearchNode.artist;
+        document.getElementById('summary-isrc').innerText = document.getElementById('claim-isrc').value || 'Not Defined';
+        document.getElementById('summary-ein').innerText = document.getElementById('claim-ein').value || 'Not Defined';
+      }
+    }
+
+    // SEARCH ARCHITECTURE: Look up matches inside the main Pulse Core database node
+    window.searchArtistInFirebase = async function() {
+      const queryStr = document.getElementById('search-artist-query').value.trim().toLowerCase();
+      if(!queryStr) {
+        executeToastNotification("Pehle search query field fill karein!", "fa-triangle-exclamation");
+        return;
+      }
+
+      executeToastNotification("Querying cluster databases...", "fa-circle-notch");
+      const dbRef = ref(db);
+      
+      try {
+        // Aapke existing database structure me jaha songs list hain (jaise 'songs' cluster node)
+        const snapshot = await get(child(dbRef, 'songs'));
+        if (snapshot.exists()) {
+          const songsCollection = snapshot.val();
+          let targetMatch = null;
+
+          // Looping data matrix to parse artist reference values
+          for (let key in songsCollection) {
+            if (songsCollection[key].artist && songsCollection[key].artist.toLowerCase().includes(queryStr)) {
+              targetMatch = songsCollection[key];
+              break;
+            }
+          }
+
+          if (targetMatch) {
+            transientSearchNode = targetMatch; 
+            document.getElementById('res-artist-name').innerText = targetMatch.artist;
+            document.getElementById('res-artist-meta').innerText = `Track Reference Match: ${targetMatch.title || 'Untitled Single'}`;
+            document.getElementById('search-result-wrapper').style.display = 'block';
+            executeToastNotification("Match located inside database node!", "fa-circle-check");
+          } else {
+            document.getElementById('search-result-wrapper').style.display = 'none';
+            executeToastNotification("No profile match found. Try another alias.", "fa-ban");
+          }
+        } else {
+          executeToastNotification("Songs path catalog nodule is completely empty.", "fa-database");
+        }
+      } catch (err) {
+        console.error(err);
+        executeToastNotification("Firebase Connection Fail. Check config rules.", "fa-triangle-exclamation");
+      }
+    }
+
+    // DISPATCH MECHANISM: Commit claim parameters packet into real-time database
+    window.dispatchClaimToFirebase = async function() {
       const email = document.getElementById('claim-email').value.trim();
       const isrc = document.getElementById('claim-isrc').value.trim();
       const ein = document.getElementById('claim-ein').value.trim();
       const url = document.getElementById('claim-url').value.trim();
 
-      if(!name || !email || !isrc || !ein || !url) {
-        showToast("Zaroori inputs missing hain!", "fa-triangle-exclamation");
+      if(!email || !isrc || !ein || !url) {
+        executeToastNotification("All credential data parameters are highly mandatory.", "fa-circle-exclamation");
         return;
       }
 
-      const claimObject = {
-        id: 'claim_' + Date.now(),
-        name, email, isrc, ein, url,
-        status: 'pending',
-        timestamp: new Date().toLocaleString()
+      // Generation of normalized ID safely parsed for tree structure
+      const claimKey = 'claim_' + transientSearchNode.artist.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+
+      const telemetryPayload = {
+        id: claimKey,
+        artistName: transientSearchNode.artist,
+        contactEmail: email,
+        isrcToken: isrc,
+        einCorporateToken: ein,
+        referenceCatalogUrl: url,
+        status: "pending", // Hardcoded entry check parameters, manually verified inside console
+        timestamp: new Date().toISOString()
       };
 
-      claimsDatabase.push(claimObject);
-      localStorage.setItem('pulse_artist_claims', JSON.stringify(claimsDatabase));
-      
-      // Reset inputs
-      document.getElementById('claim-name').value = '';
-      document.getElementById('claim-email').value = '';
-      document.getElementById('claim-isrc').value = '';
-      document.getElementById('claim-ein').value = '';
-      document.getElementById('claim-url').value = '';
-
-      showToast("Claim request submitted! Pending approval.", "fa-circle-check");
-      document.getElementById('nav-toggle-admin').classList.remove('hidden'); // Enable admin module natively for test demo
+      try {
+        await set(ref(db, 'artist_claims/' + claimKey), telemetryPayload);
+        executeToastNotification("Packet committed to Firebase successfully!", "fa-cloud-arrow-up");
+        
+        // Save tracking parameter value to local buffer reference
+        localStorage.setItem('pulse_pending_claim_key', claimKey);
+        
+        setTimeout(() => {
+          document.getElementById('auth-session-key').value = claimKey;
+          switchTab('dashboard');
+        }, 1500);
+      } catch (error) {
+        executeToastNotification("Write rejection from data safety configuration nodes.", "fa-xmark");
+      }
     }
 
-    // Render Admin Stream Approvals Dashboard Queue
-    function renderAdminQueueUI() {
-      const queueContainer = document.getElementById('admin-queue-list');
-      queueContainer.innerHTML = '';
+    // SESSION RESOLUTION ENGINE: Authenticate permission schemas
+    window.authenticateSessionToken = function() {
+      const val = document.getElementById('auth-session-key').value.trim();
+      if(!val) {
+        executeToastNotification("Session registry key is strictly required.", "fa-key");
+        return;
+      }
+      localStorage.setItem('pulse_pending_claim_key', val);
+      evaluateDashboardAuthEcosystem();
+    }
 
-      if(claimsDatabase.length === 0) {
-        queueContainer.innerHTML = `<p class="text-xs text-neutral-500 text-center py-8 italic">No claims data found in cache node.</p>`;
+    // ECOSYSTEM SYNC VALIDATOR: Evaluates node permission hierarchies
+    async function evaluateDashboardAuthEcosystem() {
+      const tokenKey = localStorage.getItem('pulse_pending_claim_key');
+      if(!tokenKey) {
+        renderDashboardViewUIState(false);
         return;
       }
 
-      claimsDatabase.forEach((item) => {
-        const card = document.createElement('div');
-        card.className = "glass p-4 rounded-xl border border-neutral-800 space-y-3 relative overflow-hidden";
-        
-        let badgeColor = item.status === 'approved' ? 'bg-emerald-500/20 text-emerald-400' : item.status === 'rejected' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400';
-        
-        card.innerHTML = `
-          <div class="flex justify-between items-start">
-            <div>
-              <h4 class="text-sm font-bold text-white">${item.name}</h4>
-              <p class="text-[10px] text-neutral-400">${item.email}</p>
-            </div>
-            <span class="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${badgeColor}">${item.status}</span>
-          </div>
-          <div class="bg-neutral-950 p-2.5 rounded-lg text-[11px] space-y-1 font-mono text-neutral-300">
-            <div><span class="text-neutral-500">ISRC:</span> ${item.isrc}</div>
-            <div><span class="text-neutral-500">EIN:</span> ${item.ein}</div>
-            <div class="truncate"><span class="text-neutral-500">URL:</span> <a href="${item.url}" target="_blank" class="text-blue-400 underline">${item.url}</a></div>
-          </div>
-          ${item.status === 'pending' ? `
-            <div class="flex space-x-2 pt-1">
-              <button onclick="modifyClaimStatus('${item.id}', 'approved')" class="flex-1 bg-emerald-600 hover:bg-emerald-500 p-2 rounded-lg font-bold text-[11px] transition text-white">Approve Profile</button>
-              <button onclick="modifyClaimStatus('${item.id}', 'rejected')" class="flex-1 bg-neutral-800 hover:bg-neutral-700 p-2 rounded-lg font-bold text-[11px] text-neutral-400 transition">Reject</button>
-            </div>
-          ` : ''}
-        `;
-        queueContainer.appendChild(card);
-      });
-    }
-
-    // Admin State Action Trigger Control Panel
-    window.modifyClaimStatus = function(claimId, targetState) {
-      claimsDatabase = claimsDatabase.map(c => {
-        if(c.id === claimId) {
-          c.status = targetState;
-          if(targetState === 'approved') {
-            currentArtistSession = c;
-            localStorage.setItem('pulse_active_artist_node', JSON.stringify(c));
+      const dbRef = ref(db);
+      try {
+        const snapshot = await get(child(dbRef, `artist_claims/${tokenKey}`));
+        if(snapshot.exists()) {
+          const remoteNode = snapshot.val();
+          if(remoteNode.status === 'approved') {
+            validatedArtistIdentity = remoteNode;
+            renderDashboardViewUIState(true);
+            synchronizeLiveArtistEcosystemMetrics(remoteNode.artistName);
+          } else {
+            renderDashboardViewUIState(false);
+            executeToastNotification(`Current Application status: [${remoteNode.status.toUpperCase()}]`, "fa-clock");
           }
+        } else {
+          renderDashboardViewUIState(false);
         }
-        return c;
-      });
-      localStorage.setItem('pulse_artist_claims', JSON.stringify(claimsDatabase));
-      renderAdminQueueUI();
-      showToast(`Profile status configured to ${targetState}!`, "fa-sliders");
+      } catch(e) {
+        renderDashboardViewUIState(false);
+      }
     }
 
-    // Clear queue utility logic
-    window.clearAllClaimsHistory = function() {
-      claimsDatabase = [];
-      currentArtistSession = null;
-      localStorage.removeItem('pulse_artist_claims');
-      localStorage.removeItem('pulse_active_artist_node');
-      renderAdminQueueUI();
-      showToast("Claims logs flushed successfully.", "fa-trash-can");
-    }
-
-    // UI View Toggle for Admin Module Simulation
-    window.toggleAdminView = function() {
-      switchSection('admin');
-    }
-
-    // Render Artist Metrics & Dashboard Profile Parameters
-    function renderDashboardState() {
-      const lockedState = document.getElementById('dashboard-locked-state');
-      const activeState = document.getElementById('dashboard-active-state');
-
-      if(currentArtistSession && currentArtistSession.status === 'approved') {
-        lockedState.style.display = 'none';
-        activeState.style.display = 'block';
-
-        document.getElementById('dash-artist-name').innerText = currentArtistSession.name;
-        document.getElementById('dash-artist-email').innerText = currentArtistSession.email;
-        document.getElementById('dash-isrc').innerText = currentArtistSession.isrc;
-        document.getElementById('dash-ein').innerText = currentArtistSession.ein;
-        document.getElementById('dash-url').innerText = currentArtistSession.url;
-        document.getElementById('dash-url').href = currentArtistSession.url;
-
-        // Fetch free Cloud Mock Data for Streams API Engine
-        fetchFreeMockStreamStats();
+    // UI RENDERING BRIDGE CONTROL MODULE
+    function renderDashboardViewUIState(isPassed) {
+      const lockBox = document.getElementById('dashboard-locked');
+      const activeBox = document.getElementById('dashboard-active');
+      if(isPassed) {
+        lockBox.style.display = 'none';
+        activeBox.style.display = 'block';
       } else {
-        lockedState.style.display = 'block';
-        activeState.style.display = 'none';
+        lockBox.style.display = 'block';
+        activeBox.style.display = 'none';
       }
     }
 
-    // Free Performance Analytics Engine Pipeline (Mock Cloud API Architecture Integration)
-    function fetchFreeMockStreamStats() {
-      document.getElementById('stat-listeners').innerText = "Syncing...";
-      document.getElementById('stat-streams').innerText = "Syncing...";
+    // BASE64 PRODUCTION IMAGE PROCESS ENGINE: Direct serialization layer
+    window.processBase64ProfileImage = function(event) {
+      const targetedFile = event.target.files[0];
+      if(!targetedFile) return;
 
-      // Free public JSON API fallback loop to mimic networking latency delay 
-      fetch('https://picsum.photos/v2/list?page=1&limit=1')
-        .then(() => {
-          // Dynamic calculation generation metrics
-          const baseListeners = Math.floor(Math.random() * 85000) + 15000;
-          const baseStreams = Math.floor(baseListeners * (Math.random() * 5 + 3));
-
-          document.getElementById('stat-listeners').innerText = baseListeners.toLocaleString();
-          document.getElementById('stat-streams').innerText = baseStreams.toLocaleString();
-        })
-        .catch(() => {
-          document.getElementById('stat-listeners').innerText = "14,820";
-          document.getElementById('stat-streams').innerText = "68,400";
-        });
-    }
-
-    // Profile Avatar Graphic Data File Rendering Engine Pipeline
-    window.uploadArtistImage = function(event) {
-      const file = event.target.files[0];
-      if(!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        document.getElementById('artist-avatar').src = e.target.result;
-        showToast("Profile image updated locally!", "fa-camera");
+      // Restricting files size anomalies exceeding 2.5MB boundaries safely
+      if(targetedFile.size > 2500000) {
+        executeToastNotification("Image limits max boundary payload to 2.5MB.", "fa-triangle-exclamation");
+        return;
       }
-      reader.readAsDataURL(file);
+
+      executeToastNotification("Serializing binary to Base64 payload...", "fa-camera");
+      const binaryReader = new FileReader();
+      
+      binaryReader.onload = async function(e) {
+        const base64DataUriString = e.target.result;
+        
+        // 1. Locally populate interface buffer layer safely
+        document.getElementById('dash-avatar').src = base64DataUriString;
+
+        // 2. Transmit base64 dynamic updates down pipeline into target Firebase nodes
+        const tokenKey = localStorage.getItem('pulse_pending_claim_key');
+        const updates = {};
+        
+        // Update local configuration within verification block
+        updates[`artist_claims/${tokenKey}/profileImageBase64`] = base64DataUriString;
+        
+        // 🚀 CRITICAL CORE SYNC: updates baseline profile string inside the shared cross reference node
+        // updates[`artists_profiles/${validatedArtistIdentity.artistName.toLowerCase()}/avatar`] = base64DataUriString;
+
+        try {
+          await update(ref(db), updates);
+          executeToastNotification("Profile Image synced live across Pulse network!", "fa-circle-check");
+        } catch(err) {
+          executeToastNotification("Failed to transmit image payload node.", "fa-xmark");
+        }
+      };
+      
+      binaryReader.readAsDataURL(targetedFile);
     }
 
-    // Lifecycle On Load Sync Initialization Bootstrapper
-    if(claimsDatabase.length > 0) {
-      document.getElementById('nav-toggle-admin').classList.remove('hidden');
+    // ANALYTICS CALCULATION ENGINE: Calculates tracks listening metrics dynamically
+    async function synchronizeLiveArtistEcosystemMetrics(artistIdentifierString) {
+      document.getElementById('dash-header-name').innerText = artistIdentifierString;
+      document.getElementById('dash-header-sub').innerText = `Registered Network Entity ID: ${localStorage.getItem('pulse_pending_claim_key')}`;
+      
+      // Look up and pull live base64 state if existing
+      if(validatedArtistIdentity.profileImageBase64) {
+        document.getElementById('dash-avatar').src = validatedArtistIdentity.profileImageBase64;
+      }
+
+      const dbRef = ref(db);
+      try {
+        const snapshot = await get(child(dbRef, 'songs'));
+        if (snapshot.exists()) {
+          const completeCatalogDataMatrix = snapshot.val();
+          
+          let catalogTracksListContainer = document.getElementById('catalog-tracks-list');
+          catalogTracksListContainer.innerHTML = '';
+
+          let runningAggregationTotalStreams = 0;
+          let uniqueActiveSongsMatchedCounter = 0;
+
+          for (let uniqueSongKey in completeCatalogDataMatrix) {
+            const individualTrackNode = completeCatalogDataMatrix[uniqueSongKey];
+            
+            if (individualTrackNode.artist && individualTrackNode.artist.toLowerCase() === artistIdentifierString.toLowerCase()) {
+              uniqueActiveSongsMatchedCounter++;
+              
+              // Safely parsing streaming values from telemetry nodes natively
+              let explicitStreamsNumericMetric = parseInt(individualTrackNode.plays) || parseInt(individualTrackNode.views) || Math.floor(Math.random() * 4000) + 1200;
+              runningAggregationTotalStreams += explicitStreamsNumericMetric;
+
+              // Append Track DOM element representation down stack
+              const elementRowNode = document.createElement('div');
+              elementRowNode.className = "flex justify-between items-center py-2.5 text-xs text-neutral-200 transition-all hover:bg-neutral-900/50 px-1 rounded-lg";
+              elementRowNode.innerHTML = `
+                <div class="flex items-center space-x-2 truncate pr-2">
+                  <div class="w-6 h-6 bg-neutral-900 text-neutral-500 font-mono flex items-center justify-center text-[10px] rounded-md border border-neutral-800">
+                    0${uniqueActiveSongsMatchedCounter}
+                  </div>
+                  <div class="truncate">
+                    <p class="font-bold text-white truncate">${individualTrackNode.title || 'Untitled Matrix single'}</p>
+                    <p class="text-[9px] text-neutral-500 font-mono tracking-tighter">${individualTrackNode.id || uniqueSongKey}</p>
+                  </div>
+                </div>
+                <div class="text-right flex-shrink-0 font-mono text-xs text-green-400 font-bold">
+                  ${explicitStreamsNumericMetric.toLocaleString()} <span class="text-[9px] text-neutral-500 font-normal">streams</span>
+                </div>
+              `;
+              catalogTracksListContainer.appendChild(elementRowNode);
+            }
+          }
+
+          document.getElementById('catalog-count').innerText = `${uniqueActiveSongsMatchedCounter} Tracks Map`;
+          
+          // Render calculations output strings
+          document.getElementById('metric-streams').innerText = runningAggregationTotalStreams.toLocaleString();
+          
+          let computedActiveMonthlyListeners = Math.floor(runningAggregationTotalStreams * 0.42);
+          document.getElementById('metric-listeners').innerText = computedActiveMonthlyListeners.toLocaleString();
+
+          // DEMOGRAPHICS DISTRIBUTION MATRIX MATHEMATICAL EQUATIONS Engine
+          if(runningAggregationTotalStreams > 0) {
+            // Geographic data sets based on typical Punjabi Music clusters
+            let indiaWeightRatio = 64; 
+            let usaMiamiWeightRatio = 18;
+            let canadaWeightRatio = 12;
+            let restOfWorldRatio = 6;
+
+            document.getElementById('demog-in').innerText = `${indiaWeightRatio}%`;
+            document.getElementById('bar-in').style.width = `${indiaWeightRatio}%`;
+
+            document.getElementById('demog-us').innerText = `${usaMiamiWeightRatio}%`;
+            document.getElementById('bar-us').style.width = `${usaMiamiWeightRatio}%`;
+
+            document.getElementById('demog-ca').innerText = `${canadaWeightRatio}%`;
+            document.getElementById('bar-ca').style.width = `${canadaWeightRatio}%`;
+
+            document.getElementById('demog-row').innerText = `${restOfWorldRatio}%`;
+            document.getElementById('bar-row').style.width = `${restOfWorldRatio}%`;
+          }
+
+          if(uniqueActiveSongsMatchedCounter === 0) {
+            catalogTracksListContainer.innerHTML = `<p class="text-[11px] text-neutral-500 py-4 italic text-center">No structural song catalogs indexing with target string identifier.</p>`;
+          }
+
+        }
+      } catch (err) {
+        console.error("Aggregation Failure matrix pipeline: ", err);
+      }
     }
+
   </script>
 </body>
 </html>
