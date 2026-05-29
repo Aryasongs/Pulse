@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dozera Pass Generator</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+</head>
+<body class="bg-slate-900 text-white min-h-screen font-sans">
+
+    <div class="container mx-auto px-4 py-8 max-w-xl">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold text-amber-500 tracking-wide">DOZERA PASS PORTAL</h1>
+            <p class="text-slate-400 mt-2">Enter your details to generate your exclusive Dozera Passes</p>
+        </div>
+
+        <div class="bg-slate-800 p-6 rounded-2xl shadow-xl border border-slate-700 mb-8">
+            <form id="passForm" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
+                    <input type="text" id="fullName" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Age</label>
+                        <input type="number" id="age" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-1">Date of Birth</label>
+                        <input type="date" id="dob" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Email ID</label>
+                    <input type="email" id="email" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">PAN Number</label>
+                    <input type="text" id="pan" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500 uppercase">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-slate-300 mb-1">Father's Name</label>
+                    <input type="text" id="fatherName" required class="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-amber-500">
+                </div>
+
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 px-4 rounded-lg transition duration-200 mt-4">
+                    Generate Pass
+                </button>
+            </form>
+        </div>
+
+        <div id="resultSection" class="hidden space-y-6">
+            
+            <div id="pointsCard" class="hidden bg-gradient-to-r from-amber-500 to-yellow-600 p-6 rounded-2xl shadow-lg text-slate-950 text-center">
+                <h3 class="text-xl font-black tracking-wider">CONGRATULATIONS!</h3>
+                <p class="font-medium mt-1">You received 300 Bonus Points</p>
+                <div class="mt-3 bg-slate-900 text-amber-400 font-mono text-xl py-2 px-4 rounded-lg inline-block font-bold tracking-widest" id="redeemCodeBox">
+                    </div>
+                <p class="text-xs text-slate-800 mt-2 font-semibold">*Valid only on Dozera Services</p>
+            </div>
+
+            <div id="passesContainer" class="space-y-6">
+                </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+
+        // Form Submit Handler
+        document.getElementById('passForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            // Getting Values
+            const name = document.getElementById('fullName').value.trim();
+            const age = document.getElementById('age').value;
+            const dobInput = document.getElementById('dob').value; // format: YYYY-MM-DD
+            const email = document.getElementById('email').value.trim();
+            const pan = document.getElementById('pan').value.trim().toUpperCase();
+            const fatherName = document.getElementById('fatherName').value.trim();
+
+            // Format Date to DD/MM/YYYY for checking
+            const dateObj = new Date(dobInput);
+            const day = String(dateObj.getDate()).padStart(2, '0');
+            const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+            const year = dateObj.getFullYear();
+            const formattedDOB = `${day}/${month}/${year}`;
+
+            // Save Data to Firebase Realtime Database
+            push(ref(database, 'users/'), {
+                name, age, dob: formattedDOB, email, pan, fatherName, timestamp: Date.now()
+            });
+
+            // Special User Criteria Check
+            const isSpecialUser = (
+                name.toLowerCase() === "anmol sunda" &&
+                email.toLowerCase() === "mamtasundas123@gmail.com" &&
+                formattedDOB === "26/11/2006" &&
+                pan === "NREPS0699B" &&
+                fatherName.toLowerCase() === "kewal ram"
+            );
+
+            // UI Elements Update
+            const resultSection = document.getElementById('resultSection');
+            const pointsCard = document.getElementById('pointsCard');
+            const passesContainer = document.getElementById('passesContainer');
+            
+            resultSection.classList.remove('hidden');
+            passesContainer.innerHTML = ''; // Reset passes
+            pointsCard.classList.add('hidden');
+
+            if (isSpecialUser) {
+                // 1. Show Points and Generate Redeem Code
+                pointsCard.classList.remove('hidden');
+                const uniqueRedeemCode = "DOZERA-" + Math.random().toString(36).substr(2, 6).toUpperCase();
+                document.getElementById('redeemCodeBox').innerText = uniqueRedeemCode;
+
+                // 2. Generate Pass 1: DePaul Professional Free Admission
+                const pass1Html = createPassHtml(
+                    "FREE ADMISSION PASS", 
+                    "DePaul Professional", 
+                    name, 
+                    "Dozera International", 
+                    "border-emerald-500", "from-slate-800 to-emerald-950", "text-emerald-400", "DZINT-109"
+                );
+                
+                // 3. Generate Pass 2: Granger Hotel Lifetime Free Stay
+                const pass2Html = createPassHtml(
+                    "LIFETIME FREE STAY", 
+                    "Granger Hotel", 
+                    name, 
+                    "Dozera Hotels & Resorts", 
+                    "border-cyan-500", "from-slate-800 to-cyan-950", "text-cyan-400", "DZHTL-777"
+                );
+
+                passesContainer.innerHTML = pass1Html + pass2Html;
+
+                // Trigger Barcode Generation
+                JsBarcode("#barcode-DZINT-109", "DZINT-109", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#10b981" });
+                JsBarcode("#barcode-DZHTL-777", "DZHTL-777", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#06b6d4" });
+
+            } else {
+                // Standard Normal Pass for other users
+                const standardPassHtml = createPassHtml(
+                    "STANDARD ACCESS PASS", 
+                    "General Admission", 
+                    name, 
+                    "Dozera Corporate", 
+                    "border-amber-500", "from-slate-800 to-slate-900", "text-amber-500", "DZSTD-001"
+                );
+                passesContainer.innerHTML = standardPassHtml;
+                JsBarcode("#barcode-DZSTD-001", "DZSTD-001", { format: "CODE128", width: 1.5, height: 40, displayValue: false, lineColor: "#f59e0b" });
+            }
+
+            // Scroll down to results smoothly
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        });
+
+        // Helper function to render a pass card HTML
+        function createPassHtml(title, facility, userName, authority, borderCol, bgGrad, textCol, barcodeId) {
+            return `
+                <div class="border-2 ${borderCol} bg-gradient-to-br ${bgGrad} rounded-2xl p-6 shadow-2xl relative overflow-hidden transition transform hover:scale-102">
+                    <div class="absolute -right-8 -top-8 w-24 h-24 bg-white/5 rounded-full blur-xl"></div>
+                    
+                    <div class="flex justify-between items-start border-b border-white/10 pb-3 mb-4">
+                        <div>
+                            <span class="text-xs font-bold tracking-widest uppercase opacity-60">DOZERA EXCLUSIVE</span>
+                            <h4 class="text-lg font-black ${textCol}">${title}</h4>
+                        </div>
+                        <span class="text-xs font-mono font-bold bg-white/10 px-2 py-1 rounded text-slate-300">${facility}</span>
+                    </div>
+
+                    <div class="space-y-3 font-sans">
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Holder Name</p>
+                            <p class="text-lg font-bold text-white tracking-wide">${userName}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Issued By</p>
+                            <p class="text-sm font-medium text-slate-200">${authority}</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 pt-4 border-t border-white/5 flex flex-col items-center justify-center bg-white/5 rounded-xl p-3">
+                        <svg id="barcode-${barcodeId}"></svg>
+                        <span class="text-[10px] font-mono text-slate-400 mt-1 tracking-widest">${barcodeId}</span>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
