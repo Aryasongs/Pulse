@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pulse - Admin Music Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-neutral-950 text-white font-sans min-h-screen flex items-center justify-center p-4">
+
+  <div class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl space-y-6">
+    
+    <!-- Header -->
+    <div class="text-center">
+      <div class="bg-gradient-to-r from-pink-500 to-red-500 w-12 h-12 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-3">
+        <i class="fa-solid fa-sliders text-xl text-white"></i>
+      </div>
+      <h1 class="text-xl font-bold tracking-tight">Pulse Song Control</h1>
+      <p class="text-neutral-400 text-xs mt-0.5">Upload new tracks to your main music app</p>
+    </div>
+
+    <!-- Status Toast Box -->
+    <div id="status-msg" class="hidden p-3 rounded-xl text-xs font-medium text-center"></div>
+
+    <!-- Form -->
+    <div class="space-y-4">
+      <div>
+        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1.5 ml-1">Song Title</label>
+        <input type="text" id="song-title" placeholder="e.g., Legend" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+      </div>
+
+      <div>
+        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1.5 ml-1">Artist Name</label>
+        <input type="text" id="song-artist" placeholder="e.g., Sidhu Moose Wala" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+      </div>
+
+      <div>
+        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1.5 ml-1">MP3 Audio Link (URL)</label>
+        <input type="url" id="song-src" placeholder="https://domain.com/song.mp3" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+      </div>
+
+      <div>
+        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1.5 ml-1">Cover Art Image (URL)</label>
+        <input type="url" id="song-cover" placeholder="https://domain.com/image.jpg" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-[11px] text-neutral-400 font-semibold uppercase tracking-wider block mb-1.5 ml-1">Duration</label>
+          <input type="text" id="song-duration" placeholder="3:30" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+        </div>
+        <div>
+          <label class="text-[11px] text-neutral-400 font-semibold uppercase tracking-wider block mb-1.5 ml-1">Tags (Comma separated)</label>
+          <input type="text" id="song-tags" placeholder="punjabi, hiphop" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+        </div>
+      </div>
+
+      <button id="btn-submit-song" class="w-full bg-gradient-to-r from-pink-500 to-red-500 p-3.5 rounded-xl font-bold text-sm text-white shadow-lg active:scale-95 transition mt-2 flex items-center justify-center space-x-2">
+        <i class="fa-solid fa-cloud-arrow-up"></i>
+        <span>Publish Song Live</span>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- Firebase Script Integration -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, push, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // Aapke original code se sync kiya hua config
+    const firebaseConfig = {
+      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+      authDomain: "pulse2-92372.firebaseapp.com",
+      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+      projectId: "pulse2-92372",
+      storageBucket: "pulse2-92372.firebasestorage.app",
+      messagingSenderId: "276235725177",
+      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const msgBox = document.getElementById('status-msg');
+    
+    function showStatus(text, isError = false) {
+      msgBox.innerText = text;
+      msgBox.className = `p-3 rounded-xl text-xs font-medium text-center block ${isError ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`;
+      setTimeout(() => msgBox.classList.add('hidden'), 4000);
+    }
+
+    document.getElementById('btn-submit-song').addEventListener('click', () => {
+      const title = document.getElementById('song-title').value.trim();
+      const artist = document.getElementById('song-artist').value.trim();
+      const src = document.getElementById('song-src').value.trim();
+      const cover = document.getElementById('song-cover').value.trim();
+      const duration = document.getElementById('song-duration').value.trim() || "3:00";
+      const tagsRaw = document.getElementById('song-tags').value.trim();
+
+      if(!title || !artist || !src || !cover) {
+        return showStatus("MANDATORY: Title, Artist, MP3 Link, and Cover Image are required!", true);
+      }
+
+      // Tags ko array me convert karne ke liye
+      const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim().toLowerCase()) : ["music"];
+      const songId = "s_" + Date.now();
+
+      const newSongPayload = {
+        id: songId,
+        title: title,
+        artist: artist,
+        src: src,
+        cover: cover,
+        duration: duration,
+        tags: tags
+      };
+
+      // Database me 'global_songs' node ke andar push karna
+      const songsRef = ref(db, 'global_songs/' + songId);
+      
+      set(songsRef, newSongPayload)
+        .then(() => {
+          showStatus("Boom! Song uploaded and synced live with the main website.");
+          // Form clear karne ke liye
+          document.getElementById('song-title').value = '';
+          document.getElementById('song-artist').value = '';
+          document.getElementById('song-src').value = '';
+          document.getElementById('song-cover').value = '';
+          document.getElementById('song-tags').value = '';
+          document.getElementById('song-duration').value = '';
+        })
+        .catch((error) => {
+          showStatus("Database Error: " + error.message, true);
+        });
+    });
+  </script>
+</body>
+</html>
