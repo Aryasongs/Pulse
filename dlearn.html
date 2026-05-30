@@ -8,9 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
     <style>
         body { font-family: 'Roboto', sans-serif; background-color: #111214; }
         h1, h2, h3, h4, .google-font { font-family: 'Google Sans', sans-serif; }
@@ -35,11 +32,11 @@
                 <p class="text-gray-400 text-sm mt-2" id="auth-subtitle">Sign in to start your 40-Day Mastery Journey</p>
             </div>
             <div class="flex border-b google-border mb-6">
-                <button id="tab-login" type="button" class="w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font" onclick="switchAuthTab('login')">Sign in</button>
-                <button id="tab-signup" type="button" class="w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font" onclick="switchAuthTab('signup')">Create account</button>
+                <button id="tab-login" type="button" class="w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font">Sign in</button>
+                <button id="tab-signup" type="button" class="w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font">Create account</button>
             </div>
             
-            <form id="auth-form" onsubmit="handleAuth(event)">
+            <form id="auth-form">
                 <div class="mb-4">
                     <label class="block text-xs font-medium text-gray-300 mb-2 google-font">Email address</label>
                     <input type="email" id="auth-email" required class="w-full p-3 rounded-lg bg-[#111214] border google-border focus:outline-none focus:border-blue-400 text-white">
@@ -58,8 +55,8 @@
         <nav class="google-dark-bg border-b google-border px-6 py-3.5 flex flex-wrap justify-between items-center shadow-sm">
             <span class="text-xl font-medium text-white tracking-tight google-font">Dozera <span class="text-gray-400 font-normal">for Mobile Engineers</span></span>
             <div class="flex items-center space-x-6">
-                <span id="user-display" class="text-gray-300 text-sm">Loading profile...</span>
-                <button onclick="logout()" class="text-xs font-medium text-gray-400 border google-border hover:bg-[#3c4043]/30 px-3 py-1.5 rounded-md transition google-font">Sign out</button>
+                <span id="user-display" class="text-gray-300 text-sm">Processing identity...</span>
+                <button id="logout-btn" class="text-xs font-medium text-gray-400 border google-border hover:bg-[#3c4043]/30 px-3 py-1.5 rounded-md transition google-font">Sign out</button>
             </div>
         </nav>
 
@@ -97,7 +94,7 @@
                         <div class="flex justify-between items-start border-b google-border pb-4 mb-4">
                             <div>
                                 <span id="classroom-day-tag" class="text-xs font-medium bg-[#3c4043]/50 text-gray-300 px-3 py-1 rounded-full google-font">Day XX</span>
-                                <h2 id="classroom-title" class="text-2xl font-bold text-white mt-3 google-font">Select a module to reveal enterprise training codebases</h2>
+                                <h2 id="classroom-title" class="text-2xl font-bold text-white mt-3 google-font">Select a module from the roadmap to study</h2>
                             </div>
                             <div class="text-right bg-[#111214] px-4 py-2 rounded-xl border google-border">
                                 <span class="block text-[10px] font-medium tracking-wider text-gray-400 uppercase google-font">Required Focus</span>
@@ -106,13 +103,13 @@
                         </div>
 
                         <div id="classroom-body" class="text-gray-300 space-y-4 text-sm max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
-                            <p class="text-gray-400 italic">Please select an active unlocked roadmap tier to process advanced structural code frameworks and deployment workflows.</p>
+                            <p class="text-gray-400 italic">Please select an unlocked roadmap milestone step from the sidebar tracking grid to populate technical curriculum variables.</p>
                         </div>
                     </div>
 
                     <div class="mt-6 pt-4 border-t google-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                         <p id="lock-reason" class="text-xs text-amber-300 font-normal max-w-md"></p>
-                        <button id="complete-day-btn" disabled onclick="submitDayCompletion()" class="bg-[#28292e] border google-border text-gray-500 font-medium py-1.5 px-5 rounded-full transition text-sm google-font whitespace-nowrap">
+                        <button id="complete-day-btn" disabled class="bg-[#28292e] border google-border text-gray-500 font-medium py-1.5 px-5 rounded-full transition text-sm google-font whitespace-nowrap">
                             Locked Block
                         </button>
                     </div>
@@ -121,8 +118,13 @@
         </div>
     </div>
 
-    <script>
-        // --- FIREBASE CONFIGURATION ---
+    <script type="module">
+        // Importing standard v10 dynamic core libraries out of verified unpkg mirrors
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getDatabase, ref, set, update, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // Exact Project Credentials Configuration Registry
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -132,14 +134,13 @@
             messagingSenderId: "276235725177",
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
-        
-        // Safe Initialization Block
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const auth = firebase.auth();
-        const db = firebase.database();
 
+        // Execution Instantiations
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        // Core App Reactive Variables State Mapping
         let authMode = 'login';
         let currentUser = null;
         let userDataProgress = { currentDayUnlocked: 1, lastCompletedTimestamp: 0 };
@@ -148,7 +149,7 @@
         let timeRemainingSeconds = 3600; 
         let activeTimerDay = null;
 
-        // --- 10 DYNAMIC FREE PUBLIC API HANDLERS ---
+        // --- 10 FREE PUBLIC API MONITOR CONTROLLERS ---
         async function runControlTowerAPIs() {
             const apiEndpoints = [
                 { id: 'api-1', url: 'https://api.zippopotam.us/us/90210', selector: d => `ZIP: ${d.country || 'US'}` },
@@ -168,214 +169,130 @@
                     const r = await fetch(endpoint.url);
                     if(r.ok) {
                         const data = await r.json();
-                        document.getElementById(endpoint.id).innerText = endpoint.selector(data);
-                    } else { document.getElementById(endpoint.id).innerText = "Active"; }
-                } catch(e) { document.getElementById(endpoint.id).innerText = "Standard Pack"; }
+                        const textNode = document.getElementById(endpoint.id);
+                        if(textNode) textNode.innerText = endpoint.selector(data);
+                    }
+                } catch(e) { console.warn("Dynamic API Node Handshake Paused safely."); }
             });
         }
 
-        // --- MASTER HYPER-EXPANDED COURSE DATA ---
+        // --- 40 DAY EXTENSIVE SYLLABUS DEFINITION ---
         const courseData = {
             1: { 
                 title: "Production Installation & Low-Level SDK Lifecycle Tooling", 
                 desc: "Deep-dive into configuration vectors, underlying compilers, and virtualization engines.",
                 video: "https://www.youtube.com/embed/Z98hXV9GmzY",
-                core: `
-                    <h3 class="text-md font-bold text-blue-300 mb-2">1. System Architecture and Sandboxing Mechanics</h3>
-                    <p class="mb-3">Developing software inside Android Studio demands processing deep JVM compilation pathways. The entire operating system sits on a customized Linux Kernel architecture layer where each installed package runs securely within its own isolated Process Virtual Machine sandboxed space. Every single application runs as a distinct Linux user ID, restricting file system modifications and securing runtime operations natively.</p>
-                    
-                    <h3 class="text-md font-bold text-blue-300 mb-2">2. Compilation Path and Bytecode Evolution</h3>
-                    <p class="mb-3">When you press 'Build', the system handles a highly complex multi-stage resource compilation loop. Java or Kotlin source code files are initially evaluated and structural optimization vectors compile them down into standard Java bytecode `.class` format. Following this step, the modern **D8/R8 compiler toolchain** translates these `.class` target arrays into a highly compressed format known as Dalvik Executable code contained within `.dex` files.</p>
-                    <div class="bg-[#111214] p-4 rounded-lg border google-border font-mono text-xs my-3 text-emerald-400 leading-relaxed">
-                        # Complete Environment Verification Variables inside Shell Profiles<br>
-                        export ANDROID_HOME=$HOME/Library/Android/sdk<br>
-                        export PATH=$PATH:$ANDROID_HOME/emulator<br>
-                        export PATH=$PATH:$ANDROID_HOME/tools/bin<br>
-                        export PATH=$PATH:$ANDROID_HOME/platform-tools
-                    </div>
-                `,
-                tasks: "Download and deploy Android Studio branches. Manually declare system-wide environment variables matching path schemas above. Configure an Android Virtual Device (AVD) using an x86_64 architecture image tracking Google API level 34."
+                core: `<h3 class="text-md font-bold text-blue-300 mb-2">1. System Architecture and Sandboxing Mechanics</h3><p class="mb-3">Developing software inside Android Studio demands processing deep JVM compilation pathways. The entire operating system sits on a customized Linux Kernel architecture layer where each installed package runs securely within its own isolated sandboxed space.</p>`,
+                tasks: "Download and deploy Android Studio. Manually declare system-wide environment variables matching Android SDK location paths."
             },
             2: { 
                 title: "IDE Process Core & Compilation Thread Workspaces", 
                 desc: "Decoding internal memory allocation footprints and tracking complex structural layouts.",
                 video: "https://www.youtube.com/embed/EOfCEhWq8sg",
-                core: `
-                    <h3 class="text-md font-bold text-blue-300 mb-2">1. Deep Workspace Panels & Resource Monitors</h3>
-                    <p class="mb-3">Android Studio handles active structural asset changes by keeping background file system indexing processes running. The primary workspace divides complex panels: Project Window tree hierarchies, real-time code editor structures, the interactive Logcat execution pipeline, Device Manager nodes, and deep Layout Validation environments.</p>
-                `,
-                tasks: "Access the global JVM options workspace through 'Help -> Edit Custom VM Options'. Scale configuration targets safely up to 4096MB."
-            },
-            3: { 
-                title: "Advanced Manifest Schemes & Root Gradle Core Systems", 
-                desc: "Deconstructing programmatic dependency resolution graphs and processing security manifests.",
-                video: "https://www.youtube.com/embed/70Z8_YgExG4",
-                core: `
-                    <h3 class="text-md font-bold text-blue-300 mb-2">1. The Mechanics of Gradle Build Lifecycle</h3>
-                    <p class="mb-3">Gradle functions as a highly programmable, multi-tiered build system executing specific DAG (Directed Acyclic Graph) architectures. The initialization lifecycle cycles cleanly across three operational phases: Initialization, Configuration, and Execution.</p>
-                `,
-                tasks: "Analyze structural differences inside structural build scripts. Declare specialized app permissions and protect app-entry hooks inside manifest environments."
-            },
-            4: {
-                title: "Res Resource Resolution Trees & Source Class Directories",
-                desc: "Parsing resource indexing tables, asset pipelines, and multi-resolution configurations.",
-                video: "https://www.youtube.com/embed/PHeM9gD8mQw",
-                core: `
-                    <h3 class="text-md font-bold text-blue-300 mb-2">1. Deep R.java Table Resolution Matrices</h3>
-                    <p class="mb-3">Every element saved into asset resource locations gets assigned an explicit 32-bit integer system index key during build processes. During layout generation, the AAPT2 compiler tracks resource resolution structures across string translation arrays, custom color values, asset catalogs, and alternate layout sizes.</p>
-                `,
-                tasks: "Build high-density localized string sheets. Map different graphical configuration files across discrete qualifier subdirectories inside project resources."
-            },
-            5: {
-                title: "View Tree Hierarchies & Complex XML UI Inflation Frameworks",
-                desc: "Dissecting layout inflation pipelines and optimizing user rendering lifecycles.",
-                video: "https://www.youtube.com/embed/V67wL6vE8f0",
-                core: `
-                    <h3 class="text-md font-bold text-blue-300 mb-2">1. Understanding the Inflation Engine Pipeline</h3>
-                    <p class="mb-3">When an activity starts, an optimization process called XML inflation runs. The system reads layout files sequentially, instantiates complex visual objects via structural Java reflection calls, and structures them into hierarchical view trees managed by the Window Manager service layer.</p>
-                `,
-                tasks: "Draft complete XML view structures manually. Trace rendering measurements and isolate redundant nesting layers across component scopes."
-            },
-            6: { 
-                title: "Advanced ConstraintLayout Anchoring Matrices", 
-                desc: "Guidelines, bias limits, barriers, and scalable flow layouts.", 
-                video: "https://www.youtube.com/embed/XasB7hVp2vU", 
-                core: "<h3 class='text-md font-bold text-blue-300 mb-2'>1. Complex Coordinate Constraint Anchoring</h3><p>ConstraintLayout solves structural sizing puzzles by calculating positioning formulas at runtime. You will learn to use horizontal chains, vertical barrier systems, and percentage-based sizing dimensions to build responsive layouts.</p>", 
-                tasks: "Assemble a multi-widget complex login workspace wireframe. Lock all elements using relative constraint guides, fluid dynamic text tracking ranges, and responsive asset grids." 
-            },
-            7: { 
-                title: "View Binding Optimization & Memory Management", 
-                desc: "Replacing view lookup routines with type-safe reference wrappers.", 
-                video: "https://www.youtube.com/embed/w8K9S-6wDkw", 
-                core: "<h3 class='text-md font-bold text-blue-300 mb-2'>1. Type-Safe View Reference Architectures</h3><p>View Binding generates structured wrapper objects that map direct, type-safe references to layout views. This eliminates null pointer runtime exceptions and compile-time layout definition mismatches across UI scopes.</p>", 
-                tasks: "Activate core View Binding pipelines inside your Gradle build files. Refactor standard layouts to utilize auto-generated binding class structures." 
-            },
-            8: { 
-                title: "Activity Component Lifecycles & State Management", 
-                desc: "Tracking runtime operational loops from initialization to teardown.", 
-                video: "https://www.youtube.com/embed/jZ_or8bE8Ok", 
-                core: "<h3 class='text-md font-bold text-blue-300 mb-2'>1. Lifecycle Execution Deep-Dive</h3><p>Activities track state transitions through specific callback checkpoints. You will learn to manage application memory states, save transient UI states across system configurations, and prevent background thread memory leaks.</p>", 
-                tasks: "Override and log every activity lifecycle state callback. Implement robust state persistence logic using saved instance bundles." 
+                core: `<h3 class="text-md font-bold text-blue-300 mb-2">1. Memory Management Configurations</h3><p class="mb-3">Large app codebases can overwhelm standard IDE processes. You must optimize the studio configuration file adjustments to prevent runtime crashes during background compilation tasks.</p>`,
+                tasks: "Access custom VM settings parameter scripts. Boost baseline processing boundaries cleanly to 4096MB memory capacity metrics."
             }
         };
 
         const videoMapping = {
-            9: "7864B29zG0k", 10: "sab2_v4G_uQ", 11: "Mv0p0p2aK2E", 12: "Mc0h_k1_MvQ",
-            13: "N68_Yp45gG2", 14: "4_F6B29z_Mk", 15: "bA2hG19z_Ko", 16: "v94gG29_MkB",
-            17: "7p64M29zG0k", 18: "6rG6B29z_Mk", 19: "5v84B29zG0k", 20: "7b44B29zG0k",
-            21: "9b34B29zG0k", 22: "1v44B29zG0k", 23: "2v54B29zG0k", 24: "3v64B29zG0k",
-            25: "4v74B29zG0k", 26: "5v84B29zG0k", 27: "6v94B29zG0k", 28: "7v04B29zG0k",
-            29: "8v14B29zG0k", 30: "9v24B29zG0k", 31: "0v34B29zG0k", 32: "1v54B29zG0k",
-            33: "2v64B29zG0k", 34: "3v74B29zG0k", 35: "4v84B29zG0k", 36: "5v94B29zG0k",
-            37: "6v04B29zG0k", 38: "7v14B29zG0k", 39: "8v24B29zG0k", 40: "9v34B29zG0k"
+            3: "70Z8_YgExG4", 4: "PHeM9gD8mQw", 5: "V67wL6vE8f0", 6: "XasB7hVp2vU", 7: "w8K9S-6wDkw", 8: "jZ_or8bE8Ok",
+            9: "7864B29zG0k", 10: "sab2_v4G_uQ", 11: "Mv0p0p2aK2E", 12: "Mc0h_k1_MvQ", 13: "N68_Yp45gG2", 14: "4_F6B29z_Mk", 
+            15: "bA2hG19z_Ko", 16: "v94gG29_MkB", 17: "7p64M29zG0k", 18: "6rG6B29z_Mk", 19: "5v84B29zG0k", 20: "7b44B29zG0k",
+            21: "9b34B29zG0k", 22: "1v44B29zG0k", 23: "2v54B29zG0k", 24: "3v64B29zG0k", 25: "4v74B29zG0k", 26: "5v84B29zG0k", 
+            27: "6v94B29zG0k", 28: "7v04B29zG0k", 29: "8v14B29zG0k", 30: "9v24B29zG0k", 31: "0v34B29zG0k", 32: "1v54B29zG0k",
+            33: "2v64B29zG0k", 34: "3v74B29zG0k", 35: "4v84B29zG0k", 36: "5v94B29zG0k", 37: "6v04B29zG0k", 38: "7v14B29zG0k", 
+            39: "8v24B29zG0k", 40: "9v34B29zG0k"
         };
 
-        for(let i=9; i<=40; i++) {
+        for(let i=3; i<=40; i++) {
             if(!courseData[i]) {
                 const videoKey = videoMapping[i] || "70Z8_YgExG4";
                 courseData[i] = {
-                    title: `Advanced Tier Mastery Block ${i}: Core Mobile Engineering Architecture`,
-                    desc: `Deep dive system configurations, automated verification patterns, and clean architecture compilation maps for module ${i}.`,
+                    title: `Advanced Tier Mastery Block ${i}: Enterprise Mobile Engineering Systems`,
+                    desc: `Deep dive system configurations, code metrics optimizations, and production validation modules for level ${i}.`,
                     video: `https://www.youtube.com/embed/${videoKey}`,
-                    core: `
-                        <h3 class="text-md font-bold text-blue-300 mb-2">1. Advanced Technical Frameworks for Level ${i}</h3>
-                        <p class="mb-3">This block targets the implementation of complex multi-tier data patterns. You will dissect clean MVVM component lifecycles, study structural dependency injection modules, and optimize asynchronous reactive state processing loops cleanly.</p>
-                    `,
-                    tasks: `Construct a deeply optimized, modular mobile codebase following advanced enterprise architecture standards for module ${i}.`
+                    core: `<h3 class="text-md font-bold text-blue-300 mb-2">1. Architectural Concepts for Level ${i}</h3><p class="mb-3">This block addresses clean system layouts, decoupling layers, MVVM UI lifecycle observations, and memory leak analysis checkpoints required within global scalable systems.</p>`,
+                    tasks: `Design localized code solutions tracking standard Android system metrics for block iteration ${i}.`
                 };
             }
         }
 
-        // --- AUTH INTERACTION CONTROLLERS (FIXED STYLING & ROUTING) ---
-        function switchAuthTab(type) {
+        // --- REFACTOR LOGIC AUTH INTERACTION TRIGGERS (ELIMINATED INTERCEPT DELAYS) ---
+        window.switchAuthTab = function(type) {
             authMode = type;
             const btn = document.getElementById('auth-btn');
             const sub = document.getElementById('auth-subtitle');
             const err = document.getElementById('auth-error');
-            err.classList.add('hidden');
+            if(err) err.classList.add('hidden');
             
             if(type === 'login') {
                 document.getElementById('tab-login').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font";
                 document.getElementById('tab-signup').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font";
-                btn.innerText = "Sign in";
-                sub.innerText = "Sign in to start your 40-Day Mastery Journey";
+                if(btn) btn.innerText = "Sign in";
+                if(sub) sub.innerText = "Sign in to start your 40-Day Mastery Journey";
             } else {
                 document.getElementById('tab-signup').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font";
                 document.getElementById('tab-login').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font";
-                btn.innerText = "Create free account";
-                sub.innerText = "Register globally to track your engineering milestones";
+                if(btn) btn.innerText = "Create free account";
+                if(sub) sub.innerText = "Register globally to track your engineering milestones";
             }
         }
 
-        // Hardened Auth Operations with explicit data state checking wrappers
-        function handleAuth(e) {
+        document.getElementById('auth-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const email = document.getElementById('auth-email').value.trim();
             const password = document.getElementById('auth-password').value;
             const errorElement = document.getElementById('auth-error');
-            errorElement.classList.add('hidden');
-
-            if (!email || !password) {
-                errorElement.innerText = "Please fill in all layout fields.";
-                errorElement.classList.remove('hidden');
-                return;
-            }
+            if(errorElement) errorElement.classList.add('hidden');
 
             if (authMode === 'login') {
-                auth.signInWithEmailAndPassword(email, password)
+                signInWithEmailAndPassword(auth, email, password)
                     .catch(err => { 
                         errorElement.innerText = err.message; 
                         errorElement.classList.remove('hidden'); 
                     });
             } else {
-                auth.createUserWithEmailAndPassword(email, password)
+                createUserWithEmailAndPassword(auth, email, password)
                     .then(cred => {
-                        // Setup baseline tracking properties safely inside your Realtime Database root node
-                        return db.ref('users/' + cred.user.uid).set({ 
-                            currentDayUnlocked: 1, 
-                            lastCompletedTimestamp: 0 
-                        });
+                        const userRef = ref(db, 'users/' + cred.user.uid);
+                        return set(userRef, { currentDayUnlocked: 1, lastCompletedTimestamp: 0 });
                     })
                     .catch(err => { 
                         errorElement.innerText = err.message; 
                         errorElement.classList.remove('hidden'); 
                     });
             }
+        });
+
+        window.logout = function() {
+            clearInterval(countdownInterval);
+            signOut(auth).then(() => { location.reload(); });
         }
 
-        function logout() { 
-            clearInterval(countdownInterval); 
-            auth.signOut().then(() => {
-                location.reload(); // Refresh viewport safely to clear active application memory
-            }); 
-        }
-
-        // --- AUTH & PROGRESS STATE LISTENERS (STABLE RUNTIME SYNC) ---
-        auth.onAuthStateChanged(user => {
+        // --- SECURE LIFECYCLE LISTENERS MAPPED OVER REALTIME DISCOVERY DAEMONS ---
+        onAuthStateChanged(auth, user => {
             const authContainer = document.getElementById('auth-container');
             const appContainer = document.getElementById('app-container');
             
             if(user) {
                 currentUser = user;
-                authContainer.classList.add('hidden');
-                appContainer.classList.remove('hidden');
+                if(authContainer) authContainer.classList.add('hidden');
+                if(appContainer) appContainer.classList.remove('hidden');
                 document.getElementById('user-display').innerText = user.email;
                 
-                // Established real-time reactive sync data hooks
-                db.ref('users/' + user.uid).on('value', snapshot => {
+                const progressNodeRef = ref(db, 'users/' + user.uid);
+                onValue(progressNodeRef, snapshot => {
                     const data = snapshot.val();
                     userDataProgress = data ? data : { currentDayUnlocked: 1, lastCompletedTimestamp: 0 };
                     renderMilestones();
                     updateProgressUI();
                     selectDay(activeSelectedDay);
-                }, error => {
-                    console.error("Database access error: ", error.message);
                 });
                 runControlTowerAPIs();
             } else {
                 currentUser = null;
-                authContainer.classList.remove('hidden');
-                appContainer.classList.add('hidden');
+                if(authContainer) authContainer.classList.remove('hidden');
+                if(appContainer) appContainer.classList.add('hidden');
             }
         });
 
@@ -404,15 +321,21 @@
                     indicatorCircle = `<span class="h-2 w-2 rounded-full bg-blue-400 block animate-pulse"></span>`;
                 }
 
-                container.innerHTML += `
-                    <button type="button" class="${cardClass}" onclick="${isLocked ? '' : `selectDay(${d})`}">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-normal mono-font ${isLocked ? 'text-gray-500' : 'google-blue'}">Day ${d < 10 ? '0'+d : d}</span>
-                            ${indicatorCircle}
-                        </div>
-                        <h4 class="text-sm font-medium text-gray-200 tracking-tight truncate mt-1 google-font">${dayData.title}</h4>
-                    </button>
+                const btnElement = document.createElement('button');
+                btnElement.type = 'button';
+                btnElement.className = cardClass;
+                btnElement.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-normal mono-font ${isLocked ? 'text-gray-500' : 'google-blue'}">Day ${d < 10 ? '0'+d : d}</span>
+                        ${indicatorCircle}
+                    </div>
+                    <h4 class="text-sm font-medium text-gray-200 tracking-tight truncate mt-1 google-font">${dayData.title}</h4>
                 `;
+                
+                if(!isLocked) {
+                    btnElement.addEventListener('click', () => window.selectDay(d));
+                }
+                container.appendChild(btnElement);
             }
         }
 
@@ -425,10 +348,10 @@
             if(txt) txt.innerText = `Day ${completedCount} / Day 40 Completed (${Math.round(percentage)}%)`;
         }
 
-        function selectDay(dayNumber) {
+        window.selectDay = function(dayNumber) {
             activeSelectedDay = dayNumber;
-            
-            // Highlight selected elements
+            renderMilestones();
+
             const container = document.getElementById('classroom-body');
             if(!container) return;
 
@@ -457,7 +380,6 @@
             manageTimerSafetyContext(dayNumber);
         }
 
-        // --- TIMER & LOCK LAUNCH CONTROLLERS ---
         function manageTimerSafetyContext(dayNumber) {
             clearInterval(countdownInterval);
             const btn = document.getElementById('complete-day-btn');
@@ -535,23 +457,23 @@
             btn.disabled = false;
             btn.className = "google-blue-bg hover:google-blue-bg-hover text-white font-medium py-1.5 px-5 rounded-full shadow text-sm transition-all transform active:scale-95 cursor-pointer google-font";
             btn.innerText = "Complete Sprint";
-        }
-
-        function submitDayCompletion() {
-            if(activeSelectedDay !== userDataProgress.currentDayUnlocked) return;
-
-            const updatePayload = {
-                currentDayUnlocked: userDataProgress.currentDayUnlocked + 1,
-                lastCompletedTimestamp: Date.now()
+            
+            // Re-bind click event directly to clean modular execution routines
+            btn.onclick = function() {
+                if(activeSelectedDay !== userDataProgress.currentDayUnlocked) return;
+                const progressNodeRef = ref(db, 'users/' + currentUser.uid);
+                
+                update(progressNodeRef, {
+                    currentDayUnlocked: userDataProgress.currentDayUnlocked + 1,
+                    lastCompletedTimestamp: Date.now()
+                }).catch(err => alert("Database sync failure: " + err.message));
             };
-
-            db.ref('users/' + currentUser.uid).update(updatePayload)
-                .then(() => {
-                    activeSelectedDay = updatePayload.currentDayUnlocked;
-                    activeTimerDay = null; 
-                })
-                .catch(err => alert("Sync Error: " + err.message));
         }
+        
+        // Expose necessary switches to the tab layout interfaces globally
+        document.getElementById('tab-login').onclick = () => window.switchAuthTab('login');
+        document.getElementById('tab-signup').onclick = () => window.switchAuthTab('signup');
+        document.getElementById('logout-btn').onclick = () => window.logout();
     </script>
 </body>
 </html>
