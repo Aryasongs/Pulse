@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dozera Learning - Ultimate 40-Day Android Studio Course</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: 'Roboto', sans-serif; background-color: #111214; }
+        h1, h2, h3, h4, .google-font { font-family: 'Google Sans', sans-serif; }
+        .mono-font { font-family: 'Roboto Mono', monospace; }
+        /* Google Dark Material Palette */
+        .google-dark-bg { background-color: #1f1f23; }
+        .google-card-bg { background-color: #28292e; }
+        .google-blue { color: #8ab4f8; }
+        .google-blue-bg { background-color: #1a73e8; }
+        .google-blue-bg-hover { background-color: #1557b0; }
+        .google-border { border-color: #3c4043; }
+        .google-success { color: #81c995; }
+        .google-warning { color: #fdd663; }
+        
+        /* Custom Scrollbar for Component List */
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #1f1f23; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3c4043; border-radius: 3px; }
+    </style>
+</head>
+<body class="text-gray-200 min-h-screen flex flex-col">
+
+    <div id="auth-container" class="flex items-center justify-center min-h-screen px-4">
+        <div class="google-dark-bg p-8 rounded-2xl shadow-2xl max-w-md w-full border google-border">
+            <div class="text-center mb-8">
+                <div class="flex justify-center items-center space-x-2 mb-3">
+                    <span class="text-3xl font-bold tracking-tight text-white">Dozera<span class="google-blue"> Developer</span></span>
+                </div>
+                <p class="text-gray-400 text-sm" id="auth-subtitle">Sign in to start your 40-Day Mastery Journey</p>
+            </div>
+
+            <div class="flex border-b google-border mb-6">
+                <button id="tab-login" class="w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font" onclick="switchAuthTab('login')">Sign in</button>
+                <button id="tab-signup" class="w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font" onclick="switchAuthTab('signup')">Create account</button>
+            </div>
+
+            <form id="auth-form" onsubmit="handleAuth(event)">
+                <div class="mb-4">
+                    <label class="block text-xs font-medium text-gray-300 mb-2 google-font">Email address</label>
+                    <input type="email" id="auth-email" required class="w-full p-3 rounded-lg bg-[#111214] border google-border focus:outline-none focus:border-blue-400 text-white transition-colors">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-xs font-medium text-gray-300 mb-2 google-font">Password</label>
+                    <input type="password" id="auth-password" required class="w-full p-3 rounded-lg bg-[#111214] border google-border focus:outline-none focus:border-blue-400 text-white transition-colors">
+                </div>
+                <button type="submit" id="auth-btn" class="w-full google-blue-bg google-blue-bg-hover text-neutral-900 font-medium py-2.5 px-4 rounded-full transition duration-200 shadow font-medium text-sm google-font !text-white">Sign In</button>
+            </form>
+            <p id="auth-error" class="text-red-400 text-sm mt-4 text-center hidden"></p>
+        </div>
+    </div>
+
+    <div id="app-container" class="hidden flex-1 flex flex-col">
+        <nav class="google-dark-bg border-b google-border px-6 py-3.5 flex flex-wrap justify-between items-center shadow-sm">
+            <div class="flex items-center space-x-3">
+                <span class="text-xl font-medium text-white tracking-tight google-font">Dozera <span class="text-gray-400 font-normal">for Developers</span></span>
+            </div>
+            <div class="flex items-center space-x-6 mt-2 sm:mt-0">
+                <span id="user-display" class="text-gray-300 text-sm font-normal font-sans">Loading session...</span>
+                <button onclick="logout()" class="text-xs font-medium text-gray-400 border google-border hover:bg-[#3c4043]/30 px-3 py-1.5 rounded-md transition google-font">Sign out</button>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto w-full px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
+            
+            <div class="lg:col-span-1 space-y-4">
+                <div class="google-dark-bg p-5 rounded-2xl border google-border shadow-sm">
+                    <h2 class="text-sm font-medium text-gray-200 mb-3 google-font">Course progress</h2>
+                    <div class="w-full bg-[#111214] rounded-full h-1.5 mb-2">
+                        <div id="overall-progress-bar" class="google-blue-bg h-1.5 rounded-full progress-bar" style="width: 0%"></div>
+                    </div>
+                    <span id="progress-text" class="text-xs text-gray-400 font-normal">Day 0 / Day 40 Completed</span>
+                </div>
+
+                <div id="milestone-list" class="space-y-2 max-h-[72vh] overflow-y-auto pr-1 custom-scrollbar">
+                    </div>
+            </div>
+
+            <div class="lg:col-span-2 space-y-4">
+                <div id="api-widget" class="bg-[#1e2a38] p-4 rounded-xl border border-[#2c435e] hidden">
+                    <span class="text-xs font-medium text-[#8ab4f8] tracking-normal google-font block mb-1">💡 Developer Insight</span>
+                    <p id="api-content" class="text-sm text-gray-300">Fetching the latest developmental briefs...</p>
+                </div>
+
+                <div id="classroom-card" class="google-dark-bg p-6 rounded-2xl border google-border shadow-md relative min-h-[520px] flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start border-b google-border pb-4 mb-4">
+                            <div>
+                                <span id="classroom-day-tag" class="text-xs font-medium bg-[#3c4043]/50 text-gray-300 px-3 py-1 rounded-full tracking-normal google-font">Day XX</span>
+                                <h2 id="classroom-title" class="text-2xl font-bold text-white mt-3 google-font">Select a day milestone from the left to begin learning</h2>
+                            </div>
+                            <div class="text-right bg-[#111214] px-4 py-2 rounded-xl border google-border">
+                                <span id="timer-label" class="block text-[10px] font-medium tracking-wider text-gray-400 uppercase google-font">Required Focus</span>
+                                <span id="classroom-timer" class="text-xl font-normal text-amber-300 mono-font">60:00</span>
+                            </div>
+                        </div>
+
+                        <div id="classroom-body" class="text-gray-300 space-y-4 text-sm leading-relaxed">
+                            <p>Welcome to the ultimate Android Studio course engineered by Dozera. Select your unlocked active day to access complete modules, code definitions, structural overviews, and project milestones.</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-4 border-t google-border flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <p id="lock-reason" class="text-xs text-amber-300 font-normal max-w-md"></p>
+                        <button id="complete-day-btn" disabled onclick="submitDayCompletion()" class="bg-[#28292e] border google-border text-gray-500 font-medium py-2 px-5 rounded-full transition duration-200 cursor-not-allowed text-sm shadow-sm google-font whitespace-nowrap">
+                            Locked
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // --- FIREBASE CONFIGURATION INJECTED ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        // --- APPLICATION VARIABLE REGISTRY ---
+        let authMode = 'login';
+        let currentUser = null;
+        let userDataProgress = {
+            currentDayUnlocked: 1,
+            lastCompletedTimestamp: 0
+        };
+        let activeSelectedDay = 1;
+        let countdownInterval = null;
+        let timeRemainingSeconds = 3600; // 1 hour dynamic target metric tracking
+        let activeTimerDay = null;
+
+        // --- REAL 40 DAY DATA STRUCTURE DEFINITION WITH GOOGLE VIDEO & DETAILED TASKS ---
+        const courseData = {
+            1: { 
+                title: "Android Studio Installation & SDK Setup", 
+                desc: "Setting up development tools clean.", 
+                core: "Learn how the Android compilation lifecycle handles your source files. Set up Java Development Kit (JDK) systems and target API level architectures correctly.", 
+                tasks: "TASK: Download Android Studio Flamingo/Hedgehog. Set up your global system environment path variables for the Android SDK. Create a blank template project and compile a working virtual device emulator environment.",
+                video: "EknEIzswvC0"
+            },
+            2: { 
+                title: "Android Studio IDE Workspace Tour", 
+                desc: "Mastering navigation panes and workspaces.", 
+                core: "Deconstruct the physical user interface panels inside the workspace layout. Learn to configure project display panels, search actions, shortcut configurations, and dynamic device tracking layers.", 
+                tasks: "TASK: Open Logcat filters, hide and show project view subtrees using keyboard shortcuts, and toggle the window structure from Project view layout schemas into explicit Android packaging views.",
+                video: "VfaVule0gw0"
+            },
+            3: { 
+                title: "Deconstructing Project Structures & Manifests", 
+                desc: "Understanding root resource assets.", 
+                core: "Break down how build paths manage source files. Understand root Manifest nodes, application packaging rules, hardware permissions requests, and structural application context parameters.", 
+                tasks: "TASK: Open your project\'s AndroidManifest.xml file. Add permissions parameters to explicitly request internal camera access and location tracking capabilities from the host hardware layer.",
+                video: "VfaVule0gw0"
+            },
+            4: { 
+                title: "Gradle Dependency Optimization Systems", 
+                desc: "Managing build automation scripts safely.", 
+                core: "Understand implementation rules for app-level versus root-level build.gradle automation parameters. Manage dependency trees, code optimization systems, and version definitions.", 
+                tasks: "TASK: Open your application gradle configuration sheet. Implement a custom third-party open-source testing library package reference and completely resolve version conflict parameters during a fresh compilation sync.",
+                video: "ubwEU7gZAgg"
+            },
+            5: { 
+                title: "XML UI Foundations & View Inflation Layouts", 
+                desc: "Building UI markup documents.", 
+                core: "Understand declarative screen generation frameworks via extensible markup code pathways. Learn View tree organization logic alongside native screen coordinate layout metrics.", 
+                tasks: "TASK: Design a raw markup screen containing three multi-line text input forms, an active header display layer, and a submission controller node completely free of IDE visual drag helper assets.",
+                video: "saKrGCWlJDs"
+            },
+            6: { 
+                title: "Mastering ConstraintLayout Architectures", 
+                desc: "Complex scalable flat structural screens.", 
+                core: "Eliminate costly computational execution passes triggered by nested layout trees. Use precise anchors, aspect ratios, responsive element guidelines, and constraint barrier components.", 
+                tasks: "TASK: Build a clean responsive landing interface consisting of an asymmetric image layout banner, description areas, and multi-action controls that adapt identically across mobile and large tablet dimensions.",
+                video: "saKrGCWlJDs"
+            },
+            7: { 
+                title: "Implementing Safe ViewBinding Packages", 
+                desc: "Replacing deprecated layout referencing elements.", 
+                core: "Protect compile-time interactions against null reference failures. Set up modern view-binding architectures across layout trees to directly reference structural layout elements safely.", 
+                tasks: "TASK: Activate viewBinding inside your Gradle configurations. Refactor your activity setup logic blocks to update visible textual string items programmatically without invoking legacy system find checks.",
+                video: "saKrGCWlJDs"
+            },
+            8: { 
+                title: "The Comprehensive Activity Lifecycle Lifecycle Matrix", 
+                desc: "Managing screen state transitions flawlessly.", 
+                core: "Track memory states explicitly. Learn code management across initialization blocks: onCreate, onStart, onResume, onPause, onStop, and onDestroy states during active execution cycles.", 
+                tasks: "TASK: Implement comprehensive trace logs logging every lifecycle checkpoint. Trigger device orientation rotations to observe component reset cycles, and implement system persistence parameters to protect ongoing user input structures.",
+                video: "ubwEU7gZAgg"
+            },
+            9: { 
+                title: "Intent Engines & Component Routing Matrix", 
+                desc: "Navigating across individual application environments.", 
+                core: "Manage deep routing operations using both explicit routing pathways and implicit request structures. Package system data parameters securely via key-value bundle items across targets.", 
+                tasks: "TASK: Build a layout configuration tracking personal profiles. Package user data payloads into an active navigation intent that initiates a secondary viewport panel while validating inputs.",
+                video: "ubwEU7gZAgg"
+            },
+            10: { 
+                title: "Modular UI Development Using Dynamic Fragments", 
+                desc: "Building flexible screen components.", 
+                core: "Construct reuse architectures via encapsulated sub-panes. Master fragment manager transactions, back-stack states, and shared lifecycle interface behaviors.", 
+                tasks: "TASK: Create a dual-pane responsive layout where choosing an element from a primary sidebar control group instantly repopulates an alternate secondary container view on the same panel viewport.",
+                video: "rdGpT1pIJlw"
+            },
+            11: { 
+                title: "RecyclerView Layout Frameworks: Part 1", 
+                desc: "Designing scalable scrolling view environments.", 
+                core: "Learn memory management architectures optimized for rendering long data lists. Explore view recycling loops, customized visual view holder configurations, and data model mapping strategies.", 
+                tasks: "TASK: Draft an explicit structured dataset object layout handling product definitions. Create a dedicated structural card row view layout managing item elements using optimized XML designs.",
+                video: "rdGpT1pIJlw"
+            },
+            12: { 
+                title: "RecyclerView Components: Part 2 Custom Adapters", 
+                desc: "Wiring structural dataset engines to live screens.", 
+                core: "Connect raw application data structures directly to layout rendering engines. Override crucial adapter hooks like onCreateViewHolder and onBindViewHolder to map your data.", 
+                tasks: "TASK: Build an active functional adapter class connecting data models to row layouts. Populate an array of fifty mock items into a scrolling user list, handling on-click item selections.",
+                video: "rdGpT1pIJlw"
+            },
+            13: { 
+                title: "Google Material 3 App-Wide Theming Engines", 
+                desc: "Configuring global themes and dark mode layouts.", 
+                core: "Manage color spaces uniformly across runtime executions. Implement standard semantic theme configurations, attribute design variations, and automated dark mode visibility profiles.", 
+                tasks: "TASK: Define unique layout style mappings inside theme definition resources. Construct an application viewport utilizing system theme mappings that scales color spaces instantly when toggling dark mode.",
+                video: "saKrGCWlJDs"
+            },
+            14: { 
+                title: "SharedPreferences Local Data Key Persistence", 
+                desc: "Retaining lightweight data states between app launches.", 
+                core: "Understand sandboxed file-system lookups handling configuration settings. Persist lightweight data directly via simple primitive keys using transactional file mutations.", 
+                tasks: "TASK: Build a functional registration input framework that captures a string key profile name. Save this preference persistently, reading it during app launch to customize the user UI.",
+                video: "rdGpT1pIJlw"
+            },
+            15: { 
+                title: "Google Room ORM Persistence Engine: Part 1", 
+                desc: "Relational storage systems over local environments.", 
+                core: "Simplify database interactions using structured abstractions. Learn to design database entity declarations, data tables, structural schemas, and basic Data Access Object (DAO) definitions.", 
+                tasks: "TASK: Define a transactional SQLite entity model for an tracking ledger app. Build interface structures listing exact raw execution functions handling standard storage updates.",
+                video: "rdGpT1pIJlw"
+            },
+            16: { 
+                title: "Google Room Storage Implementations: Part 2", 
+                desc: "Executing persistence operations asynchronously.", 
+                core: "Interact with local databases without blocking the UI layout. Learn to run complex queries, insert data items safely, and implement data verification routines.", 
+                tasks: "TASK: Connect your database setup to your UI binding layers. Implement background operations to store database entries when form elements match validation checks.",
+                video: "rdGpT1pIJlw"
+            },
+            17: { 
+                title: "Multithreading and Main Thread Security", 
+                desc: "Preventing UI application freezing errors.", 
+                core: "Isolate complex processes away from the application processing loop. Learn about background workers, asynchronous data handling, and why modifying views from background loops fails.", 
+                tasks: "TASK: Write a background process simulating an extended calculations task. Update progress tracking items on your view bindings safely using main thread handlers.",
+                video: "bu5Y3uZ6LLM"
+            },
+            18: { 
+                title: "Kotlin Coroutines Asynchronous Execution Pipelines", 
+                desc: "Modern handling for non-blocking processes.", 
+                core: "Manage asynchronous operations using clear, readable code structures. Control background tasks using dedicated execution scopes like Dispatchers.IO, Main, and Default.", 
+                tasks: "TASK: Re-engineer a complex thread task with safe suspend loops. Execute a background file-read task, switching back to the main UI context to update your view layouts seamlessly.",
+                video: "saKrGCWlJDs"
+            },
+            19: { 
+                title: "Google Architecture Components: ViewModel Patterns", 
+                desc: "Retaining state configurations through device rotations.", 
+                core: "Isolate business logic code away from view display layers. Ensure app data models persist reliably through device configurations, layout updates, and display switches.", 
+                tasks: "TASK: Build a dedicated ViewModel tracking user dashboard values. Connect it to your interface so text values remain populated when changing orientation.",
+                video: "D3W4WqmI6S4"
+            },
+            20: { 
+                title: "LiveData observable Data Pipeline Systems", 
+                desc: "Building reactive view data layers.", 
+                core: "Establish communication channels between business states and display layers. Build data wrapper layers that notify visible components only when their active lifecycles match safe criteria.", 
+                tasks: "TASK: Wrap a state variable with LiveData tracking. Build an observer function that automatically updates view text properties when the data model updates.",
+                video: "D3W4WqmI6S4"
+            },
+            21: { 
+                title: "Retrofit HTTP Networking Infrastructure: Part 1", 
+                desc: "Mapping internet endpoints to native data objects.", 
+                core: "Connect your application to external web servers. Learn to build interface specifications matching target REST API models and map incoming JSON data automatically.", 
+                tasks: "TASK: Define a clear model mapping structure matching a public API response. Build the service client declarations with an included automatic JSON parser engine.",
+                video: "bu5Y3uZ6LLM"
+            },
+            22: { 
+                title: "Retrofit Network Operations: Part 2 Real-Time Data Fetching", 
+                desc: "Populating interfaces with live cloud server resources.", 
+                core: "Fetch remote server resources using secure network calls. Process incoming server replies, handle timeout errors, and update local user interfaces safely.", 
+                tasks: "TASK: Execute an active network query using asynchronous execution loops. Fetch remote data items and display them within an on-screen scrolling layout list.",
+                video: "bu5Y3uZ6LLM"
+            },
+            23: { 
+                title: "Glide/Coil Cloud Media Caching Engines", 
+                desc: "Asynchronous image processing and caching tools.", 
+                core: "Display remote graphic assets on screen while optimizing resource consumption. Learn about cloud connection streams, background data allocation, and image error state configurations.", 
+                tasks: "TASK: Connect a public image url string to a screen placeholder view. Configure the image engine to handle slow connection drops with default fallbacks.",
+                video: "rdGpT1pIJlw"
+            },
+            24: { 
+                title: "Android System Services and Tray Notifications", 
+                desc: "Executing alert systems outside of app windows.", 
+                core: "Interact with OS services to post status updates. Build background system tasks, set up security channels, and handle incoming user interaction intents.", 
+                tasks: "TASK: Create a background system helper that triggers persistent tray notifications. Configure the alerts to open an app activity layout when taped.",
+                video: "D3W4WqmI6S4"
+            },
+            25: { 
+                title: "Google Jetpack WorkManager Task Framework", 
+                desc: "Scheduling reliable background tasks.", 
+                core: "Run background tasks reliably under specific operational contexts. Manage scheduling constraints like network connectivity states, device charging statuses, and execution retry limits.", 
+                tasks: "TASK: Build a custom system data backup worker thread. Configure it to run automatically only when the host hardware is connected to Wi-Fi and charging.",
+                video: "D3W4WqmI6S4"
+            },
+            26: { 
+                title: "Google Firebase Cloud Authentication Engines", 
+                desc: "Building user registration and login workflows.", 
+                core: "Manage user identity spaces securely via remote cloud endpoints. Set up email/password authorization systems, monitor account states, and handle access token updates.", 
+                tasks: "TASK: Integrate core Firebase configurations. Build an interface containing account creation forms that registers live user credentials into your project dashboard.",
+                video: "ubwEU7gZAgg"
+            },
+            27: { 
+                title: "Google Firebase Firestore Real-Time Storage Database", 
+                desc: "Syncing live cloud data models instantly.", 
+                core: "Manage remote data models via structured NoSQL document stores. Learn to add user record nodes, retrieve snapshot arrays, and set up real-time sync listeners.", 
+                tasks: "TASK: Build a cloud syncing app component. Create database write loops that update a user's cloud document whenever on-screen state triggers change.",
+                video: "ubwEU7gZAgg"
+            },
+            28: { 
+                title: "System Broadcast Receivers Infrastructure", 
+                desc: "Catching device events from the operating system.", 
+                core: "Listen for global OS alerts. Learn how system intent configurations broadcast alerts across the device, and intercept network state updates or power events.", 
+                tasks: "TASK: Register a broadcast listener inside your manifest. Program your application to display warning screens instantly if the device drops cellular connectivity.",
+                video: "D3W4WqmI6S4"
+            },
+            29: { 
+                title: "Google Material Design 3 Complex Controls", 
+                desc: "Implementing bottom navigation sheets and slide interfaces.", 
+                core: "Build modern, functional view components. Implement dynamic navigation components, coordinate motion layouts, and manage scrolling layout adjustments smoothly.", 
+                tasks: "TASK: Design an application dashboard page utilizing a bottom layout menu that swaps view panels dynamically without rebuilding core components.",
+                video: "saKrGCWlJDs"
+            },
+            30: { 
+                title: "Custom Component Drawing via Canvas Engines", 
+                desc: "Building fully custom visual elements.", 
+                core: "Design custom visual components outside standard UI libraries. Override native rendering loops using the Canvas object to draw geometric vector lines directly.", 
+                tasks: "TASK: Create a custom view element that reads parameter inputs and renders a dynamic, colorful circular progress tracking widget on screen.",
+                video: "saKrGCWlJDs"
+            },
+            31: { 
+                title: "Fluid Programmatic Interface Motion Architectures", 
+                desc: "Adding premium visual interactions to view sets.", 
+                core: "Improve user navigation using clear visual transitions. Learn about property animators, view dimension interpolation scales, and custom translation curves.", 
+                tasks: "TASK: Script a custom view animation chain that scales and rotates landing screen item sets sequentially when an interface view finishes inflating.",
+                video: "saKrGCWlJDs"
+            },
+            32: { 
+                title: "Jetpack Navigation Component Frameworks", 
+                desc: "Centralizing target routing maps across apps.", 
+                core: "Manage complex view routing configurations using central navigation graphs. Control view transactions, set screen target arguments, and manage backstack pathways cleanly.", 
+                tasks: "TASK: Set up a single-activity layout shell running three sub-fragments managed completely by an XML navigation graph layout declaration.",
+                video: "D3W4WqmI6S4"
+            },
+            33: { 
+                title: "Unit Testing & Mockito Fundamentals", 
+                desc: "Validating business logic via isolated tests.", 
+                core: "Ensure core application code executes correctly under unexpected conditions. Write isolated unit tests to evaluate functional data outputs without launching emulation targets.", 
+                tasks: "TASK: Write five distinct JUnit tests evaluating a data formatting utility class to check its behavior when handling empty fields or malformed data strings.",
+                video: "ubwEU7gZAgg"
+            },
+            34: { 
+                title: "Espresso UI Automation Testing Suites", 
+                desc: "Simulating functional app use programmatically.", 
+                core: "Automate user interface validation checks. Code automated testing steps that open specific screens, enter text fields, click buttons, and verify display states.", 
+                tasks: "TASK: Script an automated Espresso UI check that tests your login forms by entering invalid details and verifying if the error text outputs match specifications.",
+                video: "ubwEU7gZAgg"
+            },
+            35: { 
+                title: "Android Studio Performance Profiler Suite", 
+                desc: "Tracking memory execution overhead and CPU cycles.", 
+                core: "Locate code execution bottlenecks. Learn to read real-time data plots tracking system memory allocation, locate memory retention bugs, and isolate CPU overhead spikes.", 
+                tasks: "TASK: Run your application through the internal memory profiler. Record memory allocation graphs during view shifts to isolate and clear code leak loops.",
+                video: "D3W4WqmI6S4"
+            },
+            36: { 
+                title: "Proguard and R8 Code Security Obfuscation", 
+                desc: "Protecting app build items against inspection.", 
+                core: "Protect your built application against decompilation. Learn to shrink package sizes, eliminate unused resource nodes, and scramble clear class paths to secure intellectual properties.", 
+                tasks: "TASK: Enable shrinking and optimization rules inside your app build configurations. Write specialized code retention exemptions to protect external data models from parsing issues.",
+                video: "ubwEU7gZAgg"
+            },
+            37: { 
+                title: "Google Play Console Production Requirements", 
+                desc: "Building authorized production bundle assets.", 
+                core: "Prepare application builds for release deployment. Learn about secure developer signatures, keystore management, Android App Bundle (AAB) packaging, and app listing declarations.", 
+                tasks: "TASK: Use your system terminal path tools to generate an official encrypted signing key configuration asset for your project deployment build files.",
+                video: "ubwEU7gZAgg"
+            },
+            38: { 
+                title: "Continuous Integration via GitHub Actions Pipelines", 
+                desc: "Automating validation checks on every code save.", 
+                core: "Manage software quality using automation systems. Set up cloud worker configurations that automatically run code tests and verify build compilations whenever updates hit repository tags.", 
+                tasks: "TASK: Build a functional automation configuration rules document inside your repository paths that triggers an automated check run whenever code modifications sync.",
+                video: "ubwEU7gZAgg"
+            },
+            39: { 
+                title: "Refactoring to MVVM Clean Architecture Layers", 
+                desc: "Dividing app frameworks into professional data layers.", 
+                core: "Organize large-scale code structures cleanly. Separate application processes into isolated Data repository segments, Domain business models, and visible UI view components.", 
+                tasks: "TASK: Take an existing single-file utility script block and refactor its contents out across separate interface layers, accessing data exclusively via repository loops.",
+                video: "ubwEU7gZAgg"
+            },
+            40: { 
+                title: "Play Store Release Matrices & Live Monitoring", 
+                desc: "Managing updates using production rollout pipelines.", 
+                core: "Coordinate application releases systematically. Monitor production builds using cloud error tracking logs, manage staged rollout metrics, and handle user feedback streams.", 
+                tasks: "TASK: Construct a clear launch check plan detailing crash log tracking setups, gradual release stages, and maintenance processes for production builds.",
+                video: "ubwEU7gZAgg"
+            }
+        };
+
+        // --- PUBLIC FREE API INTEGRATION ---
+        async function loadDeveloperInsights() {
+            try {
+                const res = await fetch('https://api.quotable.io/random?tags=technology,wisdom');
+                if(res.ok) {
+                    const data = await res.json();
+                    document.getElementById('api-content').innerText = `"${data.content}" — ${data.author}`;
+                    document.getElementById('api-widget').classList.remove('hidden');
+                } else {
+                    document.getElementById('api-content').innerText = "Insight: Ensure Android Lint warnings are cleared before compiling release bundles.";
+                    document.getElementById('api-widget').classList.remove('hidden');
+                }
+            } catch (e) {
+                document.getElementById('api-content').innerText = "Tip: Leverage Android Jetpack Compose alongside classic XML to modernize production workflows.";
+                document.getElementById('api-widget').classList.remove('hidden');
+            }
+        }
+
+        // --- AUTHENTICATION INTERACTION CONTROLLERS ---
+        function switchAuthTab(type) {
+            authMode = type;
+            const btn = document.getElementById('auth-btn');
+            const sub = document.getElementById('auth-subtitle');
+            const err = document.getElementById('auth-error');
+            err.classList.add('hidden');
+            
+            if(type === 'login') {
+                document.getElementById('tab-login').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font";
+                document.getElementById('tab-signup').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font";
+                btn.innerText = "Sign in";
+                sub.innerText = "Sign in to start your 40-Day Mastery Journey";
+            } else {
+                document.getElementById('tab-signup').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-blue-400 google-blue google-font";
+                document.getElementById('tab-login').className = "w-1/2 pb-2 text-center font-medium border-b-2 border-transparent text-gray-400 hover:text-gray-200 google-font";
+                btn.innerText = "Create free account";
+                sub.innerText = "Register globally to track your engineering milestones";
+            }
+        }
+
+        function handleAuth(e) {
+            e.preventDefault();
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const errorElement = document.getElementById('auth-error');
+            errorElement.classList.add('hidden');
+
+            if (authMode === 'login') {
+                auth.signInWithEmailAndPassword(email, password)
+                    .catch(err => { errorElement.innerText = err.message; errorElement.classList.remove('hidden'); });
+            } else {
+                auth.createUserWithEmailAndPassword(email, password)
+                    .then(cred => {
+                        return db.ref('users/' + cred.user.uid).set({
+                            currentDayUnlocked: 1,
+                            lastCompletedTimestamp: 0
+                        });
+                    })
+                    .catch(err => { errorElement.innerText = err.message; errorElement.classList.remove('hidden'); });
+            }
+        }
+
+        // --- EXPLICIT LOGOUT ROUTINE ---
+        function logout() {
+            clearInterval(countdownInterval);
+            auth.signOut();
+        }
+
+        // --- CORE APPLICATION ROUTING & STATE MONITORING ---
+        auth.onAuthStateChanged(user => {
+            const authContainer = document.getElementById('auth-container');
+            const appContainer = document.getElementById('app-container');
+            
+            if(user) {
+                currentUser = user;
+                authContainer.classList.add('hidden');
+                appContainer.classList.remove('hidden');
+                document.getElementById('user-display').innerText = user.email;
+                
+                db.ref('users/' + user.uid).on('value', snapshot => {
+                    const data = snapshot.val();
+                    if(data) {
+                        userDataProgress = data;
+                    } else {
+                        userDataProgress = { currentDayUnlocked: 1, lastCompletedTimestamp: 0 };
+                    }
+                    renderMilestones();
+                    updateProgressUI();
+                    selectDay(activeSelectedDay);
+                });
+                loadDeveloperInsights();
+            } else {
+                currentUser = null;
+                authContainer.classList.remove('hidden');
+                appContainer.classList.add('hidden');
+            }
+        });
+
+        // --- INTERFACE BUILDERS & RENDER ENGINES ---
+        function renderMilestones() {
+            const container = document.getElementById('milestone-list');
+            container.innerHTML = '';
+
+            for (let d = 1; d <= 40; d++) {
+                const dayData = courseData[d];
+                const isLocked = d > userDataProgress.currentDayUnlocked;
+                const isCompleted = d < userDataProgress.currentDayUnlocked;
+                const isActive = d === activeSelectedDay;
+
+                let cardClass = "p-3.5 rounded-xl border text-left w-full transition-all block text-left ";
+                let indicatorCircle = "";
+
+                if (isLocked) {
+                    cardClass += "bg-[#1a1b1e] border-transparent opacity-40 cursor-not-allowed";
+                    indicatorCircle = `<span class="h-1.5 w-1.5 rounded-full bg-gray-600 block"></span>`;
+                } else if (isCompleted) {
+                    cardClass += isActive ? "bg-[#303136] border-blue-400 shadow-sm" : "google-card-bg border-transparent hover:bg-[#303136]";
+                    indicatorCircle = `<span class="h-2 w-2 rounded-full bg-green-400 block shadow-sm"></span>`;
+                } else { 
+                    cardClass += isActive ? "bg-[#303136] border-blue-400 shadow-md" : "google-card-bg border-transparent hover:bg-[#303136]";
+                    indicatorCircle = `<span class="h-2 w-2 rounded-full bg-blue-400 block animate-pulse"></span>`;
+                }
+
+                const itemHtml = `
+                    <button type="button" class="${cardClass}" onclick="${isLocked ? '' : `selectDay(${d})`}">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-normal mono-font ${isLocked ? 'text-gray-500' : 'google-blue'}">Day ${d < 10 ? '0'+d : d}</span>
+                            ${indicatorCircle}
+                        </div>
+                        <h4 class="text-sm font-medium text-gray-200 tracking-tight truncate mt-1 google-font">${dayData.title}</h4>
+                        <p class="text-xs text-gray-400 truncate mt-0.5">${dayData.desc}</p>
+                    </button>
+                `;
+                container.innerHTML += itemHtml;
+            }
+        }
+
+        function updateProgressUI() {
+            const completedCount = userDataProgress.currentDayUnlocked - 1;
+            const percentage = (completedCount / 40) * 100;
+            document.getElementById('overall-progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-text').innerText = `Day ${completedCount} / Day 40 Completed (${Math.round(percentage)}%)`;
+        }
+
+        function selectDay(dayNumber) {
+            activeSelectedDay = dayNumber;
+            renderMilestones();
+
+            const dayData = courseData[dayNumber];
+            document.getElementById('classroom-day-tag').innerText = `Day ${dayNumber}`;
+            document.getElementById('classroom-title').innerText = dayData.title;
+            
+            document.getElementById('classroom-body').innerHTML = `
+                <div class="space-y-5">
+                    <div class="w-full aspect-video rounded-xl overflow-hidden border google-border bg-black shadow-inner">
+                        <iframe class="w-full h-full" src="https://www.youtube.com/embed/${dayData.video}" title="Google Developer Training Guide" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
+
+                    <div>
+                        <h4 class="text-xs uppercase tracking-wider text-blue-300 font-medium google-font mb-1.5">Overview & Core Concepts</h4>
+                        <p class="text-gray-300 text-sm leading-relaxed">${dayData.core}</p>
+                    </div>
+                    <div class="bg-[#111214] p-4 rounded-xl border google-border mt-4">
+                        <h4 class="text-xs uppercase tracking-wider text-amber-300 font-medium google-font mb-2">Daily Milestone Objective</h4>
+                        <p class="text-gray-300 text-sm mono-font leading-relaxed bg-[#1f1f23] p-3 rounded-lg border google-border">${dayData.tasks}</p>
+                    </div>
+                </div>
+            `;
+
+            manageTimerSafetyContext(dayNumber);
+        }
+
+        // --- 1 HOUR VALIDATION AND UNLOCK LOGIC ---
+        function manageTimerSafetyContext(dayNumber) {
+            clearInterval(countdownInterval);
+            const btn = document.getElementById('complete-day-btn');
+            const reason = document.getElementById('lock-reason');
+            const timerDisplay = document.getElementById('classroom-timer');
+
+            if (dayNumber < userDataProgress.currentDayUnlocked) {
+                timerDisplay.innerText = "00:00";
+                reason.innerText = "✓ Milestone verified and saved to developer profile database ledger.";
+                btn.disabled = true;
+                btn.className = "bg-[#28292e] border border-green-900/50 text-green-400 text-sm font-medium py-1.5 px-4 rounded-full cursor-not-allowed google-font";
+                btn.innerText = "Completed";
+                return;
+            }
+
+            const now = Date.now();
+            const alternateTimeDelta = now - userDataProgress.lastCompletedTimestamp;
+            const completeDayCooldown = 24 * 60 * 60 * 1000; 
+
+            if (userDataProgress.lastCompletedTimestamp > 0 && alternateTimeDelta < completeDayCooldown) {
+                const remainingCooldownMs = completeDayCooldown - alternateTimeDelta;
+                const hoursLeft = Math.floor(remainingCooldownMs / (1000 * 60 * 60));
+                const minsLeft = Math.ceil((remainingCooldownMs % (1000 * 60 * 60)) / (1000 * 60));
+                
+                timerDisplay.innerText = "--:--";
+                reason.innerText = `⏳ Next daily training block unlocks in ${hoursLeft}h ${minsLeft}m.`;
+                btn.disabled = true;
+                btn.className = "bg-[#28292e] text-gray-500 text-sm font-medium py-1.5 px-4 rounded-full cursor-not-allowed google-font border google-border";
+                btn.innerText = "Locked";
+                return;
+            }
+
+            if (activeTimerDay !== dayNumber) {
+                activeTimerDay = dayNumber;
+                timeRemainingSeconds = 3600; 
+            }
+
+            updateTimerDisplayElement();
+
+            if (timeRemainingSeconds > 0) {
+                btn.disabled = true;
+                btn.className = "bg-[#28292e] text-amber-300/60 border google-border text-sm font-medium py-1.5 px-4 rounded-full cursor-not-allowed google-font";
+                btn.innerText = "In Progress";
+                reason.innerText = "⚠️ Lesson focus timer active. Keep this workspace module open for 1 hour to complete the day's sprint.";
+                
+                countdownInterval = setInterval(() => {
+                    timeRemainingSeconds--;
+                    updateTimerDisplayElement();
+
+                    if (timeRemainingSeconds <= 0) {
+                        clearInterval(countdownInterval);
+                        enableCompletionTrigger();
+                    }
+                }, 1000);
+            } else {
+                enableCompletionTrigger();
+            }
+        }
+
+        function updateTimerDisplayElement() {
+            const m = Math.floor(timeRemainingSeconds / 60);
+            const s = timeRemainingSeconds % 60;
+            document.getElementById('classroom-timer').innerText = `${m < 10 ? '0'+m : m}:${s < 10 ? '0'+s : s}`;
+        }
+
+        function enableCompletionTrigger() {
+            const btn = document.getElementById('complete-day-btn');
+            const reason = document.getElementById('lock-reason');
+            reason.innerText = "🎉 Required focus duration completed! Sync your daily progress to clear today's milestone.";
+            btn.disabled = false;
+            btn.className = "google-blue-bg hover:google-blue-bg-hover text-white font-medium py-1.5 px-5 rounded-full shadow text-sm transition-all transform active:scale-95 cursor-pointer google-font";
+            btn.innerText = "Complete Sprint";
+        }
+
+        function submitDayCompletion() {
+            if(activeSelectedDay !== userDataProgress.currentDayUnlocked) return;
+
+            const updatePayload = {
+                currentDayUnlocked: userDataProgress.currentDayUnlocked + 1,
+                lastCompletedTimestamp: Date.now()
+            };
+
+            db.ref('users/' + currentUser.uid).update(updatePayload)
+                .then(() => {
+                    activeSelectedDay = updatePayload.currentDayUnlocked;
+                    activeTimerDay = null; 
+                })
+                .catch(err => alert("Sync Error: " + err.message));
+        }
+    </script>
+</body>
+</html>
