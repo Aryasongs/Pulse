@@ -2,97 +2,141 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Random Video Chat</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Safe Random Video Chat</title>
 
   <style>
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       font-family: Arial, sans-serif;
-      background: #0f172a;
+      background: #020617;
       color: white;
     }
+
     header {
       padding: 16px;
       text-align: center;
-      background: #111827;
+      background: #0f172a;
       font-size: 22px;
+      font-weight: 800;
+    }
+
+    .app {
+      max-width: 1150px;
+      margin: auto;
+      padding: 14px;
+    }
+
+    .warning {
+      background: #7f1d1d;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      text-align: center;
       font-weight: bold;
     }
-    .app {
-      max-width: 1100px;
-      margin: auto;
-      padding: 15px;
-    }
+
     .videos {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
     }
+
     video {
       width: 100%;
       height: 360px;
       background: black;
-      border-radius: 14px;
+      border-radius: 16px;
       object-fit: cover;
     }
-    .controls, .chatBox {
-      margin-top: 15px;
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+
+    #status {
+      margin-top: 12px;
+      padding: 12px;
+      background: #111827;
+      border-radius: 12px;
+      font-weight: bold;
     }
+
+    .controls, .chatBox {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
     button {
       border: none;
-      padding: 12px 18px;
+      padding: 12px 16px;
       border-radius: 10px;
       font-weight: bold;
       cursor: pointer;
+      color: white;
     }
-    .start { background: #22c55e; color: white; }
-    .next { background: #3b82f6; color: white; }
-    .stop { background: #ef4444; color: white; }
-    .gray { background: #374151; color: white; }
-    .report { background: #f97316; color: white; }
-    #status {
-      margin-top: 15px;
-      padding: 12px;
-      background: #1f2937;
+
+    .start { background: #16a34a; }
+    .next { background: #2563eb; }
+    .stop { background: #dc2626; }
+    .gray { background: #374151; }
+    .report { background: #ea580c; }
+
+    input {
+      flex: 1;
+      min-width: 180px;
+      border: none;
+      outline: none;
+      padding: 13px;
       border-radius: 10px;
     }
+
     #messages {
-      margin-top: 15px;
+      margin-top: 12px;
       height: 220px;
       overflow-y: auto;
       background: #020617;
-      border-radius: 10px;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
       padding: 10px;
     }
+
     .msg {
       padding: 8px;
-      margin: 6px 0;
+      margin-bottom: 7px;
       background: #1e293b;
       border-radius: 8px;
     }
-    input {
-      flex: 1;
-      padding: 13px;
-      border-radius: 10px;
-      border: none;
-      outline: none;
+
+    .banned {
+      filter: blur(70px);
     }
+
     @media(max-width: 768px) {
-      .videos { grid-template-columns: 1fr; }
-      video { height: 260px; }
+      .videos {
+        grid-template-columns: 1fr;
+      }
+
+      video {
+        height: 270px;
+      }
     }
   </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0"></script>
+  <script src="https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1"></script>
 </head>
 
 <body>
-<header>Random Video Chat</header>
+
+<header>Safe Random Video Chat</header>
 
 <div class="app">
+
+  <div class="warning">
+    Explicit or inappropriate content is prohibited. Users may be banned automatically.
+  </div>
+
   <div class="videos">
     <video id="localVideo" autoplay muted playsinline></video>
     <video id="remoteVideo" autoplay playsinline></video>
@@ -106,6 +150,7 @@
     <button class="stop" onclick="stopChat()">Stop</button>
     <button class="gray" onclick="toggleMic()">Mute Mic</button>
     <button class="gray" onclick="toggleCamera()">Camera Off</button>
+    <button class="gray" onclick="switchCamera()">Switch Camera</button>
     <button class="report" onclick="reportUser()">Report</button>
   </div>
 
@@ -115,6 +160,7 @@
     <input id="chatInput" placeholder="Type message..." />
     <button class="start" onclick="sendMessage()">Send</button>
   </div>
+
 </div>
 
 <script type="module">
@@ -151,19 +197,29 @@
   const messagesBox = document.getElementById("messages");
   const chatInput = document.getElementById("chatInput");
 
-  let localStream;
-  let remoteStream;
-  let pc;
-  let userId = "user_" + Math.random().toString(36).substring(2, 12);
+  let localStream = null;
+  let remoteStream = null;
+  let pc = null;
   let roomId = null;
   let isCreator = false;
   let micOn = true;
   let cameraOn = true;
+  let usingBackCamera = false;
+  let nsfwModel = null;
+  let banned = false;
+  let nsfwInterval = null;
+
+  let userId = localStorage.getItem("safeChatUserId");
+  if (!userId) {
+    userId = "user_" + Math.random().toString(36).substring(2, 14);
+    localStorage.setItem("safeChatUserId", userId);
+  }
 
   const servers = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" }
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" }
     ]
   };
 
@@ -171,12 +227,75 @@
     statusBox.innerText = "Status: " + text;
   }
 
-  async function initMedia() {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: true,
-      audio: true
+  async function loadNSFW() {
+    try {
+      status("Loading AI moderation...");
+      nsfwModel = await nsfwjs.load();
+      status("AI moderation active. Ready.");
+    } catch (err) {
+      console.error(err);
+      status("AI moderation failed to load.");
+    }
+  }
+
+  loadNSFW();
+
+  async function checkBan() {
+    const snap = await get(ref(db, "bannedUsers/" + userId));
+    if (snap.exists()) {
+      banned = true;
+      alert("You are banned from using this chat.");
+      status("Banned");
+      return true;
+    }
+    return false;
+  }
+
+  async function banUser(reason) {
+    if (banned) return;
+    banned = true;
+
+    localVideo.classList.add("banned");
+    status("Explicit content detected. You are banned.");
+
+    await set(ref(db, "bannedUsers/" + userId), {
+      userId,
+      reason,
+      time: serverTimestamp()
     });
+
+    await push(ref(db, "moderationLogs"), {
+      userId,
+      roomId: roomId || "none",
+      reason,
+      time: serverTimestamp()
+    });
+
+    setTimeout(async () => {
+      await stopChat();
+      alert("You were banned for inappropriate content.");
+    }, 1200);
+  }
+
+  async function initMedia() {
+    const constraints = {
+      video: {
+        facingMode: usingBackCamera ? "environment" : "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      },
+      audio: true
+    };
+
+    localStream = await navigator.mediaDevices.getUserMedia(constraints).catch(async () => {
+      return await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+    });
+
     localVideo.srcObject = localStream;
+    startNSFWDetection();
   }
 
   function createPeerConnection() {
@@ -195,17 +314,18 @@
     };
 
     pc.onicecandidate = event => {
-      if (event.candidate && roomId) {
-        const path = isCreator
-          ? `rooms/${roomId}/callerCandidates`
-          : `rooms/${roomId}/calleeCandidates`;
+      if (!event.candidate || !roomId) return;
 
-        push(ref(db, path), event.candidate.toJSON());
-      }
+      const path = isCreator
+        ? `rooms/${roomId}/callerCandidates`
+        : `rooms/${roomId}/calleeCandidates`;
+
+      push(ref(db, path), event.candidate.toJSON());
     };
 
     pc.onconnectionstatechange = () => {
       status("Connection: " + pc.connectionState);
+
       if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
         status("Stranger disconnected");
       }
@@ -214,17 +334,19 @@
 
   async function startChat() {
     try {
+      if (await checkBan()) return;
+
       status("Opening camera...");
       if (!localStream) await initMedia();
 
       status("Searching for stranger...");
-      const waitingRef = ref(db, "waitingUsers");
-      const snapshot = await get(waitingRef);
 
+      const waitingSnap = await get(ref(db, "waitingUsers"));
       let matchedUser = null;
 
-      if (snapshot.exists()) {
-        const users = snapshot.val();
+      if (waitingSnap.exists()) {
+        const users = waitingSnap.val();
+
         for (let id in users) {
           if (id !== userId) {
             matchedUser = id;
@@ -235,7 +357,7 @@
 
       if (matchedUser) {
         isCreator = false;
-        roomId = "room_" + Math.random().toString(36).substring(2, 12);
+        roomId = "room_" + Math.random().toString(36).substring(2, 14);
 
         await remove(ref(db, "waitingUsers/" + matchedUser));
 
@@ -247,14 +369,15 @@
           createdAt: serverTimestamp()
         });
 
-        await set(ref(db, `matchedRooms/${matchedUser}`), roomId);
-        await set(ref(db, `matchedRooms/${userId}`), roomId);
+        await set(ref(db, "matchedRooms/" + matchedUser), roomId);
+        await set(ref(db, "matchedRooms/" + userId), roomId);
 
         createPeerConnection();
         await createAnswerFlow();
 
       } else {
         isCreator = true;
+
         await set(ref(db, "waitingUsers/" + userId), {
           createdAt: serverTimestamp()
         });
@@ -264,7 +387,9 @@
         onValue(ref(db, "matchedRooms/" + userId), async snap => {
           if (snap.exists() && !roomId) {
             roomId = snap.val();
+
             await remove(ref(db, "waitingUsers/" + userId));
+
             createPeerConnection();
             await createOfferFlow();
           }
@@ -272,6 +397,7 @@
 
         status("Waiting for stranger...");
       }
+
     } catch (err) {
       console.error(err);
       status("Error: " + err.message);
@@ -289,21 +415,20 @@
 
     onValue(ref(db, `rooms/${roomId}/answer`), async snap => {
       if (snap.exists() && !pc.currentRemoteDescription) {
-        const answer = snap.val();
-        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
       }
     });
 
     listenCandidates("calleeCandidates");
     listenMessages();
-    status("Connected. Waiting for video...");
+
+    status("Connected. Waiting for stranger video...");
   }
 
   async function createAnswerFlow() {
     onValue(ref(db, `rooms/${roomId}/offer`), async snap => {
       if (snap.exists() && !pc.currentRemoteDescription) {
-        const offer = snap.val();
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        await pc.setRemoteDescription(new RTCSessionDescription(snap.val()));
 
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
@@ -317,13 +442,17 @@
 
     listenCandidates("callerCandidates");
     listenMessages();
+
     status("Connecting...");
   }
 
   function listenCandidates(path) {
     onChildAdded(ref(db, `rooms/${roomId}/${path}`), async snap => {
-      const candidate = new RTCIceCandidate(snap.val());
-      await pc.addIceCandidate(candidate);
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(snap.val()));
+      } catch (err) {
+        console.error(err);
+      }
     });
   }
 
@@ -332,9 +461,11 @@
 
     onChildAdded(ref(db, `rooms/${roomId}/messages`), snap => {
       const data = snap.val();
+
       const div = document.createElement("div");
       div.className = "msg";
       div.innerText = (data.from === userId ? "You: " : "Stranger: ") + data.text;
+
       messagesBox.appendChild(div);
       messagesBox.scrollTop = messagesBox.scrollHeight;
     });
@@ -342,7 +473,8 @@
 
   async function sendMessage() {
     const text = chatInput.value.trim();
-    if (!text || !roomId) return;
+
+    if (!text || !roomId || banned) return;
 
     await push(ref(db, `rooms/${roomId}/messages`), {
       from: userId,
@@ -355,8 +487,10 @@
 
   async function stopChat() {
     try {
-      if (pc) pc.close();
-      pc = null;
+      if (pc) {
+        pc.close();
+        pc = null;
+      }
 
       if (roomId) {
         await remove(ref(db, "rooms/" + roomId));
@@ -368,56 +502,137 @@
       roomId = null;
       remoteVideo.srcObject = null;
       messagesBox.innerHTML = "";
-      status("Stopped");
+
+      status(banned ? "Banned" : "Stopped");
+
     } catch (err) {
       console.error(err);
     }
   }
 
   async function nextChat() {
+    if (banned) return;
     await stopChat();
-    setTimeout(startChat, 800);
+    setTimeout(startChat, 700);
   }
 
   function toggleMic() {
     if (!localStream) return;
+
     micOn = !micOn;
-    localStream.getAudioTracks().forEach(track => track.enabled = micOn);
+    localStream.getAudioTracks().forEach(track => {
+      track.enabled = micOn;
+    });
+
     status(micOn ? "Mic on" : "Mic muted");
   }
 
   function toggleCamera() {
     if (!localStream) return;
+
     cameraOn = !cameraOn;
-    localStream.getVideoTracks().forEach(track => track.enabled = cameraOn);
+    localStream.getVideoTracks().forEach(track => {
+      track.enabled = cameraOn;
+    });
+
     status(cameraOn ? "Camera on" : "Camera off");
   }
 
+  async function switchCamera() {
+    try {
+      if (!localStream) {
+        usingBackCamera = !usingBackCamera;
+        await initMedia();
+        return;
+      }
+
+      usingBackCamera = !usingBackCamera;
+
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: usingBackCamera ? "environment" : "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      const newAudioTrack = newStream.getAudioTracks()[0];
+
+      if (pc) {
+        const videoSender = pc.getSenders().find(sender => sender.track && sender.track.kind === "video");
+        if (videoSender) await videoSender.replaceTrack(newVideoTrack);
+
+        const audioSender = pc.getSenders().find(sender => sender.track && sender.track.kind === "audio");
+        if (audioSender && newAudioTrack) await audioSender.replaceTrack(newAudioTrack);
+      }
+
+      localStream.getTracks().forEach(track => track.stop());
+      localStream = newStream;
+      localVideo.srcObject = newStream;
+
+      status(usingBackCamera ? "Back camera enabled" : "Front camera enabled");
+
+    } catch (err) {
+      console.error(err);
+      status("Camera switch failed");
+    }
+  }
+
   async function reportUser() {
-    if (!roomId) return alert("No active stranger to report.");
+    if (!roomId) {
+      alert("No active stranger to report.");
+      return;
+    }
 
     await push(ref(db, "reports"), {
       roomId,
       reporter: userId,
-      time: serverTimestamp(),
-      reason: "User reported from video chat"
+      reason: "Manual user report",
+      time: serverTimestamp()
     });
 
     alert("Report submitted.");
   }
 
+  function startNSFWDetection() {
+    if (nsfwInterval) clearInterval(nsfwInterval);
+
+    nsfwInterval = setInterval(async () => {
+      if (!nsfwModel || !localVideo || banned) return;
+      if (localVideo.readyState < 2) return;
+
+      try {
+        const predictions = await nsfwModel.classify(localVideo);
+
+        const porn = predictions.find(p => p.className === "Porn")?.probability || 0;
+        const hentai = predictions.find(p => p.className === "Hentai")?.probability || 0;
+        const sexy = predictions.find(p => p.className === "Sexy")?.probability || 0;
+
+        if (porn > 0.72 || hentai > 0.72 || sexy > 0.92) {
+          await banUser("Adult/nude content detected by AI");
+        }
+
+      } catch (err) {
+        console.error("NSFW detection error:", err);
+      }
+    }, 2000);
+  }
+
   window.startChat = startChat;
-  window.stopChat = stopChat;
   window.nextChat = nextChat;
+  window.stopChat = stopChat;
   window.sendMessage = sendMessage;
   window.toggleMic = toggleMic;
   window.toggleCamera = toggleCamera;
+  window.switchCamera = switchCamera;
   window.reportUser = reportUser;
 
   window.addEventListener("beforeunload", () => {
-    if (roomId) remove(ref(db, "rooms/" + roomId));
     remove(ref(db, "waitingUsers/" + userId));
     remove(ref(db, "matchedRooms/" + userId));
+    if (roomId) remove(ref(db, "rooms/" + roomId));
   });
 </script>
 
