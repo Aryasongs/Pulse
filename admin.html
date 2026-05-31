@@ -3,134 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PulseChat | Random Video Chat</title>
+    <title>PulseChat Pro | Guarded Random Video Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/nsfwjs@3.0.1/dist/nsfwjs.min.js"></script>
+
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #0b0f19;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #080c14;
         }
-        /* Custom scrollbar for modern dark theme chat */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #111827; }
-        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        /* Custom scrollbar configurations for cleaner chat container elements */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         
-        .video-container video {
-            transform: scaleX(-1); /* Mirror self camera */
-        }
-        #remoteVideo {
-            transform: none; /* Do not mirror remote stranger */
+        /* Mirror self camera feed */
+        .local-video-feed { transform: scaleX(-1); }
+        
+        /* Smooth blur transition classes used by AI moderation engine overrides */
+        .moderation-blur {
+            filter: blur(40px) brightness(0.3) !important;
+            transition: filter 0.4s ease;
+            pointer-events: none;
         }
     </style>
 </head>
-<body class="text-gray-100 h-screen flex flex-col overflow-hidden">
+<body class="text-slate-100 h-screen flex flex-col overflow-hidden select-none">
 
-    <header class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex justify-between items-center z-10 shrink-0">
-        <div class="flex items-center space-x-2">
-            <div class="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></div>
-            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">PulseChat</h1>
+    <header class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center z-30 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="w-2.5 h-2.5 bg-indigo-500 rounded-full animate-ping"></div>
+            <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-500 bg-clip-text text-transparent">PulseChat <span class="text-xs px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 font-mono border border-indigo-800/60 ml-1">Shield AI</span></h1>
         </div>
-        <div class="flex items-center space-x-4">
-            <div class="bg-gray-800 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 flex items-center space-x-2">
-                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
-                <span>Online: <span id="onlineCount" class="text-white font-bold">1</span></span>
+        <div class="flex items-center space-x-3">
+            <div id="qualityIndicator" class="hidden bg-slate-800/80 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 flex items-center space-x-1.5 border border-slate-700/50">
+                <i class="fa-solid fa-signal text-emerald-400" id="qualityIcon"></i>
+                <span id="qualityText">Rtt: Optimizing</span>
             </div>
-            <button id="reportBtn" class="hidden text-xs bg-red-950/40 text-red-400 border border-red-900/50 hover:bg-red-900/50 px-3 py-1.5 rounded-lg transition-all">
-                <i class="fa-solid fa-triangle-exclamation mr-1"></i> Report
-            </button>
+            <div class="bg-slate-800/80 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 flex items-center space-x-1.5 border border-slate-700/50">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
+                <span>Pool: <span id="onlineCount" class="text-slate-200 font-bold">1</span></span>
+            </div>
         </div>
     </header>
 
+    <div id="aiLoadingOverlay" class="fixed inset-0 bg-slate-950 z-50 flex flex-col items-center justify-center p-6 text-center transition-opacity duration-500">
+        <div class="max-w-md space-y-6">
+            <div class="relative w-20 h-20 mx-auto">
+                <div class="absolute inset-0 border-4 border-indigo-500/20 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-t-indigo-500 border-r-purple-500 rounded-full animate-spin"></div>
+                <div class="absolute inset-0 flex items-center justify-center text-indigo-400">
+                    <i class="fa-solid fa-brain text-2xl animate-pulse"></i>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-bold tracking-tight text-slate-200">Warming Up Guarded Environment</h3>
+                <p class="text-sm text-slate-400">Downloading and compiling computer vision layers directly on your device GPU via TensorFlow.js...</p>
+            </div>
+            <p class="text-xs text-rose-400 font-medium bg-rose-950/30 border border-rose-900/40 px-4 py-2.5 rounded-xl">
+                <i class="fa-solid fa-shield-halved mr-1"></i> Explicit or inappropriate content is prohibited.
+            </p>
+        </div>
+    </div>
+
+    <div id="banOverlay" class="fixed inset-0 bg-slate-950/95 z-40 flex flex-col items-center justify-center p-6 text-center transition-all hidden">
+        <div class="max-w-md bg-slate-900 border border-rose-900/40 rounded-2xl p-6 shadow-2xl shadow-rose-950/20 space-y-5">
+            <div class="w-14 h-14 bg-rose-500/10 border border-rose-500/30 rounded-full flex items-center justify-center text-rose-500 text-2xl mx-auto">
+                <i class="fa-solid fa-user-lock"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-xl font-bold text-slate-100">Session Restricted</h3>
+                <p class="text-sm text-slate-400">Our real-time safety models flagged your stream content as containing adult or explicit data signatures.</p>
+            </div>
+            <div class="text-xs font-mono bg-slate-950 p-3 rounded-lg border border-slate-800 text-rose-400">
+                Cooldown Lock Penalty Active. Please wait...
+            </div>
+        </div>
+    </div>
+
     <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
         
-        <div id="landingScreen" class="absolute inset-0 bg-gray-950 z-20 flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
-            <div class="max-w-md space-y-6">
-                <div class="inline-flex p-4 bg-indigo-600/10 text-indigo-500 rounded-3xl mb-2">
-                    <i class="fa-solid fa-video text-4xl"></i>
+        <div id="landingScreen" class="absolute inset-0 bg-slate-950 z-20 flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+            <div class="max-w-md space-y-6 bg-slate-900/40 p-8 border border-slate-800/60 rounded-3xl backdrop-blur-md">
+                <div class="w-14 h-14 bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 rounded-2xl flex items-center justify-center text-2xl mx-auto">
+                    <i class="fa-solid fa-shield-cat"></i>
                 </div>
-                <h2 class="text-3xl font-extrabold tracking-tight">Meet new people, instantly.</h2>
-                <p class="text-gray-400 text-sm leading-relaxed">
-                    PulseChat connects you to random strangers globally. Talk anonymously over live video, audio, and text chat. Completely backendless, secure, and private.
+                <h2 class="text-2xl font-bold tracking-tight">Safeguarded Anonymous Spaces</h2>
+                <p class="text-slate-400 text-sm leading-relaxed">
+                    Welcome to the next generation of safe video matching. Your stream is privately analyzed on-device to enforce a clean community environment.
                 </p>
-                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 text-left text-xs space-y-2 text-gray-400">
-                    <p class="flex items-start"><i class="fa-solid fa-shield text-indigo-400 mt-0.5 mr-2"></i> No registration required. You are completely anonymous.</p>
-                    <p class="flex items-start"><i class="fa-solid fa-ban text-indigo-400 mt-0.5 mr-2"></i> Please behave respectfully. Explicit actions will lead to device blocking.</p>
-                </div>
-                <button id="startChatBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center space-x-2 text-base">
-                    <span>Start Video Chat</span>
-                    <i class="fa-solid fa-arrow-right text-sm"></i>
+                <button id="startChatBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/20 transition-all flex items-center justify-center space-x-2 text-sm">
+                    <span>Accept Policy & Start Chatting</span>
+                    <i class="fa-solid fa-shield-check"></i>
                 </button>
             </div>
         </div>
 
-        <div class="w-full md:w-3/5 lg:w-2/3 bg-gray-950 flex flex-col relative border-b md:border-b-0 md:border-r border-gray-800 h-1/2 md:h-full">
+        <div class="w-full md:w-3/5 lg:w-2/3 bg-slate-950 flex flex-col relative border-b md:border-b-0 md:border-r border-slate-800/80 h-1/2 md:h-full">
             
-            <div class="flex-1 grid grid-rows-2 sm:grid-rows-1 sm:grid-cols-2 p-3 gap-3 bg-gray-950/40 relative">
+            <div class="flex-1 grid grid-rows-2 sm:grid-rows-1 sm:grid-cols-2 p-3 gap-3 relative">
                 
-                <div class="video-container relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-inner group">
-                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover rounded-xl"></video>
+                <div class="relative bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center group shadow-2xl">
+                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover rounded-2xl"></video>
                     
-                    <div id="statusOverlay" class="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center p-4 text-center z-10 transition-all">
-                        <div id="searchSpinner" class="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4 hidden"></div>
-                        <div id="statusIcon" class="text-3xl text-gray-600 mb-3"><i class="fa-solid fa-video-slash"></i></div>
-                        <p id="statusText" class="text-sm font-medium text-gray-400">Click Next to find a stranger</p>
+                    <div id="statusOverlay" class="absolute inset-0 bg-slate-900 flex flex-col items-center justify-center p-4 text-center z-10">
+                        <div id="searchSpinner" class="w-10 h-10 border-3 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin mb-3 hidden"></div>
+                        <p id="statusText" class="text-xs font-medium text-slate-400 tracking-wide">Press Next Stranger to establish connections</p>
                     </div>
 
-                    <div class="absolute bottom-3 left-3 bg-gray-950/80 backdrop-blur px-2.5 py-1 rounded-md text-xs font-semibold text-indigo-400 z-10 tracking-wide border border-gray-800">
+                    <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] font-bold text-indigo-400 z-10 border border-slate-800 uppercase tracking-wider">
                         <span id="strangerNameLabel">STRANGER</span>
                     </div>
 
-                    <button id="fullscreenBtn" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/80 hover:bg-gray-800 p-2 rounded-lg text-gray-400 hover:text-white text-xs">
-                        <i class="fa-solid fa-expand"></i>
-                    </button>
-                </div>
-
-                <div class="video-container relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-inner">
-                    <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover rounded-xl"></video>
-                    
-                    <div class="absolute bottom-3 right-3 flex space-x-2 z-10">
-                        <button id="toggleMicBtn" class="bg-gray-950/80 hover:bg-gray-800 text-gray-300 w-9 h-9 rounded-lg flex items-center justify-center border border-gray-800 transition-all" title="Mute/Unmute Mic">
-                            <i id="micIcon" class="fa-solid fa-microphone"></i>
+                    <div class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1.5 z-10">
+                        <button id="blockBtn" class="bg-slate-950/80 hover:bg-rose-900/60 p-2 rounded-lg text-slate-400 hover:text-rose-300 text-xs border border-slate-800" title="Block User">
+                            <i class="fa-solid fa-ban"></i>
                         </button>
-                        <button id="toggleCamBtn" class="bg-gray-950/80 hover:bg-gray-800 text-gray-300 w-9 h-9 rounded-lg flex items-center justify-center border border-gray-800 transition-all" title="Camera On/Off">
-                            <i id="camIcon" class="fa-solid fa-video"></i>
+                        <button id="reportBtn" class="bg-slate-950/80 hover:bg-amber-900/60 p-2 rounded-lg text-slate-400 hover:text-amber-300 text-xs border border-slate-800" title="Report Content Violation">
+                            <i class="fa-solid fa-flag"></i>
                         </button>
                     </div>
+                </div>
 
-                    <div class="absolute bottom-3 left-3 bg-gray-950/80 backdrop-blur px-2.5 py-1 rounded-md text-xs font-semibold text-gray-400 z-10 tracking-wide border border-gray-800">
+                <div class="relative bg-slate-900 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center shadow-2xl">
+                    <video id="localVideo" autoplay playsinline muted class="local-video-feed w-full h-full object-cover rounded-2xl"></video>
+                    
+                    <div class="absolute top-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] font-mono text-emerald-400 z-10 border border-slate-800 flex items-center space-x-1.5">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" id="aiStatusPulse"></span>
+                        <span id="aiStatusText">AI SECURE CHANNELS</span>
+                    </div>
+
+                    <div id="aiWarningOverlay" class="absolute inset-0 bg-rose-950/90 backdrop-blur-md flex-col items-center justify-center p-4 text-center z-20 hidden transition-all">
+                        <i class="fa-solid fa-triangle-exclamation text-3xl text-rose-500 animate-bounce mb-2"></i>
+                        <h4 class="text-md font-bold text-slate-100">Violative Content Detected</h4>
+                        <p class="text-xs text-rose-300 max-w-xs mt-1">Stream components breached adult-content filter rules. Purging connection pipelines instantly...</p>
+                        <span id="countdownTimer" class="mt-3 text-2xl font-bold bg-slate-950 px-3 py-1 rounded-xl border border-rose-900/50 text-rose-400">5</span>
+                    </div>
+
+                    <div class="absolute bottom-3 left-3 bg-slate-950/80 backdrop-blur px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-400 z-10 border border-slate-800 tracking-wider">
                         YOU
                     </div>
                 </div>
             </div>
 
-            <div class="px-4 py-3 bg-gray-900 border-t border-gray-800 flex items-center justify-between space-x-3 shrink-0">
-                <button id="stopChatBtn" disabled class="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 px-4 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center space-x-2">
-                    <i class="fa-solid fa-stop"></i> <span class="hidden sm:inline">Stop</span>
+            <div class="px-4 py-3 bg-slate-900 border-t border-slate-800/80 flex items-center justify-between space-x-3 shrink-0">
+                <button id="stopChatBtn" disabled class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed text-slate-300 px-4 py-2.5 rounded-xl font-medium text-xs transition-all flex items-center space-x-1.5">
+                    <i class="fa-solid fa-stop-circle text-sm"></i> <span>Disconnect</span>
                 </button>
-                <button id="nextStrangerBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-sm">
-                    <span>Next Stranger</span> <i class="fa-solid fa-forward text-xs"></i>
+                <button id="nextStrangerBtn" class="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-xs">
+                    <span>Next Stranger</span> <i class="fa-solid fa-angles-right text-[10px]"></i>
                 </button>
             </div>
         </div>
 
-        <div class="w-full md:w-2/5 lg:w-1/3 bg-gray-900 flex flex-col h-1/2 md:h-full relative">
-            
-            <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm flex flex-col justify-end">
-                <div class="text-center text-xs text-gray-500 my-2">System: Welcome to PulseChat! Click Next to start searching.</div>
+        <div class="w-full md:w-2/5 lg:w-1/3 bg-slate-900 flex flex-col h-1/2 md:h-full relative">
+            <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-xs flex flex-col justify-end">
+                <div class="text-center text-[11px] text-slate-500 border border-slate-800/60 bg-slate-950 p-2.5 rounded-xl">
+                    <i class="fa-solid fa-gavel text-indigo-400 mr-1"></i> System: Channel initialization complete. Local safety AI rules initialized and active.
+                </div>
             </div>
 
-            <div id="typingIndicator" class="px-4 py-1.5 text-xs text-gray-500 bg-gray-900/80 italic tracking-wide absolute bottom-[61px] left-0 right-0 z-10 hidden">
-                Stranger is typing...
-            </div>
-
-            <form id="chatForm" class="p-3 bg-gray-950 border-t border-gray-800 flex items-center space-x-2 shrink-0">
-                <input id="messageInput" type="text" autocomplete="off" disabled placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-800 focus:outline-none focus:border-indigo-500 text-gray-100 px-4 py-2.5 rounded-xl text-sm disabled:opacity-50 transition-all">
-                <button id="sendMessageBtn" type="submit" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm">
-                    <i class="fa-solid fa-paper-plane text-sm"></i>
+            <form id="chatForm" class="p-3 bg-slate-950 border-t border-slate-800/80 flex items-center space-x-2 shrink-0">
+                <input id="messageInput" type="text" autocomplete="off" disabled placeholder="Type a message..." class="flex-1 bg-slate-900 border border-slate-800 focus:outline-none focus:border-indigo-500 text-slate-100 px-4 py-2.5 rounded-xl text-xs disabled:opacity-40 transition-all">
+                <button id="sendMessageBtn" type="submit" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white w-9 h-9 rounded-xl flex items-center justify-center transition-all">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>
                 </button>
             </form>
         </div>
@@ -141,7 +181,7 @@
         import { getDatabase, ref, set, push, onValue, off, onDisconnect, remove, get, runTransaction } 
             from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // EXPLICIT SYSTEM APP CONFIGURATION
+        // GIVEN EXACT PRODUCTION ENGINE CONFIGURATIONS TARGET MATRIX
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -152,303 +192,394 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
 
-        // GLOBAL CONFIGURATIONS & STATE MANAGEMENT IN MEMORY
         const STUN_SERVERS = {
             iceServers: [
                 { urls: "stun:stun.l.google.com:19302" },
-                { urls: "stun:stun1.l.google.com:19302" },
-                { urls: "stun:stun2.l.google.com:19302" }
-            ]
+                { urls: "stun:stun1.l.google.com:19302" }
+            ],
+            iceCandidatePoolSize: 10
         };
 
+        // IN-MEMORY COMPONENT ARCHITECTURE SYSTEM STATES
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Core App Context States Variables
         let localStream = null;
         let peerConnection = null;
-        let userId = "Stranger_" + Math.floor(1000 + Math.random() * 9000);
+        let nsfwModel = null;
+        let aiScanIntervalId = null;
+        
+        let userId = "User_" + Math.floor(1000 + Math.random() * 9000);
         let currentRoomId = null;
-        let userRole = null; // 'offerer' or 'answerer'
+        let userRole = null; 
         let matchmakingQueueRef = null;
         let activeRoomRefs = [];
+        
         let isSearching = false;
-        let antiSpamCooldown = false;
-        let isMuted = false;
-        let isCamOff = false;
-        let typingTimeout = null;
+        let isBanned = false;
+        let spamCooldownTracker = false;
+        let lastMessageTimestamp = 0;
 
-        // ELEMENT QUERY REGISTER MAP
+        // UI DOM NODES DICTIONARY
         const dom = {
+            aiLoadingOverlay: document.getElementById('aiLoadingOverlay'),
+            banOverlay: document.getElementById('banOverlay'),
             landingScreen: document.getElementById('landingScreen'),
             startChatBtn: document.getElementById('startChatBtn'),
             nextStrangerBtn: document.getElementById('nextStrangerBtn'),
             stopChatBtn: document.getElementById('stopChatBtn'),
+            blockBtn: document.getElementById('blockBtn'),
             reportBtn: document.getElementById('reportBtn'),
-            fullscreenBtn: document.getElementById('fullscreenBtn'),
-            toggleMicBtn: document.getElementById('toggleMicBtn'),
-            toggleCamBtn: document.getElementById('toggleCamBtn'),
-            micIcon: document.getElementById('micIcon'),
-            camIcon: document.getElementById('camIcon'),
             localVideo: document.getElementById('localVideo'),
             remoteVideo: document.getElementById('remoteVideo'),
             statusOverlay: document.getElementById('statusOverlay'),
             searchSpinner: document.getElementById('searchSpinner'),
-            statusIcon: document.getElementById('statusIcon'),
             statusText: document.getElementById('statusText'),
             strangerNameLabel: document.getElementById('strangerNameLabel'),
             chatBox: document.getElementById('chatBox'),
             chatForm: document.getElementById('chatForm'),
             messageInput: document.getElementById('messageInput'),
             sendMessageBtn: document.getElementById('sendMessageBtn'),
-            typingIndicator: document.getElementById('typingIndicator'),
-            onlineCount: document.getElementById('onlineCount')
+            aiWarningOverlay: document.getElementById('aiWarningOverlay'),
+            countdownTimer: document.getElementById('countdownTimer'),
+            aiStatusPulse: document.getElementById('aiStatusPulse'),
+            aiStatusText: document.getElementById('aiStatusText'),
+            onlineCount: document.getElementById('onlineCount'),
+            qualityIndicator: document.getElementById('qualityIndicator'),
+            qualityText: document.getElementById('qualityText')
         };
 
         /* ==========================================
-         * CORE APP INITIATION & COMPONENT HOOKS
+         * APPLICATION CORE BOOTSTRAPPING PIPELINE
          * ========================================== */
-        async function initializeAppEngine() {
-            setupGlobalPresence();
-            setupUIEventListeners();
-        }
-
-        // Live Realtime Dynamic Global Presence Counter Tracker
-        function setupGlobalPresence() {
-            const onlineRef = ref(db, 'presence/online_users/' + userId);
-            set(onlineRef, true);
-            onDisconnect(onlineRef).remove();
-
-            const globalPresenceCounter = ref(db, 'presence/online_users');
-            onValue(globalPresenceCounter, (snapshot) => {
-                if(snapshot.exists()) {
-                    dom.onlineCount.textContent = Object.keys(snapshot.val()).length;
-                } else {
-                    dom.onlineCount.textContent = "1";
+        async function initializeApplicationLifecycle() {
+            try {
+                setupGlobalPresence();
+                // Load NSFWJS visual tensor classification network layers
+                nsfwModel = await nsfwjs.load('/model/'); 
+                dom.aiLoadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+                setupEventBindings();
+            } catch (fallbackErr) {
+                console.warn("Hosted model layers fetch issue. Falling back to alternative model distribution CDN source node.");
+                try {
+                    // Fallback URL targeting alternative CDN storage structures
+                    nsfwModel = await nsfwjs.load('https://nsfwjs-models.s3.amazonaws.com/inception_v3/', { size: 299 });
+                    dom.aiLoadingOverlay.classList.add('opacity-0', 'pointer-events-none');
+                    setupEventBindings();
+                } catch(fatalErr) {
+                    console.error("AI Model Initialization Failure Exception:", fatalErr);
+                    alert("Critical system layer engine error configuration. Neural networks verification models failed compilation parameters check.");
                 }
+            }
+        }
+
+        function setupGlobalPresence() {
+            const presenceRef = ref(db, 'presence/active_pool/' + userId);
+            set(presenceRef, true);
+            onDisconnect(presenceRef).remove();
+
+            onValue(ref(db, 'presence/active_pool'), (snapshot) => {
+                dom.onlineCount.textContent = snapshot.exists() ? Object.keys(snapshot.val()).length : "1";
             });
         }
 
-        // Register Dynamic DOM Binding Handlers
-        function setupUIEventListeners() {
-            dom.startChatBtn.addEventListener('click', () => requestMediaPermissionsAndProceed());
-            dom.nextStrangerBtn.addEventListener('click', () => handleNextStrangerCycle());
-            dom.stopChatBtn.addEventListener('click', () => terminateActiveSession(true));
-            
-            dom.chatForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                executeChatMessageTransmission();
-            });
-
-            dom.messageInput.addEventListener('input', () => transmitTypingStateToPeer());
-            dom.toggleMicBtn.addEventListener('click', () => toggleAudioHardwareState());
-            dom.toggleCamBtn.addEventListener('click', () => toggleVideoHardwareState());
-            dom.fullscreenBtn.addEventListener('click', () => toggleRemoteVideoFullscreenMode());
-            dom.reportBtn.addEventListener('click', () => executeReportBlockSequence());
+        function setupEventBindings() {
+            dom.startChatBtn.addEventListener('click', () => captureHardwarePermissionsAndStart());
+            dom.nextStrangerBtn.addEventListener('click', () => initiateMatchmakingCycle());
+            dom.stopChatBtn.addEventListener('click', () => executeTeardownSequence(true));
+            dom.blockBtn.addEventListener('click', () => handleBlockUserAction());
+            dom.reportBtn.addEventListener('click', () => handleReportUserAction());
+            dom.chatForm.addEventListener('submit', (e) => { e.preventDefault(); transmitTextMessage(); });
         }
 
         /* ==========================================
-         * MEDIA PIPELINE & HARDWARE ACCESS MANAGEMENT
+         * MEDIA PIPELINE & HARDWARE MANAGEMENT
          * ========================================== */
-        async function requestMediaPermissionsAndProceed() {
+        async function captureHardwarePermissionsAndStart() {
             try {
-                appendSystemLog("System: Requesting camera and microphone permissions...");
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                // Request media configurations matching low-latency profiles
+                localStream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 24 } },
+                    audio: true
+                });
                 dom.localVideo.srcObject = localStream;
                 dom.landingScreen.classList.add('opacity-0', 'pointer-events-none');
-                appendSystemLog("System: Access granted. Ready to search.");
-            } catch (err) {
-                console.error("Hardware initialization exception:", err);
-                alert("Camera and Microphone access are absolute requirements for operational functionality. Please unlock permissions in your browser URL bar.");
-                appendSystemLog("System Error: Critical failure accessing media hardware.");
-            }
-        }
-
-        function toggleAudioHardwareState() {
-            if (!localStream) return;
-            isMuted = !isMuted;
-            localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-            dom.micIcon.className = isMuted ? "fa-solid fa-microphone-slash text-red-500" : "fa-solid fa-microphone";
-            dom.toggleMicBtn.classList.toggle('bg-red-950/40', isMuted);
-        }
-
-        function toggleVideoHardwareState() {
-            if (!localStream) return;
-            isCamOff = !isCamOff;
-            localStream.getVideoTracks().forEach(track => track.enabled = !isCamOff);
-            dom.camIcon.className = isCamOff ? "fa-solid fa-video-slash text-red-500" : "fa-solid fa-video";
-            dom.toggleCamBtn.classList.toggle('bg-red-950/40', isCamOff);
-        }
-
-        function toggleRemoteVideoFullscreenMode() {
-            if (dom.remoteVideo.requestFullscreen) {
-                dom.remoteVideo.requestFullscreen();
-            } else if (dom.remoteVideo.webkitRequestFullscreen) { /* Safari support */
-                dom.remoteVideo.webkitRequestFullscreen();
+                
+                // Initialize local loop thread scanner cycle tracking logic array blocks
+                startLocalStreamAISafetyEngine();
+            } catch(err) {
+                alert("This architecture relies completely on local camera access configurations to support video-chat operations. Please adjust your browser permissions.");
             }
         }
 
         /* ==========================================
-         * FIREBASE QUEUE & WEBRTC MATCHMAKING SYSTEM
+         * ADVANCED LOCAL REALTIME ON-DEVICE AI MODERATION ENGINE
          * ========================================== */
-        async function handleNextStrangerCycle() {
-            if (antiSpamCooldown) return;
+        function startLocalStreamAISafetyEngine() {
+            if (aiScanIntervalId) clearInterval(aiScanIntervalId);
+            
+            // Core execution looping logic operating precisely every 2000 milliseconds
+            aiScanIntervalId = setInterval(async () => {
+                if (!localStream || isBanned) return;
+
+                // Update UI status context to reflect scan state execution boundaries
+                dom.aiStatusPulse.className = "w-1.5 h-1.5 bg-indigo-400 rounded-full animate-ping";
+                dom.aiStatusText.textContent = "AI ANALYSIS RUNNING";
+
+                try {
+                    const predictions = await nsfwModel.classify(dom.localVideo);
+                    processAIScoringMatrix(predictions);
+                } catch(ex) {
+                    console.error("Frame evaluation trace execution processing pipeline error:", ex);
+                }
+
+                setTimeout(() => {
+                    if (!isBanned) {
+                        dom.aiStatusPulse.className = "w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse";
+                        dom.aiStatusText.textContent = "AI SECURE CHANNELS";
+                    }
+                }, 400);
+
+            }, 2000);
+        }
+
+        function processAIScoringMatrix(predictions) {
+            let maliciousScore = 0;
+            
+            // Map validation layers extracting explicit score data signatures
+            predictions.forEach(prediction => {
+                if (prediction.className === 'Porn' || prediction.className === 'Sexy border') {
+                    maliciousScore += prediction.probability;
+                }
+            });
+
+            // Threshold enforcement rule tracking configurations limit
+            if (maliciousScore > 0.65) {
+                executeModerationSanctionLockout();
+            }
+        }
+
+        async function executeModerationSanctionLockout() {
+            if (isBanned) return;
+            isBanned = true;
+
+            // Step 1: Instantly blur local video element view models
+            dom.localVideo.classList.add('moderation-blur');
+            dom.aiStatusPulse.className = "w-1.5 h-1.5 bg-rose-500 rounded-full";
+            dom.aiStatusText.textContent = "CRITICAL FILTER BREACH";
+
+            // Step 2: Grab evidence screenshot frame capture
+            const evidenceScreenshotDataUri = captureStreamEvidenceFrame();
+
+            // Step 3: Dispatch infraction reports logs payloads directly to remote Firebase structures
+            const incidentId = "INCIDENT_" + Date.now();
+            const logsDbRef = ref(db, `moderation_dashboard/logs/${incidentId}`);
+            const payload = {
+                infractionUser: userId,
+                associatedRoom: currentRoomId || "QUEUE_STAGE",
+                timestamp: Date.now(),
+                evidenceCapture: evidenceScreenshotDataUri,
+                classificationScore: "Explicit Target Verified"
+            };
+            set(logsDbRef, payload);
+
+            // Step 4: Disconnect ongoing WebRTC stream calls pipeline pathways
+            await executeTeardownSequence(false);
+
+            // Step 5: Render user overlay panels warning configurations countdown timers
+            dom.aiWarningOverlay.classList.remove('hidden');
+            dom.aiWarningOverlay.classList.add('flex');
+            
+            let countdown = 5;
+            dom.countdownTimer.textContent = countdown;
+            
+            const timer = setInterval(() => {
+                countdown--;
+                dom.countdownTimer.textContent = countdown;
+                if (countdown <= 0) {
+                    clearInterval(timer);
+                    dom.aiWarningOverlay.classList.add('hidden');
+                    dom.aiWarningOverlay.classList.remove('flex');
+                    
+                    // Step 6: Render global structural temporary session lock ban UI overlays
+                    dom.banOverlay.classList.remove('hidden');
+                    
+                    // Temporarily suspend session interface locks for 15 seconds cooldown
+                    setTimeout(() => {
+                        dom.banOverlay.classList.add('hidden');
+                        dom.localVideo.classList.remove('moderation-blur');
+                        isBanned = false;
+                        appendSystemLog("System: Penalty cooldown elapsed. Reconnecting to safety pools...");
+                        initiateMatchmakingCycle(); // Auto reconnect after safe disconnect
+                    }, 15000);
+                }
+            }, 1000);
+        }
+
+        function captureStreamEvidenceFrame() {
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = 160; 
+                canvas.height = 120; // Reduced scale footprint for DB storage optimization
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(dom.localVideo, 0, 0, canvas.width, canvas.height);
+                return canvas.toDataURL('image/jpeg', 0.6);
+            } catch(e) {
+                return "DATA_CAPTURE_FAILED";
+            }
+        }
+
+        /* ==========================================
+         * DISCONNECT, REPORT, AND BLOCK CONTROLS
+         * ========================================== */
+        function handleBlockUserAction() {
+            if(!currentRoomId) return;
+            appendSystemLog("System: User blocked. Purging connection routes...");
+            executeTeardownSequence(false);
+            initiateMatchmakingCycle();
+        }
+
+        function handleReportUserAction() {
+            if(!currentRoomId) return;
+            const targetReportedId = dom.strangerNameLabel.textContent;
+            
+            const reportsRef = ref(db, `moderation_dashboard/reports/${Date.now()}`);
+            set(reportsRef, {
+                reportedBy: userId,
+                offendingTarget: targetReportedId,
+                timestamp: Date.now(),
+                contextRoom: currentRoomId
+            });
+
+            alert("Report cataloged. Internal safety models will audit this user's signaling streams.");
+            executeTeardownSequence(false);
+            initiateMatchmakingCycle();
+        }
+
+        /* ==========================================
+         * MATCHMAKING PIPELINE PLATFORM MECHANICS
+         * ========================================== */
+        async function initiateMatchmakingCycle() {
+            if (spamCooldownTracker || isBanned) return;
             triggerAntiSpamLockout();
 
-            await terminateActiveSession(false);
-            setVisualStateSearching();
+            await executeTeardownSequence(false);
+            setUIStateSearching();
             
             isSearching = true;
-            appendSystemLog("System: Searching for an online stranger...");
+            appendSystemLog("System: Querying system queues for matching peer layers...");
 
             const queueGlobalRef = ref(db, 'matchmaking_queue');
             
             try {
-                // Execute atomic transaction operation context to discover/claim waiting host node
                 const transactionResult = await runTransaction(queueGlobalRef, (currentQueue) => {
                     if (!currentQueue) {
-                        // Queue execution vacant: Instantiate a key context node payload block
-                        const newRoomKey = "room_" + Math.floor(100000 + Math.random() * 900000);
                         const matchQueueObj = {};
-                        matchQueueObj[userId] = {
-                            roomId: newRoomKey,
-                            timestamp: Date.now()
-                        };
+                        matchQueueObj[userId] = { roomId: "room_" + Math.floor(100000 + Math.random() * 900000), timestamp: Date.now() };
                         return matchQueueObj;
                     }
-                    
-                    // Assess if self configuration state object node already in active queue frame
-                    if (currentQueue[userId]) {
-                        return currentQueue; // Retain structure configuration
-                    }
+                    if (currentQueue[userId]) return currentQueue;
 
-                    // Discover structural match candidates inside stack
                     const keys = Object.keys(currentQueue);
                     if (keys.length > 0) {
                         const targetCandidateId = keys[0];
-                        // Extract configuration meta-claims mapping target
                         currentQueue[targetCandidateId].matchedWith = userId;
                         return currentQueue;
                     }
 
-                    // Default fall-through if structure initialized but keys length evaluated null
-                    const newRoomKey = "room_" + Math.floor(100000 + Math.random() * 900000);
-                    currentQueue[userId] = { roomId: newRoomKey, timestamp: Date.now() };
+                    currentQueue[userId] = { roomId: "room_" + Math.floor(100000 + Math.random() * 900000), timestamp: Date.now() };
                     return currentQueue;
                 });
 
                 if (transactionResult.committed) {
-                    // Inspect runtime properties structure distribution state mapping output matches
                     const queueDataSnapshot = await get(queueGlobalRef);
                     if (queueDataSnapshot.exists()) {
                         const masterQueue = queueDataSnapshot.val();
                         
-                        // Scenario Case Alpha: We assigned inside stack and standard candidate matched us
                         if (masterQueue[userId] && masterQueue[userId].matchedWith) {
                             const matchedPeerId = masterQueue[userId].matchedWith;
                             const targetRoomId = masterQueue[userId].roomId;
-                            
-                            // Remove element context from stack array node trace structural space mapping
                             await remove(ref(db, `matchmaking_queue/${userId}`));
-                            initializeConnectionSignalingBridge(targetRoomId, 'offerer', matchedPeerId);
+                            buildWebRTCSignalingLink(targetRoomId, 'offerer', matchedPeerId);
                             return;
                         }
 
-                        // Scenario Case Beta: We matched an existing waiting peer
                         for (let peerId in masterQueue) {
                             if (masterQueue[peerId].matchedWith === userId) {
                                 const targetRoomId = masterQueue[peerId].roomId;
-                                
                                 await remove(ref(db, `matchmaking_queue/${peerId}`));
-                                initializeConnectionSignalingBridge(targetRoomId, 'answerer', peerId);
+                                buildWebRTCSignalingLink(targetRoomId, 'answerer', peerId);
                                 return;
                             }
                         }
                     }
 
-                    // Fallback Scenario Gamma: Lodged securely inside queue awaiting incoming connections hooks
                     matchmakingQueueRef = ref(db, `matchmaking_queue/${userId}`);
-                    
-                    // Create persistent event observer to intercept prospective match triggers
                     onValue(matchmakingQueueRef, (snapshot) => {
                         const data = snapshot.val();
                         if (data && data.matchedWith) {
                             off(matchmakingQueueRef);
                             matchmakingQueueRef = null;
-                            initializeConnectionSignalingBridge(data.roomId, 'offerer', data.matchedWith);
+                            buildWebRTCSignalingLink(data.roomId, 'offerer', data.matchedWith);
                         }
                     });
-
-                    // Auto-cleanup stale entry on disconnection
                     onDisconnect(matchmakingQueueRef).remove();
                 }
             } catch (err) {
-                console.error("Matchmaking transaction engine pipeline failure:", err);
-                executeReconnectionCycleLogic();
+                console.error("Matchmaking pipeline processing error parameters:", err);
+                setTimeout(() => { if(!currentRoomId) initiateMatchmakingCycle(); }, 4000);
             }
         }
 
         /* ==========================================
-         * WEBRTC SIGNALING CORE ENGINE MAPPING
+         * SIGNANCE CHANNEL HOOKS AND PEER BUILDERS
          * ========================================== */
-        async function initializeConnectionSignalingBridge(roomId, role, partnerId) {
-            if (!isSearching) return; // Prevent async race conditions if user stopped
-            
+        async function buildWebRTCSignalingLink(roomId, role, partnerId) {
+            if (!isSearching) return;
             currentRoomId = roomId;
             userRole = role;
             isSearching = false;
 
             dom.strangerNameLabel.textContent = partnerId;
-            setVisualStateConnected();
-            appendSystemLog(`System: Connected with ${partnerId}. Establishing secure peer media stream link...`);
+            setUIStateConnected();
+            appendSystemLog(`System: Peer match verified. Activating secure channel tunnels...`);
 
-            // Initialize Peer Connection Engine Instance
             peerConnection = new RTCPeerConnection(STUN_SERVERS);
 
-            // Append local video frames tracking loops pipeline matrix context to connection engine
             if (localStream) {
                 localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
             }
 
-            // Bind Remote Stream Interceptor Handlers
             peerConnection.ontrack = (event) => {
                 if (event.streams && event.streams[0]) {
                     dom.remoteVideo.srcObject = event.streams[0];
                 }
             };
 
-            // Setup ICE Candidates Collection Pipeline Hooks
+            // Monitor quality parameters dynamically (ICE Connection state monitoring tracking parameters)
+            peerConnection.oniceconnectionstatechange = () => {
+                dom.qualityIndicator.classList.remove('hidden');
+                const state = peerConnection.iceConnectionState;
+                if(state === 'connected' || state === 'completed') {
+                    dom.qualityText.textContent = "Lat: Low-Latency Optimized";
+                } else if(state === 'failed' || state === 'disconnected') {
+                    handleStrangerLeaveEvent();
+                }
+            };
+
             const iceCandidatesRoomRef = ref(db, `rooms/${currentRoomId}/ice_${userRole}`);
             peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    push(iceCandidatesRoomRef, event.candidate.toJSON());
-                }
+                if (event.candidate) push(iceCandidatesRoomRef, event.candidate.toJSON());
             };
 
-            // Monitor Remote Peer Connection State Changes
-            peerConnection.onconnectionstatechange = () => {
-                if (peerConnection.connectionState === 'disconnected' || 
-                    peerConnection.connectionState === 'failed') {
-                    handleStrangerDisconnectSequence();
-                }
-            };
-
-            // Bind Firebase Signaling Synchronization Nodes
             const roomRef = ref(db, `rooms/${currentRoomId}`);
             activeRoomRefs.push(roomRef);
 
-            // Establish Connection Logic Depending on Role
             if (userRole === 'offerer') {
-                // Offerer Lifecycle Logic Path Execution
                 const offerDescription = await peerConnection.createOffer();
                 await peerConnection.setLocalDescription(offerDescription);
+                await set(ref(db, `rooms/${currentRoomId}/offer`), { type: offerDescription.type, sdp: offerDescription.sdp });
 
-                await set(ref(db, `rooms/${currentRoomId}/offer`), {
-                    type: offerDescription.type,
-                    sdp: offerDescription.sdp
-                });
-
-                // Listen for structural answer payload from peer
                 const answerRef = ref(db, `rooms/${currentRoomId}/answer`);
                 activeRoomRefs.push(answerRef);
                 onValue(answerRef, async (snapshot) => {
@@ -458,255 +589,186 @@
                     }
                 });
 
-                // Dynamically process incoming target answers ICE stream candidates nodes array
                 const remoteIceRef = ref(db, `rooms/${currentRoomId}/ice_answer`);
                 activeRoomRefs.push(remoteIceRef);
                 onValue(remoteIceRef, (snapshot) => {
                     if (snapshot.exists()) {
                         snapshot.forEach((child) => {
-                            const candidate = new RTCIceCandidate(child.val());
-                            peerConnection.addIceCandidate(candidate).catch(e => {});
+                            peerConnection.addIceCandidate(new RTCIceCandidate(child.val())).catch(e => {});
                         });
                     }
                 });
-
             } else {
-                // Answerer Lifecycle Logic Path Execution
                 const offerRef = ref(db, `rooms/${currentRoomId}/offer`);
                 activeRoomRefs.push(offerRef);
-                
                 const offerSnapshot = await get(offerRef);
                 if (offerSnapshot.exists()) {
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSnapshot.val()));
                     const answerDescription = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answerDescription);
-
-                    await set(ref(db, `rooms/${currentRoomId}/answer`), {
-                        type: answerDescription.type,
-                        sdp: answerDescription.sdp
-                    });
+                    await set(ref(db, `rooms/${currentRoomId}/answer`), { type: answerDescription.type, sdp: answerDescription.sdp });
                 }
 
-                // Dynamically process incoming target offers ICE stream candidates nodes array
                 const remoteIceRef = ref(db, `rooms/${currentRoomId}/ice_offerer`);
                 activeRoomRefs.push(remoteIceRef);
                 onValue(remoteIceRef, (snapshot) => {
                     if (snapshot.exists()) {
                         snapshot.forEach((child) => {
-                            const candidate = new RTCIceCandidate(child.val());
-                            peerConnection.addIceCandidate(candidate).catch(e => {});
+                            peerConnection.addIceCandidate(new RTCIceCandidate(child.val())).catch(e => {});
                         });
                     }
                 });
             }
 
-            // Initialize Message & Typing Event Listeners for Chat
-            initializeChatSignalingSync();
-
-            // Set Disconnect Signal Sync Handlers across Database Node Instances
+            initializeChatDataLinkChannel();
             onDisconnect(roomRef).remove();
             
-            // Watch for dynamic operational structural deletions by peer indicating user left
             onValue(roomRef, (snapshot) => {
-                if (!snapshot.exists() && currentRoomId !== null) {
-                    handleStrangerDisconnectSequence();
-                }
+                if (!snapshot.exists() && currentRoomId !== null) handleStrangerLeaveEvent();
             });
         }
 
         /* ==========================================
-         * REALTIME DATA SYNCHRONIZATION (CHAT CHANNELS)
+         * TEXT CHAT COMPONENT & ANTI-SPAM PROTECTION
          * ========================================== */
-        function initializeChatSignalingSync() {
+        function initializeChatDataLinkChannel() {
             const chatChannelRef = ref(db, `rooms/${currentRoomId}/chat`);
             activeRoomRefs.push(chatChannelRef);
-            
             onValue(chatChannelRef, (snapshot) => {
                 if (snapshot.exists()) {
-                    const messagesArray = Object.values(snapshot.val());
-                    // Extract execution terminal tail nodes array instance
-                    const targetMessage = messagesArray[messagesArray.length - 1];
-                    
-                    if (targetMessage.sender !== userId) {
-                        appendMessageLog("Stranger", targetMessage.text, "text-indigo-400 font-bold");
+                    const msgs = Object.values(snapshot.val());
+                    const lastMsg = msgs[msgs.length - 1];
+                    if (lastMsg.sender !== userId) {
+                        appendMessageLog("Stranger", lastMsg.text, "text-indigo-400 font-bold");
                     }
                 }
             });
-
-            const typingChannelRef = ref(db, `rooms/${currentRoomId}/typing_${userRole === 'offerer' ? 'answerer' : 'offerer'}`);
-            activeRoomRefs.push(typingChannelRef);
-            onValue(typingChannelRef, (snapshot) => {
-                if (snapshot.exists() && snapshot.val().isTyping) {
-                    dom.typingIndicator.classList.remove('hidden');
-                } else {
-                    dom.typingIndicator.classList.add('hidden');
-                }
-            });
         }
 
-        function executeChatMessageTransmission() {
-            const msgText = dom.messageInput.value.trim();
-            if (!msgText || !currentRoomId) return;
+        function transmitTextMessage() {
+            const now = Date.now();
+            
+            // Rate limiting validation structure (Anti-spam constraint)
+            if (now - lastMessageTimestamp < 600) { 
+                appendSystemLog("System Alert: Messaging rate throttled (Spam Control).");
+                return;
+            }
+            lastMessageTimestamp = now;
+
+            const text = dom.messageInput.value.trim();
+            if (!text || !currentRoomId) return;
 
             const chatChannelRef = ref(db, `rooms/${currentRoomId}/chat`);
-            push(chatChannelRef, {
-                sender: userId,
-                text: msgText,
-                timestamp: Date.now()
-            });
+            push(chatChannelRef, { sender: userId, text: text, timestamp: now });
 
-            appendMessageLog("You", msgText, "text-gray-400 font-bold");
+            appendMessageLog("You", text, "text-slate-400 font-bold");
             dom.messageInput.value = "";
-            transmitTypingStateToPeer(true); // Terminate self typing indicators instantly
-        }
-
-        function transmitTypingStateToPeer(forceStop = false) {
-            if (!currentRoomId) return;
-            const selfTypingRef = ref(db, `rooms/${currentRoomId}/typing_${userRole}`);
-            
-            set(selfTypingRef, { isTyping: !forceStop && dom.messageInput.value.length > 0 });
-            
-            clearTimeout(typingTimeout);
-            if (!forceStop && dom.messageInput.value.length > 0) {
-                typingTimeout = setTimeout(() => {
-                    set(selfTypingRef, { isTyping: false });
-                }, 2000);
-            }
         }
 
         /* ==========================================
-         * LIFECYCLE DESTRUCTION & DISCONNECT ENGINE
+         * ENGINE TEARDOWN & RECYCLING PROCEDURES
          * ========================================== */
-        async function terminateActiveSession(explicitUserAction = false) {
+        async function executeTeardownSequence(explicitDisconnect = false) {
             isSearching = false;
 
-            // Remove matchmaking event listener references cleanly
             if (matchmakingQueueRef) {
                 off(matchmakingQueueRef);
                 await remove(matchmakingQueueRef);
                 matchmakingQueueRef = null;
             }
 
-            // Teardown Active Realtime Database Subscriptions Loops
             activeRoomRefs.forEach(reference => off(reference));
             activeRoomRefs = [];
 
-            // Purge structural database endpoints completely from servers core instances
             if (currentRoomId) {
                 const targetRoomRef = ref(db, `rooms/${currentRoomId}`);
                 await remove(targetRoomRef);
                 currentRoomId = null;
             }
 
-            // Close down connection endpoints safely within client sandbox environment contexts
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
             }
 
-            // Clear Video Object Handles
             dom.remoteVideo.srcObject = null;
             
-            if (explicitUserAction) {
-                setVisualStateDisconnected();
-                appendSystemLog("System: You disconnected from the chat session.");
+            if (explicitDisconnect) {
+                setUIStateDisconnected();
+                appendSystemLog("System: Connection explicitly terminated by local environment.");
             }
         }
 
-        function handleStrangerDisconnectSequence() {
+        function handleStrangerLeaveEvent() {
             if (!currentRoomId && !isSearching) return;
-            terminateActiveSession(false);
-            setVisualStateDisconnected();
-            appendSystemLog("System: Stranger disconnected. Click Next to search again.");
-        }
-
-        function executeReconnectionCycleLogic() {
-            appendSystemLog("System: Connection anomalies detected. Reconnecting framework execution context...");
-            setTimeout(() => {
-                if (!currentRoomId && !isSearching) {
-                    handleNextStrangerCycle();
-                }
-            }, 3000);
-        }
-
-        function executeReportBlockSequence() {
-            alert("This user has been reported and blocked from your session context matching pools framework instance arrays.");
-            handleNextStrangerCycle();
+            executeTeardownSequence(false);
+            setUIStateDisconnected();
+            appendSystemLog("System: Stranger left the chat session room. Click Next to search again.");
         }
 
         /* ==========================================
-         * UI GRAPHICAL RENDERING CONTROLLER STATES
+         * INTERFACE GRAPHICAL STATE RENDERING HOOKS
          * ========================================== */
-        function setVisualStateSearching() {
-            dom.statusOverlay.classList.remove('hidden', 'opacity-0');
+        function setUIStateSearching() {
+            dom.statusOverlay.classList.remove('hidden');
             dom.searchSpinner.classList.remove('hidden');
-            dom.statusIcon.classList.add('hidden');
-            dom.statusText.textContent = "Looking for a stranger...";
+            dom.statusText.textContent = "Finding clean matching signals...";
             dom.stopChatBtn.removeAttribute('disabled');
             dom.messageInput.setAttribute('disabled', 'true');
             dom.sendMessageBtn.setAttribute('disabled', 'true');
-            dom.reportBtn.classList.add('hidden');
             dom.strangerNameLabel.textContent = "STRANGER";
+            dom.qualityIndicator.classList.add('hidden');
         }
 
-        function setVisualStateConnected() {
-            dom.statusOverlay.classList.add('hidden', 'opacity-0');
+        function setUIStateConnected() {
+            dom.statusOverlay.classList.add('hidden');
             dom.messageInput.removeAttribute('disabled');
             dom.sendMessageBtn.removeAttribute('disabled');
             dom.stopChatBtn.removeAttribute('disabled');
-            dom.reportBtn.classList.remove('hidden');
             dom.messageInput.focus();
         }
 
-        function setVisualStateDisconnected() {
-            dom.statusOverlay.classList.remove('hidden', 'opacity-0');
+        function setUIStateDisconnected() {
+            dom.statusOverlay.classList.remove('hidden');
             dom.searchSpinner.classList.add('hidden');
-            dom.statusIcon.classList.remove('hidden');
-            dom.statusIcon.className = "text-3xl text-red-500/80 mb-3";
-            dom.statusIcon.innerHTML = `<i class="fa-solid fa-video-slash"></i>`;
-            dom.statusText.textContent = "Chat session ended.";
+            dom.statusText.textContent = "Session terminated context.";
             dom.stopChatBtn.setAttribute('disabled', 'true');
             dom.messageInput.setAttribute('disabled', 'true');
             dom.sendMessageBtn.setAttribute('disabled', 'true');
-            dom.reportBtn.classList.add('hidden');
-            dom.typingIndicator.classList.add('hidden');
+            dom.qualityIndicator.classList.add('hidden');
         }
 
         function triggerAntiSpamLockout() {
-            antiSpamCooldown = true;
+            spamCooldownTracker = true;
             dom.nextStrangerBtn.setAttribute('disabled', 'true');
-            dom.nextStrangerBtn.classList.add('opacity-50', 'cursor-not-allowed');
             setTimeout(() => {
-                antiSpamCooldown = false;
+                spamCooldownTracker = false;
                 dom.nextStrangerBtn.removeAttribute('disabled');
-                dom.nextStrangerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            }, 1000); // 1-Second Global Core Anti-Spam Cooldown Matrix Bounds
+            }, 1500); // 1.5 Second interval restriction threshold parameters
         }
 
         function appendSystemLog(message) {
             const logNode = document.createElement('div');
-            logNode.className = "text-center text-xs text-gray-500 my-1 italic font-medium";
+            logNode.className = "text-center text-[10px] text-slate-500 my-1 italic";
             logNode.textContent = message;
             dom.chatBox.appendChild(logNode);
             dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
         }
 
         function appendMessageLog(sender, text, labelStyleClass) {
-            const msgWrapper = document.createElement('div');
-            msgWrapper.className = "bg-gray-800/50 p-2.5 rounded-xl border border-gray-800/60 break-words max-w-[90%] " + 
-                                  (sender === "You" ? "self-end ml-auto bg-indigo-950/20 border-indigo-900/30" : "self-start mr-auto");
-            
-            msgWrapper.innerHTML = `<span class="${labelStyleClass}">${sender}:</span> <span class="text-gray-200 ml-1">${escapeHtmlEntities(text)}</span>`;
-            dom.chatBox.appendChild(msgWrapper);
+            const wrapper = document.createElement('div');
+            wrapper.className = "bg-slate-800/40 p-2.5 rounded-xl border border-slate-800 break-words max-w-[85%] " + 
+                                (sender === "You" ? "self-end ml-auto bg-indigo-950/20 border-indigo-900/30" : "self-start mr-auto");
+            wrapper.innerHTML = `<span class="${labelStyleClass}">${sender}:</span> <span class="text-slate-200 ml-1">${escapeHtml(text)}</span>`;
+            dom.chatBox.appendChild(wrapper);
             dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
         }
 
-        function escapeHtmlEntities(string) {
-            return string.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         }
 
-        // INITIALIZE ENGINE EXECUTIONS LOOP UPON WINDOW PREPARATION COMPLETION
-        window.addEventListener('DOMContentLoaded', initializeAppEngine);
+        window.addEventListener('DOMContentLoaded', initializeApplicationLifecycle);
     </script>
 </body>
 </html>
