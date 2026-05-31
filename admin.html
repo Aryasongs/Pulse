@@ -1,246 +1,712 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pulse - Secure Master Control Panel</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-</head>
-<body class="bg-neutral-950 text-white font-sans min-h-screen flex items-center justify-center p-4">
-
-  <!-- 1. CLOSED SECURITY GATEWAY (LOGIN) -->
-  <div id="admin-auth-box" class="w-full max-w-md bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl space-y-4 block">
-    <div class="text-center mb-2">
-      <div class="bg-gradient-to-r from-red-500 to-pink-500 w-12 h-12 rounded-2xl mx-auto flex items-center justify-center shadow-lg mb-3">
-        <i class="fa-solid fa-shield-halved text-xl text-white"></i>
-      </div>
-      <h1 class="text-xl font-bold tracking-tight">Pulse Console Auth</h1>
-      <p class="text-neutral-400 text-xs mt-0.5">Enter cloud storage credentials to unlock</p>
-    </div>
-
-    <div id="login-error-msg" class="hidden p-3 bg-red-500/20 text-red-400 border border-red-500/30 rounded-xl text-xs font-medium text-center"></div>
-
-    <div class="space-y-3">
-      <input type="email" id="admin-email" placeholder="Admin Email" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-      <input type="password" id="admin-password" placeholder="Admin Password" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-      
-      <button id="btn-admin-login" class="w-full bg-gradient-to-r from-pink-500 to-red-500 p-3.5 rounded-xl font-bold text-sm text-white shadow-lg active:scale-95 transition mt-2">
-        Sign In & Initialize Sync
-      </button>
-    </div>
-  </div>
-
-  <!-- 2. LIVE MUSIC & ALBUM INGESTION CONSOLE (HIDDEN BY DEFAULT) -->
-  <div id="admin-dashboard-box" class="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-3xl p-6 shadow-2xl space-y-6 hidden">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PulseChat | Random Video Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Header -->
-    <div class="flex justify-between items-center border-b border-neutral-800 pb-4">
-      <div class="flex items-center space-x-3">
-        <div class="bg-gradient-to-r from-pink-500 to-red-500 w-10 h-10 rounded-xl flex items-center justify-center shadow-md">
-          <i class="fa-solid fa-sliders text-base text-white"></i>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b0f19;
+        }
+        /* Custom scrollbar for modern dark theme chat */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #4b5563; }
+        
+        .video-container video {
+            transform: scaleX(-1); /* Mirror self camera */
+        }
+        #remoteVideo {
+            transform: none; /* Do not mirror remote stranger */
+        }
+    </style>
+</head>
+<body class="text-gray-100 h-screen flex flex-col overflow-hidden">
+
+    <header class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex justify-between items-center z-10 shrink-0">
+        <div class="flex items-center space-x-2">
+            <div class="w-3 h-3 bg-indigo-500 rounded-full animate-pulse"></div>
+            <h1 class="text-xl font-bold tracking-tight bg-gradient-to-r from-indigo-400 to-purple-500 bg-clip-text text-transparent">PulseChat</h1>
         </div>
-        <div>
-          <h2 class="text-base font-bold tracking-tight">Console Managed Live</h2>
-          <p id="active-user-badge" class="text-neutral-400 text-[10px] uppercase font-semibold tracking-wider">Connecting...</p>
+        <div class="flex items-center space-x-4">
+            <div class="bg-gray-800 px-3 py-1.5 rounded-full text-xs font-medium text-gray-400 flex items-center space-x-2">
+                <span class="w-2 h-2 bg-green-500 rounded-full"></span>
+                <span>Online: <span id="onlineCount" class="text-white font-bold">1</span></span>
+            </div>
+            <button id="reportBtn" class="hidden text-xs bg-red-950/40 text-red-400 border border-red-900/50 hover:bg-red-900/50 px-3 py-1.5 rounded-lg transition-all">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> Report
+            </button>
         </div>
-      </div>
-      <button id="btn-admin-logout" class="bg-neutral-800 hover:bg-red-500/20 hover:text-red-400 text-neutral-400 px-3 py-1.5 rounded-xl text-xs font-medium transition flex items-center space-x-1.5">
-        <i class="fa-solid fa-lock text-[10px]"></i>
-        <span>Lock System</span>
-      </button>
-    </div>
+    </header>
 
-    <!-- Live Status Updates -->
-    <div id="status-msg" class="hidden p-3 rounded-xl text-xs font-medium text-center"></div>
-
-    <!-- Data Broadcast Form -->
-    <div class="space-y-4">
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1 ml-1">Song Title *</label>
-          <input type="text" id="song-title" placeholder="e.g., Barota" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+    <main class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+        
+        <div id="landingScreen" class="absolute inset-0 bg-gray-950 z-20 flex flex-col items-center justify-center p-6 text-center transition-all duration-300">
+            <div class="max-w-md space-y-6">
+                <div class="inline-flex p-4 bg-indigo-600/10 text-indigo-500 rounded-3xl mb-2">
+                    <i class="fa-solid fa-video text-4xl"></i>
+                </div>
+                <h2 class="text-3xl font-extrabold tracking-tight">Meet new people, instantly.</h2>
+                <p class="text-gray-400 text-sm leading-relaxed">
+                    PulseChat connects you to random strangers globally. Talk anonymously over live video, audio, and text chat. Completely backendless, secure, and private.
+                </p>
+                <div class="bg-gray-900/60 p-4 rounded-xl border border-gray-800 text-left text-xs space-y-2 text-gray-400">
+                    <p class="flex items-start"><i class="fa-solid fa-shield text-indigo-400 mt-0.5 mr-2"></i> No registration required. You are completely anonymous.</p>
+                    <p class="flex items-start"><i class="fa-solid fa-ban text-indigo-400 mt-0.5 mr-2"></i> Please behave respectfully. Explicit actions will lead to device blocking.</p>
+                </div>
+                <button id="startChatBtn" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center space-x-2 text-base">
+                    <span>Start Video Chat</span>
+                    <i class="fa-solid fa-arrow-right text-sm"></i>
+                </button>
+            </div>
         </div>
-        <div>
-          <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1 ml-1">Artist Name *</label>
-          <input type="text" id="song-artist" placeholder="Sidhu Moose Wala, The Kidd" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
+
+        <div class="w-full md:w-3/5 lg:w-2/3 bg-gray-950 flex flex-col relative border-b md:border-b-0 md:border-r border-gray-800 h-1/2 md:h-full">
+            
+            <div class="flex-1 grid grid-rows-2 sm:grid-rows-1 sm:grid-cols-2 p-3 gap-3 bg-gray-950/40 relative">
+                
+                <div class="video-container relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-inner group">
+                    <video id="remoteVideo" autoplay playsinline class="w-full h-full object-cover rounded-xl"></video>
+                    
+                    <div id="statusOverlay" class="absolute inset-0 bg-gray-900 flex flex-col items-center justify-center p-4 text-center z-10 transition-all">
+                        <div id="searchSpinner" class="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin mb-4 hidden"></div>
+                        <div id="statusIcon" class="text-3xl text-gray-600 mb-3"><i class="fa-solid fa-video-slash"></i></div>
+                        <p id="statusText" class="text-sm font-medium text-gray-400">Click Next to find a stranger</p>
+                    </div>
+
+                    <div class="absolute bottom-3 left-3 bg-gray-950/80 backdrop-blur px-2.5 py-1 rounded-md text-xs font-semibold text-indigo-400 z-10 tracking-wide border border-gray-800">
+                        <span id="strangerNameLabel">STRANGER</span>
+                    </div>
+
+                    <button id="fullscreenBtn" class="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900/80 hover:bg-gray-800 p-2 rounded-lg text-gray-400 hover:text-white text-xs">
+                        <i class="fa-solid fa-expand"></i>
+                    </button>
+                </div>
+
+                <div class="video-container relative bg-gray-900 rounded-xl overflow-hidden border border-gray-800 flex items-center justify-center shadow-inner">
+                    <video id="localVideo" autoplay playsinline muted class="w-full h-full object-cover rounded-xl"></video>
+                    
+                    <div class="absolute bottom-3 right-3 flex space-x-2 z-10">
+                        <button id="toggleMicBtn" class="bg-gray-950/80 hover:bg-gray-800 text-gray-300 w-9 h-9 rounded-lg flex items-center justify-center border border-gray-800 transition-all" title="Mute/Unmute Mic">
+                            <i id="micIcon" class="fa-solid fa-microphone"></i>
+                        </button>
+                        <button id="toggleCamBtn" class="bg-gray-950/80 hover:bg-gray-800 text-gray-300 w-9 h-9 rounded-lg flex items-center justify-center border border-gray-800 transition-all" title="Camera On/Off">
+                            <i id="camIcon" class="fa-solid fa-video"></i>
+                        </button>
+                    </div>
+
+                    <div class="absolute bottom-3 left-3 bg-gray-950/80 backdrop-blur px-2.5 py-1 rounded-md text-xs font-semibold text-gray-400 z-10 tracking-wide border border-gray-800">
+                        YOU
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-4 py-3 bg-gray-900 border-t border-gray-800 flex items-center justify-between space-x-3 shrink-0">
+                <button id="stopChatBtn" disabled class="bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 px-4 py-2.5 rounded-xl font-medium text-sm transition-all flex items-center space-x-2">
+                    <i class="fa-solid fa-stop"></i> <span class="hidden sm:inline">Stop</span>
+                </button>
+                <button id="nextStrangerBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 px-4 rounded-xl shadow-md transition-all flex items-center justify-center space-x-2 text-sm">
+                    <span>Next Stranger</span> <i class="fa-solid fa-forward text-xs"></i>
+                </button>
+            </div>
         </div>
-      </div>
 
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-[11px] text-purple-400 font-semibold uppercase tracking-wider block mb-1 ml-1">Album Name (Optional)</label>
-          <input type="text" id="song-album" placeholder="e.g., Bermuda Triangle" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-purple-500">
+        <div class="w-full md:w-2/5 lg:w-1/3 bg-gray-900 flex flex-col h-1/2 md:h-full relative">
+            
+            <div id="chatBox" class="flex-1 p-4 overflow-y-auto space-y-3 text-sm flex flex-col justify-end">
+                <div class="text-center text-xs text-gray-500 my-2">System: Welcome to PulseChat! Click Next to start searching.</div>
+            </div>
+
+            <div id="typingIndicator" class="px-4 py-1.5 text-xs text-gray-500 bg-gray-900/80 italic tracking-wide absolute bottom-[61px] left-0 right-0 z-10 hidden">
+                Stranger is typing...
+            </div>
+
+            <form id="chatForm" class="p-3 bg-gray-950 border-t border-gray-800 flex items-center space-x-2 shrink-0">
+                <input id="messageInput" type="text" autocomplete="off" disabled placeholder="Type a message..." class="flex-1 bg-gray-900 border border-gray-800 focus:outline-none focus:border-indigo-500 text-gray-100 px-4 py-2.5 rounded-xl text-sm disabled:opacity-50 transition-all">
+                <button id="sendMessageBtn" type="submit" disabled class="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white w-10 h-10 rounded-xl flex items-center justify-center transition-all shadow-sm">
+                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                </button>
+            </form>
         </div>
-        <div>
-          <label class="text-[11px] text-neutral-400 font-semibold uppercase tracking-wider block mb-1 ml-1">Track Duration</label>
-          <input type="text" id="song-duration" placeholder="3:42" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-        </div>
-      </div>
+    </main>
 
-      <div>
-        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1 ml-1">Direct MP3 Link *</label>
-        <input type="url" id="song-src" placeholder="https://example.com/stream.mp3" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-      </div>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onValue, off, onDisconnect, remove, get, runTransaction } 
+            from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-      <div>
-        <label class="text-[11px] text-pink-500 font-semibold uppercase tracking-wider block mb-1 ml-1">Direct Cover Art Link *</label>
-        <input type="url" id="song-cover" placeholder="https://example.com/cover.jpg" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-      </div>
+        // EXPLICIT SYSTEM APP CONFIGURATION
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
 
-      <div>
-        <label class="text-[11px] text-neutral-400 font-semibold uppercase tracking-wider block mb-1 ml-1">Custom Tags / Keywords (Comma Separated)</label>
-        <input type="text" id="song-tags" placeholder="punjabi, hiphop, rap" class="w-full p-3 rounded-xl bg-neutral-800 border border-neutral-700 text-white text-sm focus:outline-none focus:border-pink-500">
-      </div>
+        // GLOBAL CONFIGURATIONS & STATE MANAGEMENT IN MEMORY
+        const STUN_SERVERS = {
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" },
+                { urls: "stun:stun1.l.google.com:19302" },
+                { urls: "stun:stun2.l.google.com:19302" }
+            ]
+        };
 
-      <button id="btn-submit-song" class="w-full bg-gradient-to-r from-pink-500 to-red-500 p-4 rounded-xl font-bold text-sm text-white shadow-lg active:scale-95 transition mt-2 flex items-center justify-center space-x-2">
-        <i class="fa-solid fa-cloud-arrow-up"></i>
-        <span>Broadcast Track to Main Website</span>
-      </button>
-    </div>
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-  </div>
+        // Core App Context States Variables
+        let localStream = null;
+        let peerConnection = null;
+        let userId = "Stranger_" + Math.floor(1000 + Math.random() * 9000);
+        let currentRoomId = null;
+        let userRole = null; // 'offerer' or 'answerer'
+        let matchmakingQueueRef = null;
+        let activeRoomRefs = [];
+        let isSearching = false;
+        let antiSpamCooldown = false;
+        let isMuted = false;
+        let isCamOff = false;
+        let typingTimeout = null;
 
-  <!-- FIREBASE ENGINE IMPLEMENTATION -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getDatabase, ref, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        // ELEMENT QUERY REGISTER MAP
+        const dom = {
+            landingScreen: document.getElementById('landingScreen'),
+            startChatBtn: document.getElementById('startChatBtn'),
+            nextStrangerBtn: document.getElementById('nextStrangerBtn'),
+            stopChatBtn: document.getElementById('stopChatBtn'),
+            reportBtn: document.getElementById('reportBtn'),
+            fullscreenBtn: document.getElementById('fullscreenBtn'),
+            toggleMicBtn: document.getElementById('toggleMicBtn'),
+            toggleCamBtn: document.getElementById('toggleCamBtn'),
+            micIcon: document.getElementById('micIcon'),
+            camIcon: document.getElementById('camIcon'),
+            localVideo: document.getElementById('localVideo'),
+            remoteVideo: document.getElementById('remoteVideo'),
+            statusOverlay: document.getElementById('statusOverlay'),
+            searchSpinner: document.getElementById('searchSpinner'),
+            statusIcon: document.getElementById('statusIcon'),
+            statusText: document.getElementById('statusText'),
+            strangerNameLabel: document.getElementById('strangerNameLabel'),
+            chatBox: document.getElementById('chatBox'),
+            chatForm: document.getElementById('chatForm'),
+            messageInput: document.getElementById('messageInput'),
+            sendMessageBtn: document.getElementById('sendMessageBtn'),
+            typingIndicator: document.getElementById('typingIndicator'),
+            onlineCount: document.getElementById('onlineCount')
+        };
 
-    // Original Project Configurations
-    const firebaseConfig = {
-      apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-      authDomain: "pulse2-92372.firebaseapp.com",
-      databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-      projectId: "pulse2-92372",
-      storageBucket: "pulse2-92372.firebasestorage.app",
-      messagingSenderId: "276235725177",
-      appId: "1:276235725177:web:0f4e0789fae80a435927a8"
-    };
+        /* ==========================================
+         * CORE APP INITIATION & COMPONENT HOOKS
+         * ========================================== */
+        async function initializeAppEngine() {
+            setupGlobalPresence();
+            setupUIEventListeners();
+        }
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth(app);
+        // Live Realtime Dynamic Global Presence Counter Tracker
+        function setupGlobalPresence() {
+            const onlineRef = ref(db, 'presence/online_users/' + userId);
+            set(onlineRef, true);
+            onDisconnect(onlineRef).remove();
 
-    const authBox = document.getElementById('admin-auth-box');
-    const dashboardBox = document.getElementById('admin-dashboard-box');
-    const loginError = document.getElementById('login-error-msg');
-    const statusMsg = document.getElementById('status-msg');
-    const userBadge = document.getElementById('active-user-badge');
+            const globalPresenceCounter = ref(db, 'presence/online_users');
+            onValue(globalPresenceCounter, (snapshot) => {
+                if(snapshot.exists()) {
+                    dom.onlineCount.textContent = Object.keys(snapshot.val()).length;
+                } else {
+                    dom.onlineCount.textContent = "1";
+                }
+            });
+        }
 
-    // 1. SECURE DEPLOYED LOGIN HANDLER (NO HARDCODED EMAIL/PASSWORDS)
-    document.getElementById('btn-admin-login').addEventListener('click', () => {
-      const email = document.getElementById('admin-email').value.trim();
-      const password = document.getElementById('admin-password').value;
+        // Register Dynamic DOM Binding Handlers
+        function setupUIEventListeners() {
+            dom.startChatBtn.addEventListener('click', () => requestMediaPermissionsAndProceed());
+            dom.nextStrangerBtn.addEventListener('click', () => handleNextStrangerCycle());
+            dom.stopChatBtn.addEventListener('click', () => terminateActiveSession(true));
+            
+            dom.chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                executeChatMessageTransmission();
+            });
 
-      loginError.classList.add('hidden');
+            dom.messageInput.addEventListener('input', () => transmitTypingStateToPeer());
+            dom.toggleMicBtn.addEventListener('click', () => toggleAudioHardwareState());
+            dom.toggleCamBtn.addEventListener('click', () => toggleVideoHardwareState());
+            dom.fullscreenBtn.addEventListener('click', () => toggleRemoteVideoFullscreenMode());
+            dom.reportBtn.addEventListener('click', () => executeReportBlockSequence());
+        }
 
-      if (!email || !password) {
-        loginError.innerText = "Error: Input fields cannot be empty!";
-        loginError.classList.remove('hidden');
-        return;
-      }
+        /* ==========================================
+         * MEDIA PIPELINE & HARDWARE ACCESS MANAGEMENT
+         * ========================================== */
+        async function requestMediaPermissionsAndProceed() {
+            try {
+                appendSystemLog("System: Requesting camera and microphone permissions...");
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                dom.localVideo.srcObject = localStream;
+                dom.landingScreen.classList.add('opacity-0', 'pointer-events-none');
+                appendSystemLog("System: Access granted. Ready to search.");
+            } catch (err) {
+                console.error("Hardware initialization exception:", err);
+                alert("Camera and Microphone access are absolute requirements for operational functionality. Please unlock permissions in your browser URL bar.");
+                appendSystemLog("System Error: Critical failure accessing media hardware.");
+            }
+        }
 
-      // Live verification directly via Firebase Secure Servers
-      signInWithEmailAndPassword(auth, email, password)
-        .then(() => {
-          loginError.classList.add('hidden');
-          document.getElementById('admin-password').value = '';
-        })
-        .catch((error) => {
-          loginError.innerText = "ACCESS DENIED: " + error.message;
-          loginError.classList.remove('hidden');
-        });
-    });
+        function toggleAudioHardwareState() {
+            if (!localStream) return;
+            isMuted = !isMuted;
+            localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+            dom.micIcon.className = isMuted ? "fa-solid fa-microphone-slash text-red-500" : "fa-solid fa-microphone";
+            dom.toggleMicBtn.classList.toggle('bg-red-950/40', isMuted);
+        }
 
-    // Persistent State Tracker
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        authBox.style.display = 'none';
-        dashboardBox.classList.remove('hidden');
-        userBadge.innerText = `User: ${user.email}`;
-      } else {
-        authBox.style.display = 'block';
-        dashboardBox.classList.add('hidden');
-      }
-    });
+        function toggleVideoHardwareState() {
+            if (!localStream) return;
+            isCamOff = !isCamOff;
+            localStream.getVideoTracks().forEach(track => track.enabled = !isCamOff);
+            dom.camIcon.className = isCamOff ? "fa-solid fa-video-slash text-red-500" : "fa-solid fa-video";
+            dom.toggleCamBtn.classList.toggle('bg-red-950/40', isCamOff);
+        }
 
-    // Logout Trigger
-    document.getElementById('btn-admin-logout').addEventListener('click', () => {
-      signOut(auth);
-    });
+        function toggleRemoteVideoFullscreenMode() {
+            if (dom.remoteVideo.requestFullscreen) {
+                dom.remoteVideo.requestFullscreen();
+            } else if (dom.remoteVideo.webkitRequestFullscreen) { /* Safari support */
+                dom.remoteVideo.webkitRequestFullscreen();
+            }
+        }
 
-    function showToast(text, isError = false) {
-      statusMsg.innerText = text;
-      statusMsg.className = `p-3 rounded-xl text-xs font-medium text-center block ${isError ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'}`;
-      setTimeout(() => statusMsg.classList.add('hidden'), 4000);
-    }
+        /* ==========================================
+         * FIREBASE QUEUE & WEBRTC MATCHMAKING SYSTEM
+         * ========================================== */
+        async function handleNextStrangerCycle() {
+            if (antiSpamCooldown) return;
+            triggerAntiSpamLockout();
 
-    // 2. SONG UPLOAD & SEARCH ADAPTIVE AUTO-MODIFICATION LOGIC
-    document.getElementById('btn-submit-song').addEventListener('click', () => {
-      const title = document.getElementById('song-title').value.trim();
-      const artist = document.getElementById('song-artist').value.trim();
-      const album = document.getElementById('song-album').value.trim();
-      const src = document.getElementById('song-src').value.trim();
-      const cover = document.getElementById('song-cover').value.trim();
-      const duration = document.getElementById('song-duration').value.trim() || "3:00";
-      const tagsRaw = document.getElementById('song-tags').value.trim();
+            await terminateActiveSession(false);
+            setVisualStateSearching();
+            
+            isSearching = true;
+            appendSystemLog("System: Searching for an online stranger...");
 
-      if (!title || !artist || !src || !cover) {
-        return showToast("Validation Error: Please fill all compulsory fields (*)", true);
-      }
+            const queueGlobalRef = ref(db, 'matchmaking_queue');
+            
+            try {
+                // Execute atomic transaction operation context to discover/claim waiting host node
+                const transactionResult = await runTransaction(queueGlobalRef, (currentQueue) => {
+                    if (!currentQueue) {
+                        // Queue execution vacant: Instantiate a key context node payload block
+                        const newRoomKey = "room_" + Math.floor(100000 + Math.random() * 900000);
+                        const matchQueueObj = {};
+                        matchQueueObj[userId] = {
+                            roomId: newRoomKey,
+                            timestamp: Date.now()
+                        };
+                        return matchQueueObj;
+                    }
+                    
+                    // Assess if self configuration state object node already in active queue frame
+                    if (currentQueue[userId]) {
+                        return currentQueue; // Retain structure configuration
+                    }
 
-      // Search engine automation architecture
-      // Hum naye keywords engine me map karenge jisse main web app automatically indexing update karle
-      let smartSearchKeywords = [];
+                    // Discover structural match candidates inside stack
+                    const keys = Object.keys(currentQueue);
+                    if (keys.length > 0) {
+                        const targetCandidateId = keys[0];
+                        // Extract configuration meta-claims mapping target
+                        currentQueue[targetCandidateId].matchedWith = userId;
+                        return currentQueue;
+                    }
 
-      if (tagsRaw) {
-        smartSearchKeywords = tagsRaw.split(',').map(t => t.trim().toLowerCase());
-      }
+                    // Default fall-through if structure initialized but keys length evaluated null
+                    const newRoomKey = "room_" + Math.floor(100000 + Math.random() * 900000);
+                    currentQueue[userId] = { roomId: newRoomKey, timestamp: Date.now() };
+                    return currentQueue;
+                });
 
-      // Album tracking inclusion
-      if (album) {
-        smartSearchKeywords.push(album.toLowerCase());
-        smartSearchKeywords.push("album");
-      }
+                if (transactionResult.committed) {
+                    // Inspect runtime properties structure distribution state mapping output matches
+                    const queueDataSnapshot = await get(queueGlobalRef);
+                    if (queueDataSnapshot.exists()) {
+                        const masterQueue = queueDataSnapshot.val();
+                        
+                        // Scenario Case Alpha: We assigned inside stack and standard candidate matched us
+                        if (masterQueue[userId] && masterQueue[userId].matchedWith) {
+                            const matchedPeerId = masterQueue[userId].matchedWith;
+                            const targetRoomId = masterQueue[userId].roomId;
+                            
+                            // Remove element context from stack array node trace structural space mapping
+                            await remove(ref(db, `matchmaking_queue/${userId}`));
+                            initializeConnectionSignalingBridge(targetRoomId, 'offerer', matchedPeerId);
+                            return;
+                        }
 
-      // Core indexing injection for perfect global matching
-      smartSearchKeywords.push(title.toLowerCase());
-      artist.split(',').forEach(a => smartSearchKeywords.push(a.trim().toLowerCase()));
+                        // Scenario Case Beta: We matched an existing waiting peer
+                        for (let peerId in masterQueue) {
+                            if (masterQueue[peerId].matchedWith === userId) {
+                                const targetRoomId = masterQueue[peerId].roomId;
+                                
+                                await remove(ref(db, `matchmaking_queue/${peerId}`));
+                                initializeConnectionSignalingBridge(targetRoomId, 'answerer', peerId);
+                                return;
+                            }
+                        }
+                    }
 
-      // Removing any duplicate items
-      const finalizedTags = [...new Set(smartSearchKeywords)];
+                    // Fallback Scenario Gamma: Lodged securely inside queue awaiting incoming connections hooks
+                    matchmakingQueueRef = ref(db, `matchmaking_queue/${userId}`);
+                    
+                    // Create persistent event observer to intercept prospective match triggers
+                    onValue(matchmakingQueueRef, (snapshot) => {
+                        const data = snapshot.val();
+                        if (data && data.matchedWith) {
+                            off(matchmakingQueueRef);
+                            matchmakingQueueRef = null;
+                            initializeConnectionSignalingBridge(data.roomId, 'offerer', data.matchedWith);
+                        }
+                    });
 
-      const trackId = "track_" + Date.now();
+                    // Auto-cleanup stale entry on disconnection
+                    onDisconnect(matchmakingQueueRef).remove();
+                }
+            } catch (err) {
+                console.error("Matchmaking transaction engine pipeline failure:", err);
+                executeReconnectionCycleLogic();
+            }
+        }
 
-      const songPayload = {
-        id: trackId,
-        title: title,
-        artist: artist,
-        src: src,
-        cover: cover,
-        duration: duration,
-        tags: finalizedTags // Ye tag database me jate hi search bar filter ke andar match ho jayenge
-      };
+        /* ==========================================
+         * WEBRTC SIGNALING CORE ENGINE MAPPING
+         * ========================================== */
+        async function initializeConnectionSignalingBridge(roomId, role, partnerId) {
+            if (!isSearching) return; // Prevent async race conditions if user stopped
+            
+            currentRoomId = roomId;
+            userRole = role;
+            isSearching = false;
 
-      // Writing data inside the Firebase DB
-      set(ref(db, 'global_songs/' + trackId), songPayload)
-        .then(() => {
-          showToast(`Success! "${title}" has been published. Search panel auto-modified!`);
-          
-          // Clear inputs
-          document.getElementById('song-title').value = '';
-          document.getElementById('song-artist').value = '';
-          document.getElementById('song-album').value = '';
-          document.getElementById('song-src').value = '';
-          document.getElementById('song-cover').value = '';
-          document.getElementById('song-tags').value = '';
-          document.getElementById('song-duration').value = '';
-        })
-        .catch((err) => {
-          showToast("Upload pipeline failed: " + err.message, true);
-        });
-    });
-  </script>
+            dom.strangerNameLabel.textContent = partnerId;
+            setVisualStateConnected();
+            appendSystemLog(`System: Connected with ${partnerId}. Establishing secure peer media stream link...`);
+
+            // Initialize Peer Connection Engine Instance
+            peerConnection = new RTCPeerConnection(STUN_SERVERS);
+
+            // Append local video frames tracking loops pipeline matrix context to connection engine
+            if (localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+
+            // Bind Remote Stream Interceptor Handlers
+            peerConnection.ontrack = (event) => {
+                if (event.streams && event.streams[0]) {
+                    dom.remoteVideo.srcObject = event.streams[0];
+                }
+            };
+
+            // Setup ICE Candidates Collection Pipeline Hooks
+            const iceCandidatesRoomRef = ref(db, `rooms/${currentRoomId}/ice_${userRole}`);
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    push(iceCandidatesRoomRef, event.candidate.toJSON());
+                }
+            };
+
+            // Monitor Remote Peer Connection State Changes
+            peerConnection.onconnectionstatechange = () => {
+                if (peerConnection.connectionState === 'disconnected' || 
+                    peerConnection.connectionState === 'failed') {
+                    handleStrangerDisconnectSequence();
+                }
+            };
+
+            // Bind Firebase Signaling Synchronization Nodes
+            const roomRef = ref(db, `rooms/${currentRoomId}`);
+            activeRoomRefs.push(roomRef);
+
+            // Establish Connection Logic Depending on Role
+            if (userRole === 'offerer') {
+                // Offerer Lifecycle Logic Path Execution
+                const offerDescription = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offerDescription);
+
+                await set(ref(db, `rooms/${currentRoomId}/offer`), {
+                    type: offerDescription.type,
+                    sdp: offerDescription.sdp
+                });
+
+                // Listen for structural answer payload from peer
+                const answerRef = ref(db, `rooms/${currentRoomId}/answer`);
+                activeRoomRefs.push(answerRef);
+                onValue(answerRef, async (snapshot) => {
+                    const answer = snapshot.val();
+                    if (answer && !peerConnection.currentRemoteDescription) {
+                        await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+                    }
+                });
+
+                // Dynamically process incoming target answers ICE stream candidates nodes array
+                const remoteIceRef = ref(db, `rooms/${currentRoomId}/ice_answer`);
+                activeRoomRefs.push(remoteIceRef);
+                onValue(remoteIceRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        snapshot.forEach((child) => {
+                            const candidate = new RTCIceCandidate(child.val());
+                            peerConnection.addIceCandidate(candidate).catch(e => {});
+                        });
+                    }
+                });
+
+            } else {
+                // Answerer Lifecycle Logic Path Execution
+                const offerRef = ref(db, `rooms/${currentRoomId}/offer`);
+                activeRoomRefs.push(offerRef);
+                
+                const offerSnapshot = await get(offerRef);
+                if (offerSnapshot.exists()) {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(offerSnapshot.val()));
+                    const answerDescription = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answerDescription);
+
+                    await set(ref(db, `rooms/${currentRoomId}/answer`), {
+                        type: answerDescription.type,
+                        sdp: answerDescription.sdp
+                    });
+                }
+
+                // Dynamically process incoming target offers ICE stream candidates nodes array
+                const remoteIceRef = ref(db, `rooms/${currentRoomId}/ice_offerer`);
+                activeRoomRefs.push(remoteIceRef);
+                onValue(remoteIceRef, (snapshot) => {
+                    if (snapshot.exists()) {
+                        snapshot.forEach((child) => {
+                            const candidate = new RTCIceCandidate(child.val());
+                            peerConnection.addIceCandidate(candidate).catch(e => {});
+                        });
+                    }
+                });
+            }
+
+            // Initialize Message & Typing Event Listeners for Chat
+            initializeChatSignalingSync();
+
+            // Set Disconnect Signal Sync Handlers across Database Node Instances
+            onDisconnect(roomRef).remove();
+            
+            // Watch for dynamic operational structural deletions by peer indicating user left
+            onValue(roomRef, (snapshot) => {
+                if (!snapshot.exists() && currentRoomId !== null) {
+                    handleStrangerDisconnectSequence();
+                }
+            });
+        }
+
+        /* ==========================================
+         * REALTIME DATA SYNCHRONIZATION (CHAT CHANNELS)
+         * ========================================== */
+        function initializeChatSignalingSync() {
+            const chatChannelRef = ref(db, `rooms/${currentRoomId}/chat`);
+            activeRoomRefs.push(chatChannelRef);
+            
+            onValue(chatChannelRef, (snapshot) => {
+                if (snapshot.exists()) {
+                    const messagesArray = Object.values(snapshot.val());
+                    // Extract execution terminal tail nodes array instance
+                    const targetMessage = messagesArray[messagesArray.length - 1];
+                    
+                    if (targetMessage.sender !== userId) {
+                        appendMessageLog("Stranger", targetMessage.text, "text-indigo-400 font-bold");
+                    }
+                }
+            });
+
+            const typingChannelRef = ref(db, `rooms/${currentRoomId}/typing_${userRole === 'offerer' ? 'answerer' : 'offerer'}`);
+            activeRoomRefs.push(typingChannelRef);
+            onValue(typingChannelRef, (snapshot) => {
+                if (snapshot.exists() && snapshot.val().isTyping) {
+                    dom.typingIndicator.classList.remove('hidden');
+                } else {
+                    dom.typingIndicator.classList.add('hidden');
+                }
+            });
+        }
+
+        function executeChatMessageTransmission() {
+            const msgText = dom.messageInput.value.trim();
+            if (!msgText || !currentRoomId) return;
+
+            const chatChannelRef = ref(db, `rooms/${currentRoomId}/chat`);
+            push(chatChannelRef, {
+                sender: userId,
+                text: msgText,
+                timestamp: Date.now()
+            });
+
+            appendMessageLog("You", msgText, "text-gray-400 font-bold");
+            dom.messageInput.value = "";
+            transmitTypingStateToPeer(true); // Terminate self typing indicators instantly
+        }
+
+        function transmitTypingStateToPeer(forceStop = false) {
+            if (!currentRoomId) return;
+            const selfTypingRef = ref(db, `rooms/${currentRoomId}/typing_${userRole}`);
+            
+            set(selfTypingRef, { isTyping: !forceStop && dom.messageInput.value.length > 0 });
+            
+            clearTimeout(typingTimeout);
+            if (!forceStop && dom.messageInput.value.length > 0) {
+                typingTimeout = setTimeout(() => {
+                    set(selfTypingRef, { isTyping: false });
+                }, 2000);
+            }
+        }
+
+        /* ==========================================
+         * LIFECYCLE DESTRUCTION & DISCONNECT ENGINE
+         * ========================================== */
+        async function terminateActiveSession(explicitUserAction = false) {
+            isSearching = false;
+
+            // Remove matchmaking event listener references cleanly
+            if (matchmakingQueueRef) {
+                off(matchmakingQueueRef);
+                await remove(matchmakingQueueRef);
+                matchmakingQueueRef = null;
+            }
+
+            // Teardown Active Realtime Database Subscriptions Loops
+            activeRoomRefs.forEach(reference => off(reference));
+            activeRoomRefs = [];
+
+            // Purge structural database endpoints completely from servers core instances
+            if (currentRoomId) {
+                const targetRoomRef = ref(db, `rooms/${currentRoomId}`);
+                await remove(targetRoomRef);
+                currentRoomId = null;
+            }
+
+            // Close down connection endpoints safely within client sandbox environment contexts
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+
+            // Clear Video Object Handles
+            dom.remoteVideo.srcObject = null;
+            
+            if (explicitUserAction) {
+                setVisualStateDisconnected();
+                appendSystemLog("System: You disconnected from the chat session.");
+            }
+        }
+
+        function handleStrangerDisconnectSequence() {
+            if (!currentRoomId && !isSearching) return;
+            terminateActiveSession(false);
+            setVisualStateDisconnected();
+            appendSystemLog("System: Stranger disconnected. Click Next to search again.");
+        }
+
+        function executeReconnectionCycleLogic() {
+            appendSystemLog("System: Connection anomalies detected. Reconnecting framework execution context...");
+            setTimeout(() => {
+                if (!currentRoomId && !isSearching) {
+                    handleNextStrangerCycle();
+                }
+            }, 3000);
+        }
+
+        function executeReportBlockSequence() {
+            alert("This user has been reported and blocked from your session context matching pools framework instance arrays.");
+            handleNextStrangerCycle();
+        }
+
+        /* ==========================================
+         * UI GRAPHICAL RENDERING CONTROLLER STATES
+         * ========================================== */
+        function setVisualStateSearching() {
+            dom.statusOverlay.classList.remove('hidden', 'opacity-0');
+            dom.searchSpinner.classList.remove('hidden');
+            dom.statusIcon.classList.add('hidden');
+            dom.statusText.textContent = "Looking for a stranger...";
+            dom.stopChatBtn.removeAttribute('disabled');
+            dom.messageInput.setAttribute('disabled', 'true');
+            dom.sendMessageBtn.setAttribute('disabled', 'true');
+            dom.reportBtn.classList.add('hidden');
+            dom.strangerNameLabel.textContent = "STRANGER";
+        }
+
+        function setVisualStateConnected() {
+            dom.statusOverlay.classList.add('hidden', 'opacity-0');
+            dom.messageInput.removeAttribute('disabled');
+            dom.sendMessageBtn.removeAttribute('disabled');
+            dom.stopChatBtn.removeAttribute('disabled');
+            dom.reportBtn.classList.remove('hidden');
+            dom.messageInput.focus();
+        }
+
+        function setVisualStateDisconnected() {
+            dom.statusOverlay.classList.remove('hidden', 'opacity-0');
+            dom.searchSpinner.classList.add('hidden');
+            dom.statusIcon.classList.remove('hidden');
+            dom.statusIcon.className = "text-3xl text-red-500/80 mb-3";
+            dom.statusIcon.innerHTML = `<i class="fa-solid fa-video-slash"></i>`;
+            dom.statusText.textContent = "Chat session ended.";
+            dom.stopChatBtn.setAttribute('disabled', 'true');
+            dom.messageInput.setAttribute('disabled', 'true');
+            dom.sendMessageBtn.setAttribute('disabled', 'true');
+            dom.reportBtn.classList.add('hidden');
+            dom.typingIndicator.classList.add('hidden');
+        }
+
+        function triggerAntiSpamLockout() {
+            antiSpamCooldown = true;
+            dom.nextStrangerBtn.setAttribute('disabled', 'true');
+            dom.nextStrangerBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            setTimeout(() => {
+                antiSpamCooldown = false;
+                dom.nextStrangerBtn.removeAttribute('disabled');
+                dom.nextStrangerBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            }, 1000); // 1-Second Global Core Anti-Spam Cooldown Matrix Bounds
+        }
+
+        function appendSystemLog(message) {
+            const logNode = document.createElement('div');
+            logNode.className = "text-center text-xs text-gray-500 my-1 italic font-medium";
+            logNode.textContent = message;
+            dom.chatBox.appendChild(logNode);
+            dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
+        }
+
+        function appendMessageLog(sender, text, labelStyleClass) {
+            const msgWrapper = document.createElement('div');
+            msgWrapper.className = "bg-gray-800/50 p-2.5 rounded-xl border border-gray-800/60 break-words max-w-[90%] " + 
+                                  (sender === "You" ? "self-end ml-auto bg-indigo-950/20 border-indigo-900/30" : "self-start mr-auto");
+            
+            msgWrapper.innerHTML = `<span class="${labelStyleClass}">${sender}:</span> <span class="text-gray-200 ml-1">${escapeHtmlEntities(text)}</span>`;
+            dom.chatBox.appendChild(msgWrapper);
+            dom.chatBox.scrollTop = dom.chatBox.scrollHeight;
+        }
+
+        function escapeHtmlEntities(string) {
+            return string.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        // INITIALIZE ENGINE EXECUTIONS LOOP UPON WINDOW PREPARATION COMPLETION
+        window.addEventListener('DOMContentLoaded', initializeAppEngine);
+    </script>
 </body>
 </html>
