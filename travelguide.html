@@ -1,4 +1,5 @@
-<!DOCTYPE html>
+
+.nav{<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -44,14 +45,34 @@ a{color:#007aff;text-decoration:none;font-weight:700}
 .map-link{display:inline-block;margin-top:8px;background:#eef2f7;padding:8px 12px;border-radius:12px;font-size:13px;}
 .footer{text-align:center;color:#667085;padding:30px; cursor:default; user-select:none;}
 
-/* Admin Modals */
-.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:9999;justify-content:center;align-items:center;}
-.modal-box{background:white;padding:30px;border-radius:24px;width:90%;max-width:500px;box-shadow:0 25px 70px rgba(0,0,0,.5);}
-.modal-box input{width:100%;margin-bottom:15px;background:#f1f5f9;border:1px solid #d0d5dd;}
+/* Custom Toasts & Modals */
+#toastContainer {position:fixed;top:20px;right:20px;z-index:10000;display:flex;flex-direction:column;gap:10px;}
+.toast {background:white;padding:15px 20px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.15);border-left:4px solid #007aff;font-weight:600;animation:slideIn 0.3s ease-out;}
+.toast.error {border-left-color:#dc2626;}
+.toast.success {border-left-color:#10b981;}
+@keyframes slideIn {from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;}}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:9999;justify-content:center;align-items:center;}
+.modal-box{background:white;padding:30px;border-radius:24px;width:90%;max-width:400px;box-shadow:0 25px 70px rgba(0,0,0,.5);text-align:center;}
+.modal-box input{width:100%;margin-bottom:15px;background:#f1f5f9;border:1px solid #d0d5dd;text-align:center;}
 .modal-box button{width:100%;background:#007aff;color:white;font-weight:800;padding:15px;border-radius:18px;cursor:pointer;}
-#adminDashboard{max-height:80vh;overflow-y:auto;}
-.call-alert{background:#eff6ff;border-left:4px solid #007aff;padding:15px;border-radius:8px;margin-bottom:15px;}
-.call-alert button{width:auto;padding:8px 15px;margin-top:10px;background:#10b981;}
+.modal-box button.danger{background:#dc2626;margin-top:10px;}
+.modal-box button.ghost{background:transparent;color:#667085;margin-top:10px;}
+
+/* Advanced Call UI */
+.active-call-ui {background:#111827;color:white;border-radius:20px;padding:20px;margin-top:15px;display:none;text-align:center;box-shadow:0 15px 40px rgba(0,0,0,0.2);}
+.call-pulse {width:60px;height:60px;border-radius:30px;background:#10b981;margin:0 auto 15px;display:flex;align-items:center;justify-content:center;font-size:24px;animation:pulseCall 1.5s infinite;}
+@keyframes pulseCall{0%{box-shadow:0 0 0 0 rgba(16,185,129,.7)} 70%{box-shadow:0 0 0 15px rgba(16,185,129,0)} 100%{box-shadow:0 0 0 0 rgba(16,185,129,0)}}
+.call-controls {display:flex;gap:15px;justify-content:center;margin-top:20px;}
+.btn-circle {width:50px;height:50px;border-radius:25px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;}
+.btn-end {background:#dc2626;color:white;}
+.btn-mute {background:#4b5563;color:white;}
+.btn-mute.muted {background:#f59e0b;}
+
+#adminDashboard{max-height:85vh;overflow-y:auto;max-width:600px;}
+.call-alert{background:#eff6ff;border-left:4px solid #007aff;padding:15px;border-radius:12px;margin-bottom:15px;text-align:left;}
+.call-alert button{width:auto;padding:10px 20px;margin-top:10px;background:#10b981;}
+.call-alert button.decline{background:#dc2626;}
 
 @media(max-width:850px){
   .heroGrid{grid-template-columns:1fr}
@@ -63,14 +84,36 @@ a{color:#007aff;text-decoration:none;font-weight:700}
 
 <body>
 
+<audio id="ringtoneAudio" src="https://actions.google.com/sounds/v1/alarms/digital_watch_alarm_long.ogg" loop></audio>
 <audio id="remoteAudio" autoplay></audio>
+
+<div id="toastContainer"></div>
+
+<div class="modal-overlay" id="startupModal" style="display:flex;">
+  <div class="modal-box">
+    <h2 style="margin-bottom:10px;">Welcome to TravelGuard</h2>
+    <p class="small" style="margin-bottom:20px;">For your safety, please register your session.</p>
+    <input type="text" id="setupName" placeholder="Your Full Name" required>
+    <input type="text" id="setupContact" placeholder="Emergency Contact Number (Family/Friend)">
+    <button onclick="saveUserSetup()">Enter Secure Dashboard</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="sosModal">
+  <div class="modal-box" style="border: 4px solid #dc2626;">
+    <h2 style="color:#dc2626; margin-bottom:10px;">⚠️ SOS EMERGENCY</h2>
+    <p class="small" style="margin-bottom:20px; font-weight:bold;">Are you sure you want to trigger an SOS? This will instantly log your exact location to the database.</p>
+    <button class="danger" onclick="confirmSOS()">YES, TRIGGER SOS</button>
+    <button class="ghost" onclick="document.getElementById('sosModal').style.display='none'">Cancel</button>
+  </div>
+</div>
 
 <div class="hero">
   <div class="nav">
     <div class="logo">TravelGuard India</div>
     <div class="nav-right">
       <div id="userBadge" class="badge">Connecting...</div>
-      <button class="sos-btn" onclick="triggerSOS()">🆘 SOS ALERT</button>
+      <button class="sos-btn" onclick="document.getElementById('sosModal').style.display='flex'">🆘 SOS ALERT</button>
     </div>
   </div>
 
@@ -155,12 +198,21 @@ a{color:#007aff;text-decoration:none;font-weight:700}
   <div class="card"><h2>Nearby ATMs</h2><div id="atmList" class="small">Waiting...</div></div>
 </div>
 
-<div style="padding: 18px;">
+<div style="padding: 18px; max-width: 600px; margin: 0 auto;">
   <button class="call-btn" id="userCallBtn" onclick="initiateVoiceCall()">📞 Connect with Advisor (Live Voice Call)</button>
-  <div id="callStatus" style="text-align:center;margin-top:10px;font-weight:bold;color:#007aff;"></div>
+  
+  <div class="active-call-ui" id="userCallUI">
+    <div class="call-pulse">📞</div>
+    <h3 id="userCallStatus">Ringing Advisor...</h3>
+    <p class="small" style="color:#9ca3af;margin-top:5px;">Follow advisor instructions carefully.</p>
+    <div class="call-controls">
+      <button class="btn-circle btn-mute" id="userMuteBtn" onclick="toggleMute()">🎙️</button>
+      <button class="btn-circle btn-end" onclick="endCall()">✖</button>
+    </div>
+  </div>
 </div>
 
-<div class="footer" onclick="secretAdminAccess()">TravelGuard India © 2026 | Secured & Tracked via Firebase</div>
+<div class="footer" ondblclick="openAdminAuthModal()">TravelGuard India © 2026 | Secured & Tracked via Firebase</div>
 
 <div class="modal-overlay" id="adminAuthOverlay">
   <div class="modal-box">
@@ -168,7 +220,7 @@ a{color:#007aff;text-decoration:none;font-weight:700}
     <input type="email" id="adminEmail" placeholder="Admin Email">
     <input type="password" id="adminPassword" placeholder="Password">
     <button onclick="loginAdmin()">Login to Secure Panel</button>
-    <button style="background:transparent;color:#667085;margin-top:10px;" onclick="closeModals()">Cancel</button>
+    <button class="ghost" onclick="closeModals()">Cancel</button>
   </div>
 </div>
 
@@ -178,10 +230,19 @@ a{color:#007aff;text-decoration:none;font-weight:700}
     <button style="background:#dc2626; margin-bottom: 20px;" onclick="logoutAdmin()">Logout Admin</button>
     
     <h3>Incoming Voice Calls</h3>
-    <div id="incomingCallsList" class="small">No active calls.</div>
+    <div id="incomingCallsList" class="small" style="margin-top:10px;">No active calls.</div>
     
-    <h3 style="margin-top:20px;">Live SOS Alerts</h3>
-    <div id="adminSosList" class="small">Waiting for alerts...</div>
+    <div class="active-call-ui" id="adminCallUI">
+      <div class="call-pulse" style="background:#007aff; animation:none;">📞</div>
+      <h3 id="adminCallStatus">Call Connected</h3>
+      <div class="call-controls">
+        <button class="btn-circle btn-mute" id="adminMuteBtn" onclick="toggleMute()">🎙️</button>
+        <button class="btn-circle btn-end" onclick="endCall()">✖</button>
+      </div>
+    </div>
+    
+    <h3 style="margin-top:30px;">Live SOS Alerts</h3>
+    <div id="adminSosList" class="small" style="margin-top:10px;">Waiting for alerts...</div>
   </div>
 </div>
 
@@ -205,80 +266,79 @@ const auth = firebase.auth();
 
 let userName = "Anonymous";
 let userEmergencyContact = "None Provided";
+let currentLat = 0, currentLon = 0;
 let countryDataList = [];
 let selectedCurrency = "USD";
 
 // WebRTC Variables
 let localStream;
 let peerConnection;
+let currentCallTarget = null; // Stores the person we are currently connected to
+let isMuted = false;
 const rtcConfig = { 'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}] };
 
-// --- 5 TAP SECRET ADMIN LOGIC ---
-let tapCount = 0;
-let tapTimer;
-
-function secretAdminAccess() {
-  tapCount++;
-  
-  if(tapCount === 1) {
-    tapTimer = setTimeout(() => {
-      tapCount = 0; // Reset if taps aren't fast enough
-    }, 2000); // 2 seconds to complete 5 taps
-  }
-
-  if(tapCount >= 5) {
-    clearTimeout(tapTimer);
-    tapCount = 0;
-    openAdminAuthModal();
-  }
+// --- CUSTOM TOAST NOTIFICATIONS ---
+function showToast(message, type = "info") {
+  const container = document.getElementById("toastContainer");
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.innerText = message;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
 }
 
-// Initialize App and Ask Name
+// --- INITIALIZATION ---
 window.onload = async () => {
-  setTimeout(() => {
-    let namePrompt = prompt("Welcome to TravelGuard! Please enter your name for safety tracking:");
-    if(namePrompt && namePrompt.trim() !== "") {
-      userName = namePrompt.trim();
-      let contactPrompt = prompt("SECURITY: Enter a trusted emergency contact number (Family/Friend):");
-      if(contactPrompt && contactPrompt.trim() !== "") {
-        userEmergencyContact = contactPrompt.trim();
-      }
-    }
-    document.getElementById("userBadge").innerText = `Active: ${userName}`;
-    trackActivity(`App Opened & Logged In. Contact: ${userEmergencyContact}`);
-  }, 500);
-
   await loadAllCountries();
 };
 
+function saveUserSetup() {
+  const nameVal = document.getElementById("setupName").value.trim();
+  const contactVal = document.getElementById("setupContact").value.trim();
+  
+  if(!nameVal) return showToast("Please enter your name to continue.", "error");
+  
+  userName = nameVal;
+  userEmergencyContact = contactVal || "None Provided";
+  
+  document.getElementById("startupModal").style.display = "none";
+  document.getElementById("userBadge").innerText = `Active: ${userName}`;
+  showToast("Session Secured. Welcome to TravelGuard.", "success");
+  
+  trackActivity(`App Opened & Logged In. Contact: ${userEmergencyContact}`);
+}
+
 function trackActivity(actionDetails) {
   const timestamp = new Date().toISOString();
-  const activityRef = database.ref('activities/' + userName).push();
-  activityRef.set({
-    action: actionDetails,
-    time: timestamp
-  });
+  database.ref('activities/' + userName).push({ action: actionDetails, time: timestamp });
 }
 
 // --- SOS FUNCTION ---
-function triggerSOS() {
-  if(!confirm("⚠️ SOS EMERGENCY ⚠️\nAre you sure you want to trigger an SOS? This will log your exact location to the database as an emergency.")) return;
+function confirmSOS() {
+  document.getElementById('sosModal').style.display = 'none';
+  showToast("Locating your exact GPS position...", "info");
   
   navigator.geolocation.getCurrentPosition(
     pos => {
-      const sosRef = database.ref('emergencies/' + userName).push();
-      sosRef.set({
+      currentLat = pos.coords.latitude;
+      currentLon = pos.coords.longitude;
+      
+      database.ref('emergencies/' + userName).push({
         time: new Date().toISOString(),
-        lat: pos.coords.latitude,
-        lon: pos.coords.longitude,
+        lat: currentLat,
+        lon: currentLon,
         emergencyContact: userEmergencyContact,
         status: "ACTIVE EMERGENCY"
       });
-      alert("🆘 SOS ALERT SENT TO DATABASE!\nLocating nearest police stations & hospitals now. Please dial 112 immediately.");
-      runApp(pos.coords.latitude, pos.coords.longitude, "EMERGENCY LOCATION");
+      
+      showToast("🆘 SOS ALERT SENT! Dialing 112 is highly recommended.", "error");
+      runApp(currentLat, currentLon, "EMERGENCY LOCATION");
     },
     () => {
-      alert("Cannot get exact location for SOS! Please dial 112 manually.");
+      showToast("GPS failed! Please manually call 112.", "error");
       trackActivity("SOS Attempted but GPS failed");
     },
     {enableHighAccuracy:true, maximumAge:0, timeout:10000}
@@ -337,7 +397,6 @@ function handleCountryChange() {
 // --- MAP & LOGIC ---
 let map = L.map("map").setView([28.6139,77.2090], 13);
 let markers = [];
-
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
 
 function clearMarkers(){
@@ -373,10 +432,15 @@ async function searchCity(){
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(city)}`;
     const res = await fetch(url);
     const data = await res.json();
-    if(!data.length) return alert("City not found in India.");
-    runApp(Number(data[0].lat), Number(data[0].lon), city);
+    if(!data.length) {
+      showToast("City not found in India.", "error");
+      return;
+    }
+    currentLat = Number(data[0].lat);
+    currentLon = Number(data[0].lon);
+    runApp(currentLat, currentLon, city);
   }catch(e){
-    alert("Location search failed.");
+    showToast("Location search failed.", "error");
   }finally{
     btn.disabled = false;
     btn.innerText = "Start";
@@ -390,12 +454,14 @@ function useGPS(){
 
   navigator.geolocation.getCurrentPosition(
     pos => {
-      trackActivity(`GPS Found: Lat ${pos.coords.latitude}, Lon ${pos.coords.longitude}`);
-      runApp(pos.coords.latitude, pos.coords.longitude, "Your GPS Location");
+      currentLat = pos.coords.latitude;
+      currentLon = pos.coords.longitude;
+      trackActivity(`GPS Found: Lat ${currentLat}, Lon ${currentLon}`);
+      runApp(currentLat, currentLon, "Your GPS Location");
     },
     () => {
       trackActivity("GPS Permission Denied");
-      alert("GPS permission denied.");
+      showToast("GPS permission denied.", "error");
     },
     {enableHighAccuracy:true, maximumAge:0, timeout:12000}
   );
@@ -482,7 +548,7 @@ function showNearby(elements, userLat, userLon, elementId, type){
 
 
 // ==========================================
-// HIDDEN ADMIN & WEBRTC VOICE CALL LOGIC
+// HIDDEN ADMIN & ADVANCED WEBRTC CALLING
 // ==========================================
 
 function openAdminAuthModal() {
@@ -499,23 +565,23 @@ function loginAdmin() {
   const pass = document.getElementById("adminPassword").value;
 
   if(email !== "sgursharn076@gmail.com") {
-    alert("Access Denied: Unrecognized Admin ID.");
-    return;
+    return showToast("Access Denied: Unrecognized Admin ID.", "error");
   }
 
   auth.signInWithEmailAndPassword(email, pass).then((userCredential) => {
     document.getElementById("adminAuthOverlay").style.display = "none";
     document.getElementById("adminDashboardOverlay").style.display = "flex";
+    showToast("Admin Dashboard Authorized.", "success");
     initAdminDashboard();
   }).catch((error) => {
-    alert("Admin Login Failed: " + error.message);
+    showToast("Admin Login Failed: Check credentials.", "error");
   });
 }
 
 function logoutAdmin() {
   auth.signOut().then(() => {
     closeModals();
-    alert("Admin logged out securely.");
+    showToast("Admin logged out securely.", "info");
   });
 }
 
@@ -525,10 +591,10 @@ function initAdminDashboard() {
     const sosBox = document.getElementById("adminSosList");
     sosBox.innerHTML = "";
     snapshot.forEach(userNode => {
-      let userName = userNode.key;
+      let uName = userNode.key;
       userNode.forEach(alertData => {
         let val = alertData.val();
-        sosBox.innerHTML += `<div class="alert"><b>🚨 SOS: ${userName}</b><br>Contact: ${val.emergencyContact}<br>Time: ${val.time}<br>Loc: ${val.lat}, ${val.lon}</div>`;
+        sosBox.innerHTML += `<div class="alert"><b>🚨 SOS: ${uName}</b><br>Contact: ${val.emergencyContact}<br>Time: ${val.time}<br>Loc: <a href="https://www.google.com/maps/dir/?api=1&destination=$${val.lat},${val.lon}" target="_blank">View on Map</a></div>`;
       });
     });
   });
@@ -536,72 +602,104 @@ function initAdminDashboard() {
   // Listen for Incoming Voice Calls
   database.ref('calls').on('value', (snapshot) => {
     const callsBox = document.getElementById("incomingCallsList");
+    const ringAudio = document.getElementById("ringtoneAudio");
+    
+    // Check if we are currently in an active call to hide the incoming list
+    if (currentCallTarget) {
+      callsBox.style.display = 'none';
+      // If our specific call node was deleted, end the call
+      if(!snapshot.hasChild(currentCallTarget)) {
+         forceEndCallUI();
+      }
+      return; 
+    } else {
+      callsBox.style.display = 'block';
+    }
+
     callsBox.innerHTML = "";
-    let hasCalls = false;
+    let isRinging = false;
 
     snapshot.forEach(callNode => {
       const callerName = callNode.key;
       const data = callNode.val();
       
-      // If there's an offer but no answer yet
       if(data.offer && !data.answer) {
-        hasCalls = true;
+        isRinging = true;
         callsBox.innerHTML += `
           <div class="call-alert">
-            <b>📞 Incoming Call from: ${callerName}</b><br>
-            <button onclick="answerCall('${callerName}')">Answer Call</button>
+            <b style="font-size:16px;">📞 Incoming Call from: ${callerName}</b><br>
+            <div style="margin-top:5px;font-size:14px;color:#374151;">
+              <b>Emergency Contact:</b> ${data.contactInfo}<br>
+              <b>Location:</b> ${data.lat && data.lon ? `<a href="https://www.google.com/maps/dir/?api=1&destination=$${data.lat},${data.lon}" target="_blank">View User Map</a>` : 'Location Unknown'}
+            </div>
+            <button onclick="answerCall('${callerName}')">Accept</button>
+            <button class="decline" onclick="declineCall('${callerName}')">Decline</button>
           </div>
         `;
       }
     });
 
-    if(!hasCalls) callsBox.innerHTML = "No active calls.";
+    if(isRinging) {
+      ringAudio.play().catch(e => console.log("Audio play blocked by browser until interaction."));
+    } else {
+      ringAudio.pause();
+      ringAudio.currentTime = 0;
+      if(callsBox.innerHTML === "") callsBox.innerHTML = "No active calls.";
+    }
   });
 }
 
 // USER SIDE: Initiate Call
 async function initiateVoiceCall() {
-  const status = document.getElementById("callStatus");
-  status.innerText = "Requesting Microphone Access...";
+  const userUI = document.getElementById("userCallUI");
+  const callBtn = document.getElementById("userCallBtn");
+  const statusText = document.getElementById("userCallStatus");
   
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     peerConnection = new RTCPeerConnection(rtcConfig);
     
-    // Add local audio tracks to connection
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    peerConnection.ontrack = (event) => { document.getElementById("remoteAudio").srcObject = event.streams[0]; };
 
-    // Listen for remote audio
-    peerConnection.ontrack = (event) => {
-      document.getElementById("remoteAudio").srcObject = event.streams[0];
-    };
-
-    // Send ICE candidates to Firebase
     peerConnection.onicecandidate = event => {
-      if(event.candidate) {
-        database.ref(`calls/${userName}/callerCandidates`).push(event.candidate.toJSON());
-      }
+      if(event.candidate) database.ref(`calls/${userName}/callerCandidates`).push(event.candidate.toJSON());
     };
 
-    // Create Offer
     const offerDescription = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offerDescription);
 
     const callDoc = {
-      offer: { type: offerDescription.type, sdp: offerDescription.sdp }
+      offer: { type: offerDescription.type, sdp: offerDescription.sdp },
+      contactInfo: userEmergencyContact,
+      lat: currentLat || null,
+      lon: currentLon || null
     };
     
-    status.innerText = "Ringing Advisor...";
-    await database.ref(`calls/${userName}`).set(callDoc);
+    // Update UI
+    callBtn.style.display = "none";
+    userUI.style.display = "block";
+    statusText.innerText = "Ringing Advisor...";
+    document.querySelector("#userCallUI .call-pulse").style.animation = "pulseCall 1.5s infinite";
 
-    // Listen for Answer
-    database.ref(`calls/${userName}/answer`).on('value', async snapshot => {
-      const answer = snapshot.val();
-      if(answer && !peerConnection.currentRemoteDescription) {
-        const answerDescription = new RTCSessionDescription(answer);
+    await database.ref(`calls/${userName}`).set(callDoc);
+    currentCallTarget = userName;
+
+    // Listen for Answer or Rejection
+    database.ref(`calls/${userName}`).on('value', async snapshot => {
+      if(!snapshot.exists()) {
+        // Call was declined or ended by admin
+        forceEndCallUI();
+        showToast("Call ended by Advisor.", "info");
+        return;
+      }
+
+      const data = snapshot.val();
+      if(data.answer && !peerConnection.currentRemoteDescription) {
+        const answerDescription = new RTCSessionDescription(data.answer);
         await peerConnection.setRemoteDescription(answerDescription);
-        status.innerText = "Connected to Advisor! (Live)";
-        status.style.color = "#10b981"; // Green
+        statusText.innerText = "Connected! Speak now.";
+        document.querySelector("#userCallUI .call-pulse").style.animation = "none"; // Stop pulse on connect
       }
     });
 
@@ -612,52 +710,107 @@ async function initiateVoiceCall() {
     });
 
   } catch(e) {
-    status.innerText = "Microphone access denied or error occurred.";
-    console.error(e);
+    showToast("Microphone access denied. Cannot start call.", "error");
+    forceEndCallUI();
   }
 }
 
 // ADMIN SIDE: Answer Call
 async function answerCall(callerName) {
+  document.getElementById("ringtoneAudio").pause();
+  
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     peerConnection = new RTCPeerConnection(rtcConfig);
-
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-    peerConnection.ontrack = (event) => {
-      document.getElementById("remoteAudio").srcObject = event.streams[0];
-    };
+    peerConnection.ontrack = (event) => { document.getElementById("remoteAudio").srcObject = event.streams[0]; };
 
     peerConnection.onicecandidate = event => {
-      if(event.candidate) {
-        database.ref(`calls/${callerName}/calleeCandidates`).push(event.candidate.toJSON());
-      }
+      if(event.candidate) database.ref(`calls/${callerName}/calleeCandidates`).push(event.candidate.toJSON());
     };
 
-    // Get the offer from Firebase
     const callData = (await database.ref(`calls/${callerName}`).once('value')).val();
     const offerDescription = callData.offer;
     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
-    // Create Answer
     const answerDescription = await peerConnection.createAnswer();
     await peerConnection.setLocalDescription(answerDescription);
 
     const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
     await database.ref(`calls/${callerName}/answer`).set(answer);
 
-    // Listen for Caller's ICE candidates
     database.ref(`calls/${callerName}/callerCandidates`).on('child_added', snapshot => {
       const candidate = new RTCIceCandidate(snapshot.val());
       peerConnection.addIceCandidate(candidate);
     });
 
-    alert("Call Connected! You are now speaking with " + callerName);
+    currentCallTarget = callerName;
+    document.getElementById("adminCallUI").style.display = "block";
+    document.getElementById("incomingCallsList").style.display = "none";
+    showToast(`Connected to ${callerName}`, "success");
 
   } catch(e) {
-    alert("Microphone Error: " + e.message);
+    showToast("Microphone Error: " + e.message, "error");
   }
+}
+
+function declineCall(callerName) {
+  database.ref(`calls/${callerName}`).remove();
+  document.getElementById("ringtoneAudio").pause();
+}
+
+// SHARED CALL CONTROLS
+function toggleMute() {
+  if(!localStream) return;
+  isMuted = !isMuted;
+  localStream.getAudioTracks()[0].enabled = !isMuted;
+  
+  const mBtnUser = document.getElementById("userMuteBtn");
+  const mBtnAdmin = document.getElementById("adminMuteBtn");
+  
+  if(isMuted) {
+    if(mBtnUser) { mBtnUser.classList.add("muted"); mBtnUser.innerText = "🔇"; }
+    if(mBtnAdmin) { mBtnAdmin.classList.add("muted"); mBtnAdmin.innerText = "🔇"; }
+  } else {
+    if(mBtnUser) { mBtnUser.classList.remove("muted"); mBtnUser.innerText = "🎙️"; }
+    if(mBtnAdmin) { mBtnAdmin.classList.remove("muted"); mBtnAdmin.innerText = "🎙️"; }
+  }
+}
+
+function endCall() {
+  if(currentCallTarget) {
+    database.ref(`calls/${currentCallTarget}`).remove(); // Triggers the listener to shut down the other side
+  }
+  forceEndCallUI();
+}
+
+function forceEndCallUI() {
+  // Stop audio tracks
+  if(localStream) {
+    localStream.getTracks().forEach(track => track.stop());
+    localStream = null;
+  }
+  if(peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  
+  currentCallTarget = null;
+  isMuted = false;
+  document.getElementById("ringtoneAudio").pause();
+  document.getElementById("remoteAudio").srcObject = null;
+  
+  // Reset User UI
+  document.getElementById("userCallUI").style.display = "none";
+  document.getElementById("userCallBtn").style.display = "block";
+  const mBtnUser = document.getElementById("userMuteBtn");
+  if(mBtnUser) { mBtnUser.classList.remove("muted"); mBtnUser.innerText = "🎙️"; }
+  
+  // Reset Admin UI
+  document.getElementById("adminCallUI").style.display = "none";
+  document.getElementById("incomingCallsList").style.display = "block";
+  const mBtnAdmin = document.getElementById("adminMuteBtn");
+  if(mBtnAdmin) { mBtnAdmin.classList.remove("muted"); mBtnAdmin.innerText = "🎙️"; }
 }
 </script>
 
