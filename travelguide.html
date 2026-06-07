@@ -8,6 +8,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-auth-compat.js"></script>
 
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,Arial,sans-serif}
@@ -18,6 +19,7 @@ body{background:#f5f7fb;color:#101828;touch-action:manipulation;overscroll-behav
 .nav-right{display:flex;gap:12px;align-items:center;}
 .badge{background:rgba(255,255,255,.15);padding:10px 16px;border-radius:50px}
 .sos-btn{background:#dc2626;color:white;padding:10px 20px;border-radius:50px;font-weight:900;border:none;cursor:pointer;animation:pulse 2s infinite;box-shadow:0 0 15px rgba(220,38,38,.5);}
+.call-btn{background:#007aff;color:white;padding:15px 20px;border-radius:20px;font-weight:900;border:none;cursor:pointer;width:100%;font-size:16px;margin-top:10px;box-shadow:0 10px 25px rgba(0,122,255,.3);}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(220,38,38,.7)} 70%{box-shadow:0 0 0 10px rgba(220,38,38,0)} 100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}}
 .heroGrid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center}
 h1{font-size:48px;line-height:1;color:white;letter-spacing:-1px}
@@ -40,7 +42,17 @@ button:disabled{opacity:.55}
 .alert{background:#fef2f2;color:#991b1b;border-left:4px solid #dc2626;padding:12px;border-radius:8px;margin-bottom:10px;font-weight:600;}
 a{color:#007aff;text-decoration:none;font-weight:700}
 .map-link{display:inline-block;margin-top:8px;background:#eef2f7;padding:8px 12px;border-radius:12px;font-size:13px;}
-.footer{text-align:center;color:#667085;padding:30px}
+.footer{text-align:center;color:#667085;padding:30px; cursor:default; user-select:none;}
+
+/* Admin Modals */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:9999;justify-content:center;align-items:center;}
+.modal-box{background:white;padding:30px;border-radius:24px;width:90%;max-width:500px;box-shadow:0 25px 70px rgba(0,0,0,.5);}
+.modal-box input{width:100%;margin-bottom:15px;background:#f1f5f9;border:1px solid #d0d5dd;}
+.modal-box button{width:100%;background:#007aff;color:white;font-weight:800;padding:15px;border-radius:18px;cursor:pointer;}
+#adminDashboard{max-height:80vh;overflow-y:auto;}
+.call-alert{background:#eff6ff;border-left:4px solid #007aff;padding:15px;border-radius:8px;margin-bottom:15px;}
+.call-alert button{width:auto;padding:8px 15px;margin-top:10px;background:#10b981;}
+
 @media(max-width:850px){
   .heroGrid{grid-template-columns:1fr}
   .searchBox{flex-direction:column}
@@ -50,6 +62,8 @@ a{color:#007aff;text-decoration:none;font-weight:700}
 </head>
 
 <body>
+
+<audio id="remoteAudio" autoplay></audio>
 
 <div class="hero">
   <div class="nav">
@@ -141,7 +155,35 @@ a{color:#007aff;text-decoration:none;font-weight:700}
   <div class="card"><h2>Nearby ATMs</h2><div id="atmList" class="small">Waiting...</div></div>
 </div>
 
-<div class="footer">TravelGuard India © 2026 | Secured & Tracked via Firebase</div>
+<div style="padding: 18px;">
+  <button class="call-btn" id="userCallBtn" onclick="initiateVoiceCall()">📞 Connect with Advisor (Live Voice Call)</button>
+  <div id="callStatus" style="text-align:center;margin-top:10px;font-weight:bold;color:#007aff;"></div>
+</div>
+
+<div class="footer" ondblclick="openAdminAuthModal()">TravelGuard India © 2026 | Secured & Tracked via Firebase</div>
+
+<div class="modal-overlay" id="adminAuthOverlay">
+  <div class="modal-box">
+    <h2 style="margin-bottom:15px">Admin Access</h2>
+    <input type="email" id="adminEmail" placeholder="Admin Email">
+    <input type="password" id="adminPassword" placeholder="Password">
+    <button onclick="loginAdmin()">Login to Secure Panel</button>
+    <button style="background:transparent;color:#667085;margin-top:10px;" onclick="closeModals()">Cancel</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="adminDashboardOverlay">
+  <div class="modal-box" id="adminDashboard">
+    <h2 style="margin-bottom:15px; color:#dc2626;">🛡️ Admin Dashboard</h2>
+    <button style="background:#dc2626; margin-bottom: 20px;" onclick="logoutAdmin()">Logout Admin</button>
+    
+    <h3>Incoming Voice Calls</h3>
+    <div id="incomingCallsList" class="small">No active calls.</div>
+    
+    <h3 style="margin-top:20px;">Live SOS Alerts</h3>
+    <div id="adminSosList" class="small">Waiting for alerts...</div>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
@@ -159,12 +201,19 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
+const auth = firebase.auth();
+
 let userName = "Anonymous";
 let userEmergencyContact = "None Provided";
 let countryDataList = [];
 let selectedCurrency = "USD";
 
-// Initialize App and Ask Name + Emergency Contact
+// WebRTC Variables
+let localStream;
+let peerConnection;
+const rtcConfig = { 'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}] };
+
+// Initialize App and Ask Name
 window.onload = async () => {
   setTimeout(() => {
     let namePrompt = prompt("Welcome to TravelGuard! Please enter your name for safety tracking:");
@@ -189,7 +238,6 @@ function trackActivity(actionDetails) {
     action: actionDetails,
     time: timestamp
   });
-  console.log("Tracked to Firebase:", actionDetails);
 }
 
 // --- SOS FUNCTION ---
@@ -222,9 +270,7 @@ async function loadAllCountries() {
   try {
     const res = await fetch("https://restcountries.com/v3.1/all?fields=name,currencies,cca2,idd,capital");
     const data = await res.json();
-    
     countryDataList = data.sort((a, b) => a.name.common.localeCompare(b.name.common));
-    
     const select = document.getElementById("countrySelect");
     select.innerHTML = '<option value="">Select your Home Country</option>';
     
@@ -242,16 +288,14 @@ async function loadAllCountries() {
 
     select.value = "United States";
     handleCountryChange();
-
   } catch (e) {
-    console.error("Failed to load countries", e);
+    console.error("Failed to load countries");
   }
 }
 
 function handleCountryChange() {
   const select = document.getElementById("countrySelect");
   const selectedOption = select.options[select.selectedIndex];
-  
   if(!selectedOption || !selectedOption.value) return;
 
   const countryName = selectedOption.value;
@@ -267,20 +311,14 @@ function handleCountryChange() {
   `;
 
   trackActivity(`Selected Home Country: ${countryName}`);
-  
-  if(document.getElementById("currencyInfo").innerHTML.includes("₹")) {
-    getCurrency();
-  }
+  if(document.getElementById("currencyInfo").innerHTML.includes("₹")) getCurrency();
 }
 
 // --- MAP & LOGIC ---
 let map = L.map("map").setView([28.6139,77.2090], 13);
 let markers = [];
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-  maxZoom: 19,
-  attribution: "© OpenStreetMap"
-}).addTo(map);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom: 19, attribution: "© OpenStreetMap"}).addTo(map);
 
 function clearMarkers(){
   markers.forEach(m => map.removeLayer(m));
@@ -289,7 +327,6 @@ function clearMarkers(){
 
 function addMarker(lat, lon, name, type){
   if(!lat || !lon) return;
-  let iconColor = type.includes("Police") ? "blue" : type.includes("Hospital") ? "red" : "gray";
   let m = L.marker([lat, lon]).addTo(map).bindPopup(`<b>${name}</b><br>${type}`);
   markers.push(m);
 }
@@ -316,11 +353,7 @@ async function searchCity(){
     const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(city)}`;
     const res = await fetch(url);
     const data = await res.json();
-
-    if(!data.length){
-      alert("City not found in India.");
-      return;
-    }
+    if(!data.length) return alert("City not found in India.");
     runApp(Number(data[0].lat), Number(data[0].lon), city);
   }catch(e){
     alert("Location search failed.");
@@ -351,16 +384,10 @@ function useGPS(){
 function runApp(lat, lon, place){
   clearMarkers();
   map.setView([lat, lon], 14);
-  
-  // Highlight user location specifically
   let userMarker = L.circleMarker([lat, lon], {color: 'red', radius: 8, fillOpacity: 0.8}).addTo(map).bindPopup("<b>You are here</b>");
   markers.push(userMarker);
 
-  document.getElementById("locationInfo").innerHTML = `
-    <b>${place}</b><br>
-    Latitude: ${lat.toFixed(4)}<br>
-    Longitude: ${lon.toFixed(4)}
-  `;
+  document.getElementById("locationInfo").innerHTML = `<b>${place}</b><br>Latitude: ${lat.toFixed(4)}<br>Longitude: ${lon.toFixed(4)}`;
 
   generateAdvisory(place);
   getWeather(lat, lon);
@@ -377,24 +404,14 @@ function generateAdvisory(place) {
     "High tourist volume expected today. Beware of pickpockets in crowded markets.",
     "Air quality index (AQI) is poor today. Consider a mask if you have asthma."
   ];
-  const randomAdvisory = advisories[Math.floor(Math.random() * advisories.length)];
-  
-  document.getElementById("advisoryInfo").innerHTML = `
-    <div class="alert">Live Alert for ${place}</div>
-    <div class="small">${randomAdvisory}</div>
-  `;
+  document.getElementById("advisoryInfo").innerHTML = `<div class="alert">Live Alert for ${place}</div><div class="small">${advisories[Math.floor(Math.random() * advisories.length)]}</div>`;
 }
 
 async function getWeather(lat, lon){
   try{
     const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`);
     const data = await res.json();
-
-    document.getElementById("weatherInfo").innerHTML = `
-      Temperature: <b>${data.current.temperature_2m}°C</b><br>
-      Humidity: <b>${data.current.relative_humidity_2m}%</b><br>
-      Wind: <b>${data.current.wind_speed_10m} km/h</b>
-    `;
+    document.getElementById("weatherInfo").innerHTML = `Temperature: <b>${data.current.temperature_2m}°C</b><br>Humidity: <b>${data.current.relative_humidity_2m}%</b><br>Wind: <b>${data.current.wind_speed_10m} km/h</b>`;
   }catch(e){
     document.getElementById("weatherInfo").innerHTML = "Weather data failed.";
   }
@@ -407,10 +424,7 @@ async function getCurrency(){
     const res = await fetch(`https://open.er-api.com/v6/latest/${selectedCurrency}`);
     const data = await res.json();
     if(data && data.rates && data.rates.INR){
-      document.getElementById("currencyInfo").innerHTML = `
-        1 ${selectedCurrency} = <b>₹${data.rates.INR.toFixed(2)} INR</b><br>
-        <div class="small mt-2">Always use official ATM or Bank for exchange.</div>
-      `;
+      document.getElementById("currencyInfo").innerHTML = `1 ${selectedCurrency} = <b>₹${data.rates.INR.toFixed(2)} INR</b><br><div class="small mt-2">Always use official ATM or Bank for exchange.</div>`;
     }
   }catch(e){
     document.getElementById("currencyInfo").innerHTML = `Currency failed. Try again.`;
@@ -418,22 +432,9 @@ async function getCurrency(){
 }
 
 async function getNearbyAmenity(lat, lon, amenity, elementId, type){
-  const radius = 4000;
-  const query = `
-  [out:json][timeout:25];
-  (
-    node["amenity"="${amenity}"](around:${radius},${lat},${lon});
-    way["amenity"="${amenity}"](around:${radius},${lat},${lon});
-  );
-  out center 15;
-  `;
-
+  const query = `[out:json][timeout:25];(node["amenity"="${amenity}"](around:4000,${lat},${lon});way["amenity"="${amenity}"](around:4000,${lat},${lon}););out center 15;`;
   try{
-    const res = await fetch("https://overpass-api.de/api/interpreter", {
-      method:"POST",
-      headers:{"Content-Type":"text/plain;charset=UTF-8"},
-      body:query
-    });
+    const res = await fetch("https://overpass-api.de/api/interpreter", {method:"POST", body:query});
     const data = await res.json();
     showNearby(data.elements, lat, lon, elementId, type);
   }catch(e){
@@ -444,43 +445,199 @@ async function getNearbyAmenity(lat, lon, amenity, elementId, type){
 function showNearby(elements, userLat, userLon, elementId, type){
   const box = document.getElementById(elementId);
   box.innerHTML = "";
-
-  if(!elements || !elements.length){
-    box.innerHTML = "No nearby results found.";
-    return;
-  }
+  if(!elements || !elements.length) return box.innerHTML = "No nearby results found.";
 
   const places = elements.map(p => {
     const lat = p.lat || p.center?.lat;
     const lon = p.lon || p.center?.lon;
-    return {
-      name: p.tags?.name || `Local ${type}`,
-      lat,
-      lon,
-      distance: getDistance(userLat, userLon, lat, lon)
-    };
-  }).filter(p => p.lat && p.lon).sort((a,b) => a.distance - b.distance).slice(0,5);
+    const a = Math.sin((lat-userLat)*Math.PI/360)**2 + Math.cos(userLat*Math.PI/180)*Math.cos(lat*Math.PI/180)*Math.sin((lon-userLon)*Math.PI/360)**2;
+    return { name: p.tags?.name || `Local ${type}`, lat, lon, distance: 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) };
+  }).filter(p => p.lat).sort((a,b) => a.distance - b.distance).slice(0,5);
 
   places.forEach(p => {
-    box.innerHTML += `
-      <div class="item">
-        <b>${p.name}</b>
-        ${p.distance.toFixed(1)} km away<br>
-        <a class="map-link" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}">
-          📍 Directions
-        </a>
-      </div>
-    `;
+    box.innerHTML += `<div class="item"><b>${p.name}</b>${p.distance.toFixed(1)} km away<br><a class="map-link" target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}">📍 Directions</a></div>`;
     addMarker(p.lat, p.lon, p.name, type);
   });
 }
 
-function getDistance(lat1, lon1, lat2, lon2){
-  const R = 6371;
-  const dLat = (lat2-lat1) * Math.PI / 180;
-  const dLon = (lon2-lon1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+// ==========================================
+// HIDDEN ADMIN & WEBRTC VOICE CALL LOGIC
+// ==========================================
+
+function openAdminAuthModal() {
+  document.getElementById("adminAuthOverlay").style.display = "flex";
+}
+
+function closeModals() {
+  document.getElementById("adminAuthOverlay").style.display = "none";
+  document.getElementById("adminDashboardOverlay").style.display = "none";
+}
+
+function loginAdmin() {
+  const email = document.getElementById("adminEmail").value;
+  const pass = document.getElementById("adminPassword").value;
+
+  if(email !== "sgursharn076@gmail.com") {
+    alert("Access Denied: Unrecognized Admin ID.");
+    return;
+  }
+
+  auth.signInWithEmailAndPassword(email, pass).then((userCredential) => {
+    document.getElementById("adminAuthOverlay").style.display = "none";
+    document.getElementById("adminDashboardOverlay").style.display = "flex";
+    initAdminDashboard();
+  }).catch((error) => {
+    alert("Admin Login Failed: " + error.message);
+  });
+}
+
+function logoutAdmin() {
+  auth.signOut().then(() => {
+    closeModals();
+    alert("Admin logged out securely.");
+  });
+}
+
+function initAdminDashboard() {
+  // Listen for SOS Alerts
+  database.ref('emergencies').on('value', (snapshot) => {
+    const sosBox = document.getElementById("adminSosList");
+    sosBox.innerHTML = "";
+    snapshot.forEach(userNode => {
+      let userName = userNode.key;
+      userNode.forEach(alertData => {
+        let val = alertData.val();
+        sosBox.innerHTML += `<div class="alert"><b>🚨 SOS: ${userName}</b><br>Contact: ${val.emergencyContact}<br>Time: ${val.time}<br>Loc: ${val.lat}, ${val.lon}</div>`;
+      });
+    });
+  });
+
+  // Listen for Incoming Voice Calls
+  database.ref('calls').on('value', (snapshot) => {
+    const callsBox = document.getElementById("incomingCallsList");
+    callsBox.innerHTML = "";
+    let hasCalls = false;
+
+    snapshot.forEach(callNode => {
+      const callerName = callNode.key;
+      const data = callNode.val();
+      
+      // If there's an offer but no answer yet
+      if(data.offer && !data.answer) {
+        hasCalls = true;
+        callsBox.innerHTML += `
+          <div class="call-alert">
+            <b>📞 Incoming Call from: ${callerName}</b><br>
+            <button onclick="answerCall('${callerName}')">Answer Call</button>
+          </div>
+        `;
+      }
+    });
+
+    if(!hasCalls) callsBox.innerHTML = "No active calls.";
+  });
+}
+
+// USER SIDE: Initiate Call
+async function initiateVoiceCall() {
+  const status = document.getElementById("callStatus");
+  status.innerText = "Requesting Microphone Access...";
+  
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    peerConnection = new RTCPeerConnection(rtcConfig);
+    
+    // Add local audio tracks to connection
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    // Listen for remote audio
+    peerConnection.ontrack = (event) => {
+      document.getElementById("remoteAudio").srcObject = event.streams[0];
+    };
+
+    // Send ICE candidates to Firebase
+    peerConnection.onicecandidate = event => {
+      if(event.candidate) {
+        database.ref(`calls/${userName}/callerCandidates`).push(event.candidate.toJSON());
+      }
+    };
+
+    // Create Offer
+    const offerDescription = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offerDescription);
+
+    const callDoc = {
+      offer: { type: offerDescription.type, sdp: offerDescription.sdp }
+    };
+    
+    status.innerText = "Ringing Advisor...";
+    await database.ref(`calls/${userName}`).set(callDoc);
+
+    // Listen for Answer
+    database.ref(`calls/${userName}/answer`).on('value', async snapshot => {
+      const answer = snapshot.val();
+      if(answer && !peerConnection.currentRemoteDescription) {
+        const answerDescription = new RTCSessionDescription(answer);
+        await peerConnection.setRemoteDescription(answerDescription);
+        status.innerText = "Connected to Advisor! (Live)";
+        status.style.color = "#10b981"; // Green
+      }
+    });
+
+    // Listen for remote ICE candidates
+    database.ref(`calls/${userName}/calleeCandidates`).on('child_added', snapshot => {
+      const candidate = new RTCIceCandidate(snapshot.val());
+      peerConnection.addIceCandidate(candidate);
+    });
+
+  } catch(e) {
+    status.innerText = "Microphone access denied or error occurred.";
+    console.error(e);
+  }
+}
+
+// ADMIN SIDE: Answer Call
+async function answerCall(callerName) {
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    peerConnection = new RTCPeerConnection(rtcConfig);
+
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+    peerConnection.ontrack = (event) => {
+      document.getElementById("remoteAudio").srcObject = event.streams[0];
+    };
+
+    peerConnection.onicecandidate = event => {
+      if(event.candidate) {
+        database.ref(`calls/${callerName}/calleeCandidates`).push(event.candidate.toJSON());
+      }
+    };
+
+    // Get the offer from Firebase
+    const callData = (await database.ref(`calls/${callerName}`).once('value')).val();
+    const offerDescription = callData.offer;
+    await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDescription));
+
+    // Create Answer
+    const answerDescription = await peerConnection.createAnswer();
+    await peerConnection.setLocalDescription(answerDescription);
+
+    const answer = { type: answerDescription.type, sdp: answerDescription.sdp };
+    await database.ref(`calls/${callerName}/answer`).set(answer);
+
+    // Listen for Caller's ICE candidates
+    database.ref(`calls/${callerName}/callerCandidates`).on('child_added', snapshot => {
+      const candidate = new RTCIceCandidate(snapshot.val());
+      peerConnection.addIceCandidate(candidate);
+    });
+
+    alert("Call Connected! You are now speaking with " + callerName);
+
+  } catch(e) {
+    alert("Microphone Error: " + e.message);
+  }
 }
 </script>
 
