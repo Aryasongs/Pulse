@@ -54,13 +54,57 @@ h1{font-size:42px}
 
       <div class="searchBox">
         <input id="cityInput" placeholder="Enter city e.g. Delhi, Mumbai, Jaipur, Goa">
-        <select id="currencySelect">
+        <select id="currencySelect" onchange="updateEmbassyDetails()">
           <option value="USD">United States - USD</option>
           <option value="GBP">United Kingdom - GBP</option>
           <option value="CAD">Canada - CAD</option>
           <option value="AUD">Australia - AUD</option>
-          <option value="EUR">Europe - EUR</option>
+          <option value="EUR">Eurozone (Germany/France) - EUR</option>
           <option value="AED">UAE - AED</option>
+          <option value="JPY">Japan - JPY</option>
+          <option value="SGD">Singapore - SGD</option>
+          <option value="NZD">New Zealand - NZD</option>
+          <option value="ZAR">South Africa - ZAR</option>
+          <option value="CHF">Switzerland - CHF</option>
+          <option value="MYR">Malaysia - MYR</option>
+          <option value="THB">Thailand - THB</option>
+          <option value="KRW">South Korea - KRW</option>
+          <option value="RUB">Russia - RUB</option>
+          <option value="BRL">Brazil - BRL</option>
+          <option value="MXN">Mexico - MXN</option>
+          <option value="SAR">Saudi Arabia - SAR</option>
+          <option value="OMR">Oman - OMR</option>
+          <option value="KWD">Kuwait - KWD</option>
+          <option value="QAR">Qatar - QAR</option>
+          <option value="BHD">Bahrain - BHD</option>
+          <option value="ILS">Israel - ILS</option>
+          <option value="IDR">Indonesia - IDR</option>
+          <option value="PHP">Philippines - PHP</option>
+          <option value="VND">Vietnam - VND</option>
+          <option value="LKR">Sri Lanka - LKR</option>
+          <option value="BDT">Bangladesh - BDT</option>
+          <option value="NPR">Nepal - NPR</option>
+          <option value="MVR">Maldives - MVR</option>
+          <option value="TRY">Turkey - TRY</option>
+          <option value="EGP">Egypt - EGP</option>
+          <option value="NGN">Nigeria - NGN</option>
+          <option value="KES">Kenya - KES</option>
+          <option value="ARS">Argentina - ARS</option>
+          <option value="CLP">Chile - CLP</option>
+          <option value="COP">Colombia - COP</option>
+          <option value="CNY">China - CNY</option>
+          <option value="HKD">Hong Kong - HKD</option>
+          <option value="TWD">Taiwan - TWD</option>
+          <option value="SEK">Sweden - SEK</option>
+          <option value="NOK">Norway - NOK</option>
+          <option value="DKK">Denmark - DKK</option>
+          <option value="PLN">Poland - PLN</option>
+          <option value="HUF">Hungary - HUF</option>
+          <option value="CZK">Czech Republic - CZK</option>
+          <option value="RON">Romania - RON</option>
+          <option value="UAH">Ukraine - UAH</option>
+          <option value="KZT">Kazakhstan - KZT</option>
+          <option value="PKR">Pakistan - PKR</option>
         </select>
         <button id="startBtn" onclick="searchCity()">Start</button>
         <button onclick="useGPS()">Use GPS</button>
@@ -73,8 +117,12 @@ h1{font-size:42px}
           <h2>Emergency India</h2>
           <p class="small">Emergency: <b>112</b></p>
           <p class="small">Ambulance: <b>108 / 102</b></p>
-          <p class="small">Women Helpline: <b>1091</b></p>
           <p class="small">Tourist Helpline: <b>1363</b></p>
+          <hr style="margin:10px 0; border:0; border-top:1px solid #eee;">
+          <div id="embassyBox">
+            <p class="small" style="color:#007aff;">Your Embassy Emergency No:</p>
+            <p class="small"><b>+91-11-2419-8000</b> (US Embassy)</p>
+          </div>
         </div>
       </div>
     </div>
@@ -90,9 +138,9 @@ h1{font-size:42px}
 
   <div class="card">
     <h2>Emergency Numbers</h2>
-    <div class="item">Emergency: 112</div>
-    <div class="item">Ambulance: 108</div>
-    <div class="item">Tourist Helpline: 1363</div>
+    <div class="item">National Emergency: 112</div>
+    <div class="item">Ambulance Services: 108</div>
+    <div id="dynamicEmbassyCard" class="item">Your Embassy: +91-11-2419-8000</div>
   </div>
 
   <div class="card">
@@ -132,6 +180,74 @@ let map = L.map("map").setView([28.6139,77.2090], 13);
 let markers = [];
 let currentRequestId = 0;
 let activeControllers = [];
+
+// Database mapping Currency/Country code to official Embassy emergency networks in India
+const embassyDatabase = {
+  "USD": { name: "US Embassy", contact: "+91-11-2419-8000" },
+  "GBP": { name: "UK High Commission", contact: "+91-11-2419-2100" },
+  "CAD": { name: "Canada High Commission", contact: "+91-11-4178-2000" },
+  "AUD": { name: "Australia High Commission", contact: "+91-11-4139-9900" },
+  "EUR": { name: "Germany/EU Embassy", contact: "+91-11-4419-9199" },
+  "AED": { name: "UAE Embassy", contact: "+91-11-2467-0007" },
+  "JPY": { name: "Japan Embassy", contact: "+91-11-4610-4610" },
+  "SGD": { name: "Singapore High Comm.", contact: "+91-11-4101-9801" },
+  "NZD": { name: "New Zealand High Comm.", contact: "+91-11-4688-3100" },
+  "ZAR": { name: "South Africa High Comm.", contact: "+91-11-2614-9411" },
+  "CHF": { name: "Switzerland Embassy", contact: "+91-11-4995-9500" },
+  "MYR": { name: "Malaysia High Comm.", contact: "+91-11-2415-9300" },
+  "THB": { name: "Thailand Embassy", contact: "+91-11-2688-8462" },
+  "KRW": { name: "South Korea Embassy", contact: "+91-11-4200-7000" },
+  "RUB": { name: "Russian Embassy", contact: "+91-11-2687-3712" },
+  "BRL": { name: "Brazil Embassy", contact: "+91-11-2301-7301" },
+  "MXN": { name: "Mexico Embassy", contact: "+91-11-2411-3141" },
+  "SAR": { name: "Saudi Arabia Embassy", contact: "+91-11-2747-9800" },
+  "OMR": { name: "Oman Embassy", contact: "+91-11-2688-5622" },
+  "KWD": { name: "Kuwait Embassy", contact: "+91-11-2410-0791" },
+  "QAR": { name: "Qatar Embassy", contact: "+91-11-2611-8741" },
+  "BHD": { name: "Bahrain Embassy", contact: "+91-11-2615-4153" },
+  "ILS": { name: "Israel Embassy", contact: "+91-11-3041-4500" },
+  "IDR": { name: "Indonesia Embassy", contact: "+91-11-2611-8642" },
+  "PHP": { name: "Philippines Embassy", contact: "+91-11-2688-9091" },
+  "VND": { name: "Vietnam Embassy", contact: "+91-11-2687-9868" },
+  "LKR": { name: "Sri Lanka High Comm.", contact: "+91-11-2301-5001" },
+  "BDT": { name: "Bangladesh High Comm.", contact: "+91-11-2412-1358" },
+  "NPR": { name: "Nepal Embassy", contact: "+91-11-2332-9969" },
+  "MVR": { name: "Maldives High Comm.", contact: "+91-11-4166-0737" },
+  "TRY": { name: "Turkey Embassy", contact: "+91-11-2688-9033" },
+  "EGP": { name: "Egypt Embassy", contact: "+91-11-2611-4096" },
+  "NGN": { name: "Nigeria High Comm.", contact: "+91-11-2412-2142" },
+  "KES": { name: "Kenya High Comm.", contact: "+91-11-2614-6537" },
+  "ARS": { name: "Argentina Embassy", contact: "+91-11-4166-1982" },
+  "CLP": { name: "Chile Embassy", contact: "+91-11-4054-8100" },
+  "COP": { name: "Colombia Embassy", contact: "+91-11-4320-2100" },
+  "CNY": { name: "China Embassy", contact: "+91-11-2611-1385" },
+  "HKD": { name: "China Embassy (HK Dept)", contact: "+91-11-2611-1385" },
+  "TWD": { name: "TECC Taiwan Liaison", contact: "+91-11-4610-7700" },
+  "SEK": { name: "Sweden Embassy", contact: "+91-11-2419-7100" },
+  "NOK": { name: "Norway Embassy", contact: "+91-11-4142-8920" },
+  "DKK": { name: "Denmark Embassy", contact: "+91-11-4209-0700" },
+  "PLN": { name: "Poland Embassy", contact: "+91-11-4149-6900" },
+  "HUF": { name: "Hungary Embassy", contact: "+91-11-2688-1152" },
+  "CZK": { name: "Czech Republic Embassy", contact: "+91-11-2415-5200" },
+  "RON": { name: "Romania Embassy", contact: "+91-11-2614-0447" },
+  "UAH": { name: "Ukraine Embassy", contact: "+91-11-2614-6041" },
+  "KZT": { name: "Kazakhstan Embassy", contact: "+91-11-2611-0705" },
+  "PKR": { name: "Pakistan High Comm.", contact: "+91-11-2611-0605" }
+};
+
+function updateEmbassyDetails() {
+  const selected = document.getElementById("currencySelect").value;
+  const data = embassyDatabase[selected] || { name: "Your Embassy", contact: "Contact Local Authorities" };
+  
+  // Update UI Card inside mock phone view
+  document.getElementById("embassyBox").innerHTML = `
+    <p class="small" style="color:#007aff;">${data.name} Emergency No:</p>
+    <p class="small"><b>${data.contact}</b></p>
+  `;
+  
+  // Update Emergency box checklist
+  document.getElementById("dynamicEmbassyCard").innerHTML = `${data.name}: <b>${data.contact}</b>`;
+}
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
@@ -186,6 +302,7 @@ async function searchCity(){
 
   resetUI(city);
   clearMarkers();
+  updateEmbassyDetails();
 
   try{
     const controller = makeController();
@@ -218,6 +335,7 @@ function useGPS(){
   const requestId = newRequest();
   resetUI("Your GPS Location");
   clearMarkers();
+  updateEmbassyDetails();
 
   navigator.geolocation.getCurrentPosition(
     pos => runApp(pos.coords.latitude, pos.coords.longitude, "Your GPS Location", requestId),
@@ -413,7 +531,7 @@ function showNearby(elements, userLat, userLon, elementId, type, requestId){
       <div class="item">
         <b>${p.name}</b>
         ${p.distance.toFixed(1)} km away<br>
-        <a target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}">
+        <a target="_blank" href="https://maps.google.com/?q=${p.lat},${p.lon}">
           Get Directions
         </a>
       </div>
@@ -447,6 +565,7 @@ function makeItinerary(city, requestId){
   `;
 }
 
+// Fire on system initiation
 searchCity();
 </script>
 
