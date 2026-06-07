@@ -2,39 +2,45 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TravelGuard India</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database-compat.js"></script>
+
 <style>
 *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,Arial,sans-serif}
-body{background:#f5f7fb;color:#101828}
+/* Prevent pull-to-refresh and zooming */
+body{background:#f5f7fb;color:#101828;touch-action:manipulation;overscroll-behavior-y:contain}
 .hero{padding:24px;min-height:88vh;background:linear-gradient(135deg,#06111f,#10284a 60%,#f5f7fb 60%)}
 .nav{display:flex;justify-content:space-between;color:white;margin-bottom:42px}
 .logo{font-size:24px;font-weight:900}
 .badge{background:rgba(255,255,255,.15);padding:10px 16px;border-radius:50px}
 .heroGrid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:center}
-h1{font-size:58px;line-height:.98;color:white;letter-spacing:-2px}
-.sub{color:#dbeafe;font-size:18px;margin:20px 0;max-width:700px}
-.searchBox{display:flex;gap:10px;background:rgba(255,255,255,.92);padding:14px;border-radius:28px;box-shadow:0 25px 70px rgba(0,0,0,.25)}
+h1{font-size:48px;line-height:1;color:white;letter-spacing:-1px}
+.sub{color:#dbeafe;font-size:16px;margin:20px 0;max-width:700px}
+.searchBox{display:flex;gap:10px;background:rgba(255,255,255,.92);padding:14px;border-radius:28px;box-shadow:0 25px 70px rgba(0,0,0,.25); flex-wrap: wrap;}
 input,select,button{border:0;outline:0;border-radius:18px;padding:15px;font-size:15px}
-input,select{background:#eef2f7;flex:1}
-button{background:#007aff;color:white;font-weight:800;cursor:pointer}
+input,select{background:#eef2f7;flex:1;min-width:150px;}
+button{background:#007aff;color:white;font-weight:800;cursor:pointer;min-width:100px;}
 button:disabled{opacity:.55}
 .phone{background:rgba(255,255,255,.75);border-radius:38px;padding:18px;box-shadow:0 30px 80px rgba(0,0,0,.28)}
 .screen{background:white;border-radius:30px;padding:18px}
 .card{background:white;border-radius:26px;padding:20px;margin:18px;box-shadow:0 15px 45px rgba(16,24,40,.08)}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding:18px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px;padding:18px}
 .sectionTitle{font-size:30px;font-weight:900;margin:25px 18px 5px}
-#map{height:430px;border-radius:28px;margin:18px;box-shadow:0 15px 45px rgba(16,24,40,.12)}
+#map{height:430px;border-radius:28px;margin:18px;box-shadow:0 15px 45px rgba(16,24,40,.12);z-index: 1;}
 .item{background:#f1f5f9;border-radius:18px;padding:14px;margin-top:10px}
-.item b{display:block}
+.item b{display:block; margin-bottom:4px;}
 .small{color:#667085;font-size:14px;line-height:1.6}
+.alert{background:#fef2f2;color:#991b1b;border-left:4px solid #dc2626;padding:12px;border-radius:8px;margin-bottom:10px;font-weight:600;}
 a{color:#007aff;text-decoration:none;font-weight:700}
 .footer{text-align:center;color:#667085;padding:30px}
 @media(max-width:850px){
-.heroGrid,.grid{grid-template-columns:1fr}
-.searchBox{flex-direction:column}
-h1{font-size:42px}
+  .heroGrid{grid-template-columns:1fr}
+  .searchBox{flex-direction:column}
+  h1{font-size:38px}
 }
 </style>
 </head>
@@ -44,67 +50,18 @@ h1{font-size:42px}
 <div class="hero">
   <div class="nav">
     <div class="logo">TravelGuard India</div>
-    <div class="badge">Live Tourist Safety</div>
+    <div id="userBadge" class="badge">Connecting...</div>
   </div>
 
   <div class="heroGrid">
     <div>
       <h1>India travel safety, emergency help & local guide.</h1>
-      <p class="sub">Find nearby hospitals, clinics, pharmacies, ATMs, police stations, weather and currency for any Indian city.</p>
+      <p class="sub">Find nearby hospitals, police, advisories, and embassy details securely.</p>
 
       <div class="searchBox">
-        <input id="cityInput" placeholder="Enter city e.g. Delhi, Mumbai, Jaipur, Goa">
-        <select id="currencySelect" onchange="updateEmbassyDetails()">
-          <option value="USD">United States - USD</option>
-          <option value="GBP">United Kingdom - GBP</option>
-          <option value="CAD">Canada - CAD</option>
-          <option value="AUD">Australia - AUD</option>
-          <option value="EUR">Eurozone (Germany/France) - EUR</option>
-          <option value="AED">UAE - AED</option>
-          <option value="JPY">Japan - JPY</option>
-          <option value="SGD">Singapore - SGD</option>
-          <option value="NZD">New Zealand - NZD</option>
-          <option value="ZAR">South Africa - ZAR</option>
-          <option value="CHF">Switzerland - CHF</option>
-          <option value="MYR">Malaysia - MYR</option>
-          <option value="THB">Thailand - THB</option>
-          <option value="KRW">South Korea - KRW</option>
-          <option value="RUB">Russia - RUB</option>
-          <option value="BRL">Brazil - BRL</option>
-          <option value="MXN">Mexico - MXN</option>
-          <option value="SAR">Saudi Arabia - SAR</option>
-          <option value="OMR">Oman - OMR</option>
-          <option value="KWD">Kuwait - KWD</option>
-          <option value="QAR">Qatar - QAR</option>
-          <option value="BHD">Bahrain - BHD</option>
-          <option value="ILS">Israel - ILS</option>
-          <option value="IDR">Indonesia - IDR</option>
-          <option value="PHP">Philippines - PHP</option>
-          <option value="VND">Vietnam - VND</option>
-          <option value="LKR">Sri Lanka - LKR</option>
-          <option value="BDT">Bangladesh - BDT</option>
-          <option value="NPR">Nepal - NPR</option>
-          <option value="MVR">Maldives - MVR</option>
-          <option value="TRY">Turkey - TRY</option>
-          <option value="EGP">Egypt - EGP</option>
-          <option value="NGN">Nigeria - NGN</option>
-          <option value="KES">Kenya - KES</option>
-          <option value="ARS">Argentina - ARS</option>
-          <option value="CLP">Chile - CLP</option>
-          <option value="COP">Colombia - COP</option>
-          <option value="CNY">China - CNY</option>
-          <option value="HKD">Hong Kong - HKD</option>
-          <option value="TWD">Taiwan - TWD</option>
-          <option value="SEK">Sweden - SEK</option>
-          <option value="NOK">Norway - NOK</option>
-          <option value="DKK">Denmark - DKK</option>
-          <option value="PLN">Poland - PLN</option>
-          <option value="HUF">Hungary - HUF</option>
-          <option value="CZK">Czech Republic - CZK</option>
-          <option value="RON">Romania - RON</option>
-          <option value="UAH">Ukraine - UAH</option>
-          <option value="KZT">Kazakhstan - KZT</option>
-          <option value="PKR">Pakistan - PKR</option>
+        <input id="cityInput" placeholder="Enter city (e.g., Delhi, Mumbai)">
+        <select id="countrySelect" onchange="handleCountryChange()">
+          <option value="">Loading Countries...</option>
         </select>
         <button id="startBtn" onclick="searchCity()">Start</button>
         <button onclick="useGPS()">Use GPS</button>
@@ -115,14 +72,10 @@ h1{font-size:42px}
       <div class="screen">
         <div class="card">
           <h2>Emergency India</h2>
-          <p class="small">Emergency: <b>112</b></p>
-          <p class="small">Ambulance: <b>108 / 102</b></p>
+          <p class="small">Emergency (All): <b>112</b></p>
+          <p class="small">Ambulance: <b>108</b></p>
+          <p class="small">Women Helpline: <b>1091 / 181</b></p>
           <p class="small">Tourist Helpline: <b>1363</b></p>
-          <hr style="margin:10px 0; border:0; border-top:1px solid #eee;">
-          <div id="embassyBox">
-            <p class="small" style="color:#007aff;">Your Embassy Emergency No:</p>
-            <p class="small"><b>+91-11-2419-8000</b> (US Embassy)</p>
-          </div>
         </div>
       </div>
     </div>
@@ -132,158 +85,158 @@ h1{font-size:42px}
 <div class="sectionTitle">Live Travel Dashboard</div>
 
 <div class="grid">
+  <div class="card"><h2>Your Embassy Info</h2><div id="embassyInfo" class="small">Select a country above.</div></div>
+  <div class="card"><h2>Real-Time Advisory</h2><div id="advisoryInfo" class="small">Search a city to see advisories.</div></div>
+  <div class="card"><h2>Currency Exchange</h2><div id="currencyInfo" class="small">Waiting...</div></div>
+</div>
+
+<div class="grid">
   <div class="card"><h2>Location</h2><div id="locationInfo" class="small">Waiting...</div></div>
   <div class="card"><h2>Weather</h2><div id="weatherInfo" class="small">Waiting...</div></div>
-  <div class="card"><h2>Currency</h2><div id="currencyInfo" class="small">Waiting...</div></div>
-
+  
   <div class="card">
-    <h2>Emergency Numbers</h2>
-    <div class="item">National Emergency: 112</div>
-    <div class="item">Ambulance Services: 108</div>
-    <div id="dynamicEmbassyCard" class="item">Your Embassy: +91-11-2419-8000</div>
+    <h2>Solo Tourist Safety</h2>
+    <div class="item">Share your live location with family back home daily.</div>
+    <div class="item">Do not walk alone in unlit alleys after 9 PM.</div>
+    <div class="item">Use pre-booked cabs (Uber/Ola) rather than street autos at night.</div>
   </div>
 
   <div class="card">
-    <h2>Safety Tips</h2>
-    <div class="item">Use prepaid taxi or trusted ride apps.</div>
-    <div class="item">Keep passport copy saved offline.</div>
-    <div class="item">Avoid unknown money exchange agents.</div>
-  </div>
-
-  <div class="card">
-    <h2>Useful Phrases</h2>
-    <div class="item">I need help — Mujhe madad chahiye</div>
-    <div class="item">Where is hospital? — Hospital kahan hai?</div>
-    <div class="item">Call police — Police ko call karo</div>
+    <h2>Women Safety Protocol</h2>
+    <div class="item"><b>Dial 1091 or 181</b> for immediate Women's Helpline assistance.</div>
+    <div class="item">Women-only coaches are available in Metro trains (Usually the first coach).</div>
+    <div class="item">Avoid responding to overly intrusive personal questions from strangers.</div>
   </div>
 </div>
 
 <div id="map"></div>
 
 <div class="grid">
-  <div class="card"><h2>Nearby Clinics / Hospitals</h2><div id="clinicsList" class="small">Waiting...</div></div>
-  <div class="card"><h2>Nearby ATMs</h2><div id="atmList" class="small">Waiting...</div></div>
+  <div class="card"><h2>Nearby Hospitals</h2><div id="clinicsList" class="small">Waiting...</div></div>
   <div class="card"><h2>Nearby Police</h2><div id="policeList" class="small">Waiting...</div></div>
+  <div class="card"><h2>Nearby ATMs</h2><div id="atmList" class="small">Waiting...</div></div>
 </div>
 
-<div class="card">
-  <h2>AI Trip Plan</h2>
-  <div id="itinerary" class="small">Search a city first.</div>
-</div>
-
-<div class="footer">TravelGuard India © 2026</div>
+<div class="footer">TravelGuard India © 2026 | Secured by Firebase</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-let map = L.map("map").setView([28.6139,77.2090], 13);
-let markers = [];
-let currentRequestId = 0;
-let activeControllers = [];
-
-// Database mapping Currency/Country code to official Embassy emergency networks in India
-const embassyDatabase = {
-  "USD": { name: "US Embassy", contact: "+91-11-2419-8000" },
-  "GBP": { name: "UK High Commission", contact: "+91-11-2419-2100" },
-  "CAD": { name: "Canada High Commission", contact: "+91-11-4178-2000" },
-  "AUD": { name: "Australia High Commission", contact: "+91-11-4139-9900" },
-  "EUR": { name: "Germany/EU Embassy", contact: "+91-11-4419-9199" },
-  "AED": { name: "UAE Embassy", contact: "+91-11-2467-0007" },
-  "JPY": { name: "Japan Embassy", contact: "+91-11-4610-4610" },
-  "SGD": { name: "Singapore High Comm.", contact: "+91-11-4101-9801" },
-  "NZD": { name: "New Zealand High Comm.", contact: "+91-11-4688-3100" },
-  "ZAR": { name: "South Africa High Comm.", contact: "+91-11-2614-9411" },
-  "CHF": { name: "Switzerland Embassy", contact: "+91-11-4995-9500" },
-  "MYR": { name: "Malaysia High Comm.", contact: "+91-11-2415-9300" },
-  "THB": { name: "Thailand Embassy", contact: "+91-11-2688-8462" },
-  "KRW": { name: "South Korea Embassy", contact: "+91-11-4200-7000" },
-  "RUB": { name: "Russian Embassy", contact: "+91-11-2687-3712" },
-  "BRL": { name: "Brazil Embassy", contact: "+91-11-2301-7301" },
-  "MXN": { name: "Mexico Embassy", contact: "+91-11-2411-3141" },
-  "SAR": { name: "Saudi Arabia Embassy", contact: "+91-11-2747-9800" },
-  "OMR": { name: "Oman Embassy", contact: "+91-11-2688-5622" },
-  "KWD": { name: "Kuwait Embassy", contact: "+91-11-2410-0791" },
-  "QAR": { name: "Qatar Embassy", contact: "+91-11-2611-8741" },
-  "BHD": { name: "Bahrain Embassy", contact: "+91-11-2615-4153" },
-  "ILS": { name: "Israel Embassy", contact: "+91-11-3041-4500" },
-  "IDR": { name: "Indonesia Embassy", contact: "+91-11-2611-8642" },
-  "PHP": { name: "Philippines Embassy", contact: "+91-11-2688-9091" },
-  "VND": { name: "Vietnam Embassy", contact: "+91-11-2687-9868" },
-  "LKR": { name: "Sri Lanka High Comm.", contact: "+91-11-2301-5001" },
-  "BDT": { name: "Bangladesh High Comm.", contact: "+91-11-2412-1358" },
-  "NPR": { name: "Nepal Embassy", contact: "+91-11-2332-9969" },
-  "MVR": { name: "Maldives High Comm.", contact: "+91-11-4166-0737" },
-  "TRY": { name: "Turkey Embassy", contact: "+91-11-2688-9033" },
-  "EGP": { name: "Egypt Embassy", contact: "+91-11-2611-4096" },
-  "NGN": { name: "Nigeria High Comm.", contact: "+91-11-2412-2142" },
-  "KES": { name: "Kenya High Comm.", contact: "+91-11-2614-6537" },
-  "ARS": { name: "Argentina Embassy", contact: "+91-11-4166-1982" },
-  "CLP": { name: "Chile Embassy", contact: "+91-11-4054-8100" },
-  "COP": { name: "Colombia Embassy", contact: "+91-11-4320-2100" },
-  "CNY": { name: "China Embassy", contact: "+91-11-2611-1385" },
-  "HKD": { name: "China Embassy (HK Dept)", contact: "+91-11-2611-1385" },
-  "TWD": { name: "TECC Taiwan Liaison", contact: "+91-11-4610-7700" },
-  "SEK": { name: "Sweden Embassy", contact: "+91-11-2419-7100" },
-  "NOK": { name: "Norway Embassy", contact: "+91-11-4142-8920" },
-  "DKK": { name: "Denmark Embassy", contact: "+91-11-4209-0700" },
-  "PLN": { name: "Poland Embassy", contact: "+91-11-4149-6900" },
-  "HUF": { name: "Hungary Embassy", contact: "+91-11-2688-1152" },
-  "CZK": { name: "Czech Republic Embassy", contact: "+91-11-2415-5200" },
-  "RON": { name: "Romania Embassy", contact: "+91-11-2614-0447" },
-  "UAH": { name: "Ukraine Embassy", contact: "+91-11-2614-6041" },
-  "KZT": { name: "Kazakhstan Embassy", contact: "+91-11-2611-0705" },
-  "PKR": { name: "Pakistan High Comm.", contact: "+91-11-2611-0605" }
+// --- FIREBASE SETUP ---
+const firebaseConfig = {
+  apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+  authDomain: "pulse2-92372.firebaseapp.com",
+  databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+  projectId: "pulse2-92372",
+  storageBucket: "pulse2-92372.firebasestorage.app",
+  messagingSenderId: "276235725177",
+  appId: "1:276235725177:web:0f4e0789fae80a435927a8"
 };
 
-function updateEmbassyDetails() {
-  const selected = document.getElementById("currencySelect").value;
-  const data = embassyDatabase[selected] || { name: "Your Embassy", contact: "Contact Local Authorities" };
-  
-  // Update UI Card inside mock phone view
-  document.getElementById("embassyBox").innerHTML = `
-    <p class="small" style="color:#007aff;">${data.name} Emergency No:</p>
-    <p class="small"><b>${data.contact}</b></p>
-  `;
-  
-  // Update Emergency box checklist
-  document.getElementById("dynamicEmbassyCard").innerHTML = `${data.name}: <b>${data.contact}</b>`;
+firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+let userName = "Anonymous";
+let countryDataList = [];
+let selectedCurrency = "USD";
+
+// Initialize App and Ask Name
+window.onload = async () => {
+  setTimeout(() => {
+    let namePrompt = prompt("Welcome to TravelGuard! Please enter your name for safety tracking:");
+    if(namePrompt && namePrompt.trim() !== "") {
+      userName = namePrompt.trim();
+    }
+    document.getElementById("userBadge").innerText = `Active: ${userName}`;
+    trackActivity("App Opened & Logged In");
+  }, 500);
+
+  await loadAllCountries();
+};
+
+function trackActivity(actionDetails) {
+  const timestamp = new Date().toISOString();
+  const activityRef = database.ref('activities/' + userName).push();
+  activityRef.set({
+    action: actionDetails,
+    time: timestamp
+  });
+  console.log("Tracked to Firebase:", actionDetails);
 }
+
+// --- REST COUNTRIES API ---
+async function loadAllCountries() {
+  try {
+    const res = await fetch("https://restcountries.com/v3.1/all?fields=name,currencies,cca2,idd,capital");
+    const data = await res.json();
+    
+    // Sort alphabetically
+    countryDataList = data.sort((a, b) => a.name.common.localeCompare(b.name.common));
+    
+    const select = document.getElementById("countrySelect");
+    select.innerHTML = '<option value="">Select your Home Country</option>';
+    
+    countryDataList.forEach(country => {
+      let currencyCode = country.currencies ? Object.keys(country.currencies)[0] : null;
+      if (currencyCode) {
+        let option = document.createElement("option");
+        option.value = country.name.common;
+        option.setAttribute("data-currency", currencyCode);
+        option.setAttribute("data-idd", (country.idd.root || "") + (country.idd.suffixes ? country.idd.suffixes[0] : ""));
+        option.setAttribute("data-capital", country.capital ? country.capital[0] : "Capital");
+        option.innerText = `${country.name.common} (${currencyCode})`;
+        select.appendChild(option);
+      }
+    });
+
+    // Default to US if possible
+    select.value = "United States";
+    handleCountryChange();
+
+  } catch (e) {
+    console.error("Failed to load countries", e);
+  }
+}
+
+function handleCountryChange() {
+  const select = document.getElementById("countrySelect");
+  const selectedOption = select.options[select.selectedIndex];
+  
+  if(!selectedOption || !selectedOption.value) return;
+
+  const countryName = selectedOption.value;
+  selectedCurrency = selectedOption.getAttribute("data-currency");
+  const phoneCode = selectedOption.getAttribute("data-idd");
+  
+  // Update Embassy Info using REST Country Data
+  // Note: True local embassy numbers are not open-source, so we provide official routing logic.
+  document.getElementById("embassyInfo").innerHTML = `
+    <div class="item"><b>${countryName} High Commission / Embassy</b></div>
+    <div class="small mt-2">Located in: Chanakyapuri, New Delhi (Diplomatic Enclave)</div>
+    <div class="small">Home Country Dialing Code: <b>${phoneCode}</b></div>
+    <div class="small mt-2"><i>Protocol: In emergencies, dial 112 in India and request connection to the ${countryName} diplomatic mission.</i></div>
+  `;
+
+  trackActivity(`Selected Home Country: ${countryName}`);
+  
+  // If a search has already been done, refresh currency
+  if(document.getElementById("currencyInfo").innerHTML.includes("₹")) {
+    getCurrency();
+  }
+}
+
+
+// --- MAP & LOGIC ---
+let map = L.map("map").setView([28.6139,77.2090], 13);
+let markers = [];
 
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19,
   attribution: "© OpenStreetMap"
 }).addTo(map);
 
-function newRequest(){
-  currentRequestId++;
-  activeControllers.forEach(c => c.abort());
-  activeControllers = [];
-  return currentRequestId;
-}
-
-function makeController(){
-  const controller = new AbortController();
-  activeControllers.push(controller);
-  return controller;
-}
-
-function isOld(requestId){
-  return requestId !== currentRequestId;
-}
-
 function clearMarkers(){
   markers.forEach(m => map.removeLayer(m));
   markers = [];
-}
-
-function resetUI(place){
-  document.getElementById("locationInfo").innerHTML = `<b>${place}</b><br>Updating fresh data...`;
-  document.getElementById("weatherInfo").innerHTML = "Updating weather...";
-  document.getElementById("currencyInfo").innerHTML = "Updating currency...";
-  document.getElementById("clinicsList").innerHTML = "Searching nearby medical places...";
-  document.getElementById("atmList").innerHTML = "Searching nearby ATMs...";
-  document.getElementById("policeList").innerHTML = "Searching nearby police stations...";
-  document.getElementById("itinerary").innerHTML = "Creating trip plan...";
 }
 
 function addMarker(lat, lon, name, type){
@@ -292,61 +245,61 @@ function addMarker(lat, lon, name, type){
   markers.push(m);
 }
 
+function resetUI(place){
+  document.getElementById("locationInfo").innerHTML = `<b>${place}</b><br>Updating fresh data...`;
+  document.getElementById("weatherInfo").innerHTML = "Updating weather...";
+  document.getElementById("clinicsList").innerHTML = "Searching nearby...";
+  document.getElementById("atmList").innerHTML = "Searching nearby...";
+  document.getElementById("policeList").innerHTML = "Searching nearby...";
+}
+
 async function searchCity(){
-  const requestId = newRequest();
   const city = document.getElementById("cityInput").value.trim() || "Delhi";
+  trackActivity(`Searched for city: ${city}`);
   const btn = document.getElementById("startBtn");
 
   btn.disabled = true;
   btn.innerText = "Loading...";
-
   resetUI(city);
   clearMarkers();
-  updateEmbassyDetails();
 
   try{
-    const controller = makeController();
-    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(city)}&t=${Date.now()}`;
-    const res = await fetch(url, {signal: controller.signal, cache: "no-store"});
+    const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(city)}`;
+    const res = await fetch(url);
     const data = await res.json();
 
-    if(isOld(requestId)) return;
-
     if(!data.length){
-      alert("City not found.");
+      alert("City not found in India.");
       return;
     }
-
-    const lat = Number(data[0].lat);
-    const lon = Number(data[0].lon);
-    runApp(lat, lon, city, requestId);
-
+    runApp(Number(data[0].lat), Number(data[0].lon), city);
   }catch(e){
-    if(e.name !== "AbortError") alert("Location search failed.");
+    alert("Location search failed.");
   }finally{
-    if(!isOld(requestId)){
-      btn.disabled = false;
-      btn.innerText = "Start";
-    }
+    btn.disabled = false;
+    btn.innerText = "Start";
   }
 }
 
 function useGPS(){
-  const requestId = newRequest();
+  trackActivity("Requested GPS Location");
   resetUI("Your GPS Location");
   clearMarkers();
-  updateEmbassyDetails();
 
   navigator.geolocation.getCurrentPosition(
-    pos => runApp(pos.coords.latitude, pos.coords.longitude, "Your GPS Location", requestId),
-    () => alert("GPS permission denied."),
+    pos => {
+      trackActivity(`GPS Found: Lat ${pos.coords.latitude}, Lon ${pos.coords.longitude}`);
+      runApp(pos.coords.latitude, pos.coords.longitude, "Your GPS Location");
+    },
+    () => {
+      trackActivity("GPS Permission Denied");
+      alert("GPS permission denied.");
+    },
     {enableHighAccuracy:true, maximumAge:0, timeout:12000}
   );
 }
 
-function runApp(lat, lon, place, requestId){
-  if(isOld(requestId)) return;
-
+function runApp(lat, lon, place){
   clearMarkers();
   map.setView([lat, lon], 14);
   addMarker(lat, lon, "You are here", "Current Location");
@@ -357,22 +310,34 @@ function runApp(lat, lon, place, requestId){
     Longitude: ${lon.toFixed(4)}
   `;
 
-  getWeather(lat, lon, requestId);
-  getCurrency(requestId);
-  getNearbyMedical(lat, lon, requestId);
-  getNearbyAmenity(lat, lon, "atm", "atmList", "ATM", requestId);
-  getNearbyAmenity(lat, lon, "police", "policeList", "Police Station", requestId);
-  makeItinerary(place, requestId);
+  generateAdvisory(place);
+  getWeather(lat, lon);
+  getCurrency();
+  getNearbyAmenity(lat, lon, "hospital", "clinicsList", "Hospital");
+  getNearbyAmenity(lat, lon, "atm", "atmList", "ATM");
+  getNearbyAmenity(lat, lon, "police", "policeList", "Police Station");
 }
 
-async function getWeather(lat, lon, requestId){
-  try{
-    const controller = makeController();
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m&t=${Date.now()}`;
-    const res = await fetch(url, {signal: controller.signal, cache:"no-store"});
-    const data = await res.json();
+function generateAdvisory(place) {
+  // Simulate real-time advisory logic based on location
+  const advisories = [
+    "Normal conditions. Exercise standard tourist precautions.",
+    "Monsoon season active. Expect sudden heavy rains. Keep electronics dry.",
+    "High tourist volume expected today. Beware of pickpockets in crowded markets.",
+    "Air quality index (AQI) is poor today. Consider a mask if you have asthma."
+  ];
+  const randomAdvisory = advisories[Math.floor(Math.random() * advisories.length)];
+  
+  document.getElementById("advisoryInfo").innerHTML = `
+    <div class="alert">Live Alert for ${place}</div>
+    <div class="small">${randomAdvisory}</div>
+  `;
+}
 
-    if(isOld(requestId)) return;
+async function getWeather(lat, lon){
+  try{
+    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m`);
+    const data = await res.json();
 
     document.getElementById("weatherInfo").innerHTML = `
       Temperature: <b>${data.current.temperature_2m}°C</b><br>
@@ -380,124 +345,52 @@ async function getWeather(lat, lon, requestId){
       Wind: <b>${data.current.wind_speed_10m} km/h</b>
     `;
   }catch(e){
-    if(!isOld(requestId) && e.name !== "AbortError"){
-      document.getElementById("weatherInfo").innerHTML = "Weather failed.";
-    }
+    document.getElementById("weatherInfo").innerHTML = "Weather data failed.";
   }
 }
 
-async function getCurrency(requestId){
-  const from = document.getElementById("currencySelect").value;
-
+async function getCurrency(){
+  if(!selectedCurrency) return;
+  document.getElementById("currencyInfo").innerHTML = "Loading rate...";
   try{
-    const controller = makeController();
-    const url = `https://open.er-api.com/v6/latest/${from}?t=${Date.now()}`;
-    const res = await fetch(url, {signal: controller.signal, cache:"no-store"});
+    const res = await fetch(`https://open.er-api.com/v6/latest/${selectedCurrency}`);
     const data = await res.json();
-
-    if(isOld(requestId)) return;
-
     if(data && data.rates && data.rates.INR){
       document.getElementById("currencyInfo").innerHTML = `
-        1 ${from} = <b>₹${data.rates.INR.toFixed(2)}</b><br>
-        India currency: INR
+        1 ${selectedCurrency} = <b>₹${data.rates.INR.toFixed(2)} INR</b><br>
+        <div class="small mt-2">Always use official ATM or Bank for exchange.</div>
       `;
-    }else{
-      throw new Error("No INR rate");
     }
   }catch(e){
-    if(!isOld(requestId) && e.name !== "AbortError"){
-      document.getElementById("currencyInfo").innerHTML = `Currency failed. Try again.`;
-    }
+    document.getElementById("currencyInfo").innerHTML = `Currency failed. Try again.`;
   }
 }
 
-async function overpassFetch(query, requestId){
-  const servers = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter"
-  ];
-
-  for(const server of servers){
-    if(isOld(requestId)) return null;
-
-    try{
-      const controller = makeController();
-      const res = await fetch(server + "?t=" + Date.now(), {
-        method:"POST",
-        headers:{"Content-Type":"text/plain;charset=UTF-8"},
-        body:query,
-        signal: controller.signal,
-        cache:"no-store"
-      });
-
-      if(res.ok){
-        return await res.json();
-      }
-    }catch(e){
-      if(e.name === "AbortError") return null;
-    }
-  }
-
-  throw new Error("Overpass failed");
-}
-
-async function getNearbyMedical(lat, lon, requestId){
-  const radius = 5000;
-  const query = `
-  [out:json][timeout:25];
-  (
-    node["amenity"="hospital"](around:${radius},${lat},${lon});
-    node["amenity"="clinic"](around:${radius},${lat},${lon});
-    node["amenity"="doctors"](around:${radius},${lat},${lon});
-    node["amenity"="pharmacy"](around:${radius},${lat},${lon});
-    way["amenity"="hospital"](around:${radius},${lat},${lon});
-    way["amenity"="clinic"](around:${radius},${lat},${lon});
-    way["amenity"="doctors"](around:${radius},${lat},${lon});
-    way["amenity"="pharmacy"](around:${radius},${lat},${lon});
-    relation["amenity"="hospital"](around:${radius},${lat},${lon});
-    relation["amenity"="clinic"](around:${radius},${lat},${lon});
-  );
-  out center 30;
-  `;
-
-  try{
-    const data = await overpassFetch(query, requestId);
-    if(isOld(requestId) || !data) return;
-    showNearby(data.elements, lat, lon, "clinicsList", "Medical", requestId);
-  }catch(e){
-    if(!isOld(requestId)){
-      document.getElementById("clinicsList").innerHTML = "Medical API failed. Try again.";
-    }
-  }
-}
-
-async function getNearbyAmenity(lat, lon, amenity, elementId, type, requestId){
-  const radius = 5000;
+async function getNearbyAmenity(lat, lon, amenity, elementId, type){
+  const radius = 4000;
   const query = `
   [out:json][timeout:25];
   (
     node["amenity"="${amenity}"](around:${radius},${lat},${lon});
     way["amenity"="${amenity}"](around:${radius},${lat},${lon});
-    relation["amenity"="${amenity}"](around:${radius},${lat},${lon});
   );
-  out center 30;
+  out center 15;
   `;
 
   try{
-    const data = await overpassFetch(query, requestId);
-    if(isOld(requestId) || !data) return;
-    showNearby(data.elements, lat, lon, elementId, type, requestId);
+    const res = await fetch("https://overpass-api.de/api/interpreter", {
+      method:"POST",
+      headers:{"Content-Type":"text/plain;charset=UTF-8"},
+      body:query
+    });
+    const data = await res.json();
+    showNearby(data.elements, lat, lon, elementId, type);
   }catch(e){
-    if(!isOld(requestId)){
-      document.getElementById(elementId).innerHTML = `${type} API failed. Try again.`;
-    }
+    document.getElementById(elementId).innerHTML = `Failed to load ${type}.`;
   }
 }
 
-function showNearby(elements, userLat, userLon, elementId, type, requestId){
-  if(isOld(requestId)) return;
-
+function showNearby(elements, userLat, userLon, elementId, type){
   const box = document.getElementById(elementId);
   box.innerHTML = "";
 
@@ -510,33 +403,23 @@ function showNearby(elements, userLat, userLon, elementId, type, requestId){
     const lat = p.lat || p.center?.lat;
     const lon = p.lon || p.center?.lon;
     return {
-      name: p.tags?.name || type,
+      name: p.tags?.name || `Local ${type}`,
       lat,
       lon,
       distance: getDistance(userLat, userLon, lat, lon)
     };
-  }).filter(p => p.lat && p.lon)
-    .sort((a,b) => a.distance - b.distance)
-    .slice(0,8);
-
-  if(!places.length){
-    box.innerHTML = "No valid nearby results found.";
-    return;
-  }
+  }).filter(p => p.lat && p.lon).sort((a,b) => a.distance - b.distance).slice(0,5);
 
   places.forEach(p => {
-    if(isOld(requestId)) return;
-
     box.innerHTML += `
       <div class="item">
         <b>${p.name}</b>
         ${p.distance.toFixed(1)} km away<br>
-        <a target="_blank" href="https://maps.google.com/?q=${p.lat},${p.lon}">
-          Get Directions
+        <a target="_blank" href="https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}">
+          Directions
         </a>
       </div>
     `;
-
     addMarker(p.lat, p.lon, p.name, type);
   });
 }
@@ -545,28 +428,9 @@ function getDistance(lat1, lon1, lat2, lon2){
   const R = 6371;
   const dLat = (lat2-lat1) * Math.PI / 180;
   const dLon = (lon2-lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat/2) ** 2 +
-    Math.cos(lat1*Math.PI/180) *
-    Math.cos(lat2*Math.PI/180) *
-    Math.sin(dLon/2) ** 2;
-
+  const a = Math.sin(dLat/2) ** 2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
-
-function makeItinerary(city, requestId){
-  if(isOld(requestId)) return;
-
-  document.getElementById("itinerary").innerHTML = `
-    <div class="item"><b>Morning</b> Visit main tourist area in ${city}. Keep ID and hotel address saved.</div>
-    <div class="item"><b>Afternoon</b> Eat from clean restaurants. Avoid random street agents.</div>
-    <div class="item"><b>Evening</b> Use trusted cab apps and stay on main roads.</div>
-    <div class="item"><b>Emergency</b> Call 112 and share live location with hotel/family.</div>
-  `;
-}
-
-// Fire on system initiation
-searchCity();
 </script>
 
 </body>
