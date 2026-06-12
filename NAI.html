@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NEXOR AI</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:radial-gradient(circle at top,#1d4ed8,#020617 45%,#000);
+  color:white;
+  height:100vh;
+  overflow:hidden;
+}
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-columns:300px 1fr;
+}
+.sidebar{
+  padding:22px;
+  background:rgba(255,255,255,.08);
+  backdrop-filter:blur(25px);
+  border-right:1px solid rgba(255,255,255,.14);
+}
+.logo{
+  font-size:26px;
+  font-weight:900;
+  letter-spacing:-1px;
+}
+.logo span{color:#60a5fa}
+.userbox{
+  margin-top:25px;
+  padding:15px;
+  border-radius:20px;
+  background:rgba(255,255,255,.1);
+}
+button{
+  border:0;
+  border-radius:14px;
+  padding:13px 16px;
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  color:white;
+  font-weight:700;
+  cursor:pointer;
+}
+button:hover{opacity:.9}
+.main{
+  display:flex;
+  flex-direction:column;
+}
+.header{
+  padding:18px 24px;
+  background:rgba(255,255,255,.07);
+  backdrop-filter:blur(25px);
+  border-bottom:1px solid rgba(255,255,255,.12);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.chat{
+  flex:1;
+  overflow-y:auto;
+  padding:28px;
+}
+.msg{
+  max-width:780px;
+  padding:16px 18px;
+  margin:14px 0;
+  border-radius:22px;
+  line-height:1.5;
+  white-space:pre-wrap;
+}
+.user{
+  margin-left:auto;
+  background:linear-gradient(135deg,#2563eb,#9333ea);
+}
+.ai{
+  background:rgba(255,255,255,.11);
+  backdrop-filter:blur(20px);
+  border:1px solid rgba(255,255,255,.12);
+}
+.composer{
+  padding:18px;
+  display:flex;
+  gap:12px;
+  background:rgba(0,0,0,.25);
+}
+textarea{
+  flex:1;
+  resize:none;
+  min-height:55px;
+  max-height:140px;
+  padding:15px;
+  border-radius:18px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(255,255,255,.1);
+  color:white;
+  outline:none;
+}
+input[type=file]{display:none}
+.iconbtn{
+  width:52px;
+  height:52px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+}
+.auth{
+  position:fixed;
+  inset:0;
+  display:grid;
+  place-items:center;
+  background:rgba(0,0,0,.65);
+  backdrop-filter:blur(20px);
+  z-index:10;
+}
+.authcard{
+  width:360px;
+  padding:28px;
+  border-radius:28px;
+  background:rgba(255,255,255,.12);
+  border:1px solid rgba(255,255,255,.18);
+}
+.authcard input{
+  width:100%;
+  padding:14px;
+  margin:10px 0;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.1);
+  color:white;
+}
+.small{font-size:13px;color:#cbd5e1}
+img.preview{max-width:260px;border-radius:18px;margin-top:10px}
+@media(max-width:800px){
+  .app{grid-template-columns:1fr}
+  .sidebar{display:none}
+}
+</style>
+</head>
+
+<body>
+
+<div class="auth" id="authBox">
+  <div class="authcard">
+    <h1>NEXOR <span style="color:#60a5fa">AI</span></h1>
+    <p class="small">Create account or login to continue</p>
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="signup()">Create Account</button>
+    <button style="margin-top:10px;background:#111827" onclick="login()">Login</button>
+    <p class="small" id="authMsg"></p>
+  </div>
+</div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">NEXOR <span>AI</span></div>
+    <p class="small">Personal AI assistant with Firebase memory.</p>
+
+    <div class="userbox">
+      <b id="userEmail">Not logged in</b>
+      <p class="small">Your chats are saved securely in Firebase.</p>
+      <button onclick="logout()">Logout</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <b>NEXOR AI Chat</b>
+      <span class="small">Liquid Glass Intelligence</span>
+    </div>
+
+    <div class="chat" id="chat"></div>
+
+    <div class="composer">
+      <label class="iconbtn" for="imageInput">🖼️</label>
+      <input id="imageInput" type="file" accept="image/*">
+      <textarea id="prompt" placeholder="Ask NEXOR AI anything..."></textarea>
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </main>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getDatabase, ref, push, set, onValue, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+  authDomain: "pulse2-92372.firebaseapp.com",
+  databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+  projectId: "pulse2-92372",
+  storageBucket: "pulse2-92372.firebasestorage.app",
+  messagingSenderId: "276235725177",
+  appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getDatabase(app);
+
+let currentUser = null;
+let selectedImageBase64 = null;
+
+window.signup = async()=>{
+  try{
+    await createUserWithEmailAndPassword(auth,email.value,password.value);
+  }catch(e){ authMsg.textContent=e.message; }
+};
+
+window.login = async()=>{
+  try{
+    await signInWithEmailAndPassword(auth,email.value,password.value);
+  }catch(e){ authMsg.textContent=e.message; }
+};
+
+window.logout = ()=> signOut(auth);
+
+onAuthStateChanged(auth,(user)=>{
+  currentUser=user;
+  if(user){
+    authBox.style.display="none";
+    userEmail.textContent=user.email;
+    loadChats();
+  }else{
+    authBox.style.display="grid";
+  }
+});
+
+imageInput.addEventListener("change",()=>{
+  const file=imageInput.files[0];
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=()=> selectedImageBase64=reader.result;
+  reader.readAsDataURL(file);
+});
+
+function addMsg(type,text,img=null){
+  const div=document.createElement("div");
+  div.className="msg "+type;
+  div.textContent=text;
+  if(img){
+    const im=document.createElement("img");
+    im.src=img;
+    im.className="preview";
+    div.appendChild(document.createElement("br"));
+    div.appendChild(im);
+  }
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+}
+
+async function saveMessage(role,text,img=null){
+  const msgRef=push(ref(db,`nexor_ai/users/${currentUser.uid}/messages`));
+  await set(msgRef,{
+    role,text,img,
+    time:serverTimestamp()
+  });
+}
+
+function loadChats(){
+  const chatRef=ref(db,`nexor_ai/users/${currentUser.uid}/messages`);
+  onValue(chatRef,(snap)=>{
+    chat.innerHTML="";
+    snap.forEach(item=>{
+      const m=item.val();
+      addMsg(m.role==="user"?"user":"ai",m.text,m.img || null);
+    });
+  });
+}
+
+window.sendMessage = async()=>{
+  const text=prompt.value.trim();
+  if(!text && !selectedImageBase64) return;
+
+  prompt.value="";
+  const img=selectedImageBase64;
+  selectedImageBase64=null;
+
+  await saveMessage("user",text || "Image uploaded",img);
+
+  addMsg("ai","NEXOR is thinking...");
+
+  const reply = await callNexorBackend(text,img);
+  await saveMessage("ai",reply);
+};
+
+async function callNexorBackend(text,img){
+  /*
+    IMPORTANT:
+    Real AI API keys browser me mat daalna.
+    Backend banao:
+    /api/chat
+    /api/image
+    /api/vision
+
+    Free / low-cost APIs:
+    - Google Gemini API
+    - OpenRouter free models
+    - Hugging Face Inference API
+    - Pollinations AI image generation
+    - Cloudflare Workers AI
+  */
+
+  try{
+    const res = await fetch("https://your-backend-url.com/api/nexor",{
+      method:"POST",
+      headers:{ "Content-Type":"application/json" },
+      body:JSON.stringify({
+        uid:currentUser.uid,
+        prompt:text,
+        image:img,
+        style:"Respond like ChatGPT: helpful, safe, professional, Hinglish supported.",
+        restrictions:[
+          "No harmful instructions",
+          "No illegal hacking",
+          "No hate or sexual content involving minors",
+          "No self-harm encouragement",
+          "No private data leaks"
+        ]
+      })
+    });
+
+    const data = await res.json();
+    return data.reply || "I could not generate a reply.";
+  }catch(e){
+    return localFallbackAI(text,img);
+  }
+}
+
+function localFallbackAI(text,img){
+  if(img && text){
+    return "I can see you uploaded an image. Backend vision API connect karne ke baad main image analyze karke proper answer de paunga. Your question: "+text;
+  }
+  if(img){
+    return "Image received. Vision backend connect karo, phir NEXOR AI image ko analyze karega.";
+  }
+  return "NEXOR AI backend abhi connected nahi hai. Firebase working hai, chat save ho rahi hai. Backend API add karoge to real AI replies, image creation, image analysis, coding help sab work karega.";
+}
+</script>
+
+</body>
+</html>
