@@ -3,56 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GPS Map Shops</title>
+<title>GSP Map</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
 
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;background:#0b1220}
-#map{width:100vw;height:100vh;filter:saturate(1.1) contrast(1.03)}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden;background:#07111f}
+#map{width:100vw;height:100vh}
 
 .liquid{
-  background:linear-gradient(135deg,rgba(255,255,255,.76),rgba(255,255,255,.32));
-  backdrop-filter:blur(28px) saturate(180%);
-  -webkit-backdrop-filter:blur(28px) saturate(180%);
+  background:linear-gradient(135deg,rgba(255,255,255,.78),rgba(255,255,255,.28));
+  backdrop-filter:blur(30px) saturate(190%);
+  -webkit-backdrop-filter:blur(30px) saturate(190%);
   border:1px solid rgba(255,255,255,.45);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 18px 45px rgba(0,0,0,.22)
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 20px 50px rgba(0,0,0,.25)
 }
 
-.top-shell{
-  position:fixed;top:16px;left:50%;transform:translateX(-50%);
-  width:min(94%,620px);z-index:999;border-radius:28px;padding:10px;display:flex;gap:10px
+.top{
+  position:fixed;top:14px;left:50%;transform:translateX(-50%);
+  width:min(94%,650px);z-index:999;border-radius:30px;padding:10px;display:flex;gap:10px
 }
-.search-box{flex:1;display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.55);border-radius:22px;padding:0 14px}
-.search-box input{flex:1;height:48px;border:none;outline:none;background:transparent;font-size:15px;color:#111827}
-button{border:none;cursor:pointer}
-.action-btn{height:48px;min-width:54px;border-radius:20px;background:linear-gradient(135deg,#007aff,#5ac8fa);color:#fff;font-size:18px;font-weight:800}
+.top input{
+  flex:1;height:50px;border:0;outline:0;border-radius:22px;
+  background:rgba(255,255,255,.58);padding:0 16px;font-size:15px
+}
+.btn{
+  border:0;cursor:pointer;border-radius:20px;font-weight:800
+}
+.blue{
+  width:56px;background:linear-gradient(135deg,#007aff,#5ac8fa);color:white;font-size:18px
+}
 
-.side-controls{position:fixed;right:18px;bottom:26px;z-index:999;display:flex;flex-direction:column;gap:12px}
-.float-btn{width:58px;height:58px;border-radius:50%;font-size:22px}
+.controls{
+  position:fixed;right:16px;bottom:22px;z-index:999;display:flex;flex-direction:column;gap:11px
+}
+.circle{width:58px;height:58px;border-radius:50%;font-size:21px}
 
 .panel{
-  position:fixed;left:18px;bottom:26px;z-index:999;
-  width:min(92%,370px);max-height:52vh;overflow:auto;
-  border-radius:28px;padding:18px;color:#111827
+  position:fixed;left:16px;bottom:22px;z-index:999;
+  width:min(92%,390px);max-height:56vh;overflow:auto;
+  border-radius:30px;padding:17px;color:#111827
 }
-.title{font-weight:900;font-size:16px;margin-bottom:7px}
-.text{font-size:13px;color:rgba(17,24,39,.75);line-height:1.45}
+.title{font-weight:900;font-size:16px;margin-bottom:8px}
+.text{font-size:13px;color:rgba(17,24,39,.76);line-height:1.45}
 
-.shop-form input,.shop-form textarea,.shop-form select{
+.maptypes{
+  position:fixed;top:86px;left:50%;transform:translateX(-50%);
+  z-index:998;width:min(94%,650px);display:flex;gap:8px;overflow-x:auto;padding:8px;border-radius:22px
+}
+.maptypes button{
+  white-space:nowrap;border:0;border-radius:999px;padding:9px 13px;
+  background:rgba(255,255,255,.58);font-weight:800;color:#111827
+}
+.maptypes button.active{background:#111827;color:white}
+
+input,textarea,select{
   width:100%;margin-top:9px;padding:12px;border-radius:16px;
-  border:1px solid rgba(0,0,0,.08);outline:none;background:rgba(255,255,255,.6)
+  border:1px solid rgba(0,0,0,.08);outline:0;background:rgba(255,255,255,.65)
 }
-.shop-form button{
+textarea{min-height:70px}
+.submit{
   width:100%;margin-top:10px;padding:13px;border-radius:18px;
-  background:#111827;color:white;font-weight:800
+  background:#111827;color:white
 }
 
-.shop-imgs{display:flex;gap:8px;overflow-x:auto;margin-top:10px}
-.shop-imgs img{width:92px;height:92px;object-fit:cover;border-radius:18px}
+.imgs{display:flex;gap:8px;overflow-x:auto;margin-top:10px}
+.imgs img{width:94px;height:94px;object-fit:cover;border-radius:18px}
 
-.review{margin-top:8px;padding:10px;border-radius:15px;background:rgba(255,255,255,.45);font-size:13px}
+.review{margin-top:8px;padding:10px;border-radius:16px;background:rgba(255,255,255,.45)}
 .stars{color:#f59e0b;font-weight:900}
 
 .leaflet-control-zoom{display:none}
@@ -62,34 +81,40 @@ button{border:none;cursor:pointer}
 
 <body>
 
-<div class="top-shell liquid">
-  <div class="search-box">
-    <span>⌕</span>
-    <input id="searchInput" placeholder="Search places, roads, shops...">
-  </div>
-  <button class="action-btn" onclick="searchPlace()">↗</button>
+<div class="top liquid">
+  <input id="searchInput" placeholder="Search places, roads, shops...">
+  <button class="btn blue" onclick="searchPlace()">↗</button>
+</div>
+
+<div class="maptypes liquid">
+  <button onclick="setMapType('default')" class="active" id="btn-default">Default</button>
+  <button onclick="setMapType('satellite')" id="btn-satellite">Satellite</button>
+  <button onclick="setMapType('terrain')" id="btn-terrain">Terrain</button>
+  <button onclick="setMapType('biking')" id="btn-biking">Biking</button>
+  <button onclick="notFree('Transit')">Transit</button>
+  <button onclick="notFree('Traffic')">Traffic</button>
+  <button onclick="openStreetView()">Street View</button>
 </div>
 
 <div id="map"></div>
 
-<div class="side-controls">
-  <button class="float-btn liquid" onclick="getMyLocation()">📍</button>
-  <button class="float-btn liquid" onclick="openAddShop()">＋</button>
-  <button class="float-btn liquid" onclick="map.zoomIn()">+</button>
-  <button class="float-btn liquid" onclick="map.zoomOut()">−</button>
+<div class="controls">
+  <button class="circle liquid" onclick="getMyLocation()">📍</button>
+  <button class="circle liquid" onclick="openAddShop()">＋</button>
+  <button class="circle liquid" onclick="map.zoomIn()">+</button>
+  <button class="circle liquid" onclick="map.zoomOut()">−</button>
 </div>
 
 <div class="panel liquid" id="panel">
-  <div class="title">GPS Map Ready</div>
-  <div class="text">Tap 📍 for your location. Tap ＋ to add shop. Click shop marker to view images and ratings.</div>
+  <div class="title">GSP Map Ready</div>
+  <div class="text">Search places, view satellite/terrain/biking maps, add shops, upload Base64 images, ratings and reviews.</div>
 </div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getDatabase, ref, push, onValue, set, update } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
-import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-storage.js";
+import { getDatabase, ref, push, onValue, set, update, get } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
@@ -103,15 +128,32 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-const storage = getStorage(app);
 
 window.map = L.map("map",{zoomControl:false}).setView([28.6139,77.2090],13);
 
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{
-  maxZoom:19,
-  attribution:"&copy; OpenStreetMap contributors"
-}).addTo(map);
+const layers = {
+  default: L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    maxZoom:19,
+    attribution:"© OpenStreetMap"
+  }),
 
+  satellite: L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+    maxZoom:19,
+    attribution:"Tiles © Esri"
+  }),
+
+  terrain: L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+    maxZoom:17,
+    attribution:"© OpenTopoMap"
+  }),
+
+  biking: L.tileLayer("https://tile-cyclosm.openstreetmap.fr/cyclosm/{z}/{x}/{y}.png", {
+    maxZoom:19,
+    attribution:"© CyclOSM"
+  })
+};
+
+let currentLayer = layers.default.addTo(map);
 let userMarker, accuracyCircle, searchMarker;
 let selectedLatLng = null;
 let shopMarkers = {};
@@ -120,9 +162,49 @@ function panel(title, html){
   document.getElementById("panel").innerHTML = `<div class="title">${title}</div><div class="text">${html}</div>`;
 }
 
+window.setMapType = function(type){
+  map.removeLayer(currentLayer);
+  currentLayer = layers[type].addTo(map);
+
+  document.querySelectorAll(".maptypes button").forEach(b=>b.classList.remove("active"));
+  const btn = document.getElementById("btn-" + type);
+  if(btn) btn.classList.add("active");
+};
+
+window.notFree = function(name){
+  panel(name + " Layer", `${name} live data normally needs paid/provider API. Free public reliable ${name.toLowerCase()} layer is not guaranteed.`);
+};
+
+window.openStreetView = function(){
+  const center = selectedLatLng || map.getCenter();
+  const url = `https://www.mapillary.com/app/?lat=${center.lat}&lng=${center.lng}&z=17`;
+  window.open(url, "_blank");
+};
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function filesToBase64(files){
+  const arr = [];
+  for(const file of files){
+    if(file.size > 700000){
+      alert(file.name + " is too large. Keep image under 700KB for Firebase Realtime Database.");
+      continue;
+    }
+    arr.push(await fileToBase64(file));
+  }
+  return arr;
+}
+
 window.getMyLocation = function(){
   if(!navigator.geolocation){
-    panel("GPS Not Supported","Your browser does not support location.");
+    panel("GPS Not Supported","Browser GPS support nahi karta.");
     return;
   }
 
@@ -130,20 +212,19 @@ window.getMyLocation = function(){
 
   navigator.geolocation.getCurrentPosition(pos=>{
     const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
+    const lng = pos.coords.longitude;
     const acc = pos.coords.accuracy;
 
-    map.setView([lat,lon],17);
+    selectedLatLng = {lat,lng};
+    map.setView([lat,lng],17);
 
     if(userMarker) map.removeLayer(userMarker);
     if(accuracyCircle) map.removeLayer(accuracyCircle);
 
-    userMarker = L.marker([lat,lon]).addTo(map).bindPopup("You are here").openPopup();
-    accuracyCircle = L.circle([lat,lon],{radius:acc,fillOpacity:.15}).addTo(map);
+    userMarker = L.marker([lat,lng]).addTo(map).bindPopup("You are here").openPopup();
+    accuracyCircle = L.circle([lat,lng],{radius:acc,fillOpacity:.15}).addTo(map);
 
-    selectedLatLng = {lat,lng:lon};
-
-    panel("Your Location",`Lat: ${lat.toFixed(5)}<br>Lng: ${lon.toFixed(5)}<br>Accuracy: ${Math.round(acc)}m`);
+    panel("Your Location",`Lat: ${lat.toFixed(5)}<br>Lng: ${lng.toFixed(5)}<br>Accuracy: ${Math.round(acc)}m`);
   },()=>{
     panel("Location Blocked","GPS permission denied.");
   },{enableHighAccuracy:true,timeout:10000,maximumAge:0});
@@ -155,23 +236,21 @@ window.searchPlace = async function(){
 
   panel("Searching",`Looking for <b>${q}</b>...`);
 
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`;
-
   try{
-    const res = await fetch(url);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`);
     const data = await res.json();
 
-    if(!data.length) return panel("No Result","Try specific place name.");
+    if(!data.length) return panel("No Result","Try a specific name.");
 
     const place = data[0];
-    const lat = parseFloat(place.lat);
-    const lon = parseFloat(place.lon);
+    const lat = Number(place.lat);
+    const lng = Number(place.lon);
 
-    map.setView([lat,lon],16);
-    selectedLatLng = {lat,lng:lon};
+    selectedLatLng = {lat,lng};
+    map.setView([lat,lng],16);
 
     if(searchMarker) map.removeLayer(searchMarker);
-    searchMarker = L.marker([lat,lon]).addTo(map).bindPopup(place.display_name).openPopup();
+    searchMarker = L.marker([lat,lng]).addTo(map).bindPopup(place.display_name).openPopup();
 
     panel("Place Found",place.display_name);
   }catch(e){
@@ -185,19 +264,14 @@ map.on("click", e=>{
 });
 
 window.openAddShop = function(){
-  if(!selectedLatLng){
-    panel("Select Location","Tap on map or use 📍 first.");
-    return;
-  }
+  if(!selectedLatLng) return panel("Select Location","Map pe tap karo ya 📍 use karo.");
 
   panel("Add Shop",`
-    <div class="shop-form">
-      <input id="shopName" placeholder="Shop name">
-      <input id="shopCategory" placeholder="Category e.g. Cafe, Store, Hotel">
-      <textarea id="shopDesc" placeholder="Shop description"></textarea>
-      <input id="shopImages" type="file" accept="image/*" multiple>
-      <button onclick="saveShop()">Add Shop</button>
-    </div>
+    <input id="shopName" placeholder="Shop name">
+    <input id="shopCategory" placeholder="Category e.g. Cafe, Store, Hotel">
+    <textarea id="shopDesc" placeholder="Description"></textarea>
+    <input id="shopImages" type="file" accept="image/*" multiple>
+    <button class="submit" onclick="saveShop()">Add Shop</button>
   `);
 };
 
@@ -209,34 +283,25 @@ window.saveShop = async function(){
 
   if(!name) return alert("Shop name required");
 
-  panel("Uploading","Saving shop and images...");
+  panel("Saving","Images Base64 me convert ho rahi hain...");
 
-  const newShopRef = push(ref(db,"shops"));
-  const shopId = newShopRef.key;
-  let imageUrls = [];
+  const images = await filesToBase64(files);
+  const shopRef = push(ref(db,"shops"));
 
-  for(let file of files){
-    const path = `shops/${shopId}/${Date.now()}-${file.name}`;
-    const imageRef = sRef(storage,path);
-    await uploadBytes(imageRef,file);
-    const url = await getDownloadURL(imageRef);
-    imageUrls.push(url);
-  }
-
-  await set(newShopRef,{
-    id:shopId,
+  await set(shopRef,{
+    id:shopRef.key,
     name,
     category,
     desc,
     lat:selectedLatLng.lat,
     lng:selectedLatLng.lng,
-    images:imageUrls,
+    images,
     ratingTotal:0,
     ratingCount:0,
     createdAt:Date.now()
   });
 
-  panel("Shop Added","Shop is now live on map.");
+  panel("Shop Added","Shop map pe live ho gayi.");
 };
 
 function loadShops(){
@@ -250,53 +315,54 @@ function loadShops(){
 
       const marker = L.marker([shop.lat,shop.lng]).addTo(map);
       marker.bindPopup(`<b>${shop.name}</b><br>${shop.category || "Shop"}<br>⭐ ${avg}`);
-      marker.on("click",()=>openShop(shop.id,shop));
+      marker.on("click",()=>openShop(shop.id));
 
       shopMarkers[shop.id] = marker;
     });
   });
 }
 
-window.openShop = function(id, shop){
-  onValue(ref(db,`reviews/${id}`), snap=>{
-    const reviews = snap.val() || {};
-    const avg = shop.ratingCount ? (shop.ratingTotal / shop.ratingCount).toFixed(1) : "No rating";
+window.openShop = async function(id){
+  const shopSnap = await get(ref(db,`shops/${id}`));
+  const shop = shopSnap.val();
 
-    let imgs = "";
-    if(shop.images && shop.images.length){
-      imgs = `<div class="shop-imgs">${shop.images.map(u=>`<img src="${u}">`).join("")}</div>`;
-    }
+  const reviewSnap = await get(ref(db,`reviews/${id}`));
+  const reviews = reviewSnap.val() || {};
 
-    let reviewHtml = Object.values(reviews).reverse().slice(0,5).map(r=>`
-      <div class="review">
-        <div class="stars">${"★".repeat(Number(r.rating))}</div>
-        ${r.text || ""}
-      </div>
-    `).join("");
+  const avg = shop.ratingCount ? (shop.ratingTotal / shop.ratingCount).toFixed(1) : "No rating";
 
-    panel(shop.name,`
-      <b>${shop.category || "Shop"}</b><br>
-      ${shop.desc || ""}<br><br>
-      <b>Rating:</b> ⭐ ${avg}<br>
-      ${imgs}
+  const imgs = shop.images?.length
+    ? `<div class="imgs">${shop.images.map(img=>`<img src="${img}">`).join("")}</div>`
+    : "";
 
-      <div class="shop-form">
-        <select id="rateValue">
-          <option value="5">★★★★★ 5</option>
-          <option value="4">★★★★ 4</option>
-          <option value="3">★★★ 3</option>
-          <option value="2">★★ 2</option>
-          <option value="1">★ 1</option>
-        </select>
-        <textarea id="reviewText" placeholder="Write your review..."></textarea>
-        <input id="moreImages" type="file" accept="image/*" multiple>
-        <button onclick="submitReview('${id}')">Submit Rating / Upload Images</button>
-      </div>
+  const reviewHtml = Object.values(reviews).reverse().slice(0,6).map(r=>`
+    <div class="review">
+      <div class="stars">${"★".repeat(Number(r.rating))}</div>
+      ${r.text || ""}
+    </div>
+  `).join("");
 
-      <br><b>Reviews</b>
-      ${reviewHtml || "<br>No reviews yet."}
-    `);
-  },{onlyOnce:true});
+  panel(shop.name,`
+    <b>${shop.category || "Shop"}</b><br>
+    ${shop.desc || ""}<br><br>
+    <b>Rating:</b> ⭐ ${avg}<br>
+    ${imgs}
+
+    <select id="rateValue">
+      <option value="5">★★★★★ 5</option>
+      <option value="4">★★★★ 4</option>
+      <option value="3">★★★ 3</option>
+      <option value="2">★★ 2</option>
+      <option value="1">★ 1</option>
+    </select>
+
+    <textarea id="reviewText" placeholder="Write your review..."></textarea>
+    <input id="moreImages" type="file" accept="image/*" multiple>
+    <button class="submit" onclick="submitReview('${id}')">Submit Rating / Images</button>
+
+    <br><br><b>Reviews</b>
+    ${reviewHtml || "<br>No reviews yet."}
+  `);
 };
 
 window.submitReview = async function(shopId){
@@ -304,38 +370,27 @@ window.submitReview = async function(shopId){
   const text = document.getElementById("reviewText").value.trim();
   const files = document.getElementById("moreImages").files;
 
-  const shopSnapRef = ref(db,`shops/${shopId}`);
-  let currentShop;
+  panel("Uploading","Review and Base64 images save ho rahi hain...");
 
-  onValue(shopSnapRef, snap=>{
-    currentShop = snap.val();
-  },{onlyOnce:true});
+  const shopSnap = await get(ref(db,`shops/${shopId}`));
+  const shop = shopSnap.val();
 
-  setTimeout(async()=>{
-    let newImages = currentShop.images || [];
+  const newImages = await filesToBase64(files);
+  const allImages = [...(shop.images || []), ...newImages];
 
-    for(let file of files){
-      const path = `shops/${shopId}/${Date.now()}-${file.name}`;
-      const imageRef = sRef(storage,path);
-      await uploadBytes(imageRef,file);
-      const url = await getDownloadURL(imageRef);
-      newImages.push(url);
-    }
+  await push(ref(db,`reviews/${shopId}`),{
+    rating,
+    text,
+    createdAt:Date.now()
+  });
 
-    await push(ref(db,`reviews/${shopId}`),{
-      rating,
-      text,
-      createdAt:Date.now()
-    });
+  await update(ref(db,`shops/${shopId}`),{
+    images:allImages,
+    ratingTotal:(shop.ratingTotal || 0) + rating,
+    ratingCount:(shop.ratingCount || 0) + 1
+  });
 
-    await update(ref(db,`shops/${shopId}`),{
-      images:newImages,
-      ratingTotal:(currentShop.ratingTotal || 0) + rating,
-      ratingCount:(currentShop.ratingCount || 0) + 1
-    });
-
-    panel("Review Added","Rating, review and images uploaded successfully.");
-  },300);
+  panel("Review Added","Rating, review and images added.");
 };
 
 document.getElementById("searchInput").addEventListener("keydown",e=>{
