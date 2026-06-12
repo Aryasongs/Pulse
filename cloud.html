@@ -59,7 +59,7 @@
         .btn-primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 99px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; justify-content: center;}
         .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
         
-        .btn-outline { border: 1px solid var(--primary); color: var(--primary); padding: 12px 24px; border-radius: 99px; font-weight: 600; font-size: 14px; background: transparent; }
+        .btn-outline { border: 1px solid var(--primary); color: var(--primary); padding: 12px 24px; border-radius: 99px; font-weight: 600; font-size: 14px; background: transparent; display: inline-flex; align-items: center; gap: 8px; justify-content: center;}
         .btn-outline:hover { background: var(--primary); color: white; }
 
         /* --- Landing Page --- */
@@ -93,7 +93,7 @@
         .search-bar { background: var(--card-bg); border-radius: 99px; padding: 10px 20px; display: flex; align-items: center; gap: 10px; width: 300px; box-shadow: var(--shadow); border: 1px solid var(--glass-border); }
         .search-bar input { background: transparent; color: var(--text-main); width: 100%; border: none;}
         .content-area { padding: 0 40px 40px; overflow-y: auto; flex-grow: 1; }
-        .section-title { font-size: 28px; font-weight: 700; margin-bottom: 25px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center;}
+        .section-title { font-size: 28px; font-weight: 700; margin-bottom: 25px; color: var(--text-main); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;}
 
         /* Widget Grid */
         .widget-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 30px; }
@@ -291,10 +291,13 @@
                 <div id="my-keychain-view" style="display: none;">
                     <div class="section-title">
                         Password Vault
-                        <button class="btn-primary" onclick="openModal('keychain-modal')"><i class="ph ph-lock-key"></i> Save Password</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn-outline" onclick="registerPasskey()"><i class="ph ph-fingerprint"></i> Setup Biometric Security</button>
+                            <button class="btn-primary" onclick="openModal('keychain-modal')"><i class="ph ph-lock-key"></i> Save Password</button>
+                        </div>
                     </div>
                     <div style="background: rgba(255, 59, 48, 0.1); border-left: 4px solid var(--danger); padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px;">
-                        <strong>Security Verification Required:</strong> Re-authenticate with your master password to reveal vault items.
+                        <strong>Security Verification Required:</strong> Authenticate with Face ID, Touch ID, Android Fingerprint, or Windows Hello to reveal vault items.
                     </div>
                     <table class="data-table">
                         <thead>
@@ -400,15 +403,43 @@
         // --- GLOBAL STATE ---
         let currentUser = null;
         let globalFiles = [];
-        const MAX_FILE_SIZE = 700 * 1024; // 700 KB strict limit for Firestore Doc (1MB overall doc limit)
+        const MAX_FILE_SIZE = 700 * 1024; // 700 KB strict limit for Firestore Doc
 
-        // --- XSS SANITIZER (CRITICAL FIX) ---
+        // --- XSS SANITIZER ---
         const escapeHTML = (str) => {
             if (!str) return '';
             return str.toString().replace(/[&<>'"]/g, tag => ({
                 '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
             }[tag]));
         };
+
+        // --- WEBAUTHN / PASSKEY HELPERS ---
+        function bufferToBase64url(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let str = '';
+            for (let charCode of bytes) {
+                str += String.fromCharCode(charCode);
+            }
+            const base64String = btoa(str);
+            return base64String.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        }
+
+        function base64urlToBuffer(base64url) {
+            const padding = '='.repeat((4 - base64url.length % 4) % 4);
+            const base64 = (base64url + padding).replace(/\-/g, '+').replace(/_/g, '/');
+            const rawData = atob(base64);
+            const outputArray = new Uint8Array(rawData.length);
+            for (let i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray.buffer;
+        }
+
+        function generateRandomBuffer(length) {
+            const randomBytes = new Uint8Array(length);
+            window.crypto.getRandomValues(randomBytes);
+            return randomBytes.buffer;
+        }
 
         // --- 2. INITIALIZATION & ROUTING ---
         window.onload = () => {
@@ -487,21 +518,114 @@
 
         function handleLogout() { auth.signOut(); }
 
-        // Secure Re-authentication for Keychain (Requires real master password)
-        async function verifyMasterPassword() {
-            const { value: password } = await Swal.fire({ title: 'Security Check', input: 'password', inputLabel: 'Enter your Nexor Cloud password to unlock', showCancelButton: true });
-            if (!password) return false;
+        // --- 4. WEBAUTHN NATIVE BIOMETRIC SECURITY ---
+        async function registerPasskey() {
+            if (!window.PublicKeyCredential) {
+                return Swal.fire('Unsupported', 'This browser or device does not support biometric authentication.', 'error');
+            }
+            
+            Swal.fire({
+                title: '<i class="ph ph-fingerprint" style="font-size: 50px; color: var(--primary);"></i><br>Setting up Biometrics...',
+                text: 'Please follow the prompt to verify Face ID, Touch ID, or Windows Hello.',
+                showConfirmButton: false, allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
             try {
-                const cred = firebase.auth.EmailAuthProvider.credential(currentUser.email, password);
-                await currentUser.reauthenticateWithCredential(cred);
-                return true;
+                const publicKey = {
+                    challenge: generateRandomBuffer(32),
+                    rp: { name: "Nexor Cloud Vault", id: window.location.hostname },
+                    user: {
+                        id: generateRandomBuffer(16),
+                        name: currentUser.email,
+                        displayName: currentUser.email
+                    },
+                    pubKeyCredParams: [
+                        { type: "public-key", alg: -7 }, // ES256
+                        { type: "public-key", alg: -257 } // RS256
+                    ],
+                    authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+                    timeout: 60000,
+                    attestation: "none"
+                };
+
+                const credential = await navigator.credentials.create({ publicKey });
+                const credentialIdBase64Url = bufferToBase64url(credential.rawId);
+                
+                await saveCredentialToFirestore(credentialIdBase64Url);
+                Swal.fire('Secured!', 'Biometric security has been setup successfully.', 'success');
+
             } catch (err) {
-                Swal.fire('Access Denied', 'Incorrect Password', 'error');
+                console.error("Passkey setup error:", err);
+                Swal.fire('Setup Failed', 'Biometric setup was canceled or failed.', 'error');
+            }
+        }
+
+        async function authenticatePasskey() {
+            if (!window.PublicKeyCredential) {
+                Swal.fire('Unsupported', 'This browser or device does not support biometric authentication.', 'error');
+                return false;
+            }
+
+            try {
+                const storedId = await getCredentialFromFirestore();
+                if (!storedId) {
+                    Swal.fire('Not Setup', 'Please setup Biometric Security first using the "Setup Biometric Security" button.', 'warning');
+                    return false;
+                }
+
+                Swal.fire({
+                    title: '<i class="ph ph-scan" style="font-size: 50px; color: var(--primary);"></i><br>Verifying Identity...',
+                    text: 'Waiting for Face ID / Fingerprint / Windows Hello.',
+                    showConfirmButton: false, allowOutsideClick: false,
+                    didOpen: () => { Swal.showLoading(); }
+                });
+
+                const publicKey = {
+                    challenge: generateRandomBuffer(32),
+                    allowCredentials: [{
+                        id: base64urlToBuffer(storedId),
+                        type: 'public-key',
+                        transports: ['internal', 'hybrid']
+                    }],
+                    userVerification: 'required',
+                    timeout: 60000
+                };
+
+                await navigator.credentials.get({ publicKey });
+                return true;
+
+            } catch (err) {
+                console.error("Authentication error:", err);
+                Swal.fire('Authentication Failed', 'Verification failed or was canceled. Access Denied.', 'error');
                 return false;
             }
         }
 
-        // --- 4. DATA LOADERS & REALTIME LISTENERS ---
+        async function saveCredentialToFirestore(credentialIdBase64Url) {
+            await db.collection('users').doc(currentUser.uid).set({
+                passkeyCredentialId: credentialIdBase64Url
+            }, { merge: true });
+        }
+
+        async function getCredentialFromFirestore() {
+            const doc = await db.collection('users').doc(currentUser.uid).get();
+            return doc.data()?.passkeyCredentialId || null;
+        }
+
+        async function revealPasswordSecure(encodedPass) {
+            const isVerified = await authenticatePasskey();
+            if (isVerified) {
+                const decoded = atob(encodedPass);
+                Swal.fire({ 
+                    title: '<i class="ph-fill ph-check-circle" style="color: var(--success); font-size: 40px;"></i><br>Verified Successfully', 
+                    html: `<strong>Password:</strong><br><br><span style="font-size: 20px; letter-spacing: 1px; color: var(--primary);">${escapeHTML(decoded)}</span>`, 
+                    confirmButtonText: 'Close securely'
+                });
+            }
+        }
+
+        // --- 5. DATA LOADERS & REALTIME LISTENERS ---
         function loadDashboardData() {
             // Profile Info
             db.collection('users').doc(currentUser.uid).get().then(doc => {
@@ -537,7 +661,7 @@
                 document.getElementById('file-count-text').innerText = `${snap.size} Files Secured`;
             });
 
-            // Listen to Notes (XSS Protected)
+            // Listen to Notes
             db.collection('users').doc(currentUser.uid).collection('notes').onSnapshot(snap => {
                 let html = '';
                 snap.forEach(doc => {
@@ -560,14 +684,14 @@
                 document.getElementById('contacts-list').innerHTML = html;
             });
 
-            // Listen to Keychain (Only real user data, hidden until verified)
+            // Listen to Keychain (Only real user data, hidden until WebAuthn verified)
             db.collection('users').doc(currentUser.uid).collection('keychain').onSnapshot(snap => {
                 let html = '';
                 snap.forEach(doc => {
                     const d = doc.data();
                     html += `<tr>
                         <td><strong>${escapeHTML(d.platform)}</strong></td><td>${escapeHTML(d.username)}</td>
-                        <td><button class="btn-outline" style="padding: 5px 15px; font-size:12px;" onclick="revealPassword('${d.password}')">Verify to View</button></td>
+                        <td><button class="btn-outline" style="padding: 5px 15px; font-size:12px;" onclick="revealPasswordSecure('${d.password}')"><i class="ph ph-scan"></i> Authenticate to View</button></td>
                         <td style="text-align:right;"><button class="action-btn delete" onclick="deleteDoc('keychain', '${doc.id}')"><i class="ph ph-trash"></i></button></td>
                     </tr>`;
                 });
@@ -585,7 +709,7 @@
             });
         }
 
-        // --- 5. SEARCH LOGIC ---
+        // --- 6. SEARCH LOGIC ---
         function executeSearch() {
             const query = document.getElementById('search-input').value.toLowerCase();
             const filtered = globalFiles.filter(f => f.name.toLowerCase().includes(query));
@@ -607,10 +731,9 @@
             document.getElementById('file-list-body').innerHTML = html;
         }
 
-        // --- 6. API INTEGRATIONS (Calendar/Events) ---
+        // --- 7. API INTEGRATIONS (Calendar/Events) ---
         async function fetchExternalAPIs() {
             try {
-                // Public Holidays / Events Calendar API (Free, No Auth required)
                 const currentYear = new Date().getFullYear();
                 const holidayRes = await fetch(`https://date.nager.at/api/v3/NextPublicHolidaysWorldwide`);
                 if(holidayRes.ok) {
@@ -621,23 +744,20 @@
                     }
                 }
                 
-                // Crypto API (CoinGecko)
                 const cryptoRes = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');
                 const cryptoData = await cryptoRes.json();
                 document.getElementById('widget-btc-price').innerText = `$${cryptoData.bitcoin.usd.toLocaleString()}`;
                 
-                // Random Fact API
                 const factRes = await fetch('https://uselessfacts.jsph.pl/api/v2/facts/random');
                 const factData = await factRes.json();
                 document.getElementById('widget-fact').innerText = `"${escapeHTML(factData.text)}"`;
             } catch(e) { console.log("API Fetch Silently Failed", e); }
         }
 
-        // --- 7. FIRESTORE BASE64 FILE UPLOAD (NO FIREBASE STORAGE) ---
+        // --- 8. FIRESTORE BASE64 FILE UPLOAD ---
         function handleFileSelect(e) { if(e.target.files.length > 0) Array.from(e.target.files).forEach(uploadFileAsBase64); }
         
         function uploadFileAsBase64(file) {
-            // Check Size Constraint (Strict 700KB for Firestore Doc limit safety)
             if (file.size > MAX_FILE_SIZE) {
                 return Swal.fire('File Too Large', `Firestore limits documents to 1MB. Please upload files under 700KB. Your file is ${formatBytes(file.size)}.`, 'error');
             }
@@ -645,7 +765,7 @@
             Swal.fire({ title: 'Processing Base64...', text: 'Reading and writing directly to Firestore Database.', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
 
             const reader = new FileReader();
-            reader.readAsDataURL(file); // Convert to Base64 String
+            reader.readAsDataURL(file);
             
             reader.onload = async function(e) {
                 const base64Data = e.target.result;
@@ -654,7 +774,7 @@
                         name: file.name, 
                         size: file.size,
                         type: file.type || 'application/octet-stream',
-                        base64Data: base64Data, // Save raw base64 string
+                        base64Data: base64Data,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         shared: false
                     });
@@ -669,7 +789,6 @@
             };
         }
 
-        // Base64 Download Logic
         function downloadBase64File(docId) {
             const fileObj = globalFiles.find(f => f.id === docId);
             if(fileObj && fileObj.base64Data) {
@@ -684,7 +803,6 @@
             }
         }
 
-        // Rename Base64 File
         async function renameBase64File(docId, currentName) {
             const { value: newName } = await Swal.fire({
                 title: 'Rename File', input: 'text', inputValue: currentName, showCancelButton: true,
@@ -698,11 +816,9 @@
             }
         }
 
-        // Smart Share (Base64 specific without indexes)
         async function shareBase64File(docId) {
             try {
                 await db.collection('users').doc(currentUser.uid).collection('files').doc(docId).update({ shared: true });
-                // Construct URL with explicit UID and FileID to bypass CollectionGroup index limits
                 const shareUrl = `${window.location.origin}${window.location.pathname}?share=${currentUser.uid}_${docId}`;
                 
                 Swal.fire({
@@ -719,7 +835,6 @@
             } catch(e) { Swal.fire('Error', e.message, 'error'); }
         }
 
-        // Shared Base64 Loader
         async function loadSharedBase64File(shareParam) {
             document.getElementById('landing-page').classList.add('hidden');
             document.getElementById('dashboard').classList.add('hidden');
@@ -727,7 +842,6 @@
             viewer.style.display = 'flex';
 
             try {
-                // Parse UID and DocID
                 const parts = shareParam.split('_');
                 if(parts.length !== 2) throw new Error("Invalid share link format.");
                 const [targetUid, docId] = parts;
@@ -758,7 +872,7 @@
             }
         }
 
-        // --- 8. CRUD OPERATIONS (Notes, Contacts, Keychain) ---
+        // --- 9. CRUD OPERATIONS (Notes, Contacts, Keychain) ---
         async function saveNote() {
             const title = document.getElementById('note-title').value;
             const content = document.getElementById('note-content').value;
@@ -783,19 +897,10 @@
             const password = document.getElementById('key-password').value;
             if(!platform || !password) return;
             
-            // Simple Base64 encoding for storage (Firestore rules protect actual read access)
             const encodedPass = btoa(password); 
             await db.collection('users').doc(currentUser.uid).collection('keychain').add({ platform, username, password: encodedPass });
             closeModal('keychain-modal');
             document.getElementById('key-platform').value = ''; document.getElementById('key-username').value = ''; document.getElementById('key-password').value = '';
-        }
-
-        async function revealPassword(encodedPass) {
-            const isVerified = await verifyMasterPassword(); // Requires user to re-enter real Firebase password
-            if(isVerified) {
-                const decoded = atob(encodedPass);
-                Swal.fire({ title: 'Decrypted Password', text: decoded, icon: 'info' });
-            }
         }
 
         async function saveReminder() {
@@ -812,7 +917,7 @@
             }
         }
 
-        // --- 9. UTILITIES ---
+        // --- 10. UTILITIES ---
         function formatBytes(bytes) {
             if (bytes === 0) return '0 B';
             const k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
