@@ -665,29 +665,43 @@ body.premium-user .storage-box {
                     currentMaxStorage = data.storageLimit;
                 }
         
-if (data?.plan === "premium") {
+function loadDashboardData() {
+    db.collection('users').doc(currentUser.uid).get().then(doc => {
+        const data = doc.data() || {};
+        const name = escapeHTML(data.name || currentUser.email);
 
-    document.body.classList.add("premium-user");
+        document.body.classList.remove("premium-user");
 
-    document.getElementById("user-name-display").innerHTML =
-        `${escapeHTML(name)} <span style="color:#d4af37;font-weight:700;">PRO</span>`;
+        document.getElementById('user-name-display').innerText = name;
+        document.getElementById('user-avatar-display').innerText = name.charAt(0).toUpperCase();
 
-    const premiumShownKey = `premiumShown_${currentUser.uid}`;
+        if (data.storageLimit) {
+            currentMaxStorage = data.storageLimit;
+        }
 
-    if (!sessionStorage.getItem(premiumShownKey)) {
+        if (data.plan === "premium") {
+            document.body.classList.add("premium-user");
 
-        sessionStorage.setItem(premiumShownKey, "true");
+            document.getElementById("user-name-display").innerHTML =
+                `${name} <span style="color:#d4af37;font-weight:700;">PRO</span>`;
 
-        Swal.fire({
-            icon: "success",
-            title: "Nexor Premium",
-            text: "Premium vault unlocked. Faster access, priority security and elite storage experience.",
-            timer: 1800,
-            showConfirmButton: false
-        });
-    }
-}
-            // Listen to Encrypted Files
+            const premiumShownKey = `premiumShown_${currentUser.uid}`;
+
+            if (!sessionStorage.getItem(premiumShownKey)) {
+                sessionStorage.setItem(premiumShownKey, "true");
+
+                Swal.fire({
+                    icon: "success",
+                    title: "Nexor Premium",
+                    text: "Premium vault unlocked. Faster access, priority security and elite storage experience.",
+                    timer: 1800,
+                    showConfirmButton: false
+                });
+            }
+        }
+    });
+
+    // Iske neeche tumhara files onSnapshot wala code same rahega // Listen to Encrypted Files
             db.collection('users').doc(currentUser.uid).collection('files').orderBy('createdAt', 'desc').onSnapshot(snap => {
                 globalFiles = [];
                 let html = ''; 
