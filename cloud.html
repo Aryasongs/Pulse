@@ -910,26 +910,70 @@ function uploadFileSecurely(file) {
     const reader = new FileReader();
     reader.readAsDataURL(file);
 
-    reader.onload = async function(e) {
-        const secureDataString = e.target.result;
+    try {
 
-        try {
-            await db.collection('users').doc(currentUser.uid).collection('files').add({
-                name: file.name,
-                size: file.size,
-                type: file.type || 'application/octet-stream',
-                base64Data: secureDataString,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                shared: false
-            });
+    let secureDataString;
+    let finalSize;
 
-            Swal.fire({ 
-                title: 'Secured', 
-                text: 'File successfully encrypted in Vault!', 
-                icon: 'success', 
-                timer: 1500, 
-                showConfirmButton: false 
-            });
+    if (file.type.startsWith('image/')) {
+
+        secureDataString = await compressImageToBase64(file);
+
+        finalSize = Math.round(
+            secureDataString.length * 0.75
+        );
+
+    } else {
+
+        const reader = new FileReader();
+
+        secureDataString = await new Promise((resolve, reject) => {
+
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+
+            reader.readAsDataURL(file);
+
+        });
+
+        finalSize = file.size;
+    }
+
+    await db.collection('users')
+    .doc(currentUser.uid)
+    .collection('files')
+    .add({
+
+        name: file.name,
+        size: finalSize,
+        originalSize: file.size,
+        compressed: file.type.startsWith('image/'),
+
+        type: file.type || 'application/octet-stream',
+
+        base64Data: secureDataString,
+
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+
+        shared: false
+    });
+
+    Swal.fire({
+        title: 'Secured',
+        text: 'File compressed and stored successfully.',
+        icon: 'success',
+        timer: 1500,
+        showConfirmButton: false
+    });
+
+} catch(error) {
+
+    Swal.fire(
+        'Vault Write Failed',
+        error.message,
+        'error'
+    );
+}
 
         } catch (error) {
             Swal.fire('Vault Write Failed', error.message, 'error');
