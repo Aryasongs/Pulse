@@ -869,8 +869,10 @@ function handleFileSelect(e) {
         reader.readAsDataURL(file);
     });
 }
-        async function uploadFileSecurely(file) {
 
+function uploadFileSecurely(file) {
+
+    // Check Storage Usage
     const totalUsedStorage = globalFiles.reduce((total, fileItem) => total + fileItem.size, 0);
 
     if ((totalUsedStorage + file.size) > currentMaxStorage) {
@@ -893,62 +895,52 @@ function handleFileSelect(e) {
     if (file.size > MAX_FILE_SIZE) {
         return Swal.fire(
             'Limit Exceeded',
-            `Maximum allowed file size is 3MB. Your file is ${formatBytes(file.size)}.`,
+            `Maximum allowed file size is 700KB. Your file is ${formatBytes(file.size)}.`,
             'error'
         );
     }
 
-    Swal.fire({
-        title: 'Encrypting...',
-        text: 'Compressing and writing securely to your vault.',
-        allowOutsideClick: false,
-        didOpen: () => { Swal.showLoading(); }
+    Swal.fire({ 
+        title: 'Encrypting...', 
+        text: 'Writing securely directly to your cloud vault.', 
+        allowOutsideClick: false, 
+        didOpen: () => { Swal.showLoading(); } 
     });
 
-    try {
-        let secureDataString;
-        let finalSize;
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
 
-        if (file.type.startsWith('image/')) {
-            secureDataString = await compressImageToBase64(file);
-            finalSize = Math.round(secureDataString.length * 0.75);
-        } else {
-            secureDataString = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = e => resolve(e.target.result);
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+    reader.onload = async function(e) {
+        const secureDataString = e.target.result;
 
-            finalSize = file.size;
-        }
-
-        await db.collection('users')
-            .doc(currentUser.uid)
-            .collection('files')
-            .add({
+        try {
+            await db.collection('users').doc(currentUser.uid).collection('files').add({
                 name: file.name,
-                size: finalSize,
-                originalSize: file.size,
-                compressed: file.type.startsWith('image/'),
+                size: file.size,
                 type: file.type || 'application/octet-stream',
                 base64Data: secureDataString,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                 shared: false
             });
 
-        Swal.fire({
-            title: 'Secured',
-            text: 'File stored successfully.',
-            icon: 'success',
-            timer: 1500,
-            showConfirmButton: false
-        });
+            Swal.fire({ 
+                title: 'Secured', 
+                text: 'File successfully encrypted in Vault!', 
+                icon: 'success', 
+                timer: 1500, 
+                showConfirmButton: false 
+            });
 
-    } catch (error) {
-        Swal.fire('Vault Write Failed', error.message, 'error');
-    }
+        } catch (error) {
+            Swal.fire('Vault Write Failed', error.message, 'error');
+        }
+    };
+
+    reader.onerror = function() {
+        Swal.fire('Read Error', 'Failed to process file locally.', 'error');
+    };
 }
+        function downloadFile(docId) {
             const fileObj = globalFiles.find(f => f.id === docId);
             if(fileObj && fileObj.base64Data) {
                 const a = document.createElement('a');
