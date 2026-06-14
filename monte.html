@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,6 +6,17 @@
     <title>MONTÈ | Luxury Apparel Store</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- EmailJS SDK Integration -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script type="text/javascript">
+       (function(){
+          emailjs.init({
+            publicKey: "y01V6NHvoYyyBS_jC",
+          });
+       })();
+    </script>
+
     <script>
         tailwind.config = {
             theme: {
@@ -184,24 +195,29 @@
                     </div>
                 </div>
 
+                <!-- Visual Linear Tracking Pipeline Stage Status -->
                 <div class="mb-8">
                     <span class="text-xs font-semibold tracking-widest uppercase text-neutral-500 block mb-4">Pipeline Transit Tracking Status</span>
                     <div class="relative flex items-center justify-between">
                         <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-neutral-200 z-0"></div>
                         <div id="trackProgressLine" class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-black z-0 transition-all duration-500" style="width: 0%;"></div>
                         
+                        <!-- Step 1 -->
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepCircle1" class="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-500 transition-colors">1</div>
                             <span class="text-[9px] font-bold uppercase tracking-wider mt-1 text-neutral-400">Placed</span>
                         </div>
+                        <!-- Step 2 -->
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepCircle2" class="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-500 transition-colors">2</div>
                             <span class="text-[9px] font-bold uppercase tracking-wider mt-1 text-neutral-400">Verified</span>
                         </div>
+                        <!-- Step 3 -->
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepCircle3" class="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-500 transition-colors">3</div>
                             <span class="text-[9px] font-bold uppercase tracking-wider mt-1 text-neutral-400">Shipped</span>
                         </div>
+                        <!-- Step 4 -->
                         <div class="relative z-10 flex flex-col items-center">
                             <div id="stepCircle4" class="w-7 h-7 rounded-full bg-neutral-200 flex items-center justify-center text-[10px] font-bold text-neutral-500 transition-colors">4</div>
                             <span class="text-[9px] font-bold uppercase tracking-wider mt-1 text-neutral-400">Delivered</span>
@@ -776,7 +792,7 @@
             }
         };
 
-        // --- OPTIMISTIC UI FIX FOR CHECKOUT FREEZE ---
+        // --- ORDER SUBMISSION WITH EMAILJS INTEGRATION ---
         window.commitOrderToDatabaseEngine = function(method, btnElement) {
             const originalText = btnElement.innerText;
             btnElement.disabled = true;
@@ -823,14 +839,21 @@
                 chronologicalCreationTimestamp: Date.now()
             };
 
-            // Background Fire & Forget (No await)
+            // Background DB Sync
             set(ref(db, `orders/${orderId}`), payload).catch(e => console.warn(e));
+
+            // Background EmailJS Trigger
+            if(window.sessionUserRecord && window.sessionUserRecord.email) {
+                emailjs.send("service_av1a4ta", "template_t2exorg", {
+                    customer_email: window.sessionUserRecord.email
+                }).catch(e => console.warn("Email dispatch failed:", e));
+            }
 
             // Instant UI Response
             setTimeout(() => {
                 dismissModals();
                 window.renderActiveOrderTrackingPipelineDashboard(orderId);
-                showToast(`Order Placed! ID: ${orderId}`, "success");
+                showToast(`Order Placed! Confirmation sent to your email.`, "success");
                 btnElement.disabled = false;
                 btnElement.innerText = originalText;
             }, 100);
