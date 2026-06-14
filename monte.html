@@ -345,7 +345,7 @@
                     <input type="radio" name="paymentProtocolSelection" value="UPI" checked onchange="synchronizePaymentMethodUIPanelView()" class="mt-0.5 accent-black">
                     <div>
                         <div class="font-bold tracking-widest uppercase text-black">Instant UPI Protocol Settlement</div>
-                        <div class="text-neutral-400 text-[10px] uppercase mt-0.5 tracking-wider">Fastest Queue Allocation & Auto-Payment Routing</div>
+                        <div class="text-neutral-400 text-[10px] uppercase mt-0.5 tracking-wider">Automated App Redirect & Pre-filled Architecture</div>
                     </div>
                 </label>
                 <label id="codSelectorUILabelAnchor" class="flex items-start gap-3 p-4 border border-neutral-200 rounded-sm cursor-pointer hover:border-black transition">
@@ -357,22 +357,28 @@
                 </label>
             </div>
 
+            <!-- NEW ADVANCED UPI APP SELECTION PANEL -->
             <div id="panelUPIProtocol" class="bg-neutral-50 border border-neutral-200 p-5 text-center text-xs space-y-4">
-                <p class="font-bold uppercase tracking-widest text-neutral-600">Step 1: Automated Payment Routing</p>
-                <p class="text-neutral-400 leading-relaxed uppercase text-[10px] tracking-wider">
-                    Clicking the button below will automatically open your UPI app (GPay, PhonePe, Paytm) with the exact amount and Order ID pre-filled.
+                <p class="font-bold uppercase tracking-widest text-neutral-600">Step 1: Select Your UPI Application</p>
+                <p class="text-neutral-400 leading-relaxed uppercase text-[10px] tracking-wider mb-2">
+                    System will automatically route you to the selected app with pre-filled amount and Order ID.
                 </p>
-                <p class="font-bold uppercase tracking-widest text-neutral-600 pt-2">Step 2: Compliance Workflow</p>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <button onclick="commitOrderToDatabaseEngine('UPI_GPAY', this)" class="bg-white border border-neutral-300 py-3 text-[11px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">GPay</button>
+                    <button onclick="commitOrderToDatabaseEngine('UPI_PHONEPE', this)" class="bg-white border border-neutral-300 py-3 text-[11px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">PhonePe</button>
+                    <button onclick="commitOrderToDatabaseEngine('UPI_PAYTM', this)" class="bg-white border border-neutral-300 py-3 text-[11px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">Paytm</button>
+                    <button onclick="commitOrderToDatabaseEngine('UPI_OTHER', this)" class="bg-black text-white py-3 text-[11px] font-bold tracking-widest uppercase hover:bg-neutral-800 transition shadow-sm">Other UPI</button>
+                </div>
+
+                <p class="font-bold uppercase tracking-widest text-neutral-600 pt-2 border-t border-neutral-200">Step 2: Compliance Workflow</p>
                 <p class="text-neutral-400 leading-relaxed uppercase text-[10px] tracking-wider">
                     After successful payment, send the transaction screenshot to our secure desk at <span class="font-bold text-black select-all">+91 79738 04008</span> to release your package.
                 </p>
-                <button onclick="commitOrderToDatabaseEngine('UPI', this)" class="w-full bg-black text-white text-xs font-semibold tracking-widest uppercase py-4 mt-2 hover:bg-neutral-900 transition focus:outline-none shadow-sm flex items-center justify-center gap-2">
-                    Pay via UPI App & Finalize
-                </button>
             </div>
 
             <div id="panelCODProtocol" class="hidden">
-                <button onclick="commitOrderToDatabaseEngine('COD', this)" class="w-full bg-black text-white text-xs font-semibold tracking-widest uppercase py-4 hover:bg-neutral-900 transition focus:outline-none shadow-sm">
+                <button onclick="commitOrderToDatabaseEngine('COD', this)" class="w-full bg-black text-white text-xs font-semibold tracking-widest uppercase py-3.5 hover:bg-neutral-900 transition focus:outline-none shadow-sm">
                     Finalize Cash-on-Delivery Consignment
                 </button>
             </div>
@@ -454,7 +460,7 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
-        // --- GLOBAL TOAST SYSTEM (Replaces all alerts) ---
+        // --- GLOBAL TOAST SYSTEM ---
         window.showToast = function(message, type = 'error') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -777,7 +783,7 @@
             }
         };
 
-        // --- FIXED EMAIL PAYLOAD AND AUTOMATED UPI INTENT ROUTING ---
+        // --- SUBMIT ORDER WITH SPECIFIC UPI APP INTENTS ---
         window.commitOrderToDatabaseEngine = function(method, btnElement) {
             const originalText = btnElement.innerText;
             btnElement.disabled = true;
@@ -808,11 +814,12 @@
 
             const orderId = "MNT-" + Math.floor(100000 + Math.random() * 900000);
             const addressString = `${address.toUpperCase()}, ${city}, ${state}, PIN: ${pin} (PH: ${phone})`;
+            
+            const isUpi = method.startsWith('UPI');
 
-            // Payload Contains Everything Needed For Emails (Including email address field)
             const payload = {
                 uid: window.sessionUserRecord.uid,
-                email: window.sessionUserRecord.email, // Required by Firebase Extensions for emails
+                email: window.sessionUserRecord.email,
                 customer_email: window.sessionUserRecord.email,
                 
                 orderId: orderId,
@@ -822,8 +829,8 @@
                 selectedShadeColorContext: selectedColorProductShade.toUpperCase(),
                 transactionSettlementAmount: currentCheckoutTotal,
                 appliedPromoCode: appliedCouponCodeString || "NONE",
-                protocolMethodType: method,
-                orderPipelineTrackingState: method === "UPI" ? "PLACED" : "VERIFIED",
+                protocolMethodType: method, 
+                orderPipelineTrackingState: isUpi ? "PLACED" : "VERIFIED",
                 consignmentDeliveryAddressText: addressString,
                 chronologicalCreationTimestamp: Date.now(),
                 
@@ -837,9 +844,15 @@
 
             set(ref(db, `orders/${orderId}`), payload).catch(e => console.warn(e));
 
-            // AUTO UPI APP REDIRECT LOGIC
-            if(method === "UPI") {
-                const upiUrl = `upi://pay?pa=7347417931@pthdfc&pn=MONTE%20Apparel&tr=${orderId}&tn=Order%20${orderId}&am=${currentCheckoutTotal}&cu=INR`;
+            // AUTO UPI APP REDIRECT LOGIC FOR SPECIFIC APPS
+            if(isUpi) {
+                const params = `pa=7347417931@pthdfc&pn=MONTE%20Apparel&tr=${orderId}&tn=Order%20${orderId}&am=${currentCheckoutTotal}&cu=INR`;
+                let upiUrl = `upi://pay?${params}`; // Default Fallback
+                
+                if (method === 'UPI_GPAY') upiUrl = `tez://upi/pay?${params}`;
+                else if (method === 'UPI_PHONEPE') upiUrl = `phonepe://pay?${params}`;
+                else if (method === 'UPI_PAYTM') upiUrl = `paytmmp://pay?${params}`;
+                
                 const link = document.createElement('a');
                 link.href = upiUrl;
                 document.body.appendChild(link);
@@ -853,7 +866,7 @@
                 showToast(`Order Placed! ID: ${orderId}`, "success");
                 btnElement.disabled = false;
                 btnElement.innerText = originalText;
-            }, 600); // Slight delay to ensure intent fires before DOM unmounts
+            }, 600);
         };
 
         window.openTrackingModalDirectly = function() {
@@ -891,7 +904,12 @@
                 if(snap.exists()) {
                     const data = snap.val();
                     document.getElementById('trackOrderId').innerText = data.orderId;
-                    document.getElementById('trackPaymentMethod').innerText = data.protocolMethodType;
+                    
+                    // Display clean payment type for UI
+                    let displayMethod = data.protocolMethodType;
+                    if(displayMethod.startsWith('UPI_')) displayMethod = displayMethod.replace('_', ' ');
+                    document.getElementById('trackPaymentMethod').innerText = displayMethod;
+                    
                     document.getElementById('trackShippingAddress').innerText = data.consignmentDeliveryAddressText;
 
                     const msgPanel = document.getElementById('trackingStatusMessagePanel');
@@ -1022,6 +1040,10 @@
                         const item = ordersSnap.val()[key];
                         if(item.uid === window.sessionUserRecord.uid) {
                             count++;
+                            
+                            let displayMethod = item.protocolMethodType;
+                            if(displayMethod.startsWith('UPI_')) displayMethod = displayMethod.replace('_', ' ');
+
                             const div = document.createElement('div');
                             div.className = "p-4 bg-neutral-50 border border-neutral-200 flex justify-between items-center hover:bg-neutral-100/70 transition rounded-sm";
                             div.innerHTML = `
