@@ -1,217 +1,289 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <!-- Zoom completely disabled for native app-like feel -->
+    <!-- Strictly Disabling Zoom for Native App/Premium Feel -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Executive Protocol | Oriontec</title>
+    <title>Executive Suite | Oriontec</title>
     
-    <!-- Firebase SDKs -->
+    <!-- Firebase Database SDK (No Auth Required for this logic) -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
-    <!-- FontAwesome & Google Fonts -->
+    <!-- Premium Fonts: Cinzel for Headings (Luxury), Inter for Body -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
     
     <style>
-        /* High-End Dark Mode & Glassmorphism Theme */
+        /* --- Luxury Obsidian & Gold Theme --- */
         :root {
-            --bg-deep: #050505;
-            --bg-panel: #111111;
-            --border-glow: rgba(255, 255, 255, 0.1);
-            --text-main: #ffffff;
+            --obsidian: #050505;
+            --charcoal: #121212;
+            --gold: #D4AF37;
+            --gold-dim: rgba(212, 175, 55, 0.3);
+            --text-light: #F5F5F5;
             --text-muted: #888888;
-            --accent: #2563eb;
-            --aura-gradient: linear-gradient(135deg, #1e3a8a, #3b82f6, #93c5fd);
-            --msg-received: #1f1f1f;
-            --msg-sent: #2563eb;
+            --glass-bg: rgba(18, 18, 18, 0.75);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--bg-deep); color: var(--text-main); height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; user-select: none; }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
-        a { color: #93c5fd; text-decoration: none; }
-        a:hover { text-decoration: underline; }
+        body { 
+            background-color: var(--obsidian); 
+            color: var(--text-light); 
+            font-family: 'Inter', sans-serif; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            /* Subtle luxury office background */
+            background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 80%);
+        }
 
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
+        h1, h2, h3, .luxury-text { font-family: 'Cinzel', serif; }
+
+        /* Custom Gold Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 10px; }
 
-        /* --- Intake Screen --- */
-        #intake-screen { width: 100%; max-width: 420px; padding: 40px; text-align: center; background: rgba(17, 17, 17, 0.8); backdrop-filter: blur(20px); border: 1px solid var(--border-glow); border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .intake-logo { font-size: 28px; font-weight: 800; letter-spacing: 2px; margin-bottom: 5px; background: var(--aura-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-transform: uppercase; }
-        .form-input { width: 100%; background: #000; border: 1px solid #333; color: var(--text-main); padding: 16px; border-radius: 10px; margin-bottom: 15px; outline: none; font-size: 14px; transition: 0.3s; }
-        .form-input:focus { border-color: var(--accent); box-shadow: 0 0 15px rgba(37, 99, 235, 0.2); }
-        .btn-connect { width: 100%; background: var(--text-main); color: #000; padding: 16px; border: none; border-radius: 10px; font-weight: 800; font-size: 14px; cursor: pointer; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
-        .btn-connect:hover { background: var(--accent); color: #fff; }
+        /* --- 1. The Lobby (Intake Screen) --- */
+        #lobby-screen { 
+            width: 100%; max-width: 450px; padding: 50px 40px; 
+            background: var(--glass-bg); backdrop-filter: blur(25px); 
+            border: 1px solid rgba(212, 175, 55, 0.15); border-radius: 4px; 
+            box-shadow: 0 25px 60px rgba(0,0,0,0.8); 
+            text-align: center; transition: opacity 0.8s ease; 
+        }
+        
+        .crest { font-size: 40px; color: var(--gold); margin-bottom: 10px; text-shadow: 0 0 20px var(--gold-dim); }
+        .lobby-title { font-size: 26px; font-weight: 600; color: var(--gold); letter-spacing: 3px; margin-bottom: 5px; text-transform: uppercase; }
+        .lobby-subtitle { font-size: 11px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 40px; }
 
-        /* --- Main Chat Interface --- */
-        #chat-interface { display: none; width: 100%; max-width: 550px; height: 100vh; background: var(--bg-deep); flex-direction: column; position: relative; border-left: 1px solid #222; border-right: 1px solid #222; }
-        
-        /* Glassmorphism Header */
-        .chat-header { padding: 15px 20px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 15px; background: rgba(5, 5, 5, 0.85); backdrop-filter: blur(15px); position: absolute; top: 0; width: 100%; z-index: 10; }
-        .header-avatar { width: 46px; height: 46px; border-radius: 50%; background: var(--aura-gradient); padding: 2px; position: relative; }
-        .header-avatar img { width: 100%; height: 100%; border-radius: 50%; border: 2px solid #000; object-fit: cover; }
-        .online-dot { position: absolute; bottom: 0; right: 0; width: 12px; height: 12px; background: #10b981; border: 2px solid #000; border-radius: 50%; }
-        
-        .header-info { flex: 1; }
-        .header-info h2 { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 5px; }
-        .verified-badge { color: var(--accent); font-size: 13px; }
-        .header-info p { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+        .input-group { position: relative; margin-bottom: 30px; text-align: left; }
+        .input-group input { 
+            width: 100%; background: transparent; border: none; border-bottom: 1px solid #333; 
+            color: var(--text-light); padding: 10px 0; font-size: 14px; outline: none; transition: 0.3s; 
+        }
+        .input-group input:focus { border-bottom: 1px solid var(--gold); box-shadow: 0 10px 10px -10px var(--gold-dim); }
+        .input-group label { 
+            position: absolute; top: 10px; left: 0; font-size: 11px; color: var(--text-muted); 
+            text-transform: uppercase; letter-spacing: 1px; transition: 0.3s; pointer-events: none; 
+        }
+        .input-group input:focus ~ label, .input-group input:valid ~ label { 
+            top: -15px; font-size: 9px; color: var(--gold); 
+        }
 
-        .chat-box { flex: 1; padding: 90px 20px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+        .btn-gold { 
+            width: 100%; background: transparent; color: var(--gold); 
+            border: 1px solid var(--gold); padding: 16px; font-family: 'Cinzel', serif; 
+            font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; 
+            cursor: pointer; transition: 0.4s; position: relative; overflow: hidden; 
+        }
+        .btn-gold:hover { background: var(--gold); color: var(--obsidian); box-shadow: 0 0 20px var(--gold-dim); }
+
+        /* --- Loading Transition --- */
+        #loader-screen { display: none; text-align: center; opacity: 0; transition: opacity 1s ease; }
+        .loader-ring { 
+            width: 60px; height: 60px; border: 1px solid #333; border-top: 1px solid var(--gold); 
+            border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 20px; 
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* --- 2. Executive Suite (Chat Interface) --- */
+        #suite-interface { 
+            display: none; width: 100%; max-width: 600px; height: 100vh; 
+            background: rgba(5, 5, 5, 0.6); backdrop-filter: blur(10px); 
+            border-left: 1px solid rgba(212,175,55,0.1); border-right: 1px solid rgba(212,175,55,0.1); 
+            flex-direction: column; position: relative; opacity: 0; transition: opacity 1s ease;
+        }
+
+        .suite-header { 
+            padding: 20px 25px; border-bottom: 1px solid rgba(212,175,55,0.1); 
+            display: flex; align-items: center; gap: 15px; background: rgba(10,10,10,0.9); 
+        }
+        .executive-avatar { width: 50px; height: 50px; border-radius: 4px; border: 1px solid var(--gold); object-fit: cover; }
+        .header-info h2 { font-size: 18px; color: var(--gold); display: flex; align-items: center; gap: 8px; letter-spacing: 1px; }
+        .header-info p { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 2px; margin-top: 4px; }
         
-        /* Message Bubbles */
-        .msg-wrapper { display: flex; flex-direction: column; max-width: 80%; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-box { flex: 1; padding: 30px 25px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+        
+        /* Elegant Message Bubbles */
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 85%; animation: floatUp 0.4s ease forwards; opacity: 0; transform: translateY(10px); }
+        @keyframes floatUp { to { opacity: 1; transform: translateY(0); } }
         
         .msg-received { align-self: flex-start; }
         .msg-sent { align-self: flex-end; align-items: flex-end; }
         
-        .sender-name { font-size: 10px; color: var(--accent); margin-bottom: 5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .sender-name { font-size: 9px; color: var(--gold); margin-bottom: 6px; font-family: 'Cinzel', serif; letter-spacing: 1px; }
         
-        .bubble { padding: 14px 18px; border-radius: 20px; font-size: 15px; line-height: 1.5; word-wrap: break-word; user-select: text; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        .msg-received .bubble { background: var(--msg-received); border-top-left-radius: 4px; border: 1px solid #222; }
-        .msg-sent .bubble { background: var(--msg-sent); border-top-right-radius: 4px; color: #fff; }
+        .bubble { 
+            padding: 16px 20px; font-size: 14px; line-height: 1.6; font-weight: 300; 
+            border-radius: 2px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+        }
+        .msg-received .bubble { background: #111; border-left: 2px solid var(--gold); color: #ddd; }
+        .msg-sent .bubble { background: #1a1a1a; border-right: 2px solid var(--gold); color: var(--text-light); }
+        .bubble img { max-width: 100%; border-radius: 2px; margin-top: 10px; border: 1px solid #333; }
         
-        .bubble img { max-width: 100%; border-radius: 12px; margin-top: 8px; cursor: pointer; }
-        .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 5px; font-weight: 600; display: flex; align-items: center; gap: 4px; }
+        .msg-time { font-size: 9px; color: #555; margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
 
-        /* Typing Indicator Animation */
-        .typing-indicator { display: none; padding: 0 20px 10px; align-items: center; gap: 5px; }
-        .dot { width: 6px; height: 6px; background: var(--text-muted); border-radius: 50%; animation: blink 1.4s infinite both; }
-        .dot:nth-child(1) { animation-delay: 0.2s; } .dot:nth-child(2) { animation-delay: 0.4s; } .dot:nth-child(3) { animation-delay: 0.6s; }
-        @keyframes blink { 0% { opacity: 0.2; } 20% { opacity: 1; } 100% { opacity: 0.2; } }
-        .typing-text { font-size: 11px; color: var(--text-muted); margin-left: 5px; font-weight: 600; }
+        /* Gold Typing Indicator */
+        .typing-indicator { display: none; padding: 0 25px 15px; align-items: center; gap: 6px; }
+        .dot { width: 4px; height: 4px; background: var(--gold); border-radius: 50%; animation: blink 1.4s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; } .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; box-shadow: 0 0 8px var(--gold); } }
 
         /* Input Area */
-        .chat-input-area { padding: 15px 20px; background: var(--bg-deep); border-top: 1px solid #222; display: flex; align-items: center; gap: 12px; z-index: 10; }
-        .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; transition: 0.2s; }
-        .icon-btn:hover { color: var(--text-main); }
-        .input-wrapper { flex: 1; background: #111; border: 1px solid #333; border-radius: 24px; padding: 12px 18px; display: flex; align-items: center; }
-        .input-wrapper input { width: 100%; background: none; border: none; color: var(--text-main); outline: none; font-size: 15px; }
-        .send-btn { color: var(--accent); font-weight: 800; font-size: 14px; text-transform: uppercase; display: none; cursor: pointer; }
-
-        /* --- Admin Dashboard --- */
-        #admin-panel { display: none; width: 100%; max-width: 1300px; height: 95vh; background: var(--bg-deep); border: 1px solid #222; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        .admin-layout { display: flex; height: 100%; }
-        .admin-sidebar { width: 320px; background: #0a0a0a; border-right: 1px solid #222; display: flex; flex-direction: column; }
+        .input-area { 
+            padding: 20px 25px; background: rgba(10,10,10,0.9); border-top: 1px solid rgba(212,175,55,0.1); 
+            display: flex; align-items: center; gap: 15px; 
+        }
+        .input-wrapper { flex: 1; background: #000; border: 1px solid #222; padding: 15px 20px; display: flex; align-items: center; border-radius: 2px; transition: 0.3s; }
+        .input-wrapper:focus-within { border-color: var(--gold-dim); }
+        .input-wrapper input { width: 100%; background: transparent; border: none; color: var(--text-light); font-size: 14px; outline: none; font-weight: 300; }
         
-        .admin-header { padding: 25px 20px; border-bottom: 1px solid #222; background: #111; }
-        .role-selector { background: #000; color: var(--text-main); border: 1px solid #333; padding: 12px; border-radius: 8px; width: 100%; margin-top: 15px; font-weight: 600; outline: none; font-size: 13px; cursor: pointer; }
+        .icon-btn { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; transition: 0.3s; }
+        .icon-btn:hover { color: var(--gold); }
+        .send-btn { color: var(--gold); font-family: 'Cinzel', serif; font-size: 12px; font-weight: 600; letter-spacing: 1px; cursor: pointer; display: none; }
+
+        /* --- 3. The Boardroom (Admin Panel) --- */
+        #admin-panel { 
+            display: none; width: 100%; max-width: 1400px; height: 90vh; 
+            background: var(--obsidian); border: 1px solid rgba(212,175,55,0.2); 
+            box-shadow: 0 30px 80px rgba(0,0,0,0.9); display: none; 
+        }
+        .admin-layout { display: flex; height: 100%; }
+        .admin-sidebar { width: 350px; background: #0a0a0a; border-right: 1px solid rgba(212,175,55,0.1); display: flex; flex-direction: column; }
+        
+        .admin-header { padding: 30px; border-bottom: 1px solid rgba(212,175,55,0.1); }
+        .role-selector { 
+            background: #000; color: var(--gold); border: 1px solid #333; padding: 15px; 
+            width: 100%; margin-top: 20px; font-family: 'Cinzel', serif; outline: none; cursor: pointer; 
+        }
         
         .user-list { flex: 1; overflow-y: auto; }
-        .user-list-item { padding: 18px 20px; border-bottom: 1px solid #222; cursor: pointer; transition: 0.2s; border-left: 3px solid transparent; }
-        .user-list-item:hover, .user-list-item.active-user { background: #111; border-left-color: var(--accent); }
-        .user-list-item h4 { font-size: 14px; margin-bottom: 5px; font-weight: 800; }
-        .user-list-item p { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
-        .geo-tag { display: inline-block; background: rgba(37, 99, 235, 0.2); color: #93c5fd; padding: 2px 6px; border-radius: 4px; font-size: 9px; margin-top: 5px; text-transform: uppercase; font-weight: 800; }
+        .user-list-item { padding: 20px 30px; border-bottom: 1px solid #111; cursor: pointer; transition: 0.3s; border-left: 2px solid transparent; }
+        .user-list-item:hover, .user-list-item.active-user { background: #111; border-left-color: var(--gold); }
+        .user-list-item h4 { font-size: 15px; margin-bottom: 6px; font-weight: 600; color: var(--text-light); }
+        .user-list-item p { font-size: 11px; color: var(--text-muted); }
 
-        .admin-main { flex: 1; display: flex; flex-direction: column; position: relative; }
-        
-        /* Modal for Admin Login */
-        #password-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; display: none; justify-content: center; align-items: center; }
-        .pass-box { background: #111; padding: 30px; border-radius: 12px; border: 1px solid #333; width: 300px; text-align: center; }
+        .admin-main { flex: 1; display: flex; flex-direction: column; }
+
+        /* Admin Password Modal */
+        #pass-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: none; justify-content: center; align-items: center; }
+        .pass-box { background: #0a0a0a; padding: 40px; border: 1px solid var(--gold-dim); text-align: center; width: 350px; }
     </style>
 </head>
 <body>
 
-    <!-- Admin Password Prompt -->
-    <div id="password-modal">
+    <!-- Secret Admin Vault -->
+    <div id="pass-modal">
         <div class="pass-box">
-            <h3 style="margin-bottom: 15px; font-weight: 800;">Admin Authentication</h3>
-            <input type="password" id="admin-pass" class="form-input" placeholder="Enter Secure Key">
-            <button class="btn-connect" onclick="loginAdmin()">Verify</button>
+            <i class="fas fa-lock crest" style="font-size: 24px; margin-bottom: 20px;"></i>
+            <h3 class="lobby-title" style="font-size: 18px;">Master Override</h3>
+            <div class="input-group" style="margin-top: 30px;">
+                <input type="password" id="admin-pass" required>
+                <label>Security Clearance Key</label>
+            </div>
+            <button class="btn-gold" onclick="verifyAdmin()">Unlock Boardroom</button>
         </div>
     </div>
 
-    <!-- 1. Executive Intake Form -->
-    <div id="intake-screen">
-        <div class="intake-logo">OFFICE OF THE CEO</div>
-        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 30px; font-weight: 600;">Secure transmission gateway to Ananya Rao.</p>
+    <!-- 1. The Luxury Lobby -->
+    <div id="lobby-screen">
+        <i class="fas fa-chess-king crest"></i>
+        <h1 class="lobby-title">Oriontec</h1>
+        <p class="lobby-subtitle">Executive Suite Access</p>
         
-        <input type="text" id="entry-name" class="form-input" placeholder="Full Legal Name" required>
-        <input type="text" id="entry-father" class="form-input" placeholder="Father's Name (Required for Clearance)" required>
-        <input type="email" id="entry-email" class="form-input" placeholder="Professional Email" required>
+        <div class="input-group">
+            <input type="text" id="entry-name" required>
+            <label>Visitor Legal Name</label>
+        </div>
+        <div class="input-group">
+            <input type="text" id="entry-father" required>
+            <label>Authorization (Father's Name)</label>
+        </div>
+        <div class="input-group">
+            <input type="email" id="entry-email" required>
+            <label>Communication Vector (Email)</label>
+        </div>
         
-        <button class="btn-connect" onclick="startVerification()">Request Executive Access</button>
-        <p style="font-size: 10px; color: #555; margin-top: 25px; font-weight: 600;">ENCRYPTED CONNECTION • IP LOGGED</p>
+        <button class="btn-gold" onclick="requestEntry()">Request Audience</button>
     </div>
 
-    <!-- 2. Main User Chat Interface -->
-    <div id="chat-interface">
-        <div class="chat-header">
-            <div class="header-avatar">
-                <!-- Professional Corporate Avatar -->
-                <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" alt="CEO">
-                <div class="online-dot"></div>
-            </div>
+    <!-- Loading Transition -->
+    <div id="loader-screen">
+        <div class="loader-ring"></div>
+        <h3 style="color: var(--gold); font-family: 'Cinzel', serif; letter-spacing: 2px;">Verifying Credentials</h3>
+        <p style="font-size: 11px; color: #666; margin-top: 10px; text-transform: uppercase;">Establishing secure connection</p>
+    </div>
+
+    <!-- 2. The Executive Suite (User Chat) -->
+    <div id="suite-interface">
+        <div class="suite-header">
+            <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" class="executive-avatar" alt="CEO">
             <div class="header-info">
-                <h2 id="active-header-name">Ananya Rao <i class="fas fa-certificate verified-badge"></i></h2>
-                <p id="active-header-title">Chief Executive Officer</p>
+                <h2>Ananya Rao <i class="fas fa-gem" style="font-size: 12px;"></i></h2>
+                <p>Chief Executive Officer</p>
             </div>
-            <i class="fas fa-shield-alt" style="color: #4ade80; font-size: 18px;" title="Encrypted"></i>
         </div>
 
         <div class="chat-box" id="user-chat-box"></div>
         
         <div class="typing-indicator" id="user-typing-indicator">
             <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-            <span class="typing-text">Ananya Rao is typing...</span>
+            <span style="font-size: 10px; color: var(--gold); margin-left: 8px; font-family: 'Cinzel', serif;">Ananya Rao is composing...</span>
         </div>
 
-        <div class="chat-input-area">
-            <button class="icon-btn" onclick="document.getElementById('user-media').click()"><i class="fas fa-plus-circle"></i></button>
-            <input type="file" id="user-media" accept="image/*" style="display: none;" onchange="uploadMedia(event, 'user')">
-            <button class="icon-btn" onclick="alert('Voice transmission securely locked for this tier.')"><i class="fas fa-microphone"></i></button>
+        <div class="input-area">
+            <button class="icon-btn" onclick="document.getElementById('user-media').click()"><i class="fas fa-paperclip"></i></button>
+            <input type="file" id="user-media" accept="image/*" style="display: none;" onchange="uploadFile(event, 'user')">
             
             <div class="input-wrapper">
-                <input type="text" id="user-msg-input" placeholder="Type your message..." onkeyup="handleTyping('user', event)">
-                <span class="send-btn" id="user-send-btn" onclick="dispatchMessage('user')">Send</span>
+                <input type="text" id="user-msg-input" placeholder="Draft your message..." onkeyup="handleKey(event, 'user')">
+                <span class="send-btn" id="user-send-btn" onclick="sendMsg('user')">Transmit</span>
             </div>
         </div>
     </div>
 
-    <!-- 3. Hidden Admin Command Center -->
+    <!-- 3. The Boardroom (Admin Panel) -->
     <div id="admin-panel">
         <div class="admin-layout">
             <div class="admin-sidebar">
                 <div class="admin-header">
-                    <h3 style="font-weight: 900; letter-spacing: 1px;">EXECUTIVE HUB</h3>
-                    <select class="role-selector" id="admin-role-selector" onchange="updateAdminRole()">
+                    <h3 style="color: var(--gold); font-family: 'Cinzel', serif; letter-spacing: 2px;">The Boardroom</h3>
+                    <select class="role-selector" id="admin-role" onchange="updateHeader()">
                         <option value="Ananya Rao|Chief Executive Officer">Operate as: Ananya Rao (CEO)</option>
                         <option value="Executive Board|Vice President">Operate as: Vice President</option>
-                        <option value="Regional HQ|India Managing Director">Operate as: India Managing Director</option>
+                        <option value="India MD|Managing Director">Operate as: India Managing Director</option>
                     </select>
                 </div>
-                <div class="user-list" id="admin-users-list"></div>
+                <div class="user-list" id="admin-user-list"></div>
             </div>
             
             <div class="admin-main">
-                <div class="chat-header">
+                <div class="suite-header">
                     <div class="header-info">
-                        <h2>Monitoring Link: <span id="admin-viewing-user" style="color: var(--accent);">Select Node</span></h2>
+                        <h2>Monitoring: <span id="admin-target-name" style="color: var(--text-light);">Select Client</span></h2>
                     </div>
                 </div>
                 
                 <div class="chat-box" id="admin-chat-box">
-                    <p style="text-align: center; color: #444; margin-top: 50px; font-weight: 800;">AWAITING NODE SELECTION</p>
+                    <p style="text-align: center; color: #444; font-family: 'Cinzel', serif; margin-top: 100px;">AWAITING SELECTION</p>
                 </div>
 
                 <div class="typing-indicator" id="admin-typing-indicator">
                     <div class="dot"></div><div class="dot"></div><div class="dot"></div>
-                    <span class="typing-text">User is typing...</span>
+                    <span style="font-size: 10px; color: var(--gold); margin-left: 8px; font-family: 'Cinzel', serif;">Client is typing...</span>
                 </div>
 
-                <div class="chat-input-area">
-                    <button class="icon-btn" onclick="document.getElementById('admin-media').click()"><i class="fas fa-image"></i></button>
-                    <input type="file" id="admin-media" accept="image/*" style="display: none;" onchange="uploadMedia(event, 'admin')">
+                <div class="input-area">
+                    <button class="icon-btn" onclick="document.getElementById('admin-media').click()"><i class="fas fa-paperclip"></i></button>
+                    <input type="file" id="admin-media" accept="image/*" style="display: none;" onchange="uploadFile(event, 'admin')">
                     <div class="input-wrapper">
-                        <input type="text" id="admin-msg-input" placeholder="Deploy Executive Response..." onkeyup="handleTyping('admin', event)" disabled>
-                        <span class="send-btn" id="admin-send-btn" onclick="dispatchMessage('admin')">Send</span>
+                        <input type="text" id="admin-msg-input" placeholder="Deploy Executive Response..." onkeyup="handleKey(event, 'admin')" disabled>
+                        <span class="send-btn" id="admin-send-btn" onclick="sendMsg('admin')">Transmit</span>
                     </div>
                 </div>
             </div>
@@ -219,223 +291,215 @@
     </div>
 
     <script>
-        // --- 1. Firebase System Configuration ---
+        // --- 1. Firebase Initialization (No Auth Required) ---
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-            authDomain: "pulse2-92372.firebaseapp.com",
             databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
             projectId: "pulse2-92372"
         };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
         const db = firebase.database();
 
-        let activeUID = ""; 
-        let activeName = "";
-        let adminTrackingUID = "";
-        let typingTimeout = null;
+        // Flawless Session Variables
+        let localSessionID = "";
+        let visitorName = "";
+        let adminActiveTarget = "";
+        let typingTimer = null;
 
-        // Formats time nicely e.g., "10:45 PM"
-        const formatTime = (ts) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(ts));
+        const timeString = (ts) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(ts));
 
-        // --- 2. Security Intake & API Tracker ---
-        async function startVerification() {
+        // --- 2. The Luxury Lobby Logic ---
+        async function requestEntry() {
             const name = document.getElementById('entry-name').value;
             const father = document.getElementById('entry-father').value;
             const email = document.getElementById('entry-email').value;
 
-            if(!name || !father || !email) return alert("System Requires All Fields for Clearance.");
+            if(!name || !father || !email) return alert("System requires all fields to grant access.");
 
-            // ADMIN TRIGGER
+            // Admin Gateway Trigger
             if(email === "admin@oriontec.com") {
-                document.getElementById('password-modal').style.display = "flex";
+                document.getElementById('pass-modal').style.display = "flex";
                 return;
             }
 
-            // Normal User Flow - Fetch Location via Free API
-            let userLocation = "Unknown Vector";
-            document.querySelector('.btn-connect').innerText = "Securing Connection...";
+            visitorName = name;
             
+            // Creating a flawless guaranteed local session ID
+            localSessionID = "EXEC_" + Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+            // UI Transition to Loader
+            document.getElementById('lobby-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('lobby-screen').style.display = 'none';
+                const loader = document.getElementById('loader-screen');
+                loader.style.display = 'block';
+                setTimeout(() => loader.style.opacity = '1', 50);
+            }, 800);
+
+            // Fetch IP Location silently
+            let locationTag = "Encrypted Routing";
             try {
                 const res = await fetch('https://ipapi.co/json/');
                 const data = await res.json();
-                if(data.city && data.country_name) userLocation = `${data.city}, ${data.country_name}`;
-            } catch (e) { console.warn("Location tracking bypass detected."); }
+                if(data.city) locationTag = `${data.city}, ${data.country_name}`;
+            } catch(e) {}
 
-            // Firebase Anonymous Auth for Users
-            try {
-                const cred = await auth.signInAnonymously();
-                activeUID = cred.user.uid;
-                activeName = name;
+            // Save to Firebase DB directly
+            db.ref(`luxury_suite/${localSessionID}/profile`).set({
+                name: name,
+                father: father,
+                email: email,
+                location: locationTag,
+                timestamp: Date.now()
+            });
 
-                // Create Profile Node
-                await db.ref(`executive_protocol/${activeUID}/profile`).set({
-                    name: name,
-                    father: father,
-                    email: email,
-                    location: userLocation,
-                    timestamp: firebase.database.ServerValue.TIMESTAMP
-                });
+            // Transition to Suite
+            setTimeout(() => {
+                document.getElementById('loader-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loader-screen').style.display = 'none';
+                    const suite = document.getElementById('suite-interface');
+                    suite.style.display = 'flex';
+                    setTimeout(() => suite.style.opacity = '1', 50);
+                    
+                    initUserChat();
+                    triggerConciergeAI(locationTag);
+                }, 1000);
+            }, 3000);
+        }
 
-                // UI Transition
-                document.getElementById('intake-screen').style.display = "none";
-                document.getElementById('chat-interface').style.display = "flex";
-
-                syncChat(activeUID, 'user');
-                deployAIAura(userLocation);
-
-            } catch (err) {
-                alert("Connection Failed: " + err.message);
-                document.querySelector('.btn-connect').innerText = "Request Executive Access";
+        // --- 3. Master Override (Admin Login) ---
+        function verifyAdmin() {
+            const pass = document.getElementById('admin-pass').value;
+            if(pass === "Ananya2026") {
+                document.getElementById('pass-modal').style.display = 'none';
+                document.getElementById('lobby-screen').style.display = 'none';
+                
+                const adminPanel = document.getElementById('admin-panel');
+                adminPanel.style.display = 'flex';
+                adminPanel.style.opacity = '0';
+                setTimeout(() => adminPanel.style.opacity = '1', 100);
+                
+                loadBoardroom();
+            } else {
+                alert("Access Denied.");
             }
         }
 
-        // --- 3. Admin Authentication Logic ---
-        async function loginAdmin() {
-            const pass = document.getElementById('admin-pass').value;
-            if(!pass) return;
-            try {
-                // Since this is a standalone demo, if the user hasn't created this admin user in their firebase auth, 
-                // we simulate the login via a hardcoded password for demonstration. 
-                // For real production, use: await auth.signInWithEmailAndPassword("admin@oriontec.com", pass);
-                if(pass === "Ananya2026") {
-                    document.getElementById('password-modal').style.display = "none";
-                    document.getElementById('intake-screen').style.display = "none";
-                    document.getElementById('admin-panel').style.display = "flex";
-                    initializeAdminCommand();
-                } else {
-                    alert("Incorrect Security Key.");
-                }
-            } catch (e) { alert(e.message); }
-        }
-
-        // --- 4. Artificial Intelligence "Aura" Engine ---
-        function deployAIAura(loc) {
-            // First Message
+        // --- 4. The Concierge AI ---
+        function triggerConciergeAI(loc) {
             setTimeout(() => {
-                pushDB(activeUID, `System Identity Verified. Secure tunnel established from ${loc}.`, "ORIONTEC AI", "System Protocol");
+                pushDB(localSessionID, `Identity verified. Secure connection established from ${loc}.`, "ORIONTEC CONCIERGE", "System");
             }, 1500);
 
-            // Second Message (The Impression)
             setTimeout(() => {
-                pushDB(activeUID, `Please hold, ${activeName}. The office of CEO Ananya Rao has been notified of your clearance. Ms. Rao or a designated Executive Board Member will connect with you shortly.`, "ORIONTEC AI", "System Protocol");
-            }, 4000);
+                pushDB(localSessionID, `Welcome to the Executive Lounge, ${visitorName}. CEO Ananya Rao's office has been notified of your presence. She will join this secure channel momentarily.`, "ORIONTEC CONCIERGE", "System");
+            }, 4500);
         }
 
-        // --- 5. Message Core Functions ---
-        function handleTyping(context, e) {
+        // --- 5. Chat Transmission Core ---
+        function handleKey(e, context) {
             const input = document.getElementById(`${context}-msg-input`);
             document.getElementById(`${context}-send-btn`).style.display = input.value.trim().length > 0 ? "block" : "none";
             
-            if (e.key === 'Enter') dispatchMessage(context);
+            if (e.key === 'Enter') sendMsg(context);
 
-            // Database Typing Flag
-            const targetUID = context === 'user' ? activeUID : adminTrackingUID;
-            const flagNode = context === 'user' ? 'userTyping' : 'adminTyping';
+            const targetID = context === 'user' ? localSessionID : adminActiveTarget;
+            const flag = context === 'user' ? 'userTyping' : 'adminTyping';
             
-            if(targetUID) {
-                db.ref(`executive_protocol/${targetUID}/typing/${flagNode}`).set(true);
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => {
-                    db.ref(`executive_protocol/${targetUID}/typing/${flagNode}`).set(false);
+            if(targetID) {
+                db.ref(`luxury_suite/${targetID}/typing/${flag}`).set(true);
+                clearTimeout(typingTimer);
+                typingTimer = setTimeout(() => {
+                    db.ref(`luxury_suite/${targetID}/typing/${flag}`).set(false);
                 }, 2000);
             }
         }
 
-        function dispatchMessage(context) {
-            const inputEl = document.getElementById(`${context}-msg-input`);
-            const text = inputEl.value.trim();
+        function sendMsg(context) {
+            const input = document.getElementById(`${context}-msg-input`);
+            const text = input.value.trim();
             if(!text) return;
 
             if(context === 'user') {
-                pushDB(activeUID, text, activeName, 'User');
-            } else if (context === 'admin') {
-                const roleParts = document.getElementById('admin-role-selector').value.split('|');
-                pushDB(adminTrackingUID, text, roleParts[0], roleParts[1]);
+                pushDB(localSessionID, text, visitorName, 'Client');
+            } else {
+                const roleData = document.getElementById('admin-role').value.split('|');
+                pushDB(adminActiveTarget, text, roleData[0], roleData[1]);
             }
 
-            inputEl.value = "";
+            input.value = "";
             document.getElementById(`${context}-send-btn`).style.display = "none";
         }
 
-        function pushDB(uid, text, sender, role, media = null) {
-            db.ref(`executive_protocol/${uid}/messages`).push({
-                text: text,
-                sender: sender,
-                role: role,
-                media: media,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+        function pushDB(id, text, sender, role, media = null) {
+            db.ref(`luxury_suite/${id}/messages`).push({
+                text: text, sender: sender, role: role, media: media, timestamp: Date.now()
             });
         }
 
-        // Base64 Images
-        function uploadMedia(event, context) {
-            const file = event.target.files[0];
+        function uploadFile(e, context) {
+            const file = e.target.files[0];
             if(file) {
                 const reader = new FileReader();
-                reader.onload = (e) => {
-                    if(context === 'user') pushDB(activeUID, "Attached Encrypted Image", activeName, 'User', e.target.result);
-                    if(context === 'admin') {
-                        const roleParts = document.getElementById('admin-role-selector').value.split('|');
-                        pushDB(adminTrackingUID, "Attached Encrypted Image", roleParts[0], roleParts[1], e.target.result);
+                reader.onload = (ev) => {
+                    if(context === 'user') pushDB(localSessionID, "Transmitted Encrypted Document", visitorName, 'Client', ev.target.result);
+                    else {
+                        const roleData = document.getElementById('admin-role').value.split('|');
+                        pushDB(adminActiveTarget, "Transmitted Encrypted Document", roleData[0], roleData[1], ev.target.result);
                     }
                 };
                 reader.readAsDataURL(file);
             }
         }
 
-        // Clickable URL Parser
-        const linkify = (text) => text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank">${url}</a>`);
+        const parseLinks = (text) => text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" style="color:var(--gold); text-decoration:underline;">${url}</a>`);
 
-        // --- 6. Real-Time Chat Sync ---
-        function syncChat(uid, context) {
-            const chatBox = document.getElementById(`${context}-chat-box`);
-            const indicator = document.getElementById(`${context}-typing-indicator`);
-
-            // Listen for Messages
-            db.ref(`executive_protocol/${uid}/messages`).on('value', (snapshot) => {
-                chatBox.innerHTML = '';
-                snapshot.forEach(child => {
-                    const msg = child.val();
-                    let isMine = (context === 'user' && msg.role === 'User') || (context === 'admin' && msg.role !== 'User');
-                    
-                    const msgClass = isMine ? 'msg-sent' : 'msg-received';
-                    const senderTag = isMine ? '' : `<div class="sender-name">${msg.sender} <span style="color:#666">| ${msg.role}</span></div>`;
-                    const mediaTag = msg.media ? `<img src="${msg.media}">` : '';
-                    
-                    chatBox.innerHTML += `
-                        <div class="msg-wrapper ${msgClass}">
-                            ${senderTag}
-                            <div class="bubble">${linkify(msg.text)}${mediaTag}</div>
-                            <div class="msg-time">${formatTime(msg.timestamp)} ${isMine ? '<i class="fas fa-check-double" style="color:var(--accent); margin-left:4px;"></i>' : ''}</div>
-                        </div>
-                    `;
-                });
-                chatBox.scrollTop = chatBox.scrollHeight;
-            });
-
-            // Listen for Typing Activity
-            const typingListenNode = context === 'user' ? 'adminTyping' : 'userTyping';
-            db.ref(`executive_protocol/${uid}/typing/${typingListenNode}`).on('value', (snap) => {
-                indicator.style.display = snap.val() ? "flex" : "none";
-                if(snap.val()) chatBox.scrollTop = chatBox.scrollHeight;
+        // --- 6. Realtime Rendering ---
+        function initUserChat() {
+            syncMessages(localSessionID, 'user');
+            db.ref(`luxury_suite/${localSessionID}/typing/adminTyping`).on('value', snap => {
+                document.getElementById('user-typing-indicator').style.display = snap.val() ? "flex" : "none";
             });
         }
 
-        // --- 7. Admin Features ---
-        function initializeAdminCommand() {
-            db.ref('executive_protocol').on('value', (snapshot) => {
-                const list = document.getElementById('admin-users-list');
+        function syncMessages(id, context) {
+            const box = document.getElementById(`${context}-chat-box`);
+            db.ref(`luxury_suite/${id}/messages`).on('value', snap => {
+                box.innerHTML = '';
+                snap.forEach(child => {
+                    const msg = child.val();
+                    const isMine = (context === 'user' && msg.role === 'Client') || (context === 'admin' && msg.role !== 'Client');
+                    const msgClass = isMine ? 'msg-sent' : 'msg-received';
+                    const senderDisplay = isMine ? '' : `<div class="sender-name">${msg.sender} <span style="color:#555; font-family:'Inter'; text-transform:none;">| ${msg.role}</span></div>`;
+                    const mediaDisplay = msg.media ? `<img src="${msg.media}">` : '';
+
+                    box.innerHTML += `
+                        <div class="msg-wrapper ${msgClass}">
+                            ${senderDisplay}
+                            <div class="bubble">${parseLinks(msg.text)}${mediaDisplay}</div>
+                            <div class="msg-time">${timeString(msg.timestamp)} ${isMine ? '<i class="fas fa-check-double" style="color:var(--gold); margin-left:4px;"></i>' : ''}</div>
+                        </div>
+                    `;
+                });
+                box.scrollTop = box.scrollHeight;
+            });
+        }
+
+        // --- 7. The Boardroom Functions ---
+        function loadBoardroom() {
+            db.ref('luxury_suite').on('value', snap => {
+                const list = document.getElementById('admin-user-list');
                 list.innerHTML = '';
-                snapshot.forEach(child => {
-                    const profile = child.val().profile;
-                    if(profile) {
+                snap.forEach(child => {
+                    const p = child.val().profile;
+                    if(p) {
                         const uid = child.key;
                         list.innerHTML += `
-                            <div class="user-list-item ${uid === adminTrackingUID ? 'active-user' : ''}" onclick="openNode('${uid}', '${profile.name}')">
-                                <h4>${profile.name}</h4>
-                                <p>${profile.email}</p>
-                                <span class="geo-tag"><i class="fas fa-map-marker-alt"></i> ${profile.location}</span>
+                            <div class="user-list-item ${uid === adminActiveTarget ? 'active-user' : ''}" onclick="selectClient('${uid}', '${p.name}')">
+                                <h4>${p.name}</h4>
+                                <p>${p.email}</p>
+                                <p style="color:var(--gold); margin-top:4px;"><i class="fas fa-map-pin"></i> ${p.location}</p>
                             </div>
                         `;
                     }
@@ -443,22 +507,25 @@
             });
         }
 
-        function openNode(uid, name) {
-            adminTrackingUID = uid;
-            document.getElementById('admin-viewing-user').innerText = name;
+        function selectClient(id, name) {
+            adminActiveTarget = id;
+            document.getElementById('admin-target-name').innerText = name;
             document.getElementById('admin-msg-input').disabled = false;
             
-            // Re-render user list to highlight active
             document.querySelectorAll('.user-list-item').forEach(el => el.classList.remove('active-user'));
             event.currentTarget.classList.add('active-user');
 
-            syncChat(uid, 'admin');
+            syncMessages(id, 'admin');
+            
+            db.ref(`luxury_suite/${id}/typing/userTyping`).on('value', snap => {
+                document.getElementById('admin-typing-indicator').style.display = snap.val() ? "flex" : "none";
+            });
         }
 
-        function updateAdminRole() {
-            // Updates header dynamically for Admin visually
-            const role = document.getElementById('admin-role-selector').value.split('|')[0];
-            document.getElementById('admin-viewing-user').innerText += ` (as ${role})`;
+        function updateHeader() {
+            const role = document.getElementById('admin-role').value.split('|')[0];
+            const currentText = document.getElementById('admin-target-name').innerText.split(' (')[0];
+            document.getElementById('admin-target-name').innerText = `${currentText} (Operating as ${role})`;
         }
     </script>
 </body>
