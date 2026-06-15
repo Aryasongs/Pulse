@@ -3,611 +3,360 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexo Connect | Premium Professional Network</title>
+    <title>Executive Comms | Secure Protocol</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Modern Minimalist Black & White Theme */
+        /* Instagram DM Dark Mode Theme */
         :root {
-            --bg-color: #f8f9fa;
-            --card-bg: #ffffff;
-            --text-main: #111111;
-            --text-muted: #6c757d;
-            --border-color: #e9ecef;
-            --primary-black: #000000;
-            --radius: 12px;
-            --transition: all 0.25s ease;
+            --bg-dark: #000000;
+            --panel-bg: #121212;
+            --border-color: #262626;
+            --text-main: #f5f5f5;
+            --text-muted: #a8a8a8;
+            --accent-blue: #3797f0;
+            --accent-gradient: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+            --msg-received: #262626;
+            --msg-sent: #3797f0;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); -webkit-font-smoothing: antialiased; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-dark); color: var(--text-main); height: 100vh; display: flex; justify-content: center; align-items: center; overflow: hidden; }
+        
+        a { color: var(--text-main); text-decoration: underline; }
 
-        /* Premium Navbar */
-        nav { background-color: var(--card-bg); border-bottom: 1px solid var(--border-color); padding: 12px 6%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-        .logo { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; cursor: pointer; }
-        .logo span { font-weight: 300; color: var(--text-muted); }
-        
-        .search-container { position: relative; width: 340px; }
-        .search-container input { width: 100%; padding: 8px 12px 8px 36px; border: 1px solid var(--border-color); border-radius: 20px; background: #f1f3f5; outline: none; font-size: 13px; transition: var(--transition); }
-        .search-container input:focus { background: #fff; border-color: var(--primary-black); box-shadow: 0 0 0 3px rgba(0,0,0,0.05); }
-        .search-container i { position: absolute; left: 14px; top: 11px; color: var(--text-muted); font-size: 13px; }
-        
-        .nav-icons { display: flex; gap: 30px; align-items: center; }
-        .nav-icons div { text-align: center; cursor: pointer; color: var(--text-muted); font-size: 11px; transition: var(--transition); font-weight: 500; }
-        .nav-icons div i { font-size: 18px; margin-bottom: 3px; display: block; }
-        .nav-icons div:hover, .nav-icons div.active { color: var(--primary-black); }
+        /* --- Intake Protocol Screen --- */
+        #intake-screen { width: 100%; max-width: 400px; padding: 40px; text-align: center; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; }
+        .intake-logo { font-size: 32px; font-weight: 900; margin-bottom: 10px; background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .form-input { width: 100%; background: var(--bg-dark); border: 1px solid var(--border-color); color: var(--text-main); padding: 14px; border-radius: 8px; margin-bottom: 15px; outline: none; font-size: 14px; }
+        .form-input:focus { border-color: var(--text-muted); }
+        .btn-connect { width: 100%; background: var(--accent-blue); color: #fff; padding: 14px; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; transition: 0.2s; }
+        .btn-connect:hover { opacity: 0.8; }
 
-        /* Structural Layout */
-        .container { display: grid; grid-template-columns: 290px 1fr 320px; gap: 24px; max-width: 1250px; margin: 24px auto; padding: 0 20px; }
-        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.01), 0 2px 4px -1px rgba(0,0,0,0.01); }
+        /* --- Main Chat Interface --- */
+        #chat-interface { display: none; width: 100%; max-width: 500px; height: 100vh; background: var(--bg-dark); flex-direction: column; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); }
         
-        /* Modern Profile UI & Edit Layer */
-        .profile-container { text-align: center; position: relative; }
-        .profile-img { width: 85px; height: 85px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.1); object-fit: cover; margin: 0 auto 12px; display: block; background: #f1f3f5; }
-        .verified-tick { color: #fff; background: var(--primary-black); border-radius: 50%; padding: 2px; font-size: 9px; margin-left: 4px; vertical-align: middle; }
-        .user-title { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
-        
-        .edit-profile-btn { font-size: 11px; margin-top: 12px; color: var(--text-muted); text-decoration: underline; cursor: pointer; display: inline-block; }
-        .edit-profile-btn:hover { color: #000; }
-        .edit-fields-box input { width: 100%; padding: 6px 10px; font-size: 12px; border: 1px solid var(--border-color); border-radius: 6px; margin-top: 6px; outline: none; }
+        .chat-header { padding: 15px 20px; border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 15px; background: var(--panel-bg); }
+        .header-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--accent-gradient); padding: 2px; }
+        .header-avatar img { width: 100%; height: 100%; border-radius: 50%; border: 2px solid var(--panel-bg); object-fit: cover; }
+        .header-info h2 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+        .verified-badge { color: var(--accent-blue); font-size: 12px; }
+        .header-info p { font-size: 12px; color: var(--text-muted); }
 
-        /* Modern Post Composer */
-        .post-input-container textarea { width: 100%; padding: 14px; border: 1px solid var(--border-color); border-radius: 8px; resize: none; outline: none; font-size: 14px; margin-bottom: 12px; background: #fafafa; transition: var(--transition); }
-        .post-input-container textarea:focus { background: #fff; border-color: #000; }
-        .post-actions { display: flex; justify-content: space-between; align-items: center; }
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; scroll-behavior: smooth; }
         
-        .btn-sub { background: var(--card-bg); border: 1px solid #000; padding: 8px 16px; border-radius: 20px; cursor: pointer; font-size: 13px; font-weight: 600; transition: var(--transition); display: inline-flex; align-items: center; gap: 6px; }
-        .btn-sub:hover { background: var(--primary-black); color: #fff; }
-        #image-preview { max-width: 100%; max-height: 220px; display: none; margin-top: 12px; border-radius: 8px; border: 1px solid var(--border-color); object-fit: cover; }
+        /* Message Bubbles */
+        .msg-wrapper { display: flex; flex-direction: column; max-width: 75%; }
+        .msg-received { align-self: flex-start; }
+        .msg-sent { align-self: flex-end; align-items: flex-end; }
+        
+        .sender-name { font-size: 10px; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .bubble { padding: 12px 16px; border-radius: 22px; font-size: 15px; line-height: 1.4; word-wrap: break-word; }
+        .msg-received .bubble { background: var(--msg-received); border-bottom-left-radius: 4px; }
+        .msg-sent .bubble { background: var(--msg-sent); border-bottom-right-radius: 4px; }
+        
+        .bubble img { max-width: 100%; border-radius: 12px; margin-top: 5px; }
+        .msg-status { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
 
-        /* Timeline Feed Aesthetics */
-        .post-card { padding: 20px; animation: fadeIn 0.4s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .post-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-        .post-header img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 1px solid var(--border-color); }
-        .post-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-        .post-body { font-size: 14px; line-height: 1.6; color: #222; }
-        .post-img-render { width: 100%; max-height: 380px; object-fit: cover; border-radius: 8px; margin-top: 12px; border: 1px solid var(--border-color); }
-        
-        /* Interactive Engagement Components */
-        .engagement-bar { display: flex; gap: 24px; border-top: 1px solid #f1f3f5; padding-top: 12px; margin-top: 14px; }
-        .engagement-btn { background: none; border: none; cursor: pointer; font-size: 13px; font-weight: 500; color: var(--text-muted); display: flex; align-items: center; gap: 6px; transition: var(--transition); }
-        .engagement-btn:hover { color: var(--primary-black); }
-        
-        .comment-section { margin-top: 12px; background: #f8f9fa; padding: 12px; border-radius: 8px; }
-        .comment-input-box { display: flex; gap: 8px; margin-bottom: 10px; }
-        .comment-input-box input { flex: 1; padding: 6px 12px; border: 1px solid var(--border-color); border-radius: 20px; font-size: 12px; outline: none; }
-        
-        /* Portals & Forms */
-        .job-posting-form input, .job-posting-form textarea { width: 100%; padding: 10px; margin-bottom: 12px; border: 1px solid var(--border-color); border-radius: 6px; outline: none; font-size: 13px; }
-        .job-item { border-bottom: 1px solid #f1f3f5; padding: 14px 0; transition: var(--transition); }
-        .job-item:last-child { border-bottom: none; }
-        .strict-badge { font-size: 9px; text-transform: uppercase; font-weight: 700; background: #f1f3f5; border: 1px solid #000; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 6px; margin-right: 4px; }
+        .typing-indicator { font-size: 12px; color: var(--text-muted); padding: 0 20px 10px; display: none; font-style: italic; }
 
-        /* Modals & Full Screen Covers */
-        #auth-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0b0b0b; display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .auth-box { background: var(--card-bg); padding: 40px; width: 420px; border-radius: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.3); }
-        .auth-box input, .auth-box select { width: 100%; margin-bottom: 14px; padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; outline: none; }
+        /* Input Area */
+        .chat-input-area { padding: 15px 20px; border-top: 1px solid var(--border-color); background: var(--panel-bg); display: flex; align-items: center; gap: 12px; }
+        .icon-btn { background: none; border: none; color: var(--text-main); font-size: 22px; cursor: pointer; transition: 0.2s; }
+        .icon-btn:hover { color: var(--text-muted); }
+        .input-wrapper { flex: 1; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 24px; padding: 10px 15px; display: flex; align-items: center; }
+        .input-wrapper input { width: 100%; background: none; border: none; color: var(--text-main); outline: none; font-size: 15px; }
+        .send-btn { color: var(--accent-blue); font-weight: 600; font-size: 15px; display: none; cursor: pointer; }
+
+        /* --- Hidden Admin Panel --- */
+        #admin-panel { display: none; width: 100%; max-width: 1200px; height: 90vh; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 12px; display: none; }
+        .admin-layout { display: flex; height: 100%; }
+        .admin-sidebar { width: 300px; border-right: 1px solid var(--border-color); overflow-y: auto; }
+        .admin-main { flex: 1; display: flex; flex-direction: column; }
         
-        .hidden { display: none !important; }
-        .view-panel { display: none; }
-        .view-panel.active-panel { display: block; }
+        .admin-header { padding: 20px; border-bottom: 1px solid var(--border-color); }
+        .role-selector { background: var(--bg-dark); color: var(--accent-blue); border: 1px solid var(--border-color); padding: 8px; border-radius: 6px; width: 100%; margin-top: 10px; font-weight: bold; outline: none; }
+        
+        .user-list-item { padding: 15px 20px; border-bottom: 1px solid var(--border-color); cursor: pointer; transition: 0.2s; }
+        .user-list-item:hover { background: var(--bg-dark); }
+        .user-list-item h4 { font-size: 14px; margin-bottom: 4px; }
+        .user-list-item p { font-size: 11px; color: var(--text-muted); }
+
     </style>
 </head>
 <body>
 
-    <div id="auth-modal">
-        <div class="auth-box card">
-            <h2 style="margin-bottom: 8px; text-align: center; font-weight: 800; letter-spacing: -0.5px;">NEXO CONNECT</h2>
-            <p style="font-size: 13px; text-align: center; margin-bottom: 24px; color: var(--text-muted);">The modern decentralized talent pipeline.</p>
-            
-            <select id="account-type" onchange="toggleAuthFields()">
-                <option value="normal">Individual Profile</option>
-                <option value="business">Business / Corporate Unit</option>
-                <option value="college">Academic Hub</option>
-            </select>
-            
-            <input type="email" id="email" placeholder="Professional Email">
-            <input type="password" id="password" placeholder="Password">
-            <input type="text" id="user-display-name" placeholder="Full Identity Name">
-            <input type="text" id="job-title" placeholder="Current Role / Domain Focus">
-            
-            <label style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 6px;">Profile Identity Avatar:</label>
-            <input type="file" id="reg-avatar" accept="image/*" onchange="processAvatar(event)">
+    <div id="intake-screen">
+        <div class="intake-logo">EXECUTIVE COMMS</div>
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 25px;">Encrypted connection to the Office of the CEO.</p>
+        
+        <input type="text" id="entry-name" class="form-input" placeholder="Your Full Name" required>
+        <input type="text" id="entry-father" class="form-input" placeholder="Father's Name (Security Clearance)" required>
+        <input type="email" id="entry-email" class="form-input" placeholder="Email Address" required>
+        
+        <button class="btn-connect" onclick="initiateProtocol()">Request Connection</button>
+        <p style="font-size: 10px; color: var(--text-muted); margin-top: 20px;">By proceeding, you agree to the Oriontec communication protocols.</p>
+    </div>
 
-            <button class="btn-sub" style="width: 100%; margin-top: 10px; padding: 12px; background: #000; color: #fff; justify-content: center;" onclick="handleRegistration()">Create Account</button>
-            <button class="btn-sub" style="width: 100%; margin-top: 12px; justify-content: center;" onclick="handleLogin()">Sign In</button>
+    <div id="chat-interface">
+        <div class="chat-header">
+            <div class="header-avatar">
+                <img src="https://images.unsplash.com/photo-1560250097-0b93528c311a?w=150" alt="CEO">
+            </div>
+            <div class="header-info">
+                <h2 id="active-header-name">Sharan Pooni <i class="fas fa-check-circle verified-badge"></i></h2>
+                <p id="active-header-title">CEO, Oriontec</p>
+            </div>
+            <i class="fas fa-info-circle" style="margin-left: auto; color: var(--text-main); font-size: 20px;"></i>
+        </div>
+
+        <div class="chat-box" id="user-chat-box">
+            </div>
+        
+        <div class="typing-indicator" id="user-typing">Executive is typing...</div>
+
+        <div class="chat-input-area">
+            <button class="icon-btn" onclick="document.getElementById('media-upload').click()"><i class="fas fa-image"></i></button>
+            <input type="file" id="media-upload" accept="image/*" style="display: none;" onchange="handleMediaUpload(event, 'user')">
+            <button class="icon-btn" onclick="simulateVoiceNote()"><i class="fas fa-microphone"></i></button>
+            <div class="input-wrapper">
+                <input type="text" id="user-msg-input" placeholder="Message..." onkeyup="checkInput('user')">
+                <span class="send-btn" id="user-send-btn" onclick="sendMessage('user')">Send</span>
+            </div>
         </div>
     </div>
 
-    <nav>
-        <div class="logo" onclick="switchView('feed-panel')">NEXO<span>CONNECT</span></div>
-        <div class="search-container">
-            <i class="fas fa-search"></i>
-            <input type="text" id="global-search" placeholder="Search talent pool or keywords..." onkeyup="searchFeed()">
-        </div>
-        <div class="nav-icons">
-            <div id="nav-feed" class="active" onclick="switchView('feed-panel')"><i class="fas fa-layer-group"></i>Feed</div>
-            <div id="nav-jobs" onclick="switchView('jobs-panel')"><i class="fas fa-suitcase"></i>Jobs</div>
-            <div id="nav-company" onclick="switchView('company-panel')"><i class="fas fa-sliders-h"></i>Dashboard</div>
-            <div onclick="logout()"><i class="fas fa-power-off"></i>Exit</div>
-        </div>
-    </nav>
-
-    <div class="container">
-        
-        <div class="left-wing">
-            <div class="card profile-container">
-                <img src="https://via.placeholder.com/85" alt="Avatar" class="profile-img" id="identity-avatar">
-                <h3 style="font-size: 16px; font-weight: 700;" id="identity-name">Syncing Node...</h3>
-                <p class="user-title" id="identity-headline">Strategic Resource</p>
-                
-                <span class="edit-profile-btn" onclick="toggleEditProfileBox()"><i class="fas fa-edit"></i> Edit Profile Info</span>
-                
-                <div id="edit-profile-fields-box" class="edit-fields-box hidden" style="margin-top:15px; text-align:left; border-top:1px dashed var(--border-color); padding-top:12px;">
-                    <label style="font-size:10px; font-weight:600;">Update Name:</label>
-                    <input type="text" id="edit-name-field">
-                    <label style="font-size:10px; font-weight:600; margin-top:6px; display:block;">Update Headline/Role:</label>
-                    <input type="text" id="edit-headline-field">
-                    <label style="font-size:10px; font-weight:600; margin-top:6px; display:block;">Update Profile Picture:</label>
-                    <input type="file" id="edit-avatar-field" accept="image/*" onchange="processProfileUpdateAvatar(event)" style="margin-top:4px; font-size:11px;">
-                    <button class="btn-sub" style="width:100%; margin-top:12px; font-size:11px; padding:4px; justify-content:center; background:#000; color:#fff;" onclick="saveProfileModifications()">Commit Changes</button>
+    <div id="admin-panel">
+        <div class="admin-layout">
+            <div class="admin-sidebar">
+                <div class="admin-header">
+                    <h3>Command Center</h3>
+                    <p style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">Active Communication Nodes</p>
+                    <select class="role-selector" id="admin-role-selector">
+                        <option value="Sharan Pooni|CEO">Respond as: Sharan Pooni (CEO)</option>
+                        <option value="Executive VP|Vice President">Respond as: Vice President</option>
+                        <option value="India MD|Managing Director, India">Respond as: India Managing Director</option>
+                    </select>
                 </div>
-
-                <div style="border-top: 1px solid var(--border-color); margin-top: 15px; padding-top: 12px; font-size: 11px; text-align: left; color: var(--text-muted);">
-                    <p id="identity-tier" style="margin-bottom: 4px; font-weight:600; color:#000;"></p>
-                    <p id="identity-domain" style="text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"></p>
-                </div>
+                <div id="admin-users-list">
+                    </div>
             </div>
-
-            <div class="card" id="account-context-box">
-                <h4 style="font-size:14px; margin-bottom:6px;">Network Radar</h4>
-                <p style="font-size: 12px; color: var(--text-muted); line-height:1.4;">Active data pipelines are matching your profile metrics against active industry targets automatically.</p>
-            </div>
-        </div>
-
-        <div class="center-wing">
             
-            <div id="feed-panel" class="view-panel active-panel">
-                <div class="card post-input-container">
-                    <textarea id="post-text-input" rows="3" placeholder="Share technical solutions, ecosystem changes, or project goals..."></textarea>
-                    <img id="image-preview" src="" alt="Draft Media Asset">
-                    <div class="post-actions">
-                        <div>
-                            <button class="btn-sub" onclick="document.getElementById('post-media-file').click()"><i class="far fa-image"></i> Photo</button>
-                            <button class="btn-sub" onclick="fetchDeviceLocation()"><i class="fas fa-location-arrow"></i> Tag Location</button>
-                            <input type="file" id="post-media-file" accept="image/*" class="hidden" onchange="processPostMedia(event)">
-                        </div>
-                        <span id="geo-status-indicator" style="font-size: 11px; font-weight: 600; color: var(--text-muted);"></span>
-                        <button class="btn-sub" style="background: var(--primary-black); color: #fff; border:none;" onclick="publishPost()">Broadcast</button>
+            <div class="admin-main">
+                <div class="chat-header">
+                    <div class="header-info">
+                        <h2>Monitoring: <span id="admin-viewing-user" style="color: var(--accent-blue);">Select a user</span></h2>
                     </div>
                 </div>
-                <div id="timeline-stream"></div>
-            </div>
-
-            <div id="jobs-panel" class="view-panel">
-                <div class="card">
-                    <h2 style="font-size: 20px; font-weight: 800;">Ecosystem Openings</h2>
-                    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Validated opportunities requiring matching cryptographic node architectures.</p>
-                    <div id="live-jobs-list"></div>
+                <div class="chat-box" id="admin-chat-box">
+                    <p style="text-align: center; color: var(--text-muted); margin-top: 50px;">Select an active communication node to reply.</p>
                 </div>
-            </div>
-
-            <div id="company-panel" class="view-panel">
-                <div class="card job-posting-form">
-                    <h3 style="font-size: 18px; margin-bottom: 4px;">Initialize Pipeline Offer</h3>
-                    <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">Corporate verification keys are automatically signed using active domain logs.</p>
-                    
-                    <input type="text" id="job-form-title" placeholder="Target Position Title">
-                    <input type="text" id="job-form-comp" placeholder="Deploying Corporate Entity">
-                    <input type="text" id="job-form-loc" placeholder="Location Paradigm (Remote / Hybrid / Onsite)">
-                    <textarea id="job-form-desc" rows="4" placeholder="Execution parameters, Tech stacks, and Scope of work..."></textarea>
-                    <input type="text" id="job-form-salary" placeholder="Compensation Metrics">
-                    
-                    <button class="btn-sub" style="background:#000; color:#fff; width:100%; justify-content:center; padding:12px;" onclick="submitStrictJob()">Deploy Opportunity Payload</button>
+                <div class="chat-input-area">
+                    <button class="icon-btn" onclick="document.getElementById('admin-media').click()"><i class="fas fa-image"></i></button>
+                    <input type="file" id="admin-media" accept="image/*" style="display: none;" onchange="handleMediaUpload(event, 'admin')">
+                    <div class="input-wrapper">
+                        <input type="text" id="admin-msg-input" placeholder="Deploy Executive Response..." onkeyup="checkInput('admin')" disabled>
+                        <span class="send-btn" id="admin-send-btn" onclick="sendMessage('admin')">Send</span>
+                    </div>
                 </div>
-            </div>
-
-        </div>
-
-        <div class="right-wing">
-            <div class="card">
-                <h3 style="font-size:14px; font-weight:700; margin-bottom:12px;">Global Distributed Pipelines</h3>
-                <div id="api-jobs-aggregator">
-                    <p style="font-size:12px; color: var(--text-muted);">Listening for remote tech endpoints...</p>
-                </div>
-            </div>
-            
-            <div class="card" style="font-size: 11px; color: var(--text-muted); background: none; border: none; box-shadow: none; padding: 0 10px;">
-                <p>© 2026 Nexo Connect Platform.</p>
-                <p style="margin-top:2px;">Engineered via Single Instance Micro-Structures.</p>
             </div>
         </div>
     </div>
 
     <script>
-        // 1. Firebase Core Connection Setup
+        // --- 1. System Initializations ---
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-            authDomain: "pulse2-92372.firebaseapp.com",
             databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-            projectId: "pulse2-92372",
-            storageBucket: "pulse2-92372.firebasestorage.app",
-            messagingSenderId: "276235725177",
-            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+            projectId: "pulse2-92372"
         };
-
         firebase.initializeApp(firebaseConfig);
-        const authInstance = firebase.auth();
-        const runtimeDb = firebase.database();
+        const db = firebase.database();
 
-        // Runtime Session Benchmarking
-        const appSessionInitTimestamp = Date.now();
+        let sessionUserId = "";
+        let sessionUserName = "";
+        let activeAdminUserId = ""; // For Admin tracking which user they are chatting with
 
-        // Memory Registries
-        let operationalUserRecord = null;
-        let base64ProfileCache = "";
-        let base64PostMediaCache = "";
-        let structuredGeoString = "";
-        let base64ProfileUpdateCache = "";
+        // --- 2. Intake & Protocol Engine ---
+        function initiateProtocol() {
+            const name = document.getElementById('entry-name').value;
+            const father = document.getElementById('entry-father').value;
+            const email = document.getElementById('entry-email').value;
 
-        // 2. Observer Strategy
-        authInstance.onAuthStateChanged((activeIdentity) => {
-            if (activeIdentity) {
-                document.getElementById('auth-modal').classList.add('hidden');
-                syncIdentityRecord(activeIdentity.uid);
-                syncTimelineStream();
-                syncCustomJobsStream();
-                triggerExternalApiJobs();
-            } else {
-                document.getElementById('auth-modal').classList.remove('hidden');
+            if(!name || !father || !email) return alert("Security clearance requires all fields.");
+
+            // HIDDEN ADMIN TRIGGER
+            if(email === "admin@oriontec.com") {
+                document.getElementById('intake-screen').style.display = "none";
+                document.getElementById('admin-panel').style.display = "flex";
+                loadAdminUserList();
+                return;
             }
-        });
 
-        function toggleAuthFields() {
-            const currentSelection = document.getElementById('account-type').value;
-            const titleField = document.getElementById('job-title');
-            titleField.placeholder = (currentSelection === 'business') ? "Corporate Web Domain (e.g. apple.com)" : "Current Role / Industry Focus";
-        }
+            // Normal User Flow
+            sessionUserId = "USR_" + Date.now();
+            sessionUserName = name;
 
-        function validateDomainAuthenticity(emailAddress) {
-            const extractedDomain = emailAddress.split('@')[1].toLowerCase();
-            const genericExclusions = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'icloud.com'];
-            return !genericExclusions.includes(extractedDomain);
-        }
-
-        // 3. User Identity Workflows
-        async function handleRegistration() {
-            const targetEmail = document.getElementById('email').value;
-            const targetPass = document.getElementById('password').value;
-            const chosenType = document.getElementById('account-type').value;
-            const rawTitle = document.getElementById('job-title').value;
-            const explicitName = document.getElementById('user-display-name').value;
-
-            if(!targetEmail || !targetPass || !explicitName) return alert("All profile identification lines must be filled.");
-            const verificationStatus = validateDomainAuthenticity(targetEmail);
-
-            try {
-                const outputCredentials = await authInstance.createUserWithEmailAndPassword(targetEmail, targetPass);
-                await runtimeDb.ref('users/' + outputCredentials.user.uid).set({
-                    uid: outputCredentials.user.uid,
-                    fullName: explicitName,
-                    email: targetEmail,
-                    accountType: chosenType,
-                    jobTitle: rawTitle,
-                    isVerified: verificationStatus,
-                    profileImage: base64ProfileCache || ""
-                });
-            } catch (runtimeError) { alert(runtimeError.message); }
-        }
-
-        async function handleLogin() {
-            const entryEmail = document.getElementById('email').value;
-            const entryPass = document.getElementById('password').value;
-            if(!entryEmail || !entryPass) return alert("Credentials payload empty.");
-            try { await authInstance.signInWithEmailAndPassword(entryEmail, entryPass); } catch (e) { alert(e.message); }
-        }
-
-        function logout() { authInstance.signOut(); location.reload(); }
-
-        // 4. Identity Profile Synchronization
-        function syncIdentityRecord(userUid) {
-            runtimeDb.ref('users/' + userUid).on('value', (snapshot) => {
-                operationalUserRecord = snapshot.val();
-                if (!operationalUserRecord) return;
-
-                const checkTick = operationalUserRecord.isVerified ? `<i class="fas fa-check verified-tick" title="Enterprise Core Verified"></i>` : '';
-                document.getElementById('identity-name').innerHTML = operationalUserRecord.fullName + checkTick;
-                document.getElementById('identity-headline').innerText = operationalUserRecord.jobTitle || 'Independent Contributor';
-                document.getElementById('identity-tier').innerText = operationalUserRecord.accountType.toUpperCase() + " ACCOUNT";
-                document.getElementById('identity-domain').innerText = operationalUserRecord.email;
-
-                if (operationalUserRecord.profileImage) {
-                    document.getElementById('identity-avatar').src = operationalUserRecord.profileImage;
-                }
-
-                // Populate update inputs
-                document.getElementById('edit-name-field').value = operationalUserRecord.fullName;
-                document.getElementById('edit-headline-field').value = operationalUserRecord.jobTitle || '';
+            // Save user profile to DB
+            db.ref('executive_chats/' + sessionUserId + '/profile').set({
+                name: name,
+                father: father,
+                email: email,
+                timestamp: Date.now()
             });
+
+            // Transition UI
+            document.getElementById('intake-screen').style.display = "none";
+            document.getElementById('chat-interface').style.display = "flex";
+
+            listenForMessages(sessionUserId, 'user');
+            triggerAIAuraProtocol();
         }
 
-        // 5. Editable Profile Controls
-        function toggleEditProfileBox() {
-            document.getElementById('edit-profile-fields-box').classList.toggle('hidden');
+        // --- 3. The CEO "Aura" AI Engine ---
+        function triggerAIAuraProtocol() {
+            setTimeout(() => {
+                pushMessageToDB(sessionUserId, "System Identity Verified. Welcome to the Executive Communications Network.", "Oriontec AI Interface", "AI Protocol");
+            }, 1000);
+
+            setTimeout(() => {
+                pushMessageToDB(sessionUserId, `Please hold, ${sessionUserName}. The office of CEO Sharan Pooni has been notified of your clearance. The CEO or an Executive Board Member will connect with you shortly.`, "Oriontec AI Interface", "AI Protocol");
+            }, 3500);
         }
 
-        function processProfileUpdateAvatar(event) {
-            const trackingFile = event.target.files[0];
-            if (trackingFile) {
-                const streamReader = new FileReader();
-                streamReader.onload = function(e) { base64ProfileUpdateCache = e.target.result; };
-                streamReader.readAsDataURL(trackingFile);
-            }
-        }
-
-        async function saveProfileModifications() {
-            const freshName = document.getElementById('edit-name-field').value;
-            const freshHeadline = document.getElementById('edit-headline-field').value;
-            if(!freshName) return alert("Identity String cannot be null.");
-
-            let updates = {
-                fullName: freshName,
-                jobTitle: freshHeadline
-            };
-            if(base64ProfileUpdateCache) {
-                updates.profileImage = base64ProfileUpdateCache;
-            }
-
-            try {
-                await runtimeDb.ref('users/' + authInstance.currentUser.uid).update(updates);
-                alert("Profile configuration matrix updated successfully.");
-                toggleEditProfileBox();
-            } catch(err) { alert(err.message); }
-        }
-
-        // 6. Media Encoding Blocks
-        function processAvatar(event) {
-            const trackingFile = event.target.files[0];
-            if (trackingFile) {
-                const streamReader = new FileReader();
-                streamReader.onload = function(e) { base64ProfileCache = e.target.result; };
-                streamReader.readAsDataURL(trackingFile);
-            }
-        }
-
-        function processPostMedia(event) {
-            const verificationMedia = event.target.files[0];
-            if (verificationMedia) {
-                const streamReader = new FileReader();
-                streamReader.onload = function(e) {
-                    base64PostMediaCache = e.target.result;
-                    const visualElement = document.getElementById('image-preview');
-                    visualElement.src = base64PostMediaCache;
-                    visualElement.style.display = 'block';
-                };
-                streamReader.readAsDataURL(verificationMedia);
-            }
-        }
-
-        // 7. Navigation Control Routing Engine
-        function switchView(targetPanelId) {
-            document.querySelectorAll('.view-panel').forEach(view => view.classList.remove('active-panel'));
-            document.querySelectorAll('.nav-icons div').forEach(tab => tab.classList.remove('active'));
-            document.getElementById(targetPanelId).classList.add('active-panel');
+        // --- 4. Messaging Core Functions ---
+        function checkInput(context) {
+            const input = document.getElementById(`${context}-msg-input`).value;
+            const btn = document.getElementById(`${context}-send-btn`);
+            btn.style.display = input.trim().length > 0 ? "block" : "none";
             
-            if(targetPanelId === 'feed-panel') document.getElementById('nav-feed').classList.add('active');
-            if(targetPanelId === 'jobs-panel') document.getElementById('nav-jobs').classList.add('active');
-            if(targetPanelId === 'company-panel') document.getElementById('nav-company').classList.add('active');
-        }
-
-        function fetchDeviceLocation() {
-            if (navigator.geolocation) {
-                document.getElementById('geo-status-indicator').innerText = "Querying coordinates...";
-                navigator.geolocation.getCurrentPosition(async (pos) => {
-                    try {
-                        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`);
-                        const structuralData = await res.json();
-                        structuredGeoString = structuralData.address.city || structuralData.address.state || "Remote Base";
-                        document.getElementById('geo-status-indicator').innerHTML = `<i class="fas fa-map-pin"></i> ${structuredGeoString}`;
-                    } catch (e) { structuredGeoString = "Global Cluster"; }
-                });
+            // Simulate typing indicator
+            if(context === 'user') {
+                db.ref(`executive_chats/${sessionUserId}/typing/user`).set(true);
+                clearTimeout(window.userTypingTimer);
+                window.userTypingTimer = setTimeout(() => db.ref(`executive_chats/${sessionUserId}/typing/user`).set(false), 2000);
             }
         }
 
-        // 8. Core Stream Engine with Fresh Session Filtering
-        function publishPost() {
-            const textSource = document.getElementById('post-text-input').value;
-            if(!textSource && !base64PostMediaCache) return alert("Content cannot be null.");
-
-            const trackingPayload = {
-                uid: authInstance.currentUser.uid,
-                authorName: operationalUserRecord.fullName,
-                authorRole: operationalUserRecord.jobTitle || 'Ecosystem Node',
-                isVerified: operationalUserRecord.isVerified,
-                avatar: operationalUserRecord.profileImage || "",
-                text: textSource,
-                mediaBlob: base64PostMediaCache || "",
-                geoTag: structuredGeoString || "",
-                likeCount: 0,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
+        function pushMessageToDB(userId, text, senderName, role, mediaBase64 = null) {
+            const msgPayload = {
+                text: text,
+                sender: senderName,
+                role: role,
+                media: mediaBase64,
+                timestamp: Date.now(),
+                status: "Sent"
             };
+            db.ref(`executive_chats/${userId}/messages`).push(msgPayload);
+        }
 
-            runtimeDb.ref('posts').push(trackingPayload).then(() => {
-                document.getElementById('post-text-input').value = "";
-                document.getElementById('image-preview').style.display = "none";
-                base64PostMediaCache = "";
-                structuredGeoString = "";
-                document.getElementById('geo-status-indicator').innerText = "";
+        function sendMessage(context) {
+            const inputEl = document.getElementById(`${context}-msg-input`);
+            const text = inputEl.value;
+            if(!text) return;
+
+            if(context === 'user') {
+                pushMessageToDB(sessionUserId, text, sessionUserName, 'User');
+            } else if (context === 'admin') {
+                const roleData = document.getElementById('admin-role-selector').value.split('|');
+                pushMessageToDB(activeAdminUserId, text, roleData[0], roleData[1]);
+            }
+
+            inputEl.value = "";
+            document.getElementById(`${context}-send-btn`).style.display = "none";
+        }
+
+        // Base64 Media Handling
+        function handleMediaUpload(event, context) {
+            const file = event.target.files[0];
+            if(file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    if(context === 'user') pushMessageToDB(sessionUserId, "Sent a photo", sessionUserName, 'User', e.target.result);
+                    if(context === 'admin') {
+                        const roleData = document.getElementById('admin-role-selector').value.split('|');
+                        pushMessageToDB(activeAdminUserId, "Sent a photo", roleData[0], roleData[1], e.target.result);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // Regex to convert URLs to clickable links
+        function linkify(text) {
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return text.replace(urlRegex, function(url) {
+                return `<a href="${url}" target="_blank">${url}</a>`;
             });
         }
 
-        function syncTimelineStream() {
-            // ONLY listen and show posts created during or after this browser session's timestamp
-            runtimeDb.ref('posts').orderByChild('timestamp').startAt(appSessionInitTimestamp).on('value', (dataSnapshot) => {
-                const streamContainer = document.getElementById('timeline-stream');
-                streamContainer.innerHTML = '';
-                
-                if(!dataSnapshot.exists()){
-                    streamContainer.innerHTML = '<div class="card" style="text-align:center; color:var(--text-muted); font-size:13px;">No new session updates logged yet. Post something to start the stream!</div>';
-                    return;
-                }
+        // Voice Note Simulation
+        function simulateVoiceNote() {
+            alert("Voice Note Protocol Initialized (Microphone API Access Required in Production).");
+        }
 
-                let reverseChronologicalStack = [];
-                dataSnapshot.forEach((childNode) => {
-                    let postObj = childNode.val();
-                    postObj.postId = childNode.key;
-                    reverseChronologicalStack.unshift(postObj);
-                });
+        // --- 5. Realtime Sync & Render ---
+        function listenForMessages(userId, context) {
+            const chatBoxId = context === 'user' ? 'user-chat-box' : 'admin-chat-box';
+            const chatBox = document.getElementById(chatBoxId);
 
-                reverseChronologicalStack.forEach(post => {
-                    const avatarSrc = post.avatar || "https://via.placeholder.com/44";
-                    const mediaElement = post.mediaBlob ? `<img src="${post.mediaBlob}" class="post-img-render">` : '';
-                    const verificationBadge = post.isVerified ? `<i class="fas fa-check verified-tick"></i>` : '';
-                    const locationLabel = post.geoTag ? `<span style="margin-left:8px; font-size:11px;"><i class="fas fa-map-marker-alt"></i> ${post.geoTag}</span>` : '';
+            db.ref(`executive_chats/${userId}/messages`).on('value', (snapshot) => {
+                chatBox.innerHTML = '';
+                snapshot.forEach((child) => {
+                    const msg = child.val();
+                    let isSentByMe = false;
+                    
+                    if(context === 'user' && msg.role === 'User') isSentByMe = true;
+                    if(context === 'admin' && msg.role !== 'User') isSentByMe = true;
 
-                    let commentsHTML = '';
-                    if (post.comments) {
-                        Object.keys(post.comments).forEach(key => {
-                            const c = post.comments[key];
-                            commentsHTML += `<div style="font-size:12px; margin-bottom:6px; line-height:1.4;"><strong>${c.user}:</strong> ${c.text}</div>`;
-                        });
-                    }
-
-                    const block = `
-                        <div class="card post-card" id="post-${post.postId}">
-                            <div class="post-header">
-                                <img src="${avatarSrc}">
-                                <div>
-                                    <strong style="font-size:14px; font-weight:600;">${post.authorName}</strong> ${verificationBadge}
-                                    <div class="post-meta">${post.authorRole} ${locationLabel}</div>
-                                </div>
-                            </div>
-                            <div class="post-body">
-                                <p>${post.text}</p>
+                    const msgClass = isSentByMe ? 'msg-sent' : 'msg-received';
+                    const mediaElement = msg.media ? `<img src="${msg.media}">` : '';
+                    const senderLabel = isSentByMe ? '' : `<div class="sender-name">${msg.sender} (${msg.role})</div>`;
+                    
+                    const html = `
+                        <div class="msg-wrapper ${msgClass}">
+                            ${senderLabel}
+                            <div class="bubble">
+                                ${linkify(msg.text)}
                                 ${mediaElement}
                             </div>
-                            <div class="engagement-bar">
-                                <button class="engagement-btn" onclick="registerLike('${post.postId}', ${post.likeCount || 0})"><i class="far fa-thumbs-up"></i> ${post.likeCount || 0} Endorsements</button>
+                            <div class="msg-status">Just now • ${isSentByMe ? '<i class="fas fa-check-double" style="color:var(--accent-blue)"></i> Seen' : ''}</div>
+                        </div>
+                    `;
+                    chatBox.innerHTML += html;
+                });
+                chatBox.scrollTop = chatBox.scrollHeight;
+            });
+        }
+
+        // --- 6. Admin Command Center Logic ---
+        function loadAdminUserList() {
+            db.ref('executive_chats').on('value', (snapshot) => {
+                const list = document.getElementById('admin-users-list');
+                list.innerHTML = '';
+                snapshot.forEach((child) => {
+                    const uid = child.key;
+                    const profile = child.val().profile;
+                    if(profile) {
+                        list.innerHTML += `
+                            <div class="user-list-item" onclick="openAdminChat('${uid}', '${profile.name}')">
+                                <h4>${profile.name}</h4>
+                                <p>Father: ${profile.father} | ${profile.email}</p>
                             </div>
-                            <div class="comment-section">
-                                <div class="comment-input-box">
-                                    <input type="text" id="comment-input-${post.postId}" placeholder="Write professional feedback...">
-                                    <button class="btn-sub" style="padding:4px 12px; font-size:11px;" onclick="submitComment('${post.postId}')">Send</button>
-                                </div>
-                                <div id="comment-stream-${post.postId}">${commentsHTML}</div>
-                            </div>
-                        </div>
-                    `;
-                    streamContainer.innerHTML += block;
+                        `;
+                    }
                 });
             });
         }
 
-        function registerLike(postId, currentLikes) {
-            runtimeDb.ref(`posts/${postId}`).update({ likeCount: currentLikes + 1 });
-        }
-
-        function submitComment(postId) {
-            const commentInput = document.getElementById(`comment-input-${postId}`);
-            const commentText = commentInput.value;
-            if(!commentText) return;
-
-            runtimeDb.ref(`posts/${postId}/comments`).push({
-                user: operationalUserRecord.fullName,
-                text: commentText,
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => { commentInput.value = ''; });
-        }
-
-        // 9. Job Board Operations
-        function submitStrictJob() {
-            if(!operationalUserRecord || operationalUserRecord.accountType !== 'business') {
-                return alert("Security Refusal: Requires an authorized business workspace structure.");
-            }
-
-            const title = document.getElementById('job-form-title').value;
-            const company = document.getElementById('job-form-comp').value;
-            const location = document.getElementById('job-form-loc').value;
-            const desc = document.getElementById('job-form-desc').value;
-            const ren = document.getElementById('job-form-salary').value;
-
-            if(!title || !company || !desc) return alert("Required context definitions missing.");
-
-            runtimeDb.ref('jobs').push({
-                title: title,
-                company: company,
-                location: location,
-                description: desc,
-                renumeration: ren,
-                verifiedIssuer: operationalUserRecord.isVerified,
-                signatureDomain: operationalUserRecord.email.split('@')[1],
-                timestamp: firebase.database.ServerValue.TIMESTAMP
-            }).then(() => {
-                alert("Opportunity architecture deployed successfully.");
-                switchView('jobs-panel');
-            });
-        }
-
-        function syncCustomJobsStream() {
-            runtimeDb.ref('jobs').on('value', (dataSnapshot) => {
-                const liveJobsList = document.getElementById('live-jobs-list');
-                liveJobsList.innerHTML = '';
-
-                if(!dataSnapshot.exists()) {
-                    liveJobsList.innerHTML = '<p style="font-size:13px; color:var(--text-muted);">No corporate structures have registered requirements today.</p>';
-                    return;
-                }
-
-                dataSnapshot.forEach((childNode) => {
-                    const structuralJob = childNode.val();
-                    const corporateBadge = structuralJob.verifiedIssuer ? `<span class="strict-badge" style="background:#000; color:#fff;">✓ Verified Corporate Origin</span>` : `<span class="strict-badge">External Node</span>`;
-                    
-                    liveJobsList.innerHTML += `
-                        <div class="job-item">
-                            <h4 style="font-size:14px; font-weight:700; color:#000;">${structuralJob.title}</h4>
-                            <p style="font-size:12px; margin-top:2px;"><strong>${structuralJob.company}</strong> — ${structuralJob.location || 'Remote Gateway'}</p>
-                            <p style="font-size:12px; margin-top:6px; color:#444; line-height:1.5;">${structuralJob.description}</p>
-                            <div>${corporateBadge} <span class="strict-badge" style="border:1px dashed #ccc; background:none;">Domain: ${structuralJob.signatureDomain}</span></div>
-                        </div>
-                    `;
-                });
-            });
-        }
-
-        // 10. Third Party Open Aggregator Pipeline
-        async function triggerExternalApiJobs() {
-            const apiDestinationContainer = document.getElementById('api-jobs-aggregator');
-            try {
-                const productionFetchResult = await fetch('https://remotive.com/api/remote-jobs?limit=4');
-                const compiledJsonPayload = await productionFetchResult.json();
-                
-                apiDestinationContainer.innerHTML = '';
-                compiledJsonPayload.jobs.forEach(item => {
-                    apiDestinationContainer.innerHTML += `
-                        <div class="job-item" style="padding:8px 0;">
-                            <strong style="font-size: 12px; color:#000; display:block; line-height:1.3;">${item.title}</strong>
-                            <span style="font-size: 11px; color:var(--text-muted);">${item.company_name}</span>
-                        </div>
-                    `;
-                });
-            } catch (e) {
-                apiDestinationContainer.innerHTML = '<p style="font-size:11px; color:var(--text-muted);">External sync pipelines offline.</p>';
-            }
-        }
-
-        // 11. Search Realtime Execution Block
-        function searchFeed() {
-            const searchInputString = document.getElementById('global-search').value.toLowerCase();
-            document.querySelectorAll('#timeline-stream .post-card').forEach(postElement => {
-                const text = postElement.querySelector('.post-body').innerText.toLowerCase();
-                const author = postElement.querySelector('.post-header strong').innerText.toLowerCase();
-                postElement.style.display = (text.includes(searchInputString) || author.includes(searchInputString)) ? "block" : "none";
-            });
+        function openAdminChat(uid, name) {
+            activeAdminUserId = uid;
+            document.getElementById('admin-viewing-user').innerText = name;
+            document.getElementById('admin-msg-input').disabled = false;
+            listenForMessages(uid, 'admin');
         }
     </script>
 </body>
