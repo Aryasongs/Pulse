@@ -3,36 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MONTÈ | Luxury Apparel</title>
+    <title>MONTÈ | Luxury Apparel Store</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <!-- EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
         tailwind.config = {
-            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Playfair Display', 'serif'], }, colors: { brand: '#111111', } } }
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'], serif: ['Playfair Display', 'serif'] },
+                    colors: { brand: '#111111' }
+                }
+            }
         }
     </script>
     <style>
         * { touch-action: manipulation; }
         body { background-color: #FAFAFA; color: #111; font-family: 'Inter', sans-serif; }
-        .modal-overlay { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.6); z-index: 100; justify-content: center; align-items: center; padding: 1rem; backdrop-filter: blur(4px); }
+        .modal-overlay { display: none; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); z-index: 100; justify-content: center; align-items: center; padding: 1rem; backdrop-filter: blur(4px); }
         .modal-overlay.active { display: flex; }
-        .view-section { display: none; }
-        .view-section.active { display: block; animation: fadeIn 0.4s ease-out; }
+        .view-section { display: none; opacity: 0; transition: opacity 0.4s ease; }
+        .view-section.active { display: block; opacity: 1; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         
+        /* Premium Toasts */
         .toast-enter { transform: translateY(-100%); opacity: 0; }
-        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-        .toast-exit { opacity: 0; transition: opacity 0.3s ease; }
+        .toast-enter-active { transform: translateY(0); opacity: 1; transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+        .toast-exit { opacity: 0; transition: opacity 0.4s ease; }
         
+        /* Montè+ Luxury Shimmer */
         .monte-plus-text { background: linear-gradient(90deg, #b8860b, #ffd700, #b8860b); background-size: 200% auto; color: transparent; -webkit-background-clip: text; animation: shine 3s linear infinite; }
         @keyframes shine { to { background-position: 200% center; } }
 
-        /* Custom Coin SVG Icon CSS */
-        .coin-icon { display: inline-block; width: 1.1em; height: 1.1em; vertical-align: -0.2em; fill: none; stroke: currentColor; stroke-width: 1.5; }
+        /* Custom OTP Input Styling */
+        .otp-input { letter-spacing: 0.5em; text-align: center; font-variant-numeric: tabular-nums; }
     </style>
 </head>
 <body class="antialiased">
@@ -40,103 +48,105 @@
     <!-- Global Toast Container -->
     <div id="toastContainer" class="fixed top-4 right-4 z-[9999] flex flex-col gap-3 max-w-sm w-full pointer-events-none"></div>
 
-    <!-- Navigation -->
+    <!-- Minimalist Navbar -->
     <nav class="fixed w-full bg-white/90 backdrop-blur-md z-50 border-b border-gray-100">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
             <div class="flex items-center gap-6">
-                <button onclick="switchView('homeView')" class="text-sm font-semibold tracking-widest uppercase hover:opacity-70 transition">Shop</button>
-                <button onclick="openTrackingModalDirectly()" class="text-sm font-semibold tracking-widest uppercase hover:opacity-70 transition">Track</button>
+                <button onclick="switchView('homeView')" class="text-xs font-bold tracking-[0.15em] uppercase hover:text-neutral-500 transition">Shop</button>
+                <button onclick="openTrackingModalDirectly()" class="text-xs font-bold tracking-[0.15em] uppercase hover:text-neutral-500 transition">Track</button>
             </div>
-            <div class="text-3xl font-serif font-bold tracking-widest cursor-pointer select-none" ondblclick="toggleSupportBanner()">MONTÈ</div>
+            <div class="text-2xl font-serif font-bold tracking-[0.2em] cursor-pointer select-none" ondblclick="toggleSupportBanner()">
+                MONTÈ
+            </div>
             <div class="flex items-center gap-6">
-                <button onclick="handleNavAccountClick()" id="navAccountBtn" class="text-sm font-semibold tracking-widest uppercase hover:opacity-70 transition">Login</button>
-                <button onclick="showToast('Your luxury cart is empty. Add the Signature Tee to proceed.', 'info')" class="text-sm font-semibold tracking-widest uppercase hover:opacity-70 transition">Cart</button>
+                <button onclick="handleNavAccountClick()" id="navAccountBtn" class="text-xs font-bold tracking-[0.15em] uppercase hover:text-neutral-500 transition">Login</button>
+                <button onclick="showToast('Your luxury cart is empty.', 'info')" class="text-xs font-bold tracking-[0.15em] uppercase hover:text-neutral-500 transition">Cart (0)</button>
             </div>
         </div>
     </nav>
 
-    <div id="hiddenSupportBanner" class="hidden bg-black text-white p-4 mt-16 text-center text-xs tracking-widest uppercase transition-all">
+    <!-- Hidden VIP Support -->
+    <div id="hiddenSupportBanner" class="hidden bg-black text-white p-3 mt-16 text-center text-[10px] tracking-widest uppercase transition-all">
         Connoisseur Executive Line: <span class="font-bold select-all">+91 79738 04008</span>
     </div>
 
     <!-- MAIN CONTAINER -->
     <div class="pt-24 min-h-screen">
         
-        <!-- 1. HOME / PRODUCT VIEW -->
+        <!-- 1. HOME VIEW -->
         <div id="homeView" class="view-section active max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             
-            <!-- DYNAMIC STATUS BANNER -->
-            <div id="productStatusBanner" class="hidden mb-8 bg-black text-white p-4 text-center text-xs tracking-widest font-bold uppercase shadow-lg"></div>
+            <!-- Dynamic Status Banner -->
+            <div id="productStatusBanner" class="hidden mb-8 bg-neutral-900 text-white p-4 text-center text-[10px] tracking-[0.2em] font-bold uppercase shadow-sm"></div>
 
-            <div class="flex flex-col lg:flex-row gap-12">
+            <div class="flex flex-col lg:flex-row gap-12 lg:gap-20">
                 <!-- Gallery -->
                 <div class="lg:w-1/2 flex flex-col sm:flex-row gap-4">
                     <div class="flex sm:flex-col gap-3 order-2 sm:order-1 overflow-x-auto sm:overflow-x-visible no-scrollbar">
-                        <img src="https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png" class="w-20 h-24 object-cover cursor-pointer border border-black/10 hover:border-black transition" onclick="updateMainImage(this.src)">
-                        <img src="https://aryasongs.github.io/Pulse/55F3C14A-0AB9-416A-891E-4B97F15829B1.png" class="w-20 h-24 object-cover cursor-pointer border border-black/10 hover:border-black transition" onclick="updateMainImage(this.src)">
-                        <img src="https://aryasongs.github.io/Pulse/9BF12F78-C4CF-4BEF-86AE-A489D8B36021.png" class="w-20 h-24 object-cover cursor-pointer border border-black/10 hover:border-black transition" onclick="updateMainImage(this.src)">
-                        <img src="https://aryasongs.github.io/Pulse/B0ED3981-14B8-4A5D-83BF-D23C1DB14F2E.png" class="w-20 h-24 object-cover cursor-pointer border border-black/10 hover:border-black transition" onclick="updateMainImage(this.src)">
+                        <img src="https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png" class="w-16 h-20 object-cover cursor-pointer border border-transparent hover:border-black transition" onclick="updateMainImage(this.src)">
+                        <img src="https://aryasongs.github.io/Pulse/55F3C14A-0AB9-416A-891E-4B97F15829B1.png" class="w-16 h-20 object-cover cursor-pointer border border-transparent hover:border-black transition" onclick="updateMainImage(this.src)">
+                        <img src="https://aryasongs.github.io/Pulse/9BF12F78-C4CF-4BEF-86AE-A489D8B36021.png" class="w-16 h-20 object-cover cursor-pointer border border-transparent hover:border-black transition" onclick="updateMainImage(this.src)">
+                        <img src="https://aryasongs.github.io/Pulse/B0ED3981-14B8-4A5D-83BF-D23C1DB14F2E.png" class="w-16 h-20 object-cover cursor-pointer border border-transparent hover:border-black transition" onclick="updateMainImage(this.src)">
                     </div>
                     <div class="flex-1 order-1 sm:order-2 relative">
-                        <div id="imgOverlayBadge" class="hidden absolute top-4 left-4 bg-white/90 backdrop-blur text-black px-3 py-1 text-[10px] font-bold tracking-widest uppercase shadow-sm">MONTÈ+ EXCLUSIVE</div>
-                        <img id="primaryCanvas" src="https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png" class="w-full h-[550px] object-cover bg-neutral-100 shadow-sm">
+                        <div id="imgOverlayBadge" class="hidden absolute top-4 left-4 bg-white/90 backdrop-blur text-black px-3 py-1.5 text-[9px] font-bold tracking-[0.2em] uppercase shadow-sm">MONTÈ+ EXCLUSIVE</div>
+                        <img id="primaryCanvas" src="https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png" class="w-full h-[600px] object-cover bg-neutral-100 shadow-sm">
                     </div>
                 </div>
 
                 <!-- Product Details -->
                 <div class="lg:w-1/2 flex flex-col justify-start">
-                    <div class="border-b border-neutral-200 pb-4 mb-4">
-                        <span class="text-xs uppercase tracking-widest text-neutral-400 font-medium">Prestige Collection</span>
-                        <h1 class="text-4xl font-serif font-bold tracking-tight mt-1 mb-2">MONTÈ Signature Tee</h1>
-                        
-                        <div class="flex items-center gap-2 mt-2 text-sm">
-                            <div class="text-amber-500 tracking-tighter text-base">★★★★★</div>
-                            <span id="ratingDisplayLabel" class="text-neutral-500 font-medium text-xs tracking-wide">(4.9/5 verified collectors)</span>
-                            <button onclick="triggerReviewSubmission()" class="ml-4 text-[10px] tracking-widest font-bold uppercase border border-black px-2 py-0.5 hover:bg-black hover:text-white transition">Leave Review</button>
+                    <div class="border-b border-neutral-200 pb-6 mb-6">
+                        <span class="text-[10px] uppercase tracking-[0.2em] text-neutral-400 font-bold">Prestige Collection</span>
+                        <h1 class="text-4xl font-serif font-bold tracking-tight mt-2 mb-3">MONTÈ Signature Tee</h1>
+                        <div class="flex items-center gap-3 mt-2 text-sm">
+                            <div class="text-black tracking-tighter text-sm">★★★★★</div>
+                            <span class="text-neutral-400 font-medium text-[11px] tracking-widest uppercase">4.9/5 Verified Ratings</span>
+                            <button onclick="triggerReviewSubmission()" class="ml-auto text-[9px] tracking-[0.2em] font-bold uppercase border border-black px-3 py-1.5 hover:bg-black hover:text-white transition">Leave Review</button>
                         </div>
                     </div>
 
-                    <div class="flex items-baseline gap-4 mb-6">
-                        <span class="text-3xl font-light tracking-tight text-neutral-900">₹999</span>
-                        <span class="text-lg text-neutral-400 line-through font-light">₹1,499</span>
-                        <span class="text-[10px] font-bold tracking-widest bg-emerald-600 text-white px-2 py-1 uppercase rounded-sm">Save ₹500</span>
+                    <div class="flex items-baseline gap-4 mb-8">
+                        <span class="text-2xl font-semibold tracking-wide text-black">₹999</span>
+                        <span class="text-sm text-neutral-400 line-through">₹1,499</span>
                     </div>
 
-                    <!-- Colors -->
-                    <div class="mb-6">
-                        <span class="block text-xs font-semibold tracking-widest uppercase text-neutral-500 mb-2">Selected Shade: <span id="activeColorText" class="text-black font-bold">Midnight Navy</span></span>
-                        <div class="flex gap-4">
-                            <button onclick="selectColorShade('Midnight Navy', 'https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png')" class="w-9 h-9 rounded-full bg-[#1A2332] border-2 border-white ring-2 ring-black transition focus:outline-none"></button>
-                            <button onclick="selectColorShade('Arctic Blanc', 'https://aryasongs.github.io/Pulse/55F3C14A-0AB9-416A-891E-4B97F15829B1.png')" class="w-9 h-9 rounded-full bg-white border border-neutral-300 transition hover:ring-2 hover:ring-black focus:outline-none"></button>
-                        </div>
-                    </div>
-
-                    <!-- Sizes -->
                     <div class="mb-8">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-xs font-semibold tracking-widest uppercase text-neutral-500">Available Sizing</span>
+                        <span class="block text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-3">Shade: <span id="activeColorText" class="text-black">Midnight Navy</span></span>
+                        <div class="flex gap-4">
+                            <button onclick="selectColorShade('Midnight Navy', 'https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png')" class="w-8 h-8 rounded-full bg-[#1A2332] ring-1 ring-offset-2 ring-black transition focus:outline-none"></button>
+                            <button onclick="selectColorShade('Arctic Blanc', 'https://aryasongs.github.io/Pulse/55F3C14A-0AB9-416A-891E-4B97F15829B1.png')" class="w-8 h-8 rounded-full bg-white border border-neutral-300 transition hover:ring-1 hover:ring-offset-2 hover:ring-black focus:outline-none"></button>
+                        </div>
+                    </div>
+
+                    <div class="mb-10">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400">Sizing Matrix</span>
+                            <span class="text-[9px] underline text-neutral-400 tracking-[0.2em] cursor-pointer hover:text-black uppercase">Fit Guide</span>
                         </div>
                         <div class="grid grid-cols-4 sm:grid-cols-7 gap-2" id="sizeSelectorContainer">
-                            <button onclick="selectProductSize(this)" data-size="S" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">S</button>
-                            <button onclick="selectProductSize(this)" data-size="M" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">M</button>
-                            <button onclick="selectProductSize(this)" data-size="L" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">L</button>
-                            <button onclick="selectProductSize(this)" data-size="XL" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">XL</button>
-                            <button onclick="selectProductSize(this)" data-size="2XL" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">2XL</button>
-                            <button onclick="selectProductSize(this)" data-size="3XL" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">3XL</button>
-                            <button onclick="selectProductSize(this)" data-size="4XL" class="size-btn border border-neutral-300 py-2.5 text-xs font-medium tracking-widest hover:border-black transition focus:outline-none uppercase disabled:opacity-30 disabled:cursor-not-allowed">4XL</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">S</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">M</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">L</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">XL</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">2XL</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">3XL</button>
+                            <button onclick="selectProductSize(this)" class="border border-neutral-200 py-3 text-[11px] font-bold tracking-widest hover:border-black transition focus:outline-none uppercase">4XL</button>
                         </div>
                     </div>
 
-                    <button id="masterAcquireBtn" onclick="initiateCheckoutProcess()" class="w-full bg-black text-white py-4 text-xs font-semibold tracking-widest uppercase hover:bg-neutral-800 transition shadow-md focus:outline-none mb-8">
-                        Acquire & Proceed to Checkout
+                    <button id="masterAcquireBtn" onclick="initiateCheckoutProcess()" class="w-full bg-black text-white py-4.5 text-[11px] font-bold tracking-[0.2em] uppercase hover:bg-neutral-800 transition shadow-lg focus:outline-none mb-10">
+                        Acquire & Proceed
                     </button>
 
-                    <div class="border-t border-neutral-200 pt-6 space-y-4 text-xs text-neutral-600 leading-relaxed">
-                        <p>Effortless, refined, and timeless. Designed with a relaxed oversized fit and premium cotton construction, it delivers exceptional comfort while maintaining a clean, elevated silhouette.</p>
-                        <div class="grid grid-cols-2 gap-2 pt-2 text-black font-medium tracking-wide">
-                            <div>• Premium Cotton Fabric</div><div>• Oversized Contemporary Fit</div>
-                            <div>• Soft-Touch Organic Finish</div><div>• Breathable & Lightweight</div>
-                        </div>
+                    <div class="border-t border-neutral-200 pt-8 space-y-6 text-xs text-neutral-500 leading-relaxed font-light">
+                        <p><strong class="text-black font-semibold tracking-wide">Timeless Silhouette.</strong> Crafted for those who appreciate understated luxury. Designed with a relaxed oversized fit and premium cotton construction, delivering exceptional comfort.</p>
+                        <ul class="space-y-2 uppercase tracking-widest text-[9px] font-bold">
+                            <li>• 100% Premium Cotton Fabric</li>
+                            <li>• Oversized Contemporary Fit</li>
+                            <li>• Soft-Touch Organic Finish</li>
+                            <li>• Breathable & Ultra-Lightweight</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -144,113 +154,111 @@
 
         <!-- 2. TRACKING VIEW -->
         <div id="trackingView" class="view-section max-w-3xl mx-auto px-4 py-12">
-            <div class="bg-white border border-neutral-200 p-10 shadow-sm rounded-sm">
-                <div class="text-center border-b border-neutral-100 pb-6 mb-8">
-                    <h2 class="text-3xl font-serif font-bold tracking-wide text-black">Order Secured</h2>
-                    <p class="text-xs text-neutral-400 mt-2 uppercase tracking-widest">Real-time Logistics Dashboard</p>
+            <div class="bg-white border border-neutral-200 p-8 shadow-sm">
+                <div class="text-center border-b border-neutral-100 pb-8 mb-8">
+                    <h2 class="text-2xl font-serif font-bold tracking-wide">Order Verified</h2>
+                    <p class="text-[10px] text-neutral-400 mt-2 uppercase tracking-[0.2em]">Fulfillment Dashboard</p>
                 </div>
 
-                <div class="grid grid-cols-2 gap-6 text-sm mb-10 bg-neutral-50 p-6 border border-neutral-100">
-                    <div>
-                        <span class="text-neutral-400 block uppercase tracking-wider mb-1 text-[10px] font-bold">Order Reference</span>
-                        <span id="trackOrderId" class="font-bold text-black select-all">---</span>
-                    </div>
-                    <div>
-                        <span class="text-neutral-400 block uppercase tracking-wider mb-1 text-[10px] font-bold">Protocol</span>
-                        <span id="trackPaymentMethod" class="font-bold text-black uppercase">---</span>
-                    </div>
-                    <div class="col-span-2 pt-4 border-t border-neutral-200/50">
-                        <span class="text-neutral-400 block uppercase tracking-wider mb-1 text-[10px] font-bold">Destination</span>
-                        <span id="trackShippingAddress" class="text-neutral-700 font-medium">---</span>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-[11px] mb-10 bg-neutral-50 p-6 border border-neutral-100">
+                    <div><span class="text-neutral-400 block uppercase tracking-[0.2em] mb-1">Order ID</span><span id="trackOrderId" class="font-bold text-black select-all">---</span></div>
+                    <div><span class="text-neutral-400 block uppercase tracking-[0.2em] mb-1">Payment</span><span id="trackPaymentMethod" class="font-bold text-black uppercase">---</span></div>
+                    <div class="md:col-span-2"><span class="text-neutral-400 block uppercase tracking-[0.2em] mb-1">Destination</span><span id="trackShippingAddress" class="text-black font-medium leading-relaxed">---</span></div>
+                </div>
+
+                <div class="mb-10">
+                    <span class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 block mb-6 text-center">Transit Pipeline</span>
+                    <div class="relative flex items-center justify-between max-w-lg mx-auto">
+                        <div class="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-0.5 bg-neutral-200 z-0"></div>
+                        <div id="trackProgressLine" class="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-black z-0 transition-all duration-700" style="width: 0%;"></div>
+                        <div class="relative z-10 flex flex-col items-center"><div id="stepCircle1" class="w-4 h-4 rounded-full bg-neutral-200 transition-colors"></div><span class="text-[8px] font-bold uppercase tracking-[0.2em] mt-3 text-neutral-500">Placed</span></div>
+                        <div class="relative z-10 flex flex-col items-center"><div id="stepCircle2" class="w-4 h-4 rounded-full bg-neutral-200 transition-colors"></div><span class="text-[8px] font-bold uppercase tracking-[0.2em] mt-3 text-neutral-500">Verified</span></div>
+                        <div class="relative z-10 flex flex-col items-center"><div id="stepCircle3" class="w-4 h-4 rounded-full bg-neutral-200 transition-colors"></div><span class="text-[8px] font-bold uppercase tracking-[0.2em] mt-3 text-neutral-500">Shipped</span></div>
+                        <div class="relative z-10 flex flex-col items-center"><div id="stepCircle4" class="w-4 h-4 rounded-full bg-neutral-200 transition-colors"></div><span class="text-[8px] font-bold uppercase tracking-[0.2em] mt-3 text-neutral-500">Delivered</span></div>
                     </div>
                 </div>
 
-                <div id="trackingStatusMessagePanel" class="text-xs border border-neutral-200 bg-neutral-50 p-4 text-center rounded-sm tracking-wide font-medium text-neutral-700 mb-8">
-                    Parsing order state...
+                <div id="trackingStatusMessagePanel" class="text-[10px] border border-neutral-200 bg-neutral-50 p-5 text-center tracking-[0.2em] font-bold text-neutral-600 uppercase mb-8 leading-relaxed">
+                    Loading context...
                 </div>
 
-                <div class="flex flex-col gap-3">
-                    <button id="cancelOrderActionBtn" onclick="executeActiveOrderCancellation()" class="w-full bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs font-bold tracking-widest uppercase py-3.5 transition focus:outline-none">
-                        Revoke Order
-                    </button>
-                    <button onclick="switchView('homeView')" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-3.5 transition focus:outline-none text-center">
-                        Return to Catalogue
-                    </button>
+                <div class="flex flex-col gap-4 max-w-sm mx-auto">
+                    <button id="cancelOrderActionBtn" onclick="executeActiveOrderCancellation()" class="w-full text-red-500 hover:text-red-700 text-[10px] font-bold tracking-[0.2em] uppercase py-3 transition focus:outline-none underline">Revoke Consignment</button>
+                    <button onclick="switchView('homeView')" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-4 transition focus:outline-none shadow-md">Return to Catalogue</button>
                 </div>
             </div>
         </div>
 
-        <!-- 3. PREMIUM ACCOUNT DASHBOARD -->
+        <!-- 3. PREMIUM ACCOUNT DASHBOARD (ZARA/NIKE STYLE) -->
         <div id="accountView" class="view-section max-w-5xl mx-auto px-4 py-12">
-            <div class="flex justify-between items-end mb-10 border-b border-neutral-200 pb-6">
-                <div>
-                    <h2 class="text-4xl font-serif font-bold tracking-tight text-black">My Portfolio</h2>
-                    <p class="text-xs text-neutral-400 mt-2 uppercase tracking-widest font-semibold">Account Identity & Logistics</p>
-                </div>
-                <button onclick="triggerSignOutSession()" class="text-xs uppercase tracking-widest font-bold text-neutral-400 hover:text-black transition focus:outline-none">Log Out</button>
+            <div class="flex flex-col md:flex-row justify-between items-baseline border-b border-black pb-4 mb-10">
+                <h2 class="text-3xl font-serif font-bold tracking-tight">My Portfolio</h2>
+                <button onclick="triggerSignOutSession()" class="text-[10px] uppercase tracking-[0.2em] font-bold text-neutral-500 hover:text-black transition">Sign Out</button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-                <!-- Profile Card -->
-                <div class="lg:col-span-2 bg-white border border-neutral-200 p-8 relative overflow-hidden group">
-                    <div id="montePlusCrown" class="hidden absolute top-4 right-4 bg-black text-white px-3 py-1 text-[10px] font-bold tracking-widest uppercase monte-plus-text">MONTÈ+ VIP</div>
-                    <span class="text-[10px] text-neutral-400 uppercase tracking-widest block mb-6 font-bold">Client Matrix</span>
-                    <h3 id="accProfileName" class="text-2xl font-serif font-bold text-black mb-1">---</h3>
-                    <p id="accProfileEmail" class="text-sm text-neutral-500 mb-4">---</p>
-                    <p id="accProfilePhone" class="text-sm text-neutral-500 font-medium tracking-wide">---</p>
-                    
-                    <div class="mt-8 pt-6 border-t border-neutral-100 flex gap-8">
-                        <div>
-                            <span class="block text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-1">M-Coins Vault</span>
-                            <span id="accCoinsBalance" class="text-lg font-bold text-emerald-600 flex items-center gap-1">
-                                <svg class="coin-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M9 9h6M9 15h6"></path></svg> 0
-                            </span>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <!-- Left Col: Profile & Vault -->
+                <div class="lg:col-span-1 space-y-8">
+                    <!-- Profile Info -->
+                    <div>
+                        <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-4">Identity</h3>
+                        <div class="space-y-1">
+                            <div id="accProfileName" class="text-lg font-bold uppercase tracking-wide">---</div>
+                            <div id="accProfileEmail" class="text-xs text-neutral-500">---</div>
+                            <div id="accProfilePhone" class="text-xs text-neutral-500">---</div>
                         </div>
-                        <div>
-                            <span class="block text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-1">Acquisitions</span>
-                            <span class="text-lg font-bold text-black"><span id="accValidOrders">0</span> <span class="text-[10px] text-neutral-400 font-normal">/ 12 FOR MONTÈ+</span></span>
+                    </div>
+
+                    <!-- M-Coins Vault (Premium SVG Icon) -->
+                    <div class="bg-black text-white p-6 relative overflow-hidden">
+                        <div id="montePlusCrown" class="hidden absolute top-0 right-0 bg-white text-black px-3 py-1.5 text-[8px] font-bold tracking-[0.2em] uppercase monte-plus-text">MONTÈ+ VIP</div>
+                        <h3 class="text-[9px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-2">Vault Balance</h3>
+                        <div class="flex items-center gap-2 text-2xl font-bold tracking-widest">
+                            <svg class="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M9 10L12 14L15 10"></path><path d="M12 14V17"></path></svg>
+                            <span id="accCoinsBalance">0</span>
+                        </div>
+                        <div class="mt-4 text-[9px] text-neutral-400 tracking-widest uppercase"><span id="accValidOrders">0</span> / 12 Orders for Montè+</div>
+                    </div>
+
+                    <!-- Saved Address Box -->
+                    <div>
+                        <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-4">Saved Logistics</h3>
+                        <div id="accSavedAddress" class="text-xs text-neutral-500 leading-relaxed border border-neutral-200 p-4 bg-neutral-50">
+                            No saved address found. Checkout to save.
+                        </div>
+                    </div>
+
+                    <!-- Security Metrics -->
+                    <div>
+                        <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-4">Security Metrics</h3>
+                        <div class="space-y-3 text-[10px] uppercase tracking-widest font-bold">
+                            <div class="flex justify-between border-b border-neutral-100 pb-2"><span class="text-neutral-500">Cancellations</span><span id="accCancelCount" class="text-red-500">0 / 15</span></div>
+                            <div class="flex justify-between border-b border-neutral-100 pb-2"><span class="text-neutral-500">COD Access</span><span id="accCodStatus" class="text-emerald-500">Active</span></div>
+                            <div class="flex justify-between pb-2"><span class="text-neutral-500">Account Status</span><span id="accSuspensionStatus" class="text-emerald-500">Secure</span></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Status Card -->
-                <div class="bg-neutral-50 border border-neutral-200 p-8 flex flex-col justify-center">
-                    <span class="text-[10px] text-neutral-400 uppercase tracking-widest block mb-6 font-bold">Integrity Metric</span>
-                    <div class="space-y-6">
-                        <div>
-                            <span class="block text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-1">Cancellation Protocol</span>
-                            <span id="accCancelCount" class="text-sm font-bold text-black">0 / 15</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-1">Account Access</span>
-                            <span id="accSuspensionStatus" class="text-sm font-bold uppercase text-emerald-600">Secure</span>
-                        </div>
-                        <div>
-                            <span class="block text-[10px] text-neutral-400 uppercase tracking-widest font-bold mb-1">COD Allowance</span>
-                            <span id="accCodStatus" class="text-sm font-bold uppercase text-emerald-600">Active</span>
-                        </div>
+                <!-- Right Col: Order History -->
+                <div class="lg:col-span-2">
+                    <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-6">Consignment Ledger</h3>
+                    <div id="accountOrderHistoryContainer" class="space-y-4">
+                        <div class="text-[10px] uppercase text-neutral-400 tracking-widest">Scanning logs...</div>
                     </div>
-                </div>
-            </div>
-
-            <div class="mb-10">
-                <h3 class="text-sm font-bold tracking-widest uppercase text-black mb-6 border-b border-neutral-200 pb-2">Acquisition Ledger</h3>
-                <div id="accountOrderHistoryContainer" class="space-y-4">
-                    <p class="text-xs text-neutral-400 tracking-widest uppercase">Querying ledger...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- FOOTER -->
-    <footer class="bg-white border-t border-neutral-200 py-16 mt-16">
-        <div class="max-w-7xl mx-auto px-4 text-center flex flex-col items-center gap-6">
-            <h2 class="font-serif text-2xl tracking-widest font-bold text-black">MONTÈ</h2>
-            <div class="flex gap-8 text-xs tracking-widest uppercase font-bold text-neutral-400">
-                <a href="javascript:void(0)" onclick="openPolicyView('refundPolicyModal')" class="hover:text-black transition">Refund Protocol</a>
-                <a href="javascript:void(0)" onclick="openPolicyView('privacyPolicyModal')" class="hover:text-black transition">Privacy Protocol</a>
+    <!-- MAIN FOOTER -->
+    <footer class="bg-white border-t border-neutral-100 py-16 mt-20">
+        <div class="max-w-7xl mx-auto px-4 text-center flex flex-col items-center gap-8">
+            <h2 class="font-serif text-2xl tracking-[0.3em] font-bold">MONTÈ</h2>
+            <div class="flex gap-8 text-[9px] tracking-[0.2em] uppercase font-bold text-neutral-400">
+                <a href="javascript:void(0)" onclick="openPolicyView('refundPolicyModal')" class="hover:text-black transition">Refund Policy</a>
+                <a href="javascript:void(0)" onclick="openPolicyView('privacyPolicyModal')" class="hover:text-black transition">Privacy Policy</a>
             </div>
-            <p class="text-[10px] text-neutral-400 uppercase tracking-wider mt-4">© 2026 MONTÈ International S.p.A.</p>
+            <p class="text-[8px] text-neutral-300 uppercase tracking-[0.2em] mt-4">© 2026 MONTÈ International S.p.A. All Rights Reserved.</p>
         </div>
     </footer>
 
@@ -258,197 +266,191 @@
     <div id="modalContainer" class="modal-overlay">
         
         <!-- AUTH -->
-        <div id="authDialog" class="hidden bg-white p-10 max-w-md w-full shadow-2xl relative">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <div class="flex justify-center border-b border-neutral-100 pb-4 mb-8 text-xs font-bold tracking-widest uppercase gap-8">
-                <button id="tabLogin" onclick="toggleAuthTab('LOGIN')" class="text-black border-b-2 border-black pb-1 transition">Login</button>
+        <div id="authDialog" class="hidden bg-white p-10 max-w-sm w-full shadow-2xl relative">
+            <button onclick="dismissModals()" class="absolute top-5 right-5 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <div class="flex justify-center border-b border-neutral-200 pb-4 mb-8 text-[10px] font-bold tracking-[0.2em] uppercase gap-8">
+                <button id="tabLogin" onclick="toggleAuthTab('LOGIN')" class="text-black border-b border-black pb-1">Login</button>
                 <button id="tabRegister" onclick="toggleAuthTab('REGISTER')" class="text-neutral-400 hover:text-black transition">Register</button>
             </div>
             <div class="space-y-5 text-xs">
                 <div id="regFieldsContainer" class="hidden space-y-5">
-                    <input type="text" id="authNameInput" placeholder="FULL LEGAL NAME" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-wide font-bold uppercase placeholder-neutral-400">
-                    <input type="tel" id="authPhoneInput" placeholder="MOBILE CONTACT (e.g. 9876543210)" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-wide font-bold placeholder-neutral-400">
+                    <input type="text" id="authNameInput" placeholder="FULL NAME" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-widest uppercase bg-transparent">
+                    <input type="tel" id="authPhoneInput" placeholder="MOBILE (e.g. 9876543210)" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-widest bg-transparent">
                 </div>
-                <input type="email" id="authEmailInput" placeholder="SECURE EMAIL ADDRESS" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-wide font-bold placeholder-neutral-400">
-                <input type="password" id="authPasswordInput" placeholder="ENCRYPTED PASSWORD" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-wide font-bold placeholder-neutral-400">
+                <input type="email" id="authEmailInput" placeholder="EMAIL ADDRESS" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-widest bg-transparent">
+                <input type="password" id="authPasswordInput" placeholder="PASSWORD" class="w-full border-b border-neutral-300 py-3 outline-none focus:border-black tracking-widest bg-transparent">
             </div>
-            <button onclick="processAuthSubmissionAction(this)" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 mt-8 hover:bg-neutral-900 transition focus:outline-none shadow-sm">
+            <button onclick="processAuthSubmissionAction(this)" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-4 mt-10 hover:bg-neutral-800 transition focus:outline-none shadow-md">
                 Authenticate
             </button>
         </div>
 
-        <!-- OTP VERIFICATION MODAL -->
-        <div id="otpDialog" class="hidden bg-white p-10 max-w-sm w-full shadow-2xl relative text-center">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-2xl font-serif font-bold tracking-wide mb-2 text-black">Security Verification</h2>
-            <p class="text-[10px] text-neutral-400 uppercase tracking-widest mb-8 font-bold leading-relaxed">As this is your first acquisition, an authorization code has been dispatched to your email.</p>
-            
-            <input type="text" id="otpInput" placeholder="0000" maxlength="4" class="w-full border-b-2 border-neutral-300 py-4 text-center text-3xl tracking-[1em] outline-none focus:border-black font-bold mb-8 transition">
-            
-            <button onclick="verifyOtpAndProceed(this)" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 hover:bg-neutral-900 transition focus:outline-none shadow-sm">
-                Confirm Identity
-            </button>
-        </div>
-
         <!-- CHECKOUT -->
-        <div id="checkoutDialog" class="hidden bg-white p-8 max-w-lg w-full shadow-2xl relative h-[85vh] overflow-y-auto no-scrollbar">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-xl font-serif font-bold tracking-wide mb-6 border-b border-neutral-100 pb-3 text-black">Logistics Routing</h2>
+        <div id="checkoutDialog" class="hidden bg-white p-8 sm:p-12 max-w-2xl w-full shadow-2xl relative h-[90vh] overflow-y-auto no-scrollbar">
+            <button onclick="dismissModals()" class="absolute top-6 right-6 text-2xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-xl font-serif font-bold tracking-wide mb-8 border-b border-black pb-4">Logistics & Settlement</h2>
             
-            <div class="space-y-4 text-xs mb-8">
-                <input type="text" id="chkFullName" placeholder="CONSIGNEE FULL NAME" class="w-full border border-neutral-300 p-3 outline-none focus:border-black tracking-wide font-bold uppercase bg-neutral-50/50">
-                <input type="tel" id="chkPhone" placeholder="VERIFIED CONTACT NUMBER" class="w-full border border-neutral-300 p-3 outline-none focus:border-black tracking-wide font-bold bg-neutral-50/50">
-                <textarea id="chkStreetAddress" placeholder="COMPLETE STREET DESTINATION (Auto-saved)" class="w-full border border-neutral-300 p-3 outline-none focus:border-black tracking-wide font-bold bg-neutral-50/50 h-20 resize-none"></textarea>
+            <!-- Address Form (Auto-filled & Updatable) -->
+            <div class="space-y-5 text-xs mb-10">
+                <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-2">Shipping Destination</h3>
+                <input type="text" id="chkFullName" placeholder="CONSIGNEE FULL NAME" class="w-full border border-neutral-200 p-4 outline-none focus:border-black tracking-widest uppercase bg-neutral-50">
+                <input type="tel" id="chkPhone" placeholder="CONTACT NUMBER (10 DIGITS)" class="w-full border border-neutral-200 p-4 outline-none focus:border-black tracking-widest bg-neutral-50">
+                <textarea id="chkStreetAddress" placeholder="STREET LOGISTICAL ADDRESS" class="w-full border border-neutral-200 p-4 outline-none focus:border-black tracking-widest bg-neutral-50 h-24 resize-none uppercase"></textarea>
                 
-                <div class="flex gap-4">
-                    <div class="w-1/2">
-                        <input type="text" id="chkPinCode" oninput="executeIndianPostalPinCodeVerification(this.value)" placeholder="PIN CODE" maxlength="6" class="w-full border border-neutral-300 p-3 outline-none focus:border-black tracking-widest font-bold text-center bg-neutral-50/50">
-                        <span id="pinVerificationStatusNode" class="text-[9px] block mt-1 uppercase font-bold tracking-wider text-neutral-400">Awaiting PIN</span>
+                <div class="flex flex-col sm:flex-row gap-5">
+                    <div class="w-full sm:w-1/2">
+                        <input type="text" id="chkPinCode" oninput="executeIndianPostalPinCodeVerification(this.value)" placeholder="6-DIGIT PIN CODE" maxlength="6" class="w-full border border-neutral-200 p-4 outline-none focus:border-black tracking-widest font-bold bg-neutral-50 text-center">
+                        <span id="pinVerificationStatusNode" class="text-[8px] block mt-2 uppercase font-bold tracking-[0.2em] text-neutral-400 text-center">Awaiting PIN</span>
                     </div>
-                    <div class="w-1/2 space-y-2">
-                        <input type="text" id="chkCity" placeholder="CITY" readonly class="w-full border border-neutral-200 p-3 outline-none tracking-wide font-bold uppercase bg-neutral-100 text-neutral-500">
-                        <input type="text" id="chkState" placeholder="STATE" readonly class="w-full border border-neutral-200 p-3 outline-none tracking-wide font-bold uppercase bg-neutral-100 text-neutral-500">
+                    <div class="w-full sm:w-1/2 space-y-3">
+                        <input type="text" id="chkCity" placeholder="CITY" readonly class="w-full border border-transparent p-4 outline-none tracking-widest uppercase bg-neutral-100 text-neutral-500 font-bold">
+                        <input type="text" id="chkState" placeholder="STATE" readonly class="w-full border border-transparent p-4 outline-none tracking-widest uppercase bg-neutral-100 text-neutral-500 font-bold">
                     </div>
                 </div>
             </div>
 
-            <!-- Promotional & Coins -->
-            <h3 class="text-sm font-bold tracking-widest uppercase text-black mb-4 border-b border-neutral-100 pb-2">Entitlements</h3>
-            <div class="flex gap-3 mb-2">
-                <input type="text" id="couponCodeInput" placeholder="PROMO CODE" class="flex-1 border border-neutral-300 p-3 outline-none focus:border-black tracking-widest font-bold uppercase bg-neutral-50/50 text-xs">
-                <button id="applyCouponBtn" onclick="verifyAndApplyCoupon()" class="bg-black text-white px-6 text-xs font-bold tracking-widest uppercase hover:bg-neutral-800 transition focus:outline-none">Apply</button>
+            <!-- Coupons -->
+            <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-3">Promotional Entitlement</h3>
+            <div class="flex gap-3 mb-6">
+                <input type="text" id="couponCodeInput" placeholder="PROMO CODE" class="flex-1 border border-neutral-200 p-4 outline-none focus:border-black tracking-widest uppercase bg-neutral-50 text-xs font-bold">
+                <button id="applyCouponBtn" onclick="verifyAndApplyCoupon()" class="bg-black text-white px-8 text-[10px] font-bold tracking-[0.2em] uppercase hover:bg-neutral-800 transition focus:outline-none">Apply</button>
             </div>
 
-            <div id="mCoinsRedemptionBox" class="mt-4 hidden p-4 border border-neutral-200 bg-neutral-50 flex items-center justify-between text-xs">
-                <div>
-                    <span class="font-bold uppercase tracking-widest text-black flex items-center gap-1 mb-0.5"><svg class="coin-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M9 9h6M9 15h6"></path></svg> M-Coins Vault</span>
-                    <span id="mCoinsAvailableText" class="text-[9px] text-neutral-500 font-bold uppercase tracking-wider">Available: 0</span>
+            <!-- M-Coins Toggle -->
+            <div id="mCoinsRedemptionBox" class="hidden mb-8 p-5 border border-neutral-200 bg-neutral-50 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M9 10L12 14L15 10"></path><path d="M12 14V17"></path></svg>
+                    <div>
+                        <span class="font-bold uppercase tracking-widest text-black block text-[10px]">Use M-Coins Vault</span>
+                        <span id="mCoinsAvailableText" class="text-[8px] text-neutral-500 font-bold uppercase tracking-[0.2em]">Available: 0</span>
+                    </div>
                 </div>
                 <label class="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" id="mCoinToggleInput" onchange="handleMCoinToggle()" class="sr-only peer">
-                    <div class="w-9 h-5 bg-neutral-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
+                    <div class="w-10 h-5 bg-neutral-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
                 </label>
             </div>
             
-            <div class="bg-neutral-50 border border-neutral-200 p-5 mb-8 flex justify-between items-center text-xs mt-4">
-                <span class="tracking-widest uppercase font-bold text-neutral-500">Settlement Value</span>
+            <div class="bg-black text-white p-5 mb-8 flex justify-between items-center text-xs shadow-md">
+                <span class="tracking-[0.2em] uppercase font-bold text-[10px]">Total Settlement</span>
                 <div class="flex items-center gap-3">
-                    <span id="checkoutOriginalPrice" class="line-through text-neutral-400 font-bold hidden">₹999</span>
-                    <span id="checkoutFinalPrice" class="text-black font-bold text-xl tracking-widest">₹999</span>
+                    <span id="checkoutOriginalPrice" class="line-through text-neutral-400 font-light hidden">₹999</span>
+                    <span id="checkoutFinalPrice" class="font-bold text-xl tracking-widest">₹999</span>
                 </div>
             </div>
 
             <div id="paymentMethodsContainer">
-                <h3 class="text-sm font-bold tracking-widest uppercase text-black mb-4 border-b border-neutral-100 pb-2">Protocol Pathway</h3>
-                <div class="space-y-3 text-xs mb-6">
-                    <label class="flex items-start gap-3 p-4 border border-neutral-200 rounded-sm cursor-pointer hover:border-black transition">
+                <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400 mb-4">Transaction Pathway</h3>
+                <div class="space-y-4 text-xs mb-8">
+                    <label class="flex items-start gap-4 p-5 border border-neutral-200 cursor-pointer hover:border-black transition bg-neutral-50">
                         <input type="radio" name="paymentProtocolSelection" value="UPI" checked onchange="synchronizePaymentMethodUIPanelView()" class="mt-0.5 accent-black">
                         <div>
-                            <div class="font-bold tracking-widest uppercase text-black">Instant UPI Protocol</div>
-                            <div class="text-neutral-500 text-[9px] font-bold uppercase mt-1 tracking-wider">Automated App Redirect</div>
+                            <div class="font-bold tracking-[0.1em] uppercase text-black">Instant UPI Payment</div>
+                            <div class="text-neutral-500 text-[9px] uppercase mt-1 tracking-[0.2em]">Automated App Redirect</div>
                         </div>
                     </label>
-                    <label id="codSelectorUILabelAnchor" class="flex items-start gap-3 p-4 border border-neutral-200 rounded-sm cursor-pointer hover:border-black transition">
+                    <label id="codSelectorUILabelAnchor" class="flex items-start gap-4 p-5 border border-neutral-200 cursor-pointer hover:border-black transition bg-neutral-50">
                         <input type="radio" name="paymentProtocolSelection" value="COD" onchange="synchronizePaymentMethodUIPanelView()" class="mt-0.5 accent-black">
                         <div>
-                            <div class="font-bold tracking-widest uppercase text-black">Cash on Delivery</div>
-                            <div id="codUIRestrictionReasonBanner" class="text-neutral-500 text-[9px] font-bold uppercase mt-1 tracking-wider">Settlement on physical arrival.</div>
+                            <div class="font-bold tracking-[0.1em] uppercase text-black">Cash-on-Delivery</div>
+                            <div id="codUIRestrictionReasonBanner" class="text-neutral-500 text-[9px] uppercase mt-1 tracking-[0.2em]">Payment on arrival.</div>
                         </div>
                     </label>
                 </div>
             </div>
 
-            <div id="panelUPIProtocol" class="bg-neutral-50 border border-neutral-200 p-6 text-center text-xs space-y-5">
-                <div>
-                    <p class="font-bold uppercase tracking-widest text-black mb-3">1. Select Application</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <button onclick="preCommitOrder('UPI_GPAY', this)" class="bg-white border border-neutral-300 py-3.5 text-[10px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">GPay</button>
-                        <button onclick="preCommitOrder('UPI_PHONEPE', this)" class="bg-white border border-neutral-300 py-3.5 text-[10px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">PhonePe</button>
-                        <button onclick="preCommitOrder('UPI_PAYTM', this)" class="bg-white border border-neutral-300 py-3.5 text-[10px] font-bold tracking-widest uppercase hover:border-black transition shadow-sm">Paytm</button>
-                        <button onclick="preCommitOrder('UPI_OTHER', this)" class="bg-black text-white border border-black py-3.5 text-[10px] font-bold tracking-widest uppercase hover:bg-neutral-800 transition shadow-sm">Other UPI</button>
-                    </div>
+            <div id="panelUPIProtocol" class="text-center text-xs space-y-6">
+                <h3 class="text-[10px] font-bold tracking-[0.2em] uppercase text-neutral-400">Select UPI Application</h3>
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <button onclick="executeOrderCheckFlow('UPI_GPAY', this)" class="bg-white border border-neutral-300 py-4 text-[10px] font-bold tracking-widest uppercase hover:border-black transition">GPay</button>
+                    <button onclick="executeOrderCheckFlow('UPI_PHONEPE', this)" class="bg-white border border-neutral-300 py-4 text-[10px] font-bold tracking-widest uppercase hover:border-black transition">PhonePe</button>
+                    <button onclick="executeOrderCheckFlow('UPI_PAYTM', this)" class="bg-white border border-neutral-300 py-4 text-[10px] font-bold tracking-widest uppercase hover:border-black transition">Paytm</button>
+                    <button onclick="executeOrderCheckFlow('UPI_OTHER', this)" class="bg-black text-white py-4 text-[10px] font-bold tracking-widest uppercase hover:bg-neutral-800 transition shadow-md">Other UPI</button>
                 </div>
-                <div class="pt-4 border-t border-neutral-200">
-                    <p class="font-bold uppercase tracking-widest text-black mb-1">2. Verification</p>
-                    <p class="text-neutral-500 font-bold uppercase text-[9px] tracking-wider leading-relaxed">
-                        Send transaction screenshot to our secure desk <span class="text-black select-all">+91 79738 04008</span> to release package. VPA: <span class="text-black select-all">7347417931@pthdfc</span>
-                    </p>
-                </div>
+                <p class="text-neutral-400 text-[9px] tracking-[0.2em] uppercase leading-relaxed">After successful payment intent, send screenshot to <span class="font-bold text-black select-all">+91 79738 04008</span> to release package.</p>
             </div>
 
             <div id="panelCODProtocol" class="hidden">
-                <button onclick="preCommitOrder('COD', this)" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 hover:bg-neutral-900 transition shadow-sm">
-                    Finalize Consignment
+                <button onclick="executeOrderCheckFlow('COD', this)" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-5 hover:bg-neutral-800 transition shadow-md focus:outline-none">
+                    Finalize Consignment (COD)
                 </button>
             </div>
 
             <div id="panelMCoinFullProtocol" class="hidden mt-4">
-                <button onclick="preCommitOrder('M_COIN_FULL', this)" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 hover:bg-neutral-900 transition shadow-sm flex items-center justify-center gap-2">
-                    <svg class="coin-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M9 9h6M9 15h6"></path></svg> Complete with Vault
+                <button onclick="executeOrderCheckFlow('M_COIN_FULL', this)" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-5 hover:bg-neutral-800 transition shadow-md focus:outline-none flex items-center justify-center gap-3">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M9 10L12 14L15 10"></path><path d="M12 14V17"></path></svg>
+                    Complete with Vault
                 </button>
             </div>
         </div>
 
-        <!-- TRACK SEARCH -->
-        <div id="trackingSearchDialog" class="hidden bg-white p-10 max-w-sm w-full shadow-2xl relative text-center">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-xl font-serif font-bold tracking-wide mb-6 text-black">Track Consignment</h2>
-            <div class="space-y-4 text-xs">
-                <input type="text" id="trackSearchIdInput" placeholder="ORDER ID (MNT-XXXXXX)" class="w-full border-b border-neutral-300 py-3 text-center outline-none focus:border-black tracking-widest font-bold uppercase">
-                <button onclick="executeManualTrackingQueryLookup()" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 mt-4 hover:bg-neutral-800 transition shadow-sm">
-                    Execute Search
-                </button>
-            </div>
+        <!-- MODAL: OTP VERIFICATION (FIRST ORDER ONLY) -->
+        <div id="otpDialog" class="hidden bg-white p-10 max-w-sm w-full shadow-2xl relative text-center">
+            <button onclick="dismissModals()" class="absolute top-4 right-4 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-2xl font-serif font-bold tracking-wide mb-2">Identity Verification</h2>
+            <p class="text-[9px] text-neutral-400 uppercase tracking-[0.2em] mb-8 leading-relaxed">A one-time verification code has been dispatched to your email node for your first acquisition.</p>
+            
+            <input type="text" id="otpValidationInput" placeholder="••••" maxlength="4" class="otp-input w-full border-b-2 border-black py-4 text-3xl outline-none bg-transparent mb-8">
+            
+            <button onclick="validateOTPAndFinalize()" id="otpSubmitBtn" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-4 hover:bg-neutral-800 transition shadow-md focus:outline-none">
+                Verify & Place Order
+            </button>
         </div>
 
-        <!-- POLICIES -->
-        <div id="refundPolicyModal" class="hidden bg-white p-10 max-w-3xl w-full shadow-2xl relative h-[75vh] overflow-y-auto no-scrollbar">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-2xl font-serif font-bold tracking-tight mb-6 text-black border-b border-neutral-100 pb-4">Refund Protocol</h2>
-            <div class="text-[11px] text-neutral-600 space-y-6 font-bold uppercase tracking-wider leading-relaxed">
-                <p>Clients retain the unencumbered prerogative to cancel any prospective transaction up to the "Shipped" milestone. Once Shipped, cancellation window closes.</p>
+        <!-- MODAL C: TRACK ORDER -->
+        <div id="trackingSearchDialog" class="hidden bg-white p-10 max-w-md w-full shadow-2xl relative">
+            <button onclick="dismissModals()" class="absolute top-5 right-5 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-2xl font-serif font-bold tracking-wide mb-2">Locate Consignment</h2>
+            <p class="text-[9px] text-neutral-400 uppercase tracking-[0.2em] mb-8">Enter reference identity parameters</p>
+            <input type="text" id="trackSearchIdInput" placeholder="MNT-XXXXXX" class="w-full border-b border-neutral-300 py-4 text-lg outline-none focus:border-black tracking-widest font-bold bg-transparent uppercase mb-8 text-center">
+            <button onclick="executeManualTrackingQueryLookup()" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-4 hover:bg-neutral-800 transition shadow-md">
+                Execute Lookup
+            </button>
+        </div>
+
+        <!-- MODALS D & E: POLICIES -->
+        <div id="refundPolicyModal" class="hidden bg-white p-10 max-w-2xl w-full shadow-2xl relative h-[70vh] overflow-y-auto no-scrollbar">
+            <button onclick="dismissModals()" class="absolute top-6 right-6 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-2xl font-serif font-bold tracking-wide mb-6 border-b border-black pb-4">Refund Matrix Protocol</h2>
+            <div class="text-[11px] text-neutral-500 space-y-5 leading-relaxed tracking-widest uppercase font-medium text-justify">
+                <p>Clients retain the prerogative to cancel any prospective transaction up to the "Shipped" milestone. Once Shipped, cancellation window definitively closes.</p>
                 <p>If an account revokes an order 2+ times sequentially, Cash-on-Delivery (COD) is disabled for a 24-day containment sequence.</p>
                 <p>Refunds for UPI are processed via direct match on our secure desk (+91 79738 04008) within 3-5 banking windows.</p>
-                <p class="text-red-600">Strict Protocol: Accounts logging 15 total cancellations will be permanently suspended.</p>
+                <p class="text-black font-bold border-l-2 border-red-500 pl-4">Strict Enforcement: Accounts logging 15 total cancellations will be permanently locked and suspended.</p>
             </div>
         </div>
 
-        <div id="privacyPolicyModal" class="hidden bg-white p-10 max-w-3xl w-full shadow-2xl relative h-[75vh] overflow-y-auto no-scrollbar">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-2xl font-serif font-bold tracking-tight mb-6 text-black border-b border-neutral-100 pb-4">Privacy Protocol</h2>
-            <div class="text-[11px] text-neutral-600 space-y-6 font-bold uppercase tracking-wider leading-relaxed">
-                <p>This commerce node interacts directly with custom-engineered Firebase architecture (Pulse). Data is kept fully safe within non-volatile environments.</p>
-                <p>User records must authenticate valid contact sequences. We utilize this to compute dynamic fraud metrics. Your data is strictly guarded and never syndicated.</p>
+        <div id="privacyPolicyModal" class="hidden bg-white p-10 max-w-2xl w-full shadow-2xl relative h-[70vh] overflow-y-auto no-scrollbar">
+            <button onclick="dismissModals()" class="absolute top-6 right-6 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-2xl font-serif font-bold tracking-wide mb-6 border-b border-black pb-4">Privacy Architecture</h2>
+            <div class="text-[11px] text-neutral-500 space-y-5 leading-relaxed tracking-widest uppercase font-medium text-justify">
+                <p>Interacts securely with custom-engineered Firebase instance cluster (Pulse). Data is kept fully safe within non-volatile DB architectures.</p>
+                <p>User records must authenticate valid sequences to dynamically compute abuse metrics. Data is never syndicated to third parties.</p>
             </div>
         </div>
 
-        <!-- REVIEW -->
+        <!-- MODAL F: PRODUCT REVIEW -->
         <div id="reviewDialog" class="hidden bg-white p-10 max-w-md w-full shadow-2xl relative text-center">
-            <button onclick="dismissModals()" class="absolute top-4 right-4 text-2xl font-light hover:opacity-50 transition focus:outline-none">&times;</button>
-            <h2 class="text-xl font-serif font-bold tracking-wide mb-6 text-black">Collector Review</h2>
-            
-            <div class="flex gap-4 mb-8 text-4xl justify-center" id="starSelectionContainer">
-                <span onclick="setRatingStars(1)" class="star text-neutral-200 hover:text-amber-500 transition cursor-pointer">&#9733;</span>
-                <span onclick="setRatingStars(2)" class="star text-neutral-200 hover:text-amber-500 transition cursor-pointer">&#9733;</span>
-                <span onclick="setRatingStars(3)" class="star text-neutral-200 hover:text-amber-500 transition cursor-pointer">&#9733;</span>
-                <span onclick="setRatingStars(4)" class="star text-neutral-200 hover:text-amber-500 transition cursor-pointer">&#9733;</span>
-                <span onclick="setRatingStars(5)" class="star text-neutral-200 hover:text-amber-500 transition cursor-pointer">&#9733;</span>
+            <button onclick="dismissModals()" class="absolute top-5 right-5 text-xl font-light hover:text-neutral-500 transition focus:outline-none">&times;</button>
+            <h2 class="text-2xl font-serif font-bold tracking-wide mb-2">Collector Review</h2>
+            <p class="text-[9px] text-neutral-400 uppercase tracking-[0.2em] mb-8">Rate your acquisition</p>
+            <div class="flex gap-4 mb-8 text-3xl cursor-pointer justify-center" id="starSelectionContainer">
+                <span onclick="setRatingStars(1)" class="star text-neutral-300 hover:text-black transition">&#9733;</span>
+                <span onclick="setRatingStars(2)" class="star text-neutral-300 hover:text-black transition">&#9733;</span>
+                <span onclick="setRatingStars(3)" class="star text-neutral-300 hover:text-black transition">&#9733;</span>
+                <span onclick="setRatingStars(4)" class="star text-neutral-300 hover:text-black transition">&#9733;</span>
+                <span onclick="setRatingStars(5)" class="star text-neutral-300 hover:text-black transition">&#9733;</span>
             </div>
-            
-            <textarea id="reviewTextInput" placeholder="EXPERIENCE DETAILS..." class="w-full border border-neutral-200 p-4 outline-none focus:border-black font-bold tracking-wide bg-neutral-50 h-28 resize-none mb-8 text-xs uppercase placeholder-neutral-400"></textarea>
-            
-            <button onclick="submitProductReview(this)" class="w-full bg-black text-white text-xs font-bold tracking-widest uppercase py-4 hover:bg-neutral-900 transition shadow-sm">
-                Submit Rating
+            <textarea id="reviewTextInput" placeholder="EXPERIENCE DETAILS..." class="w-full border border-neutral-200 p-5 outline-none focus:border-black tracking-widest bg-neutral-50 h-32 resize-none mb-8 text-[10px] uppercase font-bold"></textarea>
+            <button onclick="submitProductReview(this)" class="w-full bg-black text-white text-[10px] font-bold tracking-[0.2em] uppercase py-4 hover:bg-neutral-800 transition shadow-md">
+                Submit Registry Rating
             </button>
         </div>
 
     </div>
 
-    <!-- SCRIPT LOGIC -->
+    <!-- FIREBASE & CORE JS LOGIC -->
     <script type="module">
-        // EMAIL JS INIT
-        (function(){ emailjs.init("y01V6NHvoYyyBS_jC"); })();
-
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
         import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
         import { getDatabase, ref, set, get, update, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
@@ -467,20 +469,22 @@
         const auth = getAuth(app);
         const db = getDatabase(app);
 
+        // Initialize EmailJS
+        (function(){ emailjs.init("y01V6NHvoYyyBS_jC"); })();
+
+        // Global Toast System
         window.showToast = function(message, type = 'error') {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             let bgClass = type === 'success' ? 'bg-emerald-600' : (type === 'info' ? 'bg-black' : 'bg-red-600');
-
-            toast.className = `${bgClass} text-white px-6 py-4 shadow-xl flex items-center justify-between text-[10px] font-bold tracking-widest uppercase toast-enter pointer-events-auto`;
-            toast.innerHTML = `<span>${message}</span> <button onclick="this.parentElement.remove()" class="ml-4 text-lg font-light hover:opacity-70">&times;</button>`;
-            
+            toast.className = `${bgClass} text-white px-6 py-4 shadow-xl flex items-center justify-between text-[10px] font-bold tracking-[0.15em] uppercase toast-enter pointer-events-auto`;
+            toast.innerHTML = `<span>${message}</span> <button onclick="this.parentElement.remove()" class="ml-4 hover:opacity-50 transition">&times;</button>`;
             container.appendChild(toast);
             requestAnimationFrame(() => toast.classList.add('toast-enter-active'));
             setTimeout(() => {
                 toast.classList.add('toast-exit');
-                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 300);
-            }, 3500);
+                setTimeout(() => { if (toast.parentElement) toast.remove(); }, 400);
+            }, 4000);
         };
 
         window.sessionUserRecord = null; 
@@ -493,25 +497,25 @@
         let currentCheckoutTotal = 999;
         let appliedCouponCodeString = null;
         let cancelConfirmState = false; 
-        
+
+        // Account / M-Coins Logic
         let userMCoinsBalance = 0;
         let appliedMCoinsValue = 0;
         let isUserMontePlus = false;
         let isUserSuspended = false;
-        let userCompletedOrders = 0;
+        let userCompletedOrdersCount = 0;
         
+        // Timer Logic
         let activeProductTimerInterval = null;
-        let productVariantsInventory = {};
 
-        // OTP State
-        let generatedOtpContext = null;
-        let pendingCheckoutMethod = null;
-        let pendingCheckoutBtnElement = null;
+        // Pending Order Memory
+        window.pendingOrderContext = null;
+        window.generatedSecureOTP = null;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 window.sessionUserRecord = user;
-                document.getElementById('navAccountBtn').innerText = "Portfolio";
+                document.getElementById('navAccountBtn').innerText = "Dashboard";
                 await syncAndEvaluateUserMatrix(user.uid);
                 synchronizeAccountDashboardDataMetrics();
             } else {
@@ -520,68 +524,35 @@
                 resetAccountDashboardUIFields();
                 isUserMontePlus = false;
                 isUserSuspended = false;
-                userCompletedOrders = 0;
+                userCompletedOrdersCount = 0;
             }
         });
 
-        // Dynamic Product Status & Variants (OOS / Coming Soon)
+        // -----------------------------------------------------
+        // DYNAMIC PRODUCT STATUS & INVENTORY LISTENER
+        // -----------------------------------------------------
         setupProductDatabaseListener();
-
         function setupProductDatabaseListener() {
             const prodRef = ref(db, 'products/monte_signature_tee');
             onValue(prodRef, (snap) => {
                 if(!snap.exists()) {
-                    set(prodRef, { status: "ACTIVE", launchTimestamp: 0, variants: {} });
+                    set(prodRef, { status: "ACTIVE", launchTimestamp: 0 });
                     return;
                 }
-                const data = snap.val();
-                productVariantsInventory = data.variants || {}; 
-                evaluateDynamicProductStatus(data);
-                refreshVariantAvailability(); // Update UI if variants are OOS
+                evaluateDynamicProductStatus(snap.val());
             });
-        }
-
-        function refreshVariantAvailability() {
-            const btns = document.querySelectorAll('.size-btn');
-            let anyAvailable = false;
-            
-            btns.forEach(btn => {
-                const size = btn.getAttribute('data-size');
-                const key = `${selectedColorProductShade}_${size}`.toUpperCase();
-                
-                // If variant explicitly marked as "OOS"
-                if(productVariantsInventory[key] === "OOS") {
-                    btn.disabled = true;
-                    if(selectedProductSizeValue === size) {
-                        selectedProductSizeValue = null;
-                        btn.classList.remove('bg-black', 'text-white', 'border-black');
-                        btn.classList.add('border-neutral-300');
-                        showToast(`Size ${size} in ${selectedColorProductShade} is currently out of stock.`, "info");
-                    }
-                } else {
-                    btn.disabled = false;
-                    anyAvailable = true;
-                }
-            });
-            
-            if(!anyAvailable) {
-                document.getElementById('masterAcquireBtn').innerText = "VARIANT SOLD OUT";
-                document.getElementById('masterAcquireBtn').disabled = true;
-            }
         }
 
         function evaluateDynamicProductStatus(data) {
             if(activeProductTimerInterval) clearInterval(activeProductTimerInterval);
-
             const banner = document.getElementById('productStatusBanner');
             const acqBtn = document.getElementById('masterAcquireBtn');
             const badge = document.getElementById('imgOverlayBadge');
             
             if(data.status === "OUT_OF_STOCK") {
                 banner.classList.remove('hidden');
-                banner.innerText = "🚨 CURRENTLY OUT OF STOCK. INVENTORY REPLENISHMENT PENDING.";
-                acqBtn.disabled = true;
-                acqBtn.innerText = "UNAVAILABLE FOR ACQUISITION";
+                banner.innerText = "🚨 WIDESPREAD DEPLETION. REPLENISHMENT PENDING.";
+                acqBtn.disabled = true; acqBtn.innerText = "UNAVAILABLE"; acqBtn.classList.add('opacity-50');
                 badge.classList.add('hidden');
                 return;
             }
@@ -590,45 +561,30 @@
                 banner.classList.remove('hidden');
                 activeProductTimerInterval = setInterval(() => {
                     const now = Date.now();
-                    const launchTime = parseInt(data.launchTimestamp) || 0;
+                    const launchTime = parseInt(data.launchTimestamp);
                     const earlyAccessTime = launchTime - (24 * 60 * 60 * 1000);
 
                     if(isUserMontePlus && now >= earlyAccessTime && now < launchTime) {
                         banner.innerHTML = "<span class='monte-plus-text'>MONTÈ+ EARLY ACCESS ACTIVE</span>";
-                        acqBtn.disabled = false;
-                        acqBtn.innerText = "Acquire & Proceed";
-                        badge.classList.remove('hidden');
-                        clearInterval(activeProductTimerInterval);
-                        refreshVariantAvailability();
+                        acqBtn.disabled = false; acqBtn.innerText = "Acquire & Proceed"; acqBtn.classList.remove('opacity-50');
+                        badge.classList.remove('hidden'); clearInterval(activeProductTimerInterval);
                     } else if (now >= launchTime) {
                         banner.classList.add('hidden');
-                        acqBtn.disabled = false;
-                        acqBtn.innerText = "Acquire & Proceed";
-                        badge.classList.add('hidden');
-                        clearInterval(activeProductTimerInterval);
-                        refreshVariantAvailability();
+                        acqBtn.disabled = false; acqBtn.innerText = "Acquire & Proceed"; acqBtn.classList.remove('opacity-50');
+                        badge.classList.add('hidden'); clearInterval(activeProductTimerInterval);
                     } else {
                         let target = isUserMontePlus ? earlyAccessTime : launchTime;
                         let diff = target - now;
-                        if(diff < 0) diff = 0;
-                        let h = Math.floor(diff / (1000 * 60 * 60));
-                        let m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                        let s = Math.floor((diff % (1000 * 60)) / 1000);
-                        let lockMsg = isUserMontePlus ? "EARLY ACCESS UNLOCKS IN" : "PUBLIC LAUNCH IN";
+                        let h = Math.floor(diff / (1000 * 60 * 60)), m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)), s = Math.floor((diff % (1000 * 60)) / 1000);
+                        let lockMsg = isUserMontePlus ? "EARLY UNLOCK IN" : "GLOBAL DROP IN";
                         banner.innerText = `🔒 ${lockMsg} ${h}H ${m}M ${s}S`;
-                        acqBtn.disabled = true;
-                        acqBtn.innerText = "LOCKED - AWAITING DROP";
+                        acqBtn.disabled = true; acqBtn.innerText = "LOCKED"; acqBtn.classList.add('opacity-50');
                         badge.classList.add('hidden');
                     }
                 }, 1000);
                 return;
             }
-
-            banner.classList.add('hidden');
-            acqBtn.disabled = false;
-            acqBtn.innerText = "Acquire & Proceed";
-            badge.classList.add('hidden');
-            refreshVariantAvailability();
+            banner.classList.add('hidden'); acqBtn.disabled = false; acqBtn.innerText = "Acquire & Proceed"; acqBtn.classList.remove('opacity-50'); badge.classList.add('hidden');
         }
 
         async function syncAndEvaluateUserMatrix(uid) {
@@ -637,191 +593,150 @@
             if(snap.exists()) {
                 const data = snap.val();
                 userMCoinsBalance = data.mCoins || 0;
-                userCompletedOrders = data.completedOrdersCount || 0;
+                userCompletedOrdersCount = data.completedOrdersCount || 0;
                 
                 if(data.cancelCount >= 15) isUserSuspended = true;
-                if(userCompletedOrders >= 12) isUserMontePlus = true; else isUserMontePlus = false;
+                isUserMontePlus = (userCompletedOrdersCount >= 12);
 
-                get(ref(db, 'products/monte_signature_tee')).then(s => {
-                    if(s.exists()) evaluateDynamicProductStatus(s.val());
-                });
+                get(ref(db, 'products/monte_signature_tee')).then(s => { if(s.exists()) evaluateDynamicProductStatus(s.val()); });
 
-                if(data.cancelCount >= 2 && (Date.now() - data.lastCancelTimestamp) < (24*60*60*1000)) {
-                    cacheIsCodRestrictedState = true;
-                } else {
-                    if(data.cancelCount >= 2 && data.cancelCount < 15) {
+                const codUi = document.getElementById('codSelectorUILabelAnchor');
+                const codRadio = document.querySelector('input[value="COD"]');
+                const codWarn = document.getElementById('codUIRestrictionReasonBanner');
+                if(data.cancelCount >= 2) {
+                    if((Date.now() - data.lastCancelTimestamp) < (24*60*60*1000)) {
+                        cacheIsCodRestrictedState = true; codRadio.disabled = true;
+                        codUi.classList.add('opacity-40', 'bg-neutral-100');
+                        codWarn.innerText = "COD RESTRICTED (24D PENALTY)."; codWarn.className = "text-red-500 text-[9px] uppercase mt-1 tracking-[0.2em] font-bold";
+                        document.querySelector('input[value="UPI"]').checked = true;
+                    } else {
                         await update(ref(db, `users/${uid}`), { cancelCount: 0, lastCancelTimestamp: 0 });
+                        cacheIsCodRestrictedState = false;
                     }
-                    cacheIsCodRestrictedState = false;
-                }
+                } else { cacheIsCodRestrictedState = false; }
             }
         }
 
-        window.switchView = function(viewElementId) {
-            document.querySelectorAll('.view-section').forEach(section => section.classList.remove('active'));
-            const target = document.getElementById(viewElementId);
+        window.switchView = function(viewId) {
+            document.querySelectorAll('.view-section').forEach(s => s.classList.remove('active'));
+            const target = document.getElementById(viewId);
             if(target) { target.classList.add('active'); window.scrollTo({ top: 0, behavior: 'smooth' }); }
         };
 
-        const modalContainerNode = document.getElementById('modalContainer');
-        window.openPolicyView = function(id) { dismissModals(); modalContainerNode.classList.add('active'); document.getElementById(id).classList.remove('hidden'); };
-        
+        const modalNode = document.getElementById('modalContainer');
+        window.openPolicyView = function(id) { dismissModals(); modalNode.classList.add('active'); document.getElementById(id).classList.remove('hidden'); };
         window.dismissModals = function() {
-            modalContainerNode.classList.remove('active');
+            modalNode.classList.remove('active');
             ['authDialog','checkoutDialog','trackingSearchDialog','refundPolicyModal','privacyPolicyModal','reviewDialog','otpDialog'].forEach(id => {
                 document.getElementById(id).classList.add('hidden');
             });
         };
-
         window.toggleSupportBanner = function() { document.getElementById('hiddenSupportBanner').classList.toggle('hidden'); };
         window.updateMainImage = function(url) { document.getElementById('primaryCanvas').src = url; };
-
-        window.selectColorShade = function(shade, url) {
-            selectedColorProductShade = shade;
-            document.getElementById('activeColorText').innerText = shade;
-            updateMainImage(url);
-            refreshVariantAvailability(); // Recheck sizes for new color
-        };
-
+        window.selectColorShade = function(shade, url) { selectedColorProductShade = shade; document.getElementById('activeColorText').innerText = shade; updateMainImage(url); };
         window.selectProductSize = function(btn) {
-            if(btn.disabled) return;
-            document.querySelectorAll('#sizeSelectorContainer button').forEach(b => {
-                b.classList.remove('bg-black', 'text-white', 'border-black');
-                b.classList.add('border-neutral-300');
-            });
-            btn.classList.remove('border-neutral-300');
-            btn.classList.add('bg-black', 'text-white', 'border-black');
-            selectedProductSizeValue = btn.getAttribute('data-size');
+            document.querySelectorAll('#sizeSelectorContainer button').forEach(b => { b.classList.remove('bg-black', 'text-white', 'border-black'); b.classList.add('border-neutral-200'); });
+            btn.classList.remove('border-neutral-200'); btn.classList.add('bg-black', 'text-white', 'border-black');
+            selectedProductSizeValue = btn.innerText.trim();
         };
 
         window.executeIndianPostalPinCodeVerification = async function(val) {
-            const status = document.getElementById('pinVerificationStatusNode');
-            const city = document.getElementById('chkCity'), state = document.getElementById('chkState');
-            if(val.length !== 6 || isNaN(val)) {
-                status.innerText = "Awaiting Valid PIN"; status.className = "text-[9px] block mt-1 uppercase font-bold tracking-wider text-neutral-400";
-                city.value = ""; state.value = ""; return;
-            }
+            const status = document.getElementById('pinVerificationStatusNode'), city = document.getElementById('chkCity'), state = document.getElementById('chkState');
+            if(val.length !== 6 || isNaN(val)) { status.innerText = "AWAITING VALID PIN..."; status.className = "text-[8px] block mt-2 uppercase font-bold tracking-[0.2em] text-neutral-400 text-center"; city.value = ""; state.value = ""; return; }
             try {
-                status.innerText = "Querying Database..."; status.className = "text-[9px] block mt-1 uppercase font-bold tracking-wider text-amber-600";
+                status.innerText = "VERIFYING ROUTE..."; status.className = "text-[8px] block mt-2 uppercase font-bold tracking-[0.2em] text-amber-500 text-center";
                 const res = await fetch(`https://api.postalpincode.in/pincode/${val}`);
                 const data = await res.json();
                 if(data && data[0] && data[0].Status === "Success") {
-                    city.value = data[0].PostOffice[0].District.toUpperCase();
-                    state.value = data[0].PostOffice[0].State.toUpperCase();
-                    status.innerText = "Verified"; status.className = "text-[9px] block mt-1 uppercase font-bold tracking-wider text-emerald-600";
+                    const postData = data[0].PostOffice[0];
+                    city.value = postData.District.toUpperCase(); state.value = postData.State.toUpperCase();
+                    status.innerText = "LOCATION SECURED"; status.className = "text-[8px] block mt-2 uppercase font-bold tracking-[0.2em] text-emerald-500 text-center";
                 } else throw new Error();
-            } catch (e) {
-                status.innerText = "Invalid PIN"; status.className = "text-[9px] block mt-1 uppercase font-bold tracking-wider text-red-600";
-                city.value = ""; state.value = "";
-            }
+            } catch (error) { status.innerText = "INVALID PIN FORMAT"; status.className = "text-[8px] block mt-2 uppercase font-bold tracking-[0.2em] text-red-500 text-center"; city.value = ""; state.value = ""; }
         };
 
         function validatePhone(str) { let num = str.trim(); if (/^\d{10}$/.test(num)) num = '+91' + num; return /^\+91[6789]\d{9}$/.test(num); }
 
         window.toggleAuthTab = function(tab) {
             activeAuthScreenContextTab = tab;
-            const logNode = document.getElementById('tabLogin'), regNode = document.getElementById('tabRegister'), fieldsNode = document.getElementById('regFieldsContainer');
-            if(tab === 'LOGIN') {
-                logNode.className = "text-black border-b-2 border-black pb-1 transition"; regNode.className = "text-neutral-400 hover:text-black transition"; fieldsNode.classList.add('hidden');
-            } else {
-                regNode.className = "text-black border-b-2 border-black pb-1 transition"; logNode.className = "text-neutral-400 hover:text-black transition"; fieldsNode.classList.remove('hidden');
-            }
+            const logN = document.getElementById('tabLogin'), regN = document.getElementById('tabRegister'), fields = document.getElementById('regFieldsContainer');
+            if(tab === 'LOGIN') { logN.className = "text-black border-b border-black pb-1"; regN.className = "text-neutral-400 hover:text-black transition"; fields.classList.add('hidden'); } 
+            else { regN.className = "text-black border-b border-black pb-1"; logN.className = "text-neutral-400 hover:text-black transition"; fields.classList.remove('hidden'); }
         };
 
         window.processAuthSubmissionAction = async function(btn) {
-            const email = document.getElementById('authEmailInput').value.trim();
-            const pass = document.getElementById('authPasswordInput').value;
-            const name = document.getElementById('authNameInput').value.trim();
+            const email = document.getElementById('authEmailInput').value.trim(), pass = document.getElementById('authPasswordInput').value, name = document.getElementById('authNameInput').value.trim();
             let phone = document.getElementById('authPhoneInput').value.trim();
-
-            if(!email || !pass) return showToast("Complete mandatory fields.", "error");
-
-            const origText = btn.innerText; btn.disabled = true; btn.innerText = "VERIFYING...";
-
+            if(!email || !pass) return showToast("MANDATORY FIELDS EMPTY.", "error");
+            const orgTxt = btn.innerText; btn.disabled = true; btn.innerText = "AUTHENTICATING...";
             try {
                 if(activeAuthScreenContextTab === 'REGISTER') {
-                    if(!name || !phone) throw new Error("Provide name and contact.");
-                    if(!validatePhone(phone)) throw new Error("Invalid 10-digit number.");
+                    if(!name || !phone) throw new Error("PROVIDE IDENTITY & CONTACT.");
+                    if(!validatePhone(phone)) throw new Error("INVALID 10-DIGIT MOBILE NUMBER.");
                     if (/^\d{10}$/.test(phone)) phone = '+91' + phone;
-
                     const cred = await createUserWithEmailAndPassword(auth, email, pass);
                     window.sessionUserRecord = cred.user;
                     await set(ref(db, `users/${cred.user.uid}`), { name: name.toUpperCase(), phone: phone, email: email, cancelCount: 0, lastCancelTimestamp: 0, mCoins: 0, completedOrdersCount: 0 });
-                    showToast("Profile acquired.", "success");
-                    executeCheckoutModalFormSequenceInitialization();
+                    showToast("PORTFOLIO SECURED.", "success"); executeCheckoutModalFormSequenceInitialization();
                 } else {
                     const cred = await signInWithEmailAndPassword(auth, email, pass);
                     window.sessionUserRecord = cred.user;
-                    showToast("Access granted.", "success");
-                    executeCheckoutModalFormSequenceInitialization();
+                    showToast("ACCESS GRANTED.", "success"); executeCheckoutModalFormSequenceInitialization();
                 }
-            } catch (err) { showToast(`${err.message}`, "error"); } 
-            finally { btn.disabled = false; btn.innerText = origText; }
+            } catch (err) { showToast(err.message, "error"); } finally { btn.disabled = false; btn.innerText = orgTxt; }
         };
 
-        window.triggerSignOutSession = function() { signOut(auth).then(() => { showToast("Logged out.", "success"); switchView('homeView'); }); };
+        window.triggerSignOutSession = function() { signOut(auth).then(() => { showToast("PORTFOLIO DISCONNECTED.", "info"); switchView('homeView'); }); };
+        window.handleNavAccountClick = function() { if(window.sessionUserRecord) switchView('accountView'); else { dismissModals(); modalNode.classList.add('active'); document.getElementById('authDialog').classList.remove('hidden'); toggleAuthTab('LOGIN'); } };
 
-        window.handleNavAccountClick = function() {
-            if(window.sessionUserRecord) switchView('accountView');
-            else { dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('authDialog').classList.remove('hidden'); toggleAuthTab('LOGIN'); }
-        };
-
-        window.initiateCheckoutProcess = function() {
-            if(isUserSuspended) return showToast("ACCOUNT SUSPENDED EXCEPTION.", "error");
-            if(!selectedProductSizeValue) return showToast("Specify sizing parameter.", "error");
+        window.initiateCheckoutProcess = async function() {
+            if(isUserSuspended) return showToast("ACCOUNT PERMANENTLY SUSPENDED DUE TO ABUSE.", "error");
+            if(!selectedProductSizeValue) return showToast("SELECT GARMENT MATRIX SIZING.", "error");
             
-            if(!window.sessionUserRecord) {
-                dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('authDialog').classList.remove('hidden'); toggleAuthTab('LOGIN');
-            } else { executeCheckoutModalFormSequenceInitialization(); }
+            // SPECIFIC VARIANT STOCK CHECK SIMULATION (Reads Firebase)
+            try {
+                const variantKey = `${selectedColorProductShade.toUpperCase()}_${selectedProductSizeValue}`;
+                const stockSnap = await get(ref(db, `products/monte_signature_tee/inventory/${variantKey}`));
+                if(stockSnap.exists() && parseInt(stockSnap.val()) <= 0) {
+                    return showToast(`VARIANT [${variantKey}] CURRENTLY UNAVAILABLE.`, "error");
+                }
+            } catch(e) { console.warn("Stock node missing, assuming in-stock."); }
+
+            if(!window.sessionUserRecord) { dismissModals(); modalNode.classList.add('active'); document.getElementById('authDialog').classList.remove('hidden'); toggleAuthTab('LOGIN'); } 
+            else executeCheckoutModalFormSequenceInitialization();
         };
 
         function resetCheckoutCouponState() {
             currentCheckoutTotal = 999; appliedCouponCodeString = null; appliedMCoinsValue = 0;
-            const cInp = document.getElementById('couponCodeInput'), cBtn = document.getElementById('applyCouponBtn');
-            cInp.value = ""; cInp.disabled = false; cBtn.innerText = "Apply"; cBtn.disabled = false;
+            document.getElementById('couponCodeInput').value = ""; document.getElementById('couponCodeInput').disabled = false;
+            document.getElementById('applyCouponBtn').innerText = "APPLY"; document.getElementById('applyCouponBtn').disabled = false;
             document.getElementById('mCoinToggleInput').checked = false;
-            document.getElementById('checkoutOriginalPrice').classList.add('hidden');
-            document.getElementById('checkoutFinalPrice').innerText = "₹999";
+            document.getElementById('checkoutOriginalPrice').classList.add('hidden'); document.getElementById('checkoutFinalPrice').innerText = "₹999";
         }
 
         async function executeCheckoutModalFormSequenceInitialization() {
-            if(isUserSuspended) return showToast("ACCOUNT SUSPENDED.", "error");
-            dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('checkoutDialog').classList.remove('hidden');
+            if(isUserSuspended) return showToast("ACCOUNT SUSPENDED. CHECKOUT LOCKED.", "error");
+            dismissModals(); modalNode.classList.add('active'); document.getElementById('checkoutDialog').classList.remove('hidden');
             resetCheckoutCouponState(); 
-
             if(window.sessionUserRecord) {
                 await syncAndEvaluateUserMatrix(window.sessionUserRecord.uid);
-                
                 const mBox = document.getElementById('mCoinsRedemptionBox');
-                if(userMCoinsBalance > 0) { mBox.classList.remove('hidden'); document.getElementById('mCoinsAvailableText').innerText = `Available: ${userMCoinsBalance}`; }
-                else mBox.classList.add('hidden');
-
-                const userSnap = await get(ref(db, `users/${window.sessionUserRecord.uid}`));
-                if(userSnap.exists()) {
-                    document.getElementById('chkFullName').value = userSnap.val().name || "";
-                    document.getElementById('chkPhone').value = userSnap.val().phone || "";
-                    
-                    // Auto-fill saved address if exists
-                    const addressData = userSnap.val().address;
-                    if(addressData) {
-                        document.getElementById('chkStreetAddress').value = addressData.street || "";
-                        document.getElementById('chkPinCode').value = addressData.pin || "";
-                        document.getElementById('chkCity').value = addressData.city || "";
-                        document.getElementById('chkState').value = addressData.state || "";
-                        if(addressData.pin) window.executeIndianPostalPinCodeVerification(addressData.pin);
+                if(userMCoinsBalance > 0) { mBox.classList.remove('hidden'); document.getElementById('mCoinsAvailableText').innerText = `AVAILABLE: ${userMCoinsBalance}`; } else mBox.classList.add('hidden');
+                
+                // AUTO-FILL SAVED ADDRESS
+                const snap = await get(ref(db, `users/${window.sessionUserRecord.uid}`));
+                if(snap.exists()) {
+                    const data = snap.val();
+                    document.getElementById('chkFullName').value = data.name || "";
+                    document.getElementById('chkPhone').value = data.phone || "";
+                    if(data.savedAddress) {
+                        document.getElementById('chkStreetAddress').value = data.savedAddress.street || "";
+                        document.getElementById('chkPinCode').value = data.savedAddress.pin || "";
+                        document.getElementById('chkCity').value = data.savedAddress.city || "";
+                        document.getElementById('chkState').value = data.savedAddress.state || "";
+                        if(data.savedAddress.pin) document.getElementById('pinVerificationStatusNode').innerText = "RESTORED";
                     }
                 }
-            }
-            
-            // Re-evaluate COD Logic for UI
-            const codUi = document.getElementById('codSelectorUILabelAnchor'), codRadio = document.querySelector('input[value="COD"]'), codWarn = document.getElementById('codUIRestrictionReasonBanner');
-            if(cacheIsCodRestrictedState) {
-                codRadio.disabled = true; codUi.classList.add('opacity-40', 'cursor-not-allowed', 'bg-neutral-100');
-                codWarn.innerText = "COD RESTRICTED FOR 24 DAYS."; codWarn.className = "text-red-600 font-bold text-[9px] uppercase mt-1 tracking-wider";
-                document.querySelector('input[value="UPI"]').checked = true;
-            } else {
-                codRadio.disabled = false; codUi.classList.remove('opacity-40', 'cursor-not-allowed', 'bg-neutral-100');
-                codWarn.innerText = "Settlement on physical arrival."; codWarn.className = "text-neutral-500 text-[9px] font-bold uppercase mt-1 tracking-wider";
             }
             synchronizePaymentMethodUIPanelView();
         }
@@ -830,305 +745,197 @@
             if(document.getElementById('mCoinToggleInput').checked) {
                 appliedMCoinsValue = Math.min(userMCoinsBalance, currentCheckoutTotal);
                 currentCheckoutTotal -= appliedMCoinsValue;
-                showToast(`Vault Connected: ${appliedMCoinsValue} Coins utilized.`, "success");
-            } else {
-                currentCheckoutTotal += appliedMCoinsValue;
-                appliedMCoinsValue = 0;
-            }
-            document.getElementById('checkoutOriginalPrice').classList.remove('hidden');
-            document.getElementById('checkoutFinalPrice').innerText = `₹${currentCheckoutTotal}`;
-            synchronizePaymentMethodUIPanelView(); 
+                showToast(`VAULT: ${appliedMCoinsValue} COINS APPLIED.`, "success");
+            } else { currentCheckoutTotal += appliedMCoinsValue; appliedMCoinsValue = 0; }
+            document.getElementById('checkoutOriginalPrice').classList.remove('hidden'); document.getElementById('checkoutFinalPrice').innerText = `₹${currentCheckoutTotal}`;
+            synchronizePaymentMethodUIPanelView();
         };
 
         window.synchronizePaymentMethodUIPanelView = function() {
-            const upi = document.getElementById('panelUPIProtocol'), cod = document.getElementById('panelCODProtocol'), mCoin = document.getElementById('panelMCoinFullProtocol'), container = document.getElementById('paymentMethodsContainer');
-            if(currentCheckoutTotal === 0) {
-                container.classList.add('hidden'); upi.classList.add('hidden'); cod.classList.add('hidden'); mCoin.classList.remove('hidden'); return;
-            }
-            container.classList.remove('hidden'); mCoin.classList.add('hidden');
+            const upiP = document.getElementById('panelUPIProtocol'), codP = document.getElementById('panelCODProtocol'), mFull = document.getElementById('panelMCoinFullProtocol'), cont = document.getElementById('paymentMethodsContainer');
+            if(currentCheckoutTotal === 0) { cont.classList.add('hidden'); upiP.classList.add('hidden'); codP.classList.add('hidden'); mFull.classList.remove('hidden'); return; }
+            cont.classList.remove('hidden'); mFull.classList.add('hidden');
             const method = document.querySelector('input[name="paymentProtocolSelection"]:checked');
-            if(!method) return;
-            if(method.value === 'UPI') { upi.classList.remove('hidden'); cod.classList.add('hidden'); } else { upi.classList.add('hidden'); cod.classList.remove('hidden'); }
+            if(method && method.value === 'UPI') { upiP.classList.remove('hidden'); codP.classList.add('hidden'); } else if(method) { upiP.classList.add('hidden'); codP.classList.remove('hidden'); }
         };
 
         window.verifyAndApplyCoupon = async function() {
-            const input = document.getElementById('couponCodeInput'), btn = document.getElementById('applyCouponBtn'), code = input.value.trim().toUpperCase();
-            if(!code) return showToast("Enter code.", "error");
-            btn.innerText = "VERIFY..."; btn.disabled = true;
+            const inp = document.getElementById('couponCodeInput'), btn = document.getElementById('applyCouponBtn'), code = inp.value.trim().toUpperCase();
+            if(!code) return showToast("ENTER PROMO STRING.", "error");
+            btn.innerText = "SCANNING..."; btn.disabled = true;
             try {
                 const snap = await get(ref(db, `coupons/${code}`));
                 if(snap.exists() && snap.val().active) {
-                    const discount = parseInt(snap.val().discount);
-                    if(document.getElementById('mCoinToggleInput').checked) {
-                        document.getElementById('mCoinToggleInput').click(); 
-                        showToast("M-Coins detached to process coupon matrix.", "info");
-                    }
-                    currentCheckoutTotal = Math.max(0, 999 - discount);
-                    appliedCouponCodeString = code;
-                    document.getElementById('checkoutOriginalPrice').classList.remove('hidden');
-                    document.getElementById('checkoutFinalPrice').innerText = `₹${currentCheckoutTotal}`;
-                    showToast(`VERIFIED: ₹${discount} OFF`, "success");
-                    input.disabled = true; btn.innerText = "APPLIED";
-                    synchronizePaymentMethodUIPanelView();
-                } else { showToast("INVALID CODE.", "error"); btn.innerText = "Apply"; btn.disabled = false; }
-            } catch(e) { showToast(`ERROR`, "error"); btn.innerText = "Apply"; btn.disabled = false; }
+                    if(document.getElementById('mCoinToggleInput').checked) { document.getElementById('mCoinToggleInput').click(); showToast("COINS DETACHED FOR PROMO OVERRIDE.", "info"); }
+                    currentCheckoutTotal = Math.max(0, 999 - parseInt(snap.val().discount)); appliedCouponCodeString = code;
+                    document.getElementById('checkoutOriginalPrice').classList.remove('hidden'); document.getElementById('checkoutFinalPrice').innerText = `₹${currentCheckoutTotal}`;
+                    showToast(`PROMO ACCEPTED.`, "success"); inp.disabled = true; btn.innerText = "SECURED"; synchronizePaymentMethodUIPanelView();
+                } else { showToast("INVALID/EXPIRED PROMO.", "error"); btn.innerText = "APPLY"; btn.disabled = false; }
+            } catch(e) { showToast(e.message, "error"); btn.innerText = "APPLY"; btn.disabled = false; }
         };
 
-        // --- PRE-COMMIT: INTERCEPTS FOR OTP IF FIRST ORDER ---
-        window.preCommitOrder = function(method, btn) {
-            const fullName = document.getElementById('chkFullName').value.trim();
-            let phone = document.getElementById('chkPhone').value.trim();
-            const address = document.getElementById('chkStreetAddress').value.trim();
-            const pin = document.getElementById('chkPinCode').value.trim();
-            const city = document.getElementById('chkCity').value.trim();
-            
-            if(!fullName || !phone || !address || !pin || !city) return showToast("Incomplete routing data.", "error");
-            if (/^\d{10}$/.test(phone)) phone = '+91' + phone;
-            if(!validatePhoneString(phone)) return showToast("Invalid 10-digit number.", "error");
+        // --- CHECKOUT LOGIC WITH OTP & ADDRESS SAVE ---
+        window.executeOrderCheckFlow = async function(method, btnElement) {
+            const orgText = btnElement.innerText; btnElement.disabled = true; btnElement.innerText = "EVALUATING...";
+            if(isUserSuspended) { btnElement.disabled = false; btnElement.innerText = orgText; return showToast("ACCOUNT SUSPENDED.", "error"); }
 
-            if(userCompletedOrders === 0) {
-                // First order - Send OTP
-                pendingCheckoutMethod = method;
-                pendingCheckoutBtnElement = btn;
-                generatedOtpContext = Math.floor(1000 + Math.random() * 9000).toString();
-                
-                const og = btn.innerText; btn.innerText = "SECURING..."; btn.disabled = true;
-
-                emailjs.send("service_av1a4ta", "template_6sl1rze", {
-                    customer_email: window.sessionUserRecord.email,
-                    otp: generatedOtpContext
-                }).then(() => {
-                    dismissModals();
-                    modalContainerNode.classList.add('active');
-                    document.getElementById('otpDialog').classList.remove('hidden');
-                    btn.innerText = og; btn.disabled = false;
-                }).catch(err => {
-                    showToast("Security dispatch failed. Try again.", "error");
-                    btn.innerText = og; btn.disabled = false;
-                });
-            } else {
-                // Regular Flow
-                commitOrderToDatabaseEngine(method, btn);
-            }
-        };
-
-        window.verifyOtpAndProceed = function(btn) {
-            const val = document.getElementById('otpInput').value.trim();
-            if(val === generatedOtpContext) {
-                showToast("Identity Confirmed.", "success");
-                dismissModals();
-                // Pass back to original commit
-                commitOrderToDatabaseEngine(pendingCheckoutMethod, pendingCheckoutBtnElement);
-            } else {
-                showToast("Invalid Authorization Code.", "error");
-            }
-        };
-
-        // --- CORE SUBMISSION ---
-        window.commitOrderToDatabaseEngine = async function(method, btnElement) {
-            const originalText = btnElement ? btnElement.innerText : "PROCESSING...";
-            if(btnElement) { btnElement.disabled = true; btnElement.innerText = "PROCESSING..."; }
-
-            if(!window.sessionUserRecord || isUserSuspended) return showToast("Session expired or suspended.", "error");
-
-            const fullName = document.getElementById('chkFullName').value.trim();
-            let phone = document.getElementById('chkPhone').value.trim();
-            const address = document.getElementById('chkStreetAddress').value.trim();
+            const fn = document.getElementById('chkFullName').value.trim();
+            let ph = document.getElementById('chkPhone').value.trim();
+            const addr = document.getElementById('chkStreetAddress').value.trim();
             const pin = document.getElementById('chkPinCode').value.trim();
             const city = document.getElementById('chkCity').value.trim();
             const state = document.getElementById('chkState').value.trim();
-            if (/^\d{10}$/.test(phone)) phone = '+91' + phone;
+
+            if(!fn || !ph || !addr || !pin || !city) { btnElement.disabled = false; btnElement.innerText = orgText; return showToast("MISSING LOGISTICAL DATA.", "error"); }
+            if (/^\d{10}$/.test(ph)) ph = '+91' + ph;
+            if(!validatePhone(ph)) { btnElement.disabled = false; btnElement.innerText = orgText; return showToast("INVALID CONTACT FORMAT.", "error"); }
 
             const orderId = "MNT-" + Math.floor(100000 + Math.random() * 900000);
-            const addressString = `${address.toUpperCase()}, ${city}, ${state}, PIN: ${pin} (PH: ${phone})`;
-            
-            const isUpi = method.startsWith('UPI');
-            const isMCoinFull = method === "M_COIN_FULL";
+            const addressString = `${addr.toUpperCase()}, ${city}, ${state}, PIN: ${pin} (PH: ${ph})`;
 
-            const newlyEarnedCoins = 2;
-            const updatedUserCoinsBalance = (userMCoinsBalance - appliedMCoinsValue) + newlyEarnedCoins;
-
-            const payload = {
-                uid: window.sessionUserRecord.uid,
-                email: window.sessionUserRecord.email,
-                customer_email: window.sessionUserRecord.email,
-                orderId: orderId,
-                clientIdentityName: fullName.toUpperCase(),
-                productTitleDescription: "MONTÈ SIGNATURE TEE",
-                selectedSizeFitDimension: selectedProductSizeValue || "STANDARD",
-                selectedShadeColorContext: selectedColorProductShade.toUpperCase(),
-                transactionSettlementAmount: currentCheckoutTotal,
-                appliedPromoCode: appliedCouponCodeString || "NONE",
-                appliedMCoins: appliedMCoinsValue,
-                earnedMCoins: newlyEarnedCoins,
-                protocolMethodType: method, 
-                orderPipelineTrackingState: (isUpi && !isMCoinFull) ? "PLACED" : "VERIFIED",
-                consignmentDeliveryAddressText: addressString,
-                chronologicalCreationTimestamp: Date.now()
+            window.pendingOrderContext = {
+                uid: window.sessionUserRecord.uid, email: window.sessionUserRecord.email, customer_email: window.sessionUserRecord.email,
+                orderId: orderId, clientIdentityName: fn.toUpperCase(), productTitleDescription: "MONTÈ SIGNATURE TEE",
+                selectedSizeFitDimension: selectedProductSizeValue || "STANDARD", selectedShadeColorContext: selectedColorProductShade.toUpperCase(),
+                transactionSettlementAmount: currentCheckoutTotal, appliedPromoCode: appliedCouponCodeString || "NONE",
+                appliedMCoins: appliedMCoinsValue, earnedMCoins: 2, protocolMethodType: method, 
+                orderPipelineTrackingState: (method.startsWith('UPI') && method !== "M_COIN_FULL") ? "PLACED" : "VERIFIED",
+                consignmentDeliveryAddressText: addressString, chronologicalCreationTimestamp: Date.now(),
+                customer_name: fn.toUpperCase(), order_id: orderId, product_name: "MONTÈ SIGNATURE TEE", total: currentCheckoutTotal, coupon: appliedCouponCodeString || "NONE",
+                // Extra raw address fields for saving
+                rawAddress: { street: addr, pin: pin, city: city, state: state }
             };
 
-            // Optimistic Firebase Pushes
-            set(ref(db, `orders/${orderId}`), payload).catch(e => console.warn(e));
+            // OTP REQUIRED ON FIRST ORDER?
+            if(userCompletedOrdersCount === 0) {
+                btnElement.disabled = false; btnElement.innerText = orgText;
+                window.generatedSecureOTP = Math.floor(1000 + Math.random() * 9000).toString();
+                
+                showToast("DISPATCHING SECURITY OTP...", "info");
+                emailjs.send('service_av1a4ta', 'template_6sl1rze', {
+                    to_email: window.sessionUserRecord.email,
+                    customer_name: fn.toUpperCase(),
+                    otp: window.generatedSecureOTP
+                }).then(() => {
+                    dismissModals();
+                    modalNode.classList.add('active');
+                    document.getElementById('otpValidationInput').value = '';
+                    document.getElementById('otpDialog').classList.remove('hidden');
+                }).catch(e => showToast("OTP DISPATCH FAILED: " + e.text, "error"));
+            } else {
+                finalizeValidatedOrder();
+            }
+        };
 
-            // Save Address Matrix 
-            update(ref(db, `users/${window.sessionUserRecord.uid}/address`), {
-                street: address.toUpperCase(), pin: pin, city: city, state: state
+        window.validateOTPAndFinalize = function() {
+            const inp = document.getElementById('otpValidationInput').value.trim();
+            if(inp === window.generatedSecureOTP) { finalizeValidatedOrder(); } 
+            else { showToast("INCORRECT OTP MATRIX.", "error"); }
+        };
+
+        // --- CORE PUSH (CONFIRM EMAIL + DB SAVE) ---
+        async function finalizeValidatedOrder() {
+            const payload = window.pendingOrderContext;
+            const btn = document.getElementById('otpSubmitBtn');
+            if(btn) { btn.disabled = true; btn.innerText = "FINALIZING..."; }
+
+            // Clean Payload for DB
+            const rawAdd = payload.rawAddress;
+            delete payload.rawAddress;
+
+            // Push Order
+            set(ref(db, `orders/${payload.orderId}`), payload).catch(e => console.warn(e));
+
+            // Save Address & Update Coins
+            const userRef = ref(db, `users/${payload.uid}`);
+            update(userRef, { 
+                mCoins: (userMCoinsBalance - payload.appliedMCoins) + 2,
+                completedOrdersCount: userCompletedOrdersCount + 1,
+                savedAddress: rawAdd
             }).catch(e => console.warn(e));
 
-            // Update user stats
-            const userRef = ref(db, `users/${window.sessionUserRecord.uid}`);
-            get(userRef).then(snap => {
-                let currentCompleted = 0; if(snap.exists() && snap.val().completedOrdersCount) currentCompleted = snap.val().completedOrdersCount;
-                update(userRef, { mCoins: updatedUserCoinsBalance, completedOrdersCount: currentCompleted + 1 });
-            }).catch(e => console.warn(e));
+            // CONFIRMATION EMAIL (FIRE & FORGET)
+            emailjs.send('service_av1a4ta', 'template_t2exorg', {
+                customer_name: payload.customer_name, order_id: payload.order_id, product_name: payload.product_name,
+                total: payload.total, coupon: payload.coupon, to_email: payload.customer_email
+            }).catch(e => console.warn("Email Confirm Failed:", e));
 
-            // CONFIRMATION EMAIL VIA EMAILJS
-            emailjs.send("service_av1a4ta", "template_t2exorg", {
-                customer_email: window.sessionUserRecord.email,
-                customer_name: fullName.toUpperCase(),
-                order_id: orderId,
-                product_name: "MONTÈ SIGNATURE TEE",
-                total: currentCheckoutTotal,
-                coupon: appliedCouponCodeString || "NONE"
-            }).catch(e => console.warn("Email dispatch fallback.", e));
-
-            // AUTO UPI REDIRECT
-            if(isUpi && currentCheckoutTotal > 0) {
-                const params = `pa=7347417931@pthdfc&pn=MONTE%20Apparel&tr=${orderId}&tn=Order%20${orderId}&am=${currentCheckoutTotal}&cu=INR`;
-                let upiUrl = `upi://pay?${params}`; 
-                if (method === 'UPI_GPAY') upiUrl = `tez://upi/pay?${params}`;
-                else if (method === 'UPI_PHONEPE') upiUrl = `phonepe://pay?${params}`;
-                else if (method === 'UPI_PAYTM') upiUrl = `paytmmp://pay?${params}`;
-                const link = document.createElement('a'); link.href = upiUrl; document.body.appendChild(link); link.click(); document.body.removeChild(link);
+            // UPI INTENT (IF APPLICABLE)
+            if(payload.protocolMethodType.startsWith('UPI') && payload.total > 0) {
+                const params = `pa=7347417931@pthdfc&pn=MONTE%20Apparel&tr=${payload.orderId}&tn=Order%20${payload.orderId}&am=${payload.total}&cu=INR`;
+                let u = `upi://pay?${params}`;
+                if (payload.protocolMethodType === 'UPI_GPAY') u = `tez://upi/pay?${params}`;
+                else if (payload.protocolMethodType === 'UPI_PHONEPE') u = `phonepe://pay?${params}`;
+                else if (payload.protocolMethodType === 'UPI_PAYTM') u = `paytmmp://pay?${params}`;
+                const l = document.createElement('a'); l.href = u; document.body.appendChild(l); l.click(); document.body.removeChild(l);
             }
 
             setTimeout(() => {
-                dismissModals();
-                window.renderActiveOrderTrackingPipelineDashboard(orderId);
-                showToast(`Secured! +2 M-Coins. ID: ${orderId}`, "success");
-                if(btnElement) { btnElement.disabled = false; btnElement.innerText = originalText; }
+                dismissModals(); window.renderActiveOrderTrackingPipelineDashboard(payload.orderId);
+                showToast(`TRANSACTION SECURED. COINS ALLOCATED.`, "success");
+                if(btn) { btn.disabled = false; btn.innerText = "Verify & Place Order"; }
             }, 600);
-        };
+        }
 
-        // Tracking Handlers
-        window.openTrackingModalDirectly = function() { dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('trackingSearchDialog').classList.remove('hidden'); };
+        window.openTrackingModalDirectly = function() { dismissModals(); modalNode.classList.add('active'); document.getElementById('trackingSearchDialog').classList.remove('hidden'); };
 
         window.executeManualTrackingQueryLookup = async function() {
             const id = document.getElementById('trackSearchIdInput').value.trim().toUpperCase();
-            if(!id) return showToast("Provide reference.", "error");
-            try {
-                const snap = await get(ref(db, `orders/${id}`));
-                if(snap.exists()) { dismissModals(); window.renderActiveOrderTrackingPipelineDashboard(id); } else { showToast("Not found.", "error"); }
-            } catch (e) { showToast(`Query Failed`, "error"); }
+            if(!id) return showToast("INPUT REQUIRED.", "error");
+            try { const snap = await get(ref(db, `orders/${id}`)); if(snap.exists()) { dismissModals(); window.renderActiveOrderTrackingPipelineDashboard(id); } else showToast("REFERENCE MISSING.", "error"); } 
+            catch (e) { showToast(`QUERY ERROR.`, "error"); }
         };
 
         window.renderActiveOrderTrackingPipelineDashboard = async function(id) {
-            activeTrackingTargetOrderId = id;
-            switchView('trackingView');
-            cancelConfirmState = false; 
-            document.getElementById('cancelOrderActionBtn').innerText = "Revoke Order";
-            document.getElementById('cancelOrderActionBtn').classList.remove('bg-red-800', 'text-white');
-            
+            activeTrackingTargetOrderId = id; switchView('trackingView'); cancelConfirmState = false; 
+            const cancelBtn = document.getElementById('cancelOrderActionBtn'); cancelBtn.innerText = "Revoke Consignment"; cancelBtn.classList.remove('text-red-800');
             try {
                 const snap = await get(ref(db, `orders/${id}`));
                 if(snap.exists()) {
                     const data = snap.val();
                     document.getElementById('trackOrderId').innerText = data.orderId;
-                    
-                    let displayMethod = data.protocolMethodType;
-                    if(displayMethod.startsWith('UPI_')) displayMethod = displayMethod.replace('_', ' ');
-                    if(displayMethod === 'M_COIN_FULL') displayMethod = 'M-COINS VAULT';
+                    let displayMethod = data.protocolMethodType; if(displayMethod.startsWith('UPI_')) displayMethod = displayMethod.replace('_', ' ');
                     document.getElementById('trackPaymentMethod').innerText = displayMethod;
-                    
                     document.getElementById('trackShippingAddress').innerText = data.consignmentDeliveryAddressText;
 
                     const msgPanel = document.getElementById('trackingStatusMessagePanel');
-                    const cancelBtn = document.getElementById('cancelOrderActionBtn');
                     const status = data.orderPipelineTrackingState.toUpperCase();
-                    
                     updateVisualPipelineProgressBarValueIndicators(status);
 
-                    if(status === "PLACED") {
-                        msgPanel.innerText = "UPI INITIATED. SEND SCREENSHOT TO +91 79738 04008 FOR ALLOCATION.";
-                        msgPanel.className = "text-xs border border-neutral-200 bg-amber-50 text-amber-800 p-4 text-center font-bold tracking-widest uppercase";
-                        cancelBtn.classList.remove('hidden');
-                    } else if(status === "VERIFIED") {
-                        msgPanel.innerText = "VERIFIED. BATCH INITIALIZED.";
-                        msgPanel.className = "text-xs border border-neutral-200 bg-emerald-50 text-emerald-800 p-4 text-center font-bold tracking-widest uppercase";
-                        cancelBtn.classList.remove('hidden');
-                    } else if(status === "SHIPPED") {
-                        msgPanel.innerText = "IN-TRANSIT. CANCELLATION LOCKED.";
-                        msgPanel.className = "text-xs border border-neutral-200 bg-neutral-900 text-white p-4 text-center font-bold tracking-widest uppercase";
-                        cancelBtn.classList.add('hidden'); 
-                    } else if(status === "DELIVERED") {
-                        msgPanel.innerText = "DELIVERED. ARCHIVED.";
-                        msgPanel.className = "text-xs border border-neutral-200 bg-blue-50 text-blue-800 p-4 text-center font-bold tracking-widest uppercase";
-                        cancelBtn.classList.add('hidden');
-                    } else if(status === "CANCELLED") {
-                        msgPanel.innerText = "STATUS: VOID / CANCELLED.";
-                        msgPanel.className = "text-xs border border-neutral-200 bg-red-50 text-red-800 p-4 text-center font-bold tracking-widest uppercase";
-                        cancelBtn.classList.add('hidden');
-                    }
+                    if(status === "PLACED") { msgPanel.innerText = "AWAITING UPI SCREENSHOT MATCH (+91 79738 04008)."; cancelBtn.classList.remove('hidden'); } 
+                    else if(status === "VERIFIED") { msgPanel.innerText = "PAYMENT CLEARED. PRESTIGE BATCH ALLOCATED."; cancelBtn.classList.remove('hidden'); } 
+                    else if(status === "SHIPPED") { msgPanel.innerText = "PARCEL IN-TRANSIT. REVOCATION LOCKED."; cancelBtn.classList.add('hidden'); } 
+                    else if(status === "DELIVERED") { msgPanel.innerText = "HANDOVER COMPLETE. ARCHIVED."; cancelBtn.classList.add('hidden'); } 
+                    else if(status === "CANCELLED") { msgPanel.innerText = "CONSIGNMENT VOIDED BY SYSTEM / USER."; cancelBtn.classList.add('hidden'); }
                 }
-            } catch (err) { document.getElementById('trackingStatusMessagePanel').innerText = "Dashboard synced locally."; }
+            } catch (err) { document.getElementById('trackingStatusMessagePanel').innerText = "SYNCING BACKGROUND CONTEXT..."; }
         };
 
         function updateVisualPipelineProgressBarValueIndicators(status) {
-            const lineNode = document.getElementById('trackProgressLine');
-            const c1 = document.getElementById('stepCircle1'), c2 = document.getElementById('stepCircle2'), c3 = document.getElementById('stepCircle3'), c4 = document.getElementById('stepCircle4');
-
-            [c1, c2, c3, c4].forEach(circle => { circle.classList.remove('bg-black', 'text-white', 'bg-red-500', 'bg-emerald-500'); circle.classList.add('bg-neutral-200', 'text-neutral-500'); });
-            lineNode.style.width = "0%";
-
-            if(status === "CANCELLED") {
-                [c1, c2, c3, c4].forEach(c => c.classList.add('bg-red-500', 'text-white'));
-                lineNode.style.width = "100%"; lineNode.className = "absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-red-500 transition-all duration-500"; return;
-            }
-
-            lineNode.className = "absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-black transition-all duration-500";
-
-            if(status === "PLACED") { c1.classList.add('bg-black', 'text-white'); lineNode.style.width = "0%"; }
-            else if(status === "VERIFIED") { c1.classList.add('bg-black', 'text-white'); c2.classList.add('bg-black', 'text-white'); lineNode.style.width = "33.33%"; }
-            else if(status === "SHIPPED") { c1.classList.add('bg-black', 'text-white'); c2.classList.add('bg-black', 'text-white'); c3.classList.add('bg-black', 'text-white'); lineNode.style.width = "66.66%"; }
-            else if(status === "DELIVERED") { c1.classList.add('bg-emerald-500', 'text-white'); c2.classList.add('bg-emerald-500', 'text-white'); c3.classList.add('bg-emerald-500', 'text-white'); c4.classList.add('bg-emerald-500', 'text-white'); lineNode.style.width = "100%"; }
+            const line = document.getElementById('trackProgressLine'), c1 = document.getElementById('stepCircle1'), c2 = document.getElementById('stepCircle2'), c3 = document.getElementById('stepCircle3'), c4 = document.getElementById('stepCircle4');
+            [c1, c2, c3, c4].forEach(c => { c.classList.remove('bg-black','bg-red-500','bg-emerald-500'); c.classList.add('bg-neutral-200'); });
+            line.style.width = "0%";
+            if(status === "CANCELLED") { [c1, c2, c3, c4].forEach(c => c.classList.add('bg-red-500')); line.style.width = "100%"; line.className = "absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-red-500 transition-all duration-700"; return; }
+            line.className = "absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-black transition-all duration-700";
+            if(status === "PLACED") { c1.classList.add('bg-black'); line.style.width = "0%"; }
+            else if(status === "VERIFIED") { c1.classList.add('bg-black'); c2.classList.add('bg-black'); line.style.width = "33.33%"; }
+            else if(status === "SHIPPED") { c1.classList.add('bg-black'); c2.classList.add('bg-black'); c3.classList.add('bg-black'); line.style.width = "66.66%"; }
+            else if(status === "DELIVERED") { c1.classList.add('bg-emerald-500'); c2.classList.add('bg-emerald-500'); c3.classList.add('bg-emerald-500'); c4.classList.add('bg-emerald-500'); line.style.width = "100%"; }
         }
 
         window.executeActiveOrderCancellation = function() {
-            if(!activeTrackingTargetOrderId) return;
-            const btn = document.getElementById('cancelOrderActionBtn');
-
-            if(!cancelConfirmState) {
-                cancelConfirmState = true;
-                btn.innerText = "CONFIRM CANCELLATION";
-                btn.classList.remove('bg-red-50', 'text-red-600', 'border-red-200');
-                btn.classList.add('bg-red-800', 'text-white');
-                setTimeout(() => {
-                    cancelConfirmState = false; btn.innerText = "Revoke Order";
-                    btn.classList.remove('bg-red-800', 'text-white'); btn.classList.add('bg-red-50', 'text-red-600', 'border-red-200');
-                }, 4000);
-                return;
-            }
+            if(!activeTrackingTargetOrderId) return; const btn = document.getElementById('cancelOrderActionBtn');
+            if(!cancelConfirmState) { cancelConfirmState = true; btn.innerText = "CONFIRM REVOCATION"; btn.classList.add('text-red-800'); showToast("CONFIRM SECOND TAP.", "error"); setTimeout(() => { cancelConfirmState = false; btn.innerText = "Revoke Consignment"; btn.classList.remove('text-red-800'); }, 4000); return; }
             cancelConfirmState = false;
             get(ref(db, `orders/${activeTrackingTargetOrderId}`)).then(async (snap) => {
-                if(snap.exists() && snap.val().orderPipelineTrackingState.toUpperCase() === "SHIPPED") return showToast("SHIPPED orders cannot be cancelled.", "error");
-
+                if(snap.exists() && snap.val().orderPipelineTrackingState.toUpperCase() === "SHIPPED") return showToast("SHIPPED. CANCELLATION LOCKED.", "error");
                 await update(ref(db, `orders/${activeTrackingTargetOrderId}`), { orderPipelineTrackingState: "CANCELLED" });
-                
-                const clientRef = ref(db, `users/${window.sessionUserRecord.uid}`);
-                const clientSnap = await get(clientRef);
-                let count = 1; let validCount = 0;
-                if(clientSnap.exists()) {
-                    if(clientSnap.val().cancelCount !== undefined) count = clientSnap.val().cancelCount + 1;
-                    if(clientSnap.val().completedOrdersCount !== undefined) validCount = Math.max(0, clientSnap.val().completedOrdersCount - 1);
-                }
-
-                await update(clientRef, { cancelCount: count, lastCancelTimestamp: Date.now(), completedOrdersCount: validCount });
-
-                showToast("Order Cancelled Successfully.", "success");
-                window.renderActiveOrderTrackingPipelineDashboard(activeTrackingTargetOrderId);
-                synchronizeAccountDashboardDataMetrics();
-                
-                if(count >= 15) { showToast("ACCOUNT PERMANENTLY SUSPENDED.", "error"); setTimeout(() => triggerSignOutSession(), 2000); }
+                const cRef = ref(db, `users/${window.sessionUserRecord.uid}`), cSnap = await get(cRef);
+                let c = 1, v = 0;
+                if(cSnap.exists()) { if(cSnap.val().cancelCount !== undefined) c = cSnap.val().cancelCount + 1; if(cSnap.val().completedOrdersCount !== undefined) v = Math.max(0, cSnap.val().completedOrdersCount - 1); }
+                await update(cRef, { cancelCount: c, lastCancelTimestamp: Date.now(), completedOrdersCount: v });
+                showToast("CONSIGNMENT VOIDED.", "success"); window.renderActiveOrderTrackingPipelineDashboard(activeTrackingTargetOrderId); synchronizeAccountDashboardDataMetrics();
+                if(c >= 15) { showToast("CRITICAL: ACCOUNT PERMANENTLY SUSPENDED.", "error"); setTimeout(() => triggerSignOutSession(), 2500); }
             });
         };
 
@@ -1142,83 +949,61 @@
                     document.getElementById('accProfileEmail').innerText = data.email || window.sessionUserRecord.email;
                     document.getElementById('accProfilePhone').innerText = data.phone || "---";
                     document.getElementById('accCancelCount').innerText = `${data.cancelCount || 0} / 15`;
-                    
-                    userMCoinsBalance = data.mCoins || 0;
-                    document.getElementById('accCoinsBalance').innerHTML = `<svg class="coin-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M9 9h6M9 15h6"></path></svg> ${userMCoinsBalance}`;
+                    document.getElementById('accCoinsBalance').innerText = data.mCoins || 0;
                     document.getElementById('accValidOrders').innerText = data.completedOrdersCount || 0;
-
-                    const sus = document.getElementById('accSuspensionStatus');
-                    if(data.cancelCount >= 15) { isUserSuspended = true; sus.innerText = "SUSPENDED"; sus.className = "text-sm font-bold uppercase text-red-600"; } 
-                    else { isUserSuspended = false; sus.innerText = "SECURE"; sus.className = "text-sm font-bold uppercase text-emerald-600"; }
-
-                    const crown = document.getElementById('montePlusCrown');
-                    if((data.completedOrdersCount || 0) >= 12) { isUserMontePlus = true; crown.classList.remove('hidden'); } else { isUserMontePlus = false; crown.classList.add('hidden'); }
-
-                    const cod = document.getElementById('accCodStatus');
-                    if(cacheIsCodRestrictedState || (data.cancelCount || 0) >= 2) { cod.innerText = "RESTRICTED (24D)"; cod.className = "text-sm font-bold uppercase text-red-600"; } 
-                    else { cod.innerText = "ACTIVE"; cod.className = "text-sm font-bold uppercase text-emerald-600"; }
+                    if(data.savedAddress && data.savedAddress.street) {
+                        document.getElementById('accSavedAddress').innerHTML = `<p class="uppercase text-black font-bold mb-1">${data.name}</p>${data.savedAddress.street}<br>${data.savedAddress.city}, ${data.savedAddress.state} - ${data.savedAddress.pin}`;
+                    }
+                    const susp = document.getElementById('accSuspensionStatus');
+                    if(data.cancelCount >= 15) { isUserSuspended = true; susp.innerText = "LOCKED"; susp.className = "text-red-500"; } else { isUserSuspended = false; susp.innerText = "SECURE"; susp.className = "text-emerald-500"; }
+                    if((data.completedOrdersCount||0) >= 12) { isUserMontePlus=true; document.getElementById('montePlusCrown').classList.remove('hidden'); } else { isUserMontePlus=false; document.getElementById('montePlusCrown').classList.add('hidden'); }
+                    const codN = document.getElementById('accCodStatus');
+                    if(cacheIsCodRestrictedState || (data.cancelCount||0) >= 2) { codN.innerText = "RESTRICTED"; codN.className = "text-red-500"; } else { codN.innerText = "ACTIVE"; codN.className = "text-emerald-500"; }
                 }
-
-                const ordersSnap = await get(ref(db, 'orders'));
-                const container = document.getElementById('accountOrderHistoryContainer');
-                container.innerHTML = ""; let count = 0;
-
-                if(ordersSnap.exists()) {
-                    const wrapper = document.createElement('div'); wrapper.className = "space-y-4";
-                    for(let key in ordersSnap.val()) {
-                        const item = ordersSnap.val()[key];
-                        if(item.uid === window.sessionUserRecord.uid) {
-                            count++;
-                            const div = document.createElement('div');
-                            div.className = "p-5 bg-white border border-neutral-200 flex justify-between items-center hover:shadow-md transition";
-                            div.innerHTML = `<div><span class="block font-bold text-black text-sm uppercase">${item.orderId}</span><span class="block text-[10px] text-neutral-400 mt-1 uppercase tracking-widest font-bold">${item.productTitleDescription} — ${item.selectedSizeFitDimension}</span></div>
-                                <div class="flex flex-col items-end gap-2"><span class="px-2 py-1 bg-black text-white text-[9px] font-bold tracking-widest uppercase">${item.orderPipelineTrackingState}</span><button onclick="window.renderActiveOrderTrackingPipelineDashboard('${item.orderId}')" class="text-[10px] underline font-bold uppercase text-black hover:text-neutral-500">Track</button></div>`;
-                            wrapper.appendChild(div);
+                const osnap = await get(ref(db, 'orders')), cont = document.getElementById('accountOrderHistoryContainer'); cont.innerHTML = ""; let c = 0;
+                if(osnap.exists()) {
+                    const w = document.createElement('div'); w.className = "space-y-2";
+                    for(let k in osnap.val()) {
+                        const i = osnap.val()[k];
+                        if(i.uid === window.sessionUserRecord.uid) {
+                            c++; const d = document.createElement('div'); d.className = "flex justify-between items-center py-4 border-b border-neutral-100 group";
+                            d.innerHTML = `<div><span class="block font-bold text-black text-[10px] uppercase">${i.orderId}</span><span class="block text-[9px] text-neutral-400 mt-1 uppercase tracking-[0.2em]">${i.productTitleDescription} - ${i.selectedSizeFitDimension}</span></div><div class="flex items-center gap-4"><span class="text-[9px] font-bold tracking-[0.2em] uppercase text-neutral-500">${i.orderPipelineTrackingState}</span><button onclick="window.renderActiveOrderTrackingPipelineDashboard('${i.orderId}')" class="text-[9px] underline font-bold uppercase text-black opacity-0 group-hover:opacity-100 transition">View</button></div>`;
+                            w.appendChild(d);
                         }
                     }
-                    if(count > 0) container.appendChild(wrapper);
+                    if(c>0) cont.appendChild(w);
                 }
-                if(count === 0) container.innerHTML = `<p class="text-xs font-bold text-neutral-400 uppercase tracking-widest">No acquisitions found.</p>`;
-            } catch (error) { console.error("Sync Error"); }
+                if(c===0) cont.innerHTML = `<p class="text-[9px] uppercase tracking-[0.2em] text-neutral-400">Ledger empty.</p>`;
+            } catch (e) { console.warn(e); }
         }
 
         function resetAccountDashboardUIFields() {
-            document.getElementById('accProfileName').innerText = "---"; document.getElementById('accProfileEmail').innerText = "---"; document.getElementById('accProfilePhone').innerText = "---";
-            document.getElementById('accCancelCount').innerText = "0 / 15"; document.getElementById('accCoinsBalance').innerHTML = `<svg class="coin-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v12M9 9h6M9 15h6"></path></svg> 0`;
-            document.getElementById('accValidOrders').innerText = "0"; document.getElementById('montePlusCrown').classList.add('hidden');
-            document.getElementById('accSuspensionStatus').innerText = "SECURE"; document.getElementById('accCodStatus').innerText = "ACTIVE";
-            document.getElementById('accountOrderHistoryContainer').innerHTML = `<p class="text-xs font-bold text-neutral-400 uppercase tracking-widest">Authenticate to scan logs.</p>`;
+            document.getElementById('accProfileName').innerText = "---"; document.getElementById('accProfileEmail').innerText = "---"; document.getElementById('accProfilePhone').innerText = "---"; document.getElementById('accCancelCount').innerText = "0 / 15"; document.getElementById('accCoinsBalance').innerText = "0"; document.getElementById('accValidOrders').innerText = "0"; document.getElementById('montePlusCrown').classList.add('hidden'); document.getElementById('accSuspensionStatus').innerText = "SECURE"; document.getElementById('accCodStatus').innerText = "ACTIVE"; document.getElementById('accSavedAddress').innerText = "No logistics saved."; document.getElementById('accountOrderHistoryContainer').innerHTML = `<p class="text-[9px] uppercase tracking-[0.2em] text-neutral-400">Authenticate to scan.</p>`;
         }
 
         window.triggerReviewSubmission = async function() {
-            if(!window.sessionUserRecord) { showToast("Authenticate to review.", "info"); dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('authDialog').classList.remove('hidden'); toggleAuthTab('LOGIN'); return; }
+            if(!window.sessionUserRecord) { showToast("AUTHENTICATE TO LEAVE REVIEW.", "error"); return dismissModals(), modalNode.classList.add('active'), document.getElementById('authDialog').classList.remove('hidden'), toggleAuthTab('LOGIN'); }
             try {
-                const snap = await get(ref(db, 'orders')); let verified = false;
-                if(snap.exists()) { for(let key in snap.val()) { if(snap.val()[key].uid === window.sessionUserRecord.uid) { verified = true; break; } } }
-                if(verified) { currentSelectedRating = 0; window.setRatingStars(0); document.getElementById('reviewTextInput').value = ''; dismissModals(); modalContainerNode.classList.add('active'); document.getElementById('reviewDialog').classList.remove('hidden'); } 
-                else { showToast("Only verified collectors can review.", "error"); }
-            } catch(e) { showToast(`Failed: ${e.message}`, "error"); }
+                const snap = await get(ref(db, 'orders')); let ok = false;
+                if(snap.exists()) { for(let k in snap.val()) { if(snap.val()[k].uid === window.sessionUserRecord.uid) { ok = true; break; } } }
+                if(ok) { currentSelectedRating = 0; window.setRatingStars(0); document.getElementById('reviewTextInput').value = ''; dismissModals(); modalNode.classList.add('active'); document.getElementById('reviewDialog').classList.remove('hidden'); } 
+                else showToast("FEATURE RESTRICTED TO VERIFIED COLLECTORS.", "error");
+            } catch(e) { showToast("REGISTRY CHECK FAILED.", "error"); }
         };
 
         window.setRatingStars = function(c) {
             currentSelectedRating = c;
-            document.querySelectorAll('#starSelectionContainer .star').forEach((n, i) => {
-                if(i < c) { n.classList.remove('text-neutral-200'); n.classList.add('text-amber-500'); } else { n.classList.remove('text-amber-500'); n.classList.add('text-neutral-200'); }
-            });
+            document.querySelectorAll('#starSelectionContainer .star').forEach((n, i) => { if(i < c) { n.classList.remove('text-neutral-300'); n.classList.add('text-black'); } else { n.classList.remove('text-black'); n.classList.add('text-neutral-300'); } });
         };
 
         window.submitProductReview = function(btn) {
-            if(currentSelectedRating === 0) return showToast("Select a valid rating.", "error");
-            const text = document.getElementById('reviewTextInput').value.trim();
-            const orig = btn.innerText; btn.disabled = true; btn.innerText = "SUBMITTING...";
-            setTimeout(() => { dismissModals(); showToast("Collector review submitted.", "success"); btn.disabled = false; btn.innerText = orig; }, 200);
-            const payload = { uid: window.sessionUserRecord.uid, reviewerName: window.sessionUserRecord.displayName || "Collector", starRating: currentSelectedRating, writtenReview: text, timestamp: Date.now() };
-            get(ref(db, `users/${window.sessionUserRecord.uid}`)).then(s => {
-                if(s.exists() && s.val().name) payload.reviewerName = s.val().name;
-                push(ref(db, 'reviews/monte_signature_tee'), payload).catch(e=>console.warn(e));
-            }).catch(() => push(ref(db, 'reviews/monte_signature_tee'), payload).catch(e=>console.warn(e)));
+            if(currentSelectedRating === 0) return showToast("SELECT METRIC VALUE.", "error");
+            const txt = document.getElementById('reviewTextInput').value.trim(); const org = btn.innerText; btn.disabled = true; btn.innerText = "UPLOADING...";
+            setTimeout(() => { dismissModals(); showToast("REVIEW SECURED.", "success"); btn.disabled = false; btn.innerText = org; }, 200);
+            let name = window.sessionUserRecord.displayName || "Verified Collector";
+            const payload = { uid: window.sessionUserRecord.uid, reviewerName: name, starRating: currentSelectedRating, writtenReview: txt, timestamp: Date.now() };
+            get(ref(db, `users/${window.sessionUserRecord.uid}`)).then(s => { if(s.exists() && s.val().name) payload.reviewerName = s.val().name; push(ref(db, 'reviews/monte_signature_tee'), payload).catch(e=>console.warn(e)); }).catch(() => { push(ref(db, 'reviews/monte_signature_tee'), payload).catch(e=>console.warn(e)); });
         };
-
     </script>
 </body>
 </html>
