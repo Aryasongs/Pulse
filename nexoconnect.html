@@ -34,8 +34,6 @@
             display: flex; 
             justify-content: center; 
             align-items: center; 
-            
-            /* Luxury Corporate Background */
             background-image: url('https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1920&q=80');
             background-size: cover;
             background-position: center;
@@ -140,7 +138,6 @@
         .admin-sidebar { width: 350px; background: rgba(0,0,0,0.4); border-right: 1px solid var(--glass-border); display: flex; flex-direction: column; }
         
         .admin-header { padding: 25px 20px; border-bottom: 1px solid var(--glass-border); display: flex; justify-content: space-between; align-items: center;}
-        
         .role-selector { 
             background: rgba(0,0,0,0.6); color: var(--text-main); border: 1px solid var(--glass-border); 
             padding: 14px; border-radius: 8px; width: 100%; margin-top: 15px; font-weight: 500; font-size: 13px; outline: none; cursor: pointer;
@@ -195,7 +192,7 @@
             <img src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150" class="ceo-avatar" alt="Ananya Rao">
             <div class="header-info">
                 <h2 class="brand-font">Ananya Rao <i class="fas fa-certificate" style="color:var(--accent-primary); font-size:12px; margin-left:4px;"></i></h2>
-                <p>Office of the CEO</p>
+                <p>Chief Executive Officer</p>
             </div>
             <button class="action-btn" onclick="terminateSession()"><i class="fas fa-sign-out-alt"></i> Exit</button>
         </div>
@@ -204,7 +201,7 @@
         
         <div class="typing-indicator" id="user-typing-indicator">
             <i class="fas fa-circle-notch fa-spin" style="color: var(--text-muted); font-size: 14px;"></i>
-            <span style="font-size: 11px; color: var(--text-muted); font-weight: 500; margin-left: 8px;">Executive is typing...</span>
+            <span style="font-size: 11px; color: var(--text-muted); font-weight: 500; margin-left: 8px;">Ananya Rao is typing...</span>
         </div>
 
         <div class="input-area">
@@ -228,10 +225,9 @@
                 </div>
                 <div style="padding: 0 20px;">
                     <select class="role-selector" id="admin-role" onchange="updateHeader()">
-                        <option value="Executive Secretary|Office of the CEO">Respond as: Executive Secretary</option>
-                        <option value="Ananya Rao|Chief Executive Officer">Respond as: Ananya Rao (CEO)</option>
-                        <option value="Executive Board|Vice President">Respond as: Vice President</option>
-                        <option value="Regional HQ|India Managing Director">Respond as: India MD</option>
+                        <option value="Ananya Rao|Chief Executive Officer">Profile: Ananya Rao (CEO)</option>
+                        <option value="Executive Board|Vice President">Profile: Vice President</option>
+                        <option value="Regional HQ|India Managing Director">Profile: India MD</option>
                     </select>
                 </div>
                 <div class="user-list" id="admin-user-list"></div>
@@ -290,32 +286,40 @@
 
         const formatTime = (ts) => new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }).format(new Date(ts));
 
-        // --- LocalStorage Persistence ---
-        window.onload = () => {
-            const adminState = localStorage.getItem('oriontec_admin_session');
-            const userState = localStorage.getItem('oriontec_user_session');
+        // --- CORE FIX: Synchronous LocalStorage Persistence (100% Refresh Proof) ---
+        (function restoreSession() {
+            try {
+                const adminState = localStorage.getItem('oriontec_admin_session');
+                const userState = localStorage.getItem('oriontec_user_session');
 
-            if (adminState === 'active') {
-                document.getElementById('gateway-screen').style.display = 'none';
-                document.getElementById('admin-panel').style.display = 'flex';
-                loadCommandCenter();
-            } else if (userState) {
-                const data = JSON.parse(userState);
-                sessionID = data.sessionID;
-                visitorName = data.name;
+                if (adminState === 'active') {
+                    document.getElementById('gateway-screen').style.display = 'none';
+                    document.getElementById('admin-panel').style.display = 'flex';
+                    // Minor delay to ensure Firebase DOM elements are fully ready
+                    setTimeout(() => loadCommandCenter(), 300);
+                } else if (userState) {
+                    const data = JSON.parse(userState);
+                    sessionID = data.sessionID;
+                    visitorName = data.name;
 
-                document.getElementById('gateway-screen').style.display = 'none';
-                document.getElementById('chat-interface').style.display = 'flex';
-                initUserChat();
+                    document.getElementById('gateway-screen').style.display = 'none';
+                    document.getElementById('chat-interface').style.display = 'flex';
+                    setTimeout(() => initUserChat(), 300);
+                }
+            } catch (e) {
+                console.error("Local storage sync error:", e);
+                localStorage.removeItem('oriontec_user_session');
             }
-        };
+        })();
 
+        // Terminate Session manually
         function terminateSession() {
             localStorage.removeItem('oriontec_admin_session');
             localStorage.removeItem('oriontec_user_session');
             window.location.reload();
         }
 
+        // --- Gateway Logic ---
         function closePassModal() { document.getElementById('pass-modal').style.display = 'none'; }
 
         async function requestEntry() {
@@ -337,7 +341,10 @@
             visitorName = name;
             sessionID = "EXEC_NODE_" + Date.now().toString(36);
 
-            localStorage.setItem('oriontec_user_session', JSON.stringify({ sessionID: sessionID, name: visitorName }));
+            // SAVE TO LOCAL STORAGE
+            try {
+                localStorage.setItem('oriontec_user_session', JSON.stringify({ sessionID: sessionID, name: visitorName }));
+            } catch(e) { console.warn("Browser prevented session save."); }
 
             let loc = "Encrypted Global Node";
             try {
@@ -357,10 +364,12 @@
             deploySystemMessages(loc);
         }
 
+        // --- Admin Verification ---
         function verifyAdmin() {
             const pass = document.getElementById('admin-pass').value;
             if(pass === "Ananya2026") {
-                localStorage.setItem('oriontec_admin_session', 'active');
+                // SAVE ADMIN TO LOCAL STORAGE
+                try { localStorage.setItem('oriontec_admin_session', 'active'); } catch(e){}
                 
                 document.getElementById('pass-modal').style.display = 'none';
                 document.getElementById('gateway-screen').style.display = 'none';
@@ -371,9 +380,10 @@
             }
         }
 
+        // --- Communications Engine ---
         function deploySystemMessages(loc) {
             setTimeout(() => pushMsg(sessionID, `Network Secured. IP Vector verified from ${loc}.`, "SYSTEM AI", "Protocol"), 1000);
-            setTimeout(() => pushMsg(sessionID, `Welcome to the Oriontec Executive Lounge, ${visitorName}. The Office of the CEO has authorized this connection. Please wait for an Executive Assistant or the CEO to join.`, "SYSTEM AI", "Protocol"), 4000);
+            setTimeout(() => pushMsg(sessionID, `Welcome to the Oriontec Executive Lounge, ${visitorName}. CEO Ananya Rao's office has authorized this connection. An executive will join momentarily.`, "SYSTEM AI", "Protocol"), 4000);
         }
 
         function handleKey(e, context) {
@@ -428,6 +438,7 @@
 
         const parseLinks = (text) => text.replace(/(https?:\/\/[^\s]+)/g, url => `<a href="${url}" target="_blank" style="color:#60a5fa; text-decoration:underline;">${url}</a>`);
 
+        // --- Sync UI ---
         function initUserChat() {
             syncBox(sessionID, 'user');
             db.ref(`corporate_comms/${sessionID}/typing/adminTyping`).on('value', snap => {
@@ -458,6 +469,7 @@
             });
         }
 
+        // --- Admin Panel Loader ---
         function loadCommandCenter() {
             db.ref('corporate_comms').on('value', snap => {
                 const list = document.getElementById('admin-user-list');
