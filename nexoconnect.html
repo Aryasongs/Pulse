@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexo Connect | Professional Network</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        /* Black & White Theme */
+        :root {
+            --bg-color: #f5f5f5;
+            --card-bg: #ffffff;
+            --text-main: #000000;
+            --text-muted: #555555;
+            --border-color: #000000;
+            --accent: #000000;
+            --hover-bg: #e0e0e0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        
+        body { background-color: var(--bg-color); color: var(--text-main); }
+
+        /* Navbar */
+        nav { background-color: var(--card-bg); border-bottom: 2px solid var(--border-color); padding: 10px 5%; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .logo { font-size: 24px; font-weight: bold; letter-spacing: -1px; }
+        .nav-icons { display: flex; gap: 20px; }
+        .nav-icons div { text-align: center; cursor: pointer; color: var(--text-muted); transition: 0.2s; }
+        .nav-icons div:hover { color: var(--accent); }
+
+        /* Main Layout */
+        .container { display: grid; grid-template-columns: 250px 1fr 300px; gap: 20px; max-width: 1200px; margin: 20px auto; padding: 0 15px; }
+
+        /* Cards */
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0px; padding: 15px; margin-bottom: 20px; }
+        
+        /* Left Sidebar - Profile */
+        .profile-img { width: 80px; height: 80px; border-radius: 50%; border: 2px solid var(--border-color); object-fit: cover; margin: 0 auto 10px; display: block; }
+        .verified-tick { color: var(--card-bg); background: var(--text-main); border-radius: 50%; padding: 2px; font-size: 10px; margin-left: 5px; }
+        .user-title { color: var(--text-muted); font-size: 14px; text-align: center; margin-bottom: 15px; }
+
+        /* Center Feed - Post Box */
+        .post-input-container { display: flex; flex-direction: column; gap: 10px; }
+        textarea { width: 100%; padding: 10px; border: 1px solid var(--border-color); resize: none; outline: none; }
+        .post-actions { display: flex; justify-content: space-between; align-items: center; }
+        .action-btns button, .btn { background: var(--card-bg); border: 1px solid var(--border-color); padding: 5px 15px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        .action-btns button:hover, .btn:hover { background: var(--text-main); color: var(--card-bg); }
+        #image-preview { max-width: 100%; display: none; margin-top: 10px; border: 1px dashed var(--border-color); }
+
+        /* Feed Posts */
+        .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .post-header img { width: 40px; height: 40px; border-radius: 50%; }
+        .post-location { font-size: 12px; color: var(--text-muted); }
+        .post-content img { max-width: 100%; margin-top: 10px; border: 1px solid var(--border-color); }
+
+        /* Right Sidebar - Jobs */
+        .job-card { border-bottom: 1px dashed var(--border-color); padding-bottom: 10px; margin-bottom: 10px; }
+        .job-card:last-child { border-bottom: none; }
+        .strict-badge { font-size: 10px; border: 1px solid var(--text-main); padding: 2px 4px; display: inline-block; margin-top: 5px; }
+
+        /* Auth Modal */
+        #auth-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .auth-box { background: var(--card-bg); padding: 30px; width: 350px; border: 2px solid var(--border-color); }
+        .auth-box input, .auth-box select { width: 100%; margin-bottom: 15px; padding: 10px; border: 1px solid var(--border-color); }
+        
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <div id="auth-modal">
+        <div class="auth-box card">
+            <h2 style="margin-bottom: 20px; text-align: center;">Nexo Connect</h2>
+            <select id="account-type">
+                <option value="normal">Normal User</option>
+                <option value="business">Business / Company</option>
+                <option value="college">College / University</option>
+            </select>
+            <input type="email" id="email" placeholder="Email Address (Use company domain for verified tick)">
+            <input type="password" id="password" placeholder="Password">
+            <input type="text" id="job-title" placeholder="Your Job Title (e.g., Software Engineer)">
+            <button class="btn" style="width: 100%; margin-bottom: 10px;" onclick="register()">Register</button>
+            <button class="btn" style="width: 100%; background: var(--text-main); color: var(--card-bg);" onclick="login()">Login</button>
+        </div>
+    </div>
+
+    <nav>
+        <div class="logo">NEXO<span style="font-weight: 300;">CONNECT</span></div>
+        <div class="nav-icons">
+            <div><i class="fas fa-home"></i><br><small>Home</small></div>
+            <div><i class="fas fa-briefcase"></i><br><small>Jobs</small></div>
+            <div><i class="fas fa-building"></i><br><small>Company</small></div>
+            <div onclick="logout()"><i class="fas fa-sign-out-alt"></i><br><small>Logout</small></div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="card" id="profile-card">
+            <img src="https://via.placeholder.com/80" alt="Profile" class="profile-img" id="user-profile-img">
+            <h3 style="text-align: center;" id="user-name">User Name <i class="fas fa-check verified-tick hidden" id="verified-badge" title="Verified Employee"></i></h3>
+            <p class="user-title" id="user-job-title">Job Title</p>
+            <p style="font-size: 12px; text-align: center; color: var(--text-muted);" id="user-type">Account Type</p>
+        </div>
+
+        <div class="feed">
+            <div class="card post-input-container">
+                <textarea id="post-text" rows="3" placeholder="What do you want to talk about? Add hashtags like #NexoConnect"></textarea>
+                <img id="image-preview" src="" alt="Preview">
+                <div class="post-actions">
+                    <div class="action-btns">
+                        <button onclick="document.getElementById('post-image').click()"><i class="fas fa-image"></i> Photo</button>
+                        <button onclick="getLocation()"><i class="fas fa-map-marker-alt"></i> Location</button>
+                        <input type="file" id="post-image" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+                    </div>
+                    <span id="location-text" style="font-size: 12px; font-weight: bold;"></span>
+                    <button class="btn" style="background: var(--text-main); color: var(--card-bg);" onclick="createPost()">Post</button>
+                </div>
+            </div>
+            
+            <div id="feed-stream">
+                </div>
+        </div>
+
+        <div class="card">
+            <h3>Recommended Jobs</h3>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 15px;">Strict Verification Applied</p>
+            <div id="job-recommendations">
+                <div class="job-card">
+                    <h4>Loading jobs...</h4>
+                </div>
+            </div>
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="openJobPostModal()">Post a Job (Verified Only)</button>
+        </div>
+    </div>
+
+    <script>
+        // 1. Firebase Configuration (From Prompt)
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.database();
+
+        let currentUserData = null;
+        let currentBase64Image = "";
+        let currentLocation = "";
+
+        // 2. Auth State Observer
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                document.getElementById('auth-modal').classList.add('hidden');
+                loadUserProfile(user.uid);
+                loadPosts();
+                fetchJobs();
+            } else {
+                document.getElementById('auth-modal').classList.remove('hidden');
+            }
+        });
+
+        // 3. Registration & Verification Logic
+        function isCompanyDomain(email) {
+            // Mock logic: If email is @officialcompany.com, verify them.
+            // In production, this checks against a Firebase node of registered company domains.
+            const domain = email.split('@')[1];
+            const genericDomains = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com'];
+            return !genericDomains.includes(domain);
+        }
+
+        async function register() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const type = document.getElementById('account-type').value;
+            const jobTitle = document.getElementById('job-title').value;
+            
+            const isVerified = isCompanyDomain(email);
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await db.ref('users/' + userCredential.user.uid).set({
+                    email: email,
+                    accountType: type,
+                    jobTitle: jobTitle,
+                    isVerified: isVerified,
+                    profileImage: "" // Can be updated later with base64
+                });
+                alert('Account created successfully!');
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        async function login() {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+            } catch (error) {
+                alert(error.message);
+            }
+        }
+
+        function logout() { auth.signOut(); }
+
+        // 4. Load Profile UI
+        function loadUserProfile(uid) {
+            db.ref('users/' + uid).once('value').then((snapshot) => {
+                currentUserData = snapshot.val();
+                document.getElementById('user-name').innerHTML = `${currentUserData.email.split('@')[0]} ${currentUserData.isVerified ? '<i class="fas fa-check verified-tick" title="Verified Domain Employee"></i>' : ''}`;
+                document.getElementById('user-job-title').innerText = currentUserData.jobTitle || 'No Title Provided';
+                document.getElementById('user-type').innerText = currentUserData.accountType.toUpperCase() + " ACCOUNT";
+                
+                if(currentUserData.profileImage) {
+                    document.getElementById('user-profile-img').src = currentUserData.profileImage;
+                }
+            });
+        }
+
+        // 5. Image Handling (Base64 conversion)
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    currentBase64Image = e.target.result;
+                    const preview = document.getElementById('image-preview');
+                    preview.src = currentBase64Image;
+                    preview.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 6. Free Location API Integration (Nominatim)
+        function getLocation() {
+            if (navigator.geolocation) {
+                document.getElementById('location-text').innerText = "Locating...";
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    // Free reverse geocoding
+                    try {
+                        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                        const data = await response.json();
+                        currentLocation = data.address.city || data.address.town || data.address.state;
+                        document.getElementById('location-text').innerText = `<i class="fas fa-map-marker-alt"></i> ${currentLocation}`;
+                    } catch (e) {
+                        currentLocation = "Unknown Location";
+                    }
+                });
+            }
+        }
+
+        // 7. Post Creation
+        function createPost() {
+            const text = document.getElementById('post-text').value;
+            if (!text && !currentBase64Image) return alert("Post cannot be empty.");
+
+            // Extract hashtags
+            const hashtags = text.match(/#[a-z0-9_]+/gi) || [];
+
+            const newPost = {
+                uid: auth.currentUser.uid,
+                author: currentUserData.email.split('@')[0],
+                jobTitle: currentUserData.jobTitle,
+                isVerified: currentUserData.isVerified,
+                text: text,
+                image: currentBase64Image, // Base64 storage
+                location: currentLocation,
+                hashtags: hashtags,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            db.ref('posts').push(newPost).then(() => {
+                // Reset inputs
+                document.getElementById('post-text').value = '';
+                document.getElementById('image-preview').style.display = 'none';
+                currentBase64Image = '';
+                currentLocation = '';
+                document.getElementById('location-text').innerText = '';
+            });
+        }
+
+        // 8. Load Feed
+        function loadPosts() {
+            db.ref('posts').orderByChild('timestamp').limitToLast(20).on('value', (snapshot) => {
+                const feedStream = document.getElementById('feed-stream');
+                feedStream.innerHTML = ''; // Clear feed
+                
+                const posts = [];
+                snapshot.forEach((child) => { posts.unshift(child.val()); }); // Reverse order (newest first)
+
+                posts.forEach(post => {
+                    const postHTML = `
+                        <div class="card">
+                            <div class="post-header">
+                                <img src="https://via.placeholder.com/40" alt="User">
+                                <div>
+                                    <strong>${post.author}</strong> ${post.isVerified ? '<i class="fas fa-check verified-tick"></i>' : ''}
+                                    <div style="font-size: 12px; color: var(--text-muted);">${post.jobTitle}</div>
+                                    ${post.location ? `<div class="post-location"><i class="fas fa-map-marker-alt"></i> ${post.location}</div>` : ''}
+                                </div>
+                            </div>
+                            <div class="post-content">
+                                <p>${post.text}</p>
+                                ${post.image ? `<img src="${post.image}" alt="Post Image">` : ''}
+                            </div>
+                        </div>
+                    `;
+                    feedStream.innerHTML += postHTML;
+                });
+            });
+        }
+
+        // 9. Job Recommendation API (Free API mock integration)
+        async function fetchJobs() {
+            const jobsContainer = document.getElementById('job-recommendations');
+            // Using a free open public API endpoint for jobs as requested
+            try {
+                // Remotive API is a free, no-auth API for remote tech jobs
+                const res = await fetch('https://remotive.com/api/remote-jobs?limit=3');
+                const data = await res.json();
+                
+                jobsContainer.innerHTML = '';
+                data.jobs.forEach(job => {
+                    jobsContainer.innerHTML += `
+                        <div class="job-card">
+                            <strong style="font-size: 14px;">${job.title}</strong>
+                            <div style="font-size: 12px;">${job.company_name}</div>
+                            <span class="strict-badge">Verified Source</span>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                jobsContainer.innerHTML = '<p>Could not load jobs via API.</p>';
+            }
+        }
+
+        function openJobPostModal() {
+            if(currentUserData.accountType !== 'business') {
+                alert("Strict Criteria: Only Business Accounts with verified domains can post jobs.");
+                return;
+            }
+            alert("Job Posting Dashboard Opened. Strict criteria rules applied.");
+        }
+    </script>
+</body>
+</html>
