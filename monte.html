@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -227,7 +227,11 @@
                 </div>
 
                 <div class="flex flex-col gap-4">
-                    <button id="cancelOrderActionBtn" onclick="executeActiveOrderCancellation()" class="w-full bg-transparent premium-border hover:bg-neutral-50 text-black text-[10px] font-medium tracking-[0.2em] uppercase py-4 transition duration-300 focus:outline-none">
+                    <button id="downloadInvoiceActionBtn" onclick="downloadInvoice(activeTrackingTargetOrderId, this)" class="w-full bg-white border premium-border hover:bg-neutral-50 text-black text-[10px] font-medium tracking-[0.2em] uppercase py-4 transition duration-300 focus:outline-none flex justify-center items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                        Download Authentic Invoice
+                    </button>
+                    <button id="cancelOrderActionBtn" onclick="executeActiveOrderCancellation()" class="w-full bg-white border premium-border hover:bg-neutral-50 text-red-600 hover:text-red-800 text-[10px] font-medium tracking-[0.2em] uppercase py-4 transition duration-300 focus:outline-none">
                         Revoke Order
                     </button>
                     <button onclick="switchView('homeView')" class="w-full bg-black text-white text-[10px] font-medium tracking-[0.2em] uppercase py-4 btn-luxury focus:outline-none text-center shadow-lg shadow-black/10">
@@ -330,10 +334,14 @@
             <button onclick="dismissModals()" class="absolute top-5 right-5 text-2xl font-light text-neutral-400 hover:text-black transition focus:outline-none">&times;</button>
             <h2 class="text-lg font-serif font-medium tracking-widest uppercase mb-4 text-black">Security Verification</h2>
             <p class="text-[9px] text-neutral-500 uppercase tracking-[0.15em] mb-8 leading-relaxed">As this is your first acquisition, an encrypted 6-digit pin has been transmitted to your email.</p>
-            <input type="text" id="otpInputNode" placeholder="------" maxlength="6" class="w-full premium-border-b py-4 outline-none focus:border-black tracking-[0.5em] font-medium text-center bg-transparent text-xl mb-8">
-            <button onclick="verifyOtpAndProceed(this)" class="w-full bg-black text-white text-[10px] font-medium tracking-[0.2em] uppercase py-4 btn-luxury focus:outline-none">
+            <input type="text" id="otpInputNode" placeholder="------" maxlength="6" class="w-full premium-border-b py-4 outline-none focus:border-black tracking-[0.5em] font-medium text-center bg-transparent text-xl mb-6">
+            <button onclick="verifyOtpAndProceed(this)" class="w-full bg-black text-white text-[10px] font-medium tracking-[0.2em] uppercase py-4 btn-luxury focus:outline-none mb-4">
                 Verify & Finalize
             </button>
+            <div class="flex flex-col items-center">
+                <button onclick="resendOtpAction(this)" class="text-[9px] uppercase tracking-[0.2em] border-b border-black pb-0.5 hover:text-neutral-500 transition">Resend Code</button>
+                <span id="otpSpamWarning" class="hidden text-[8px] text-red-500 mt-3 uppercase tracking-widest font-bold">Please check your spam folder or email address.</span>
+            </div>
         </div>
 
         <div id="checkoutDialog" class="hidden bg-white p-6 sm:p-12 max-w-2xl w-full shadow-2xl relative modal-content h-[90vh] overflow-y-auto no-scrollbar rounded-sm">
@@ -428,7 +436,7 @@
 
             <div id="panelMCoinFullProtocol" class="hidden">
                 <button onclick="processCheckoutFinalization('M_COIN_FULL', this)" class="w-full bg-black text-white text-[10px] font-medium tracking-[0.2em] uppercase py-5 btn-luxury focus:outline-none flex items-center justify-center gap-2 shadow-lg shadow-black/10">
-                    <svg class="inline w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <svg class="inline w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08-.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Acquire via Vault
                 </button>
             </div>
@@ -550,6 +558,7 @@
         // OTP States
         let tempOrderDetails = null;
         let currentOTP = null;
+        let otpResendCount = 0;
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
@@ -566,7 +575,6 @@
             }
         });
 
-        // Setup Product Database Listener (Status, Timer & Specific OOS Variants)
         setupProductDatabaseListener();
 
         function setupProductDatabaseListener() {
@@ -907,7 +915,6 @@
             document.getElementById('applyCouponBtn').disabled = false;
             
             document.getElementById('mCoinToggleInput').checked = false;
-
             document.getElementById('checkoutOriginalPrice').classList.add('hidden');
             document.getElementById('checkoutFinalPrice').innerText = "₹999";
         }
@@ -923,7 +930,6 @@
             if(window.sessionUserRecord) {
                 await syncAndEvaluateUserMatrix(window.sessionUserRecord.uid);
                 
-                // M-Coins Injection into Checkout
                 const mCoinBox = document.getElementById('mCoinsRedemptionBox');
                 if(userMCoinsBalance > 0) {
                     mCoinBox.classList.remove('hidden');
@@ -948,7 +954,6 @@
             synchronizePaymentMethodUIPanelView();
         }
 
-        // M-Coin Checkbox Toggle Logic
         window.handleMCoinToggle = function() {
             const isChecked = document.getElementById('mCoinToggleInput').checked;
             
@@ -1056,10 +1061,12 @@
             if(userCompletedOrdersCount === 0) {
                 currentOTP = Math.floor(100000 + Math.random() * 900000).toString();
                 tempOrderDetails = { method: method, btnElement: btnElement, address, pin, city, state, phone, fullName };
-                
+                otpResendCount = 0;
+                document.getElementById('otpSpamWarning').classList.add('hidden');
+
                 const originalText = btnElement.innerText;
                 btnElement.disabled = true;
-                btnElement.innerText = "SENDING SECURITY PIN...";
+                btnElement.innerText = "SENDING PIN...";
 
                 try {
                     // Send EmailJS OTP
@@ -1078,7 +1085,6 @@
                     showToast("Security PIN dispatched to email node.", "info");
 
                 } catch (e) {
-                    console.error("EmailJS Error:", e);
                     btnElement.disabled = false;
                     btnElement.innerText = originalText;
                     showToast("Failed to transmit PIN. Check network.", "error");
@@ -1090,10 +1096,40 @@
             finalizeOrderAction(method, btnElement, { address, pin, city, state, phone, fullName });
         };
 
+        // --- RESEND OTP LOGIC ---
+        window.resendOtpAction = async function(btnElement) {
+            if(!tempOrderDetails) return;
+            
+            otpResendCount++;
+            if(otpResendCount >= 2) {
+                document.getElementById('otpSpamWarning').classList.remove('hidden');
+            }
+
+            const originalText = btnElement.innerText;
+            btnElement.innerText = "SENDING...";
+            btnElement.disabled = true;
+
+            currentOTP = Math.floor(100000 + Math.random() * 900000).toString();
+
+            try {
+                await emailjs.send("service_av1a4ta", "template_6sl1rze", {
+                    customer_name: tempOrderDetails.fullName.toUpperCase(),
+                    otp_code: currentOTP,
+                    customer_email: window.sessionUserRecord.email
+                });
+                showToast("New Security PIN dispatched.", "success");
+            } catch (e) {
+                showToast("Failed to resend PIN.", "error");
+            } finally {
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        };
+
         // --- OTP VERIFICATION EXECUTION ---
         window.verifyOtpAndProceed = function(btnElement) {
             const inputVal = document.getElementById('otpInputNode').value.trim();
-            if(inputVal !== currentOTP) return showToast("INCORRECT SECURITY PIN MATRICES.", "error");
+            if(inputVal !== currentOTP) return showToast("INCORRECT SECURITY PIN.", "error");
 
             showToast("AUTHENTICATED SUCCESSFULLY.", "success");
             btnElement.innerText = "FINALIZING...";
@@ -1184,6 +1220,66 @@
                 showToast(`Consignment Allocated! +2 Vault Coins. ID: ${orderId}`, "success");
             }, 600);
         }
+
+        // --- DOWNLOAD SECURE INVOICE API ---
+        window.downloadInvoice = async function(orderId, btnElement) {
+            const originalText = btnElement.innerText;
+            btnElement.innerHTML = "GENERATING...";
+            btnElement.disabled = true;
+
+            try {
+                const snap = await get(ref(db, `orders/${orderId}`));
+                if(!snap.exists()) throw new Error("Consignment not found in ledger.");
+                const data = snap.val();
+
+                // Security Check
+                if(!window.sessionUserRecord || data.uid !== window.sessionUserRecord.uid) {
+                    throw new Error("Unauthorized access. Invalid identity.");
+                }
+
+                const invoiceData = {
+                    logo: "https://aryasongs.github.io/Pulse/91489E68-3549-48F7-9A36-7F25375A0E50.png",
+                    from: "MONTÈ S.p.A.\nPrestige Division\nBanga, Punjab, India",
+                    to: data.clientIdentityName + "\n" + data.consignmentDeliveryAddressText,
+                    currency: "INR",
+                    number: data.orderId,
+                    date: new Date(data.chronologicalCreationTimestamp).toLocaleDateString(),
+                    items: [
+                        {
+                            name: data.productTitleDescription,
+                            quantity: 1,
+                            unit_cost: data.transactionSettlementAmount
+                        }
+                    ],
+                    notes: "Thank you for your acquisition.\nMontè VIP Support: +91 79738 04008"
+                };
+
+                const response = await fetch('https://invoice-generator.com', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(invoiceData)
+                });
+
+                if(!response.ok) throw new Error("External ledger generation failed.");
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `MONTE_INVOICE_${orderId}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showToast("Authentic Invoice Acquired.", "success");
+            } catch (e) {
+                showToast(e.message, "error");
+            } finally {
+                btnElement.innerText = originalText;
+                btnElement.disabled = false;
+            }
+        };
 
         window.openTrackingModalDirectly = function() {
             dismissModals();
@@ -1377,8 +1473,9 @@
                                     <span class="block font-bold text-black text-[11px] uppercase mb-1.5 tracking-[0.2em]">${item.orderId}</span>
                                     <span class="block text-[8px] text-neutral-500 uppercase tracking-widest font-bold">${item.productTitleDescription}</span>
                                 </div>
-                                <div class="flex items-center gap-6 mt-2 sm:mt-0">
+                                <div class="flex flex-wrap items-center gap-6 mt-2 sm:mt-0">
                                     <span class="text-neutral-500 text-[9px] font-bold tracking-[0.2em] uppercase">${item.orderPipelineTrackingState}</span>
+                                    <button onclick="downloadInvoice('${item.orderId}', this)" class="text-[9px] border-b border-black font-bold uppercase text-black hover:text-neutral-500 transition pb-0.5 tracking-[0.2em]">Invoice</button>
                                     <button onclick="window.renderActiveOrderTrackingPipelineDashboard('${item.orderId}')" class="text-[9px] border-b border-black font-bold uppercase text-black hover:text-neutral-500 transition pb-0.5 tracking-[0.2em]">Track</button>
                                 </div>`;
                             wrapper.appendChild(div);
