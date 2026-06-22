@@ -139,6 +139,31 @@
             font-weight: 500;
         }
 
+        /* OTP MODAL / POPUP BOX STYLING */
+        .otp-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .otp-box {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 400px;
+            width: 100%;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .otp-box h3 { margin-bottom: 10px; color: var(--primary-color); }
+        .otp-box p { font-size: 13px; color: #64748b; margin-bottom: 20px; }
+
+        /* WEBSITE VIEW: E-FORMAT TEMPLATE */
         #admitCardSection {
             display: none;
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
@@ -280,7 +305,6 @@
         <button class="tab-btn" onclick="switchTab('search')">Search Admit Card</button>
     </div>
 
-    <!-- REGISTRATION FORM SECTION -->
     <div id="regFormSection" class="form-section active">
         <form id="registrationForm">
             <div class="form-row">
@@ -333,11 +357,15 @@
                 </div>
             </div>
 
-            <button type="submit" id="submitBtn" class="submit-btn">Register & Generate Admit Card</button>
+            <div class="form-group">
+                <label for="studentMobile">Mobile Number (with Country Code, e.g., +919876543210) *</label>
+                <input type="tel" id="studentMobile" required placeholder="+91 00000 00000">
+            </div>
+
+            <button type="submit" id="submitBtn" class="submit-btn">Verify Mobile & Register</button>
         </form>
     </div>
 
-    <!-- SEARCH SECTION -->
     <div id="searchSection" class="form-section">
         <div class="form-group">
             <label for="searchRoll">Enter Your 8-Digit Numerical Roll Number *</label>
@@ -347,7 +375,6 @@
         <button onclick="searchAdmitCard()" id="searchBtn" class="submit-btn">Find Admit Card</button>
     </div>
 
-    <!-- WEBSITE VIEW: E-FORMAT TEMPLATE -->
     <div id="admitCardSection">
         <span class="e-badge">Official E-Admit Card (Digital Format)</span>
         <div class="admit-header">
@@ -369,6 +396,10 @@
                     <tr>
                         <td class="label">Candidate Name:</td>
                         <td id="cardName"></td>
+                    </tr>
+                    <tr>
+                        <td class="label">Mobile Number:</td>
+                        <td id="cardMobile"></td>
                     </tr>
                     <tr>
                         <td class="label">Email Address:</td>
@@ -403,7 +434,6 @@
         <button class="print-btn submit-btn" onclick="triggerManualPDF()">Download PDF Again</button>
     </div>
 
-    <!-- BACKGROUND ENGINE: REAL OFFLINE FORMAT FOR PDF EXPORT -->
     <div id="realPdfTemplate">
         <div class="real-header">
             <h1 style="font-size: 24px; letter-spacing: 1px;">ORIONTEC DOZERA</h1>
@@ -430,8 +460,8 @@
                 <td id="pdfName" style="text-transform: uppercase;"></td>
             </tr>
             <tr>
-                <th style="background-color: #f2f2f2;">Father's Name</th>
-                <td id="pdfFather" style="text-transform: uppercase;"></td>
+                <th style="background-color: #f2f2f2;">Registered Mobile</th>
+                <td id="pdfMobile"></td>
             </tr>
             <tr>
                 <th style="background-color: #f2f2f2;">Date of Birth (DOB)</th>
@@ -468,9 +498,22 @@
 
 </div>
 
-<!-- Firebase SDK Scripts -->
+<div class="otp-modal" id="otpModal">
+    <div class="otp-box">
+        <h3>Verify Security OTP</h3>
+        <p>Enter the 6-digit security code sent to your mobile number via Google Firebase Services.</p>
+        <div class="form-group">
+            <input type="number" id="otpInput" placeholder="Enter 6-Digit OTP" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
+        </div>
+        <button type="button" class="submit-btn" onclick="verifyOtpCode()" id="verifyOtpBtn">Confirm OTP & Save Profile</button>
+    </div>
+</div>
+
+<div id="recaptcha-container"></div>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -485,10 +528,13 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
+    const auth = firebase.auth();
 
     let userIP = "Local IP";
     let userLocation = "India Verified";
     let currentActiveData = null;
+    let confirmationResult = null; // Pointer to carry firebase SMS engine handshake state
+    let temporaryStudentPayload = null; // Caches student profile during OTP handshake
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -506,7 +552,13 @@
         }
     }
 
+    // Auto load background tracking log
     window.addEventListener('DOMContentLoaded', () => {
+        // Setup Invisible Firebase Captcha Verification Layer
+        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible'
+        });
+
         fetch('https://ipapi.co/json/')
         .then(response => response.json())
         .then(data => {
@@ -539,7 +591,7 @@
     function downloadRealPdfFormat(data, formattedDOB) {
         document.getElementById('pdfRoll').innerText = data.rollNumber;
         document.getElementById('pdfName').innerText = data.name;
-        document.getElementById('pdfFather').innerText = data.fatherName;
+        document.getElementById('pdfMobile').innerText = data.mobile;
         document.getElementById('pdfDOB').innerText = formattedDOB;
         document.getElementById('pdfEmail').innerText = data.email;
         document.getElementById('pdfCity').innerText = data.city.toUpperCase() + " / " + data.country;
@@ -570,11 +622,13 @@
         }
     }
 
+    // STEP 1: Main Form Registration Submission - Triggers Firebase SMS OTP
     document.getElementById('registrationForm').addEventListener('submit', async function(event) {
         event.preventDefault();
 
         const dobInput = document.getElementById('dob').value;
         const emailInput = document.getElementById('studentEmail').value.trim();
+        const mobileInput = document.getElementById('studentMobile').value.trim();
         const photoInput = document.getElementById('studentPhoto');
         const submitBtn = document.getElementById('submitBtn');
 
@@ -595,50 +649,108 @@
             return;
         } else { document.getElementById('photoError').style.display = 'none'; }
 
-        submitBtn.innerText = "Processing Cloud Save...";
+        submitBtn.innerText = "Sending Verification OTP...";
         submitBtn.disabled = true;
 
-        const base64Photo = await compressAndConvertPhoto(file);
-        const name = document.getElementById('studentName').value.trim();
-        const father = document.getElementById('fatherName').value.trim();
-        const examDate = document.getElementById('examDate').value;
-        const city = document.getElementById('city').value.trim();
-        const country = document.getElementById('country').value;
+        try {
+            const base64Photo = await compressAndConvertPhoto(file);
+            const name = document.getElementById('studentName').value.trim();
+            const father = document.getElementById('fatherName').value.trim();
+            const examDate = document.getElementById('examDate').value;
+            const city = document.getElementById('city').value.trim();
+            const country = document.getElementById('country').value;
+            const rollNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-        const rollNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
-        const formattedDOB = dob.getDate().toString().padStart(2, '0') + '-' + (dob.getMonth() + 1).toString().padStart(2, '0') + '-' + dob.getFullYear();
+            // Store complete structural schema inside memory buffer till active OTP matches
+            temporaryStudentPayload = {
+                rollNumber: rollNumber,
+                name: name,
+                fatherName: father,
+                email: emailInput,
+                mobile: mobileInput,
+                dob: dobInput,
+                examDate: examDate,
+                city: city,
+                country: country,
+                photo: base64Photo,
+                securityIP: userIP,
+                securityLocation: userLocation,
+                registeredAt: new Date().toISOString()
+            };
 
-        const studentData = {
-            rollNumber: rollNumber,
-            name: name,
-            fatherName: father,
-            email: emailInput,
-            dob: dobInput,
-            examDate: examDate,
-            city: city,
-            country: country,
-            photo: base64Photo,
-            securityIP: userIP,
-            securityLocation: userLocation,
-            registeredAt: new Date().toISOString()
-        };
+            // Trigger Realtime Google Firebase Text Delivery Engine Protocol
+            const appVerifier = window.recaptchaVerifier;
+            auth.signInWithPhoneNumber(mobileInput, appVerifier)
+            .then((result) => {
+                confirmationResult = result;
+                // Display the Verification Overlay Pop up Modal
+                document.getElementById('otpModal').style.display = 'flex';
+            })
+            .catch((error) => {
+                alert("SMS Engine Failed: Please check your country code (+91) format. Details: " + error.message);
+                submitBtn.disabled = false;
+                submitBtn.innerText = "Verify Mobile & Register";
+            });
 
-        database.ref('candidates/' + rollNumber).set(studentData)
-        .then(() => {
-            currentActiveData = studentData;
-            renderAdmitCard(studentData, formattedDOB);
-            
-            document.getElementById('regFormSection').style.display = 'none';
-            document.getElementById('mainTabs').style.display = 'none';
-
-            downloadRealPdfFormat(studentData, formattedDOB);
-        })
-        .catch(err => {
-            alert("Database Error: " + err.message);
+        } catch (err) {
+            alert("Error parsing form context: " + err.message);
             submitBtn.disabled = false;
-            submitBtn.innerText = "Register & Generate Admit Card";
-        });
+            submitBtn.innerText = "Verify Mobile & Register";
+        }
     });
+
+    // STEP 2: Triggered when user confirms the SMS code inside modal popup view
+    function verifyOtpCode() {
+        const otpCode = document.getElementById('otpInput').value.trim();
+        const verifyOtpBtn = document.getElementById('verifyOtpBtn');
+
+        if(!otpCode || otpCode.length !== 6) {
+            alert("Please input exact 6 digit authentication string sent to your device.");
+            return;
+        }
+
+        verifyOtpBtn.innerText = "Verifying Signature...";
+        verifyOtpBtn.disabled = true;
+
+        // Perform programmatic cross check token validation against live Firebase authentication engine servers
+        confirmationResult.confirm(otpCode)
+        .then(() => {
+            // Success: Close popup modal and begin writing to Firebase RTDB node immediately
+            document.getElementById('otpModal').style.display = 'none';
+            
+            const payload = temporaryStudentPayload;
+            const dob = new Date(payload.dob);
+            const formattedDOB = dob.getDate().toString().padStart(2, '0') + '-' + (dob.getMonth() + 1).toString().padStart(2, '0') + '-' + dob.getFullYear();
+
+            database.ref('candidates/' + payload.rollNumber).set(payload)
+            .then(() => {
+                currentActiveData = payload;
+                renderAdmitCard(payload, formattedDOB);
+                
+                document.getElementById('regFormSection').style.display = 'none';
+                document.getElementById('mainTabs').style.display = 'none';
+
+                // Automatically trigger clean print processing output template pipeline download
+                downloadRealPdfFormat(payload, formattedDOB);
+            })
+            .catch(err => {
+                alert("Database Sync Failed: " + err.message);
+                resetRegistrationFormState();
+            });
+        })
+        .catch((error) => {
+            alert("Invalid Security OTP! Code mismatch. Try again. " + error.message);
+            verifyOtpBtn.disabled = false;
+            verifyOtpBtn.innerText = "Confirm OTP & Save Profile";
+        });
+    }
+
+    function resetRegistrationFormState() {
+        document.getElementById('otpModal').style.display = 'none';
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Verify Mobile & Register";
+    }
 
     function searchAdmitCard() {
         const inputRoll = document.getElementById('searchRoll').value.trim();
@@ -680,6 +792,7 @@
     function renderAdmitCard(data, formattedDOB) {
         document.getElementById('cardRoll').innerText = data.rollNumber;
         document.getElementById('cardName').innerText = data.name.toUpperCase();
+        document.getElementById('cardMobile').innerText = data.mobile;
         document.getElementById('cardEmail').innerText = data.email;
         document.getElementById('cardDOB').innerText = formattedDOB;
         document.getElementById('cardCityCountry').innerText = data.city.toUpperCase() + " / " + data.country;
