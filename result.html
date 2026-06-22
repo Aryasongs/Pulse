@@ -16,7 +16,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
-        body { background-color: #cbd5e1; color: #000000; padding: 20px; transform: translate3d(0,0,0); }
+        body { background-color: #cbd5e1; color: #000000; padding: 20px; -webkit-font-smoothing: antialiased; }
 
         .top-navbar {
             max-width: 1100px; margin: 0 auto 20px auto; background: #000; color: #fff; padding: 15px 25px;
@@ -25,7 +25,7 @@
         .nav-title { font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
         .login-trigger-btn { background: #fff; color: #000; padding: 8px 15px; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; }
 
-        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); contain: content; }
+        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); position: relative; }
         .portal-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
         .portal-header h1 { font-size: 26px; text-transform: uppercase; letter-spacing: 1px; }
 
@@ -47,7 +47,7 @@
         .candidate-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 2px solid #000; margin-bottom: 10px; background: #f1f5f9; }
         .grading-sheet { border: 2px solid #000; padding: 20px; margin-top: 20px; background: #fff; }
         
-        .grading-q-block { border-bottom: 1px dashed #000; padding: 20px 0; content-visibility: auto; contain-intrinsic-size: 150px; }
+        .grading-q-block { border-bottom: 1px dashed #000; padding: 20px 0; content-visibility: auto; }
         .teacher-controls { margin-top: 10px; display: flex; gap: 15px; align-items: center; }
         .btn-pen { padding: 5px 12px; font-weight: bold; cursor: pointer; border: 2px solid #000; text-transform: uppercase; font-size: 12px; }
         .btn-right { background: #dcfce7; color: var(--pass-green); }
@@ -59,10 +59,30 @@
         .grading-q-block.marked-wrong .red-pen-stamp::before { content: "✗"; display: inline; }
         .grading-q-block.marked-wrong .red-pen-stamp { display: inline; }
 
+        /* ABSOLUTE LIQUID LOADING LAYER FRAME */
+        .secure-loader-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.85); z-index: 999999;
+            align-items: center; justify-content: center; flex-direction: column; color: #fff;
+        }
+        .spinner-wheel {
+            width: 60px; height: 60px; border: 6px dashed #fff; border-top-color: var(--secure-red);
+            border-radius: 50%; animation: spinLoop 1.2s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spinLoop { to { transform: rotate(360deg); } }
+        .loader-text { font-size: 16px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; }
+        .loader-progress { font-size: 14px; margin-top: 5px; color: #94a3b8; }
+
         #certificateTemplate { width: 750px; padding: 50px; background: #fff; border: 10px double #1e293b; margin: 40px auto; text-align: center; display: none; }
     </style>
 </head>
 <body>
+
+<div class="secure-loader-overlay" id="globalShieldLoader">
+    <div class="spinner-wheel"></div>
+    <div class="loader-text" id="loaderStatusMsg">Parsing Datastream...</div>
+    <div class="loader-progress" id="loaderProgressBar">0% Complete</div>
+</div>
 
 <div class="top-navbar">
     <div class="nav-title">RWND Cloud Database Performance Node</div>
@@ -85,7 +105,7 @@
 <div class="container" id="studentPortal">
     <div class="portal-header">
         <h1>National Examination Result Registry</h1>
-        <p>Instant anti-freeze data retrieval node</p>
+        <p>Insulated multi-threading processing gateway</p>
     </div>
 
     <div class="form-group">
@@ -189,6 +209,7 @@
         });
     }
 
+    // TEACHER GRADING CANVAS: Ultra-light background chunk layout scheduler with visual shield layers
     function loadTargetScriptToGradingCanvas(rollNumber) {
         activeGradingRoll = rollNumber;
         const targetRecord = activeSubmissionsCache[rollNumber];
@@ -196,14 +217,28 @@
         const container = document.getElementById('gradingQuestionsContainer');
         container.innerHTML = "";
         currentGradingLocalState = targetRecord.evaluatedReport || {};
-        document.getElementById('activeGradingCanvas').style.display = "block";
+        
+        // Fire Shield
+        const shield = document.getElementById('globalShieldLoader');
+        const statusText = document.getElementById('loaderStatusMsg');
+        const progressText = document.getElementById('loaderProgressBar');
+        
+        statusText.innerText = "Populating Teacher Worksheet Matrix...";
+        progressText.innerText = "0% Synchronized";
+        shield.style.display = "flex";
 
         let currentQ = 1;
-        // Anti-freeze chunking queue
+        
         function renderGradingChunks() {
-            if(currentQ > 78) return;
+            if(currentQ > 78) {
+                shield.style.display = "none"; // Wipe shield only when elements are fully allocated
+                document.getElementById('activeGradingCanvas').style.display = "block";
+                document.getElementById('activeGradingCanvas').scrollIntoView({ behavior: 'smooth' });
+                return;
+            }
+            
             const fragment = document.createDocumentFragment();
-            const end = Math.min(currentQ + 6, 79); // Process super light batches of 6 
+            const end = Math.min(currentQ + 3, 79); // Strict 3 items per thread allocation chunk slice!
 
             for(let i = currentQ; i < end; i++) {
                 const block = document.createElement('div');
@@ -216,8 +251,12 @@
                 fragment.appendChild(block);
             }
             container.appendChild(fragment);
+            
+            const pct = Math.floor((end / 78) * 100);
+            progressText.innerText = `${pct}% Transformed`;
+            
             currentQ = end;
-            setTimeout(renderGradingChunks, 5); // Background process threading allocation
+            setTimeout(renderGradingChunks, 30); // Absolute thread room allocation spacing
         }
         renderGradingChunks();
     }
@@ -242,24 +281,34 @@
         }).then(() => { alert("Saved!"); document.getElementById('activeGradingCanvas').style.display = "none"; });
     }
 
-    // THE ANTI-FREEZE RE-ENGINEERED SEARCH CORE
+    // THE ABSOLUTE ANTI-FREEZE STUDENT LOOKUP PARSING MODULE WITH LAYER LOADING CONTROLS
     function searchStudentResult() {
         const roll = document.getElementById('studentRollSearch').value.trim();
         if(!roll) return;
 
-        const btn = document.getElementById('searchBtn');
-        btn.innerText = "Fetching Session Data...";
-        btn.disabled = true;
+        const shield = document.getElementById('globalShieldLoader');
+        const statusText = document.getElementById('loaderStatusMsg');
+        const progressText = document.getElementById('loaderProgressBar');
+        
+        statusText.innerText = "Interrogating Realtime Database Clusters...";
+        progressText.innerText = "Establishing secure connection streams";
+        shield.style.display = "flex"; // Instant load shield deployment blocks interface execution freezes
 
-        // Directly isolation technique to bypass heavy sync download locking
         databaseNodeRef.ref('exam_submissions/' + roll).once('value')
         .then((snapshot) => {
-            btn.innerText = "Query Result Registry";
-            btn.disabled = false;
-
-            if(!snapshot.exists()) { alert("Not Found"); return; }
+            if(!snapshot.exists()) { 
+                shield.style.display = "none";
+                alert("Not Found"); 
+                return; 
+            }
             const data = snapshot.val();
-            if(!data.evaluated) { alert("Under Marking Process"); return; }
+            if(!data.evaluated) { 
+                shield.style.display = "none";
+                alert("Under Marking Process"); 
+                return; 
+            }
+
+            statusText.innerText = "Decrypting Response Matrix Fields...";
 
             document.getElementById('resName').innerText = data.candidateName.toUpperCase();
             document.getElementById('resRoll').innerText = data.rollNumber;
@@ -274,11 +323,15 @@
             document.getElementById('scorecardDisplay').style.display = "block";
 
             let idx = 1;
-            // Async Chunked Builder - strictly 5 items per frame to maintain 60 FPS fluidity
+            
+            // Incremental micro-step thread splitter avoids loop crowding completely
             function streamStudentPreview() {
-                if(idx > 78) return;
+                if(idx > 78) {
+                    shield.style.display = "none"; // Close layer only when browser fully compiles the document trees
+                    return;
+                }
                 const frag = document.createDocumentFragment();
-                const limit = Math.min(idx + 5, 79);
+                const limit = Math.min(idx + 3, 79); // Maximum 3 items slice window constraints
 
                 for(let i = idx; i < limit; i++) {
                     const rep = data.evaluatedReport[i] || { status: 'none', marks: 0 };
@@ -288,11 +341,15 @@
                     frag.appendChild(div);
                 }
                 preview.appendChild(frag);
+                
+                const currentPercentageTrack = Math.floor((limit / 78) * 100);
+                progressText.innerText = `${currentPercentageTrack}% Render Chunks Secured`;
+                
                 idx = limit;
-                setTimeout(streamStudentPreview, 4); // Yield control back to browser main thread instantly
+                setTimeout(streamStudentPreview, 30); // Balanced scheduling delay gives rendering engine massive structural recovery time
             }
             streamStudentPreview();
-        }).catch(() => { btn.disabled = false; btn.innerText = "Query Result Registry"; });
+        }).catch(() => { shield.style.display = "none"; });
     }
 
     function generateVerifiedCertificatePDF() {
