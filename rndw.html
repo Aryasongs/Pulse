@@ -139,7 +139,7 @@
             font-weight: 500;
         }
 
-        /* OTP MODAL / POPUP BOX STYLING */
+        /* OTP MODAL BOX STYLING */
         .otp-modal {
             display: none;
             position: fixed;
@@ -533,8 +533,8 @@
     let userIP = "Local IP";
     let userLocation = "India Verified";
     let currentActiveData = null;
-    let confirmationResult = null; // Pointer to carry firebase SMS engine handshake state
-    let temporaryStudentPayload = null; // Caches student profile during OTP handshake
+    let confirmationResult = null; 
+    let temporaryStudentPayload = null; 
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -552,9 +552,7 @@
         }
     }
 
-    // Auto load background tracking log
     window.addEventListener('DOMContentLoaded', () => {
-        // Setup Invisible Firebase Captcha Verification Layer
         window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
             'size': 'invisible'
         });
@@ -622,15 +620,17 @@
         }
     }
 
-    // STEP 1: Main Form Registration Submission - Triggers Firebase SMS OTP
+    // INSTANT ROUTER: Instantly pops up the OTP modal box without UI loading blockers
     document.getElementById('registrationForm').addEventListener('submit', async function(event) {
         event.preventDefault();
+
+        // 1. INSTANTLY OPEN THE OTP INPUT BOX BOX BINA KISI FREEZE KE
+        document.getElementById('otpModal').style.display = 'flex';
 
         const dobInput = document.getElementById('dob').value;
         const emailInput = document.getElementById('studentEmail').value.trim();
         const mobileInput = document.getElementById('studentMobile').value.trim();
         const photoInput = document.getElementById('studentPhoto');
-        const submitBtn = document.getElementById('submitBtn');
 
         const dob = new Date(dobInput);
         const today = new Date();
@@ -638,6 +638,7 @@
         if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) { age--; }
 
         if (age < 18) {
+            document.getElementById('otpModal').style.display = 'none';
             document.getElementById('ageError').style.display = 'block';
             alert("Registration blocked: Minimum age limit criteria is 18 years.");
             return;
@@ -645,12 +646,10 @@
 
         const file = photoInput.files[0];
         if (file && file.size > 3 * 1024 * 1024) {
+            document.getElementById('otpModal').style.display = 'none';
             document.getElementById('photoError').style.display = 'block';
             return;
         } else { document.getElementById('photoError').style.display = 'none'; }
-
-        submitBtn.innerText = "Sending Verification OTP...";
-        submitBtn.disabled = true;
 
         try {
             const base64Photo = await compressAndConvertPhoto(file);
@@ -661,7 +660,6 @@
             const country = document.getElementById('country').value;
             const rollNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-            // Store complete structural schema inside memory buffer till active OTP matches
             temporaryStudentPayload = {
                 rollNumber: rollNumber,
                 name: name,
@@ -678,44 +676,37 @@
                 registeredAt: new Date().toISOString()
             };
 
-            // Trigger Realtime Google Firebase Text Delivery Engine Protocol
+            // Firebase Handshake takes place silently in asynchronous background thread
             const appVerifier = window.recaptchaVerifier;
             auth.signInWithPhoneNumber(mobileInput, appVerifier)
             .then((result) => {
                 confirmationResult = result;
-                // Display the Verification Overlay Pop up Modal
-                document.getElementById('otpModal').style.display = 'flex';
             })
             .catch((error) => {
-                alert("SMS Engine Failed: Please check your country code (+91) format. Details: " + error.message);
-                submitBtn.disabled = false;
-                submitBtn.innerText = "Verify Mobile & Register";
+                document.getElementById('otpModal').style.display = 'none';
+                alert("SMS Engine Error: Check number format (+91). " + error.message);
             });
 
         } catch (err) {
-            alert("Error parsing form context: " + err.message);
-            submitBtn.disabled = false;
-            submitBtn.innerText = "Verify Mobile & Register";
+            document.getElementById('otpModal').style.display = 'none';
+            alert("Error parsing payload data: " + err.message);
         }
     });
 
-    // STEP 2: Triggered when user confirms the SMS code inside modal popup view
     function verifyOtpCode() {
         const otpCode = document.getElementById('otpInput').value.trim();
         const verifyOtpBtn = document.getElementById('verifyOtpBtn');
 
         if(!otpCode || otpCode.length !== 6) {
-            alert("Please input exact 6 digit authentication string sent to your device.");
+            alert("Please input exact 6 digit authentication code.");
             return;
         }
 
         verifyOtpBtn.innerText = "Verifying Signature...";
         verifyOtpBtn.disabled = true;
 
-        // Perform programmatic cross check token validation against live Firebase authentication engine servers
         confirmationResult.confirm(otpCode)
         .then(() => {
-            // Success: Close popup modal and begin writing to Firebase RTDB node immediately
             document.getElementById('otpModal').style.display = 'none';
             
             const payload = temporaryStudentPayload;
@@ -730,7 +721,6 @@
                 document.getElementById('regFormSection').style.display = 'none';
                 document.getElementById('mainTabs').style.display = 'none';
 
-                // Automatically trigger clean print processing output template pipeline download
                 downloadRealPdfFormat(payload, formattedDOB);
             })
             .catch(err => {
@@ -739,7 +729,7 @@
             });
         })
         .catch((error) => {
-            alert("Invalid Security OTP! Code mismatch. Try again. " + error.message);
+            alert("Invalid Security OTP! Code mismatch. " + error.message);
             verifyOtpBtn.disabled = false;
             verifyOtpBtn.innerText = "Confirm OTP & Save Profile";
         });
