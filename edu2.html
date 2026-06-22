@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RWND Practice Test Node (Class 9-10)</title>
+    <style>
+        :root {
+            --primary-dark: #0f172a;
+            --accent-blue: #2563eb;
+            --secure-red: #dc2626;
+            --bg-light: #f8fafc;
+            --sheet-border: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box; margin: 0; padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #cbd5e1; color: #000000; padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .screen { display: none; max-width: 900px; margin: 30px auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .screen.active { display: block; }
+
+        .sheet-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
+        .sheet-header h1 { font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 14px; }
+        input[type="text"], input[type="number"], textarea { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; background: #fafafa; }
+        
+        .btn-action { background: #000; color: #fff; padding: 12px 25px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; margin-top: 15px; border: 2px solid #000; }
+        .btn-action:hover { background: #fff; color: #000; }
+        .btn-action:disabled { background: #94a3b8; cursor: not-allowed; border-color: #94a3b8; }
+
+        .admit-card-embed { border: 2px dashed #000; padding: 20px; margin: 20px 0; background: #fdfdfd; display: grid; grid-template-columns: 3fr 1fr; gap: 20px; }
+        .admit-meta td { padding: 6px; font-size: 14px; }
+        .admit-photo { width: 120px; height: 150px; border: 2px solid #000; background: #eee; overflow: hidden; }
+        .admit-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+        .agreement-box { display: flex; gap: 12px; align-items: flex-start; margin-top: 25px; background: #fffbeb; padding: 15px; border: 1px dashed #b45309; }
+        .agreement-box input { margin-top: 4px; transform: scale(1.3); }
+
+        .security-bar { background: var(--secure-red); color: white; text-align: center; padding: 8px; font-weight: bold; font-size: 12px; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; letter-spacing: 1px; }
+
+        .exam-meta-strip { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 25px; font-weight: bold; font-size: 14px; }
+        .question-block { border-bottom: 1px dashed #000; padding: 25px 0; margin-bottom: 10px; }
+        .question-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; line-height: 1.5; }
+        .question-meta { font-size: 12px; color: var(--accent-blue); font-weight: bold; margin-bottom: 5px; }
+        
+        .options-list { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+        .option-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ccc; cursor: pointer; }
+        .option-item input { transform: scale(1.2); }
+
+        .timer-box { font-size: 18px; font-weight: bold; color: var(--secure-red); border: 2px solid var(--secure-red); padding: 5px 15px; display: inline-block; }
+        .status-msg { color: var(--secure-red); font-weight: bold; margin-top: 10px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body oncontextmenu="return false;" onkeydown="return disableSecurityKeys(event);">
+
+<div class="security-bar">SECURE PRACTICE TEST SUITE - INTEGRATED WITH CENTRALISED DATABASE</div>
+
+<div class="screen active" id="scrLockup">
+    <div class="sheet-header">
+        <h1>RWND Practice Portal</h1>
+        <p>Class 9 & 10 Assessment Terminal</p>
+    </div>
+    <div class="form-group">
+        <label for="rollSearchInput">Enter System Assigned 8-Digit Roll Number:</label>
+        <input type="number" id="rollSearchInput" placeholder="e.g. 58493021">
+        <div id="lockupError" class="status-msg" style="display:none;"></div>
+    </div>
+    <button class="btn-action" id="btnLookup" onclick="validateRollDatabase()">Verify & Load Admit Card</button>
+</div>
+
+<div class="screen" id="scrVerifyAdmit">
+    <div class="sheet-header">
+        <h1>Practice Test Admit Credentials</h1>
+        <p>Student Profile Attestation</p>
+    </div>
+    
+    <div class="admit-card-embed">
+        <div>
+            <table class="admit-meta">
+                <tr><td><strong>Roll Number:</strong></td><td id="admRoll"></td></tr>
+                <tr><td><strong>Student Name:</strong></td><td id="admName"></td></tr>
+                <tr><td><strong>Father's Name:</strong></td><td id="admFather"></td></tr>
+                <tr><td><strong>Allotted City:</strong></td><td id="admCity"></td></tr>
+                <tr><td><strong>Scheduled Window:</strong></td><td id="admDate" style="color:var(--accent-blue); font-weight:bold;"></td></tr>
+            </table>
+        </div>
+        <div class="admit-photo" id="admPhotoBox">No Photo Available</div>
+    </div>
+
+    <div class="agreement-box">
+        <input type="checkbox" id="chkAgree" onclick="toggleAgreeBtn()">
+        <label for="chkAgree" style="font-weight: normal; text-transform: none; line-height: 1.4;">
+            I confirm that I am the genuine student matching this registration token. I will adhere to the practice test rules.
+        </label>
+    </div>
+
+    <button class="btn-action" id="btnProceedOTP" disabled onclick="triggerAdmitOTP()">Request Verification OTP</button>
+</div>
+
+<div class="screen" id="scrOtp">
+    <div class="sheet-header">
+        <h1>Secure OTP Stream</h1>
+        <p>Enter the 6-digit passcode routed to your linked registration email</p>
+    </div>
+    <div class="form-group">
+        <label for="otpInput">Enter Token:</label>
+        <input type="number" id="otpInput" placeholder="000000" style="text-align: center; font-size: 22px; letter-spacing: 5px;">
+        <div id="otpError" class="status-msg" style="display:none;"></div>
+    </div>
+    <button class="btn-action" onclick="verifyExamSessionOtp()">Verify Token & Proceed</button>
+</div>
+
+<div class="screen" id="scrExamSign">
+    <div class="sheet-header">
+        <h1>Test Sheet Initialisation</h1>
+        <p>Digital Signature Block</p>
+    </div>
+    <div class="form-group">
+        <label for="examSignName">Confirm Student Name (CAPITAL LETTERS):</label>
+        <input type="text" id="examSignName" placeholder="ENTER FULL NAME">
+    </div>
+    <button class="btn-action" onclick="startCoreExaminationSheet()">Break Seal & Start Test</button>
+</div>
+
+<div class="screen" id="scrCoreExam" style="max-width: 1000px;">
+    <div class="sheet-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px double #000;">
+        <div style="text-align: left;">
+            <h2>CLASS 9-10 MATHEMATICS & ENGLISH TEST</h2>
+            <p style="font-size: 12px; font-weight: bold;">TOTAL FIXED MATRIX: 15 UNIQUE QUESTIONS</p>
+        </div>
+        <div class="timer-box" id="examTimeDisplay">180:00</div>
+    </div>
+
+    <div class="exam-meta-strip">
+        <div>STUDENT: <span id="stripName"></span></div>
+        <div>ROLL CODE: <span id="stripRoll"></span></div>
+    </div>
+
+    <div id="sheetQuestionsContainer"></div>
+
+    <button class="btn-action" style="background:var(--secure-red); border-color:var(--secure-red); margin-top:30px;" onclick="finalExamTransmissionSubmit(false)">Submit Full Practice Sheet</button>
+</div>
+
+<div class="screen" id="scrFinished">
+    <div class="sheet-header">
+        <h1>Practice Sheet Submitted Successfully</h1>
+        <p>Data Transmitted to Evaluator Console</p>
+    </div>
+    <div style="text-align: center; font-weight: bold; line-height: 1.8;">
+        <p style="font-size: 18px; color: var(--accent-blue);">Aapka test responses store ho chuke hain.</p>
+        <p>Aap iska evaluation status aur marked checklist same result portal se check kar sakte hain.</p>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+        authDomain: "pulse2-92372.firebaseapp.com",
+        databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+        projectId: "pulse2-92372",
+        storageBucket: "pulse2-92372.firebasestorage.app",
+        messagingSenderId: "276235725177",
+        appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let activeCandidate = null;
+    let localGeneratedOtp = "";
+    let examCountdownTimer = null;
+    let totalExamSecondsLeft = 180 * 60; // 3 Hours allocated runtime window
+
+    // 15 Fixed Unique Practice Questions Array (Mix of English, Maths, Easy & Hard)
+    const practiceQuestions = [
+        { id: 1, subject: "Maths", difficulty: "Easy", type: "mcq", q: "Find the value of x if 2x + 7 = 15.", options: ["x = 3", "x = 4", "x = 5", "x = 8"] },
+        { id: 2, subject: "English", difficulty: "Easy", type: "mcq", q: "Identify the correct conjunction: 'He worked hard ______ he failed the test.'", options: ["and", "but", "because", "so"] },
+        { id: 3, subject: "Maths", difficulty: "Medium", type: "mcq", q: "The area of a circle is 154 cm². What is its radius? (Take π = 22/7)", options: ["7 cm", "14 cm", "21 cm", "3.5 cm"] },
+        { id: 4, subject: "English", difficulty: "Medium", type: "blank", q: "Complete the sentence with correct tense: 'They ___________ (play) football since morning.'" },
+        { id: 5, subject: "Maths", difficulty: "Hard", type: "mcq", q: "If α and β are the zeros of the quadratic polynomial p(x) = x² - 5x + 6, find the value of α² + β².", options: ["11", "13", "25", "12"] },
+        { id: 6, subject: "English", difficulty: "Hard", type: "descriptive", q: "Explain the difference between Active Voice and Passive Voice with two structured examples suitable for Class 10 syntax rules." },
+        { id: 7, subject: "Maths", difficulty: "Easy", type: "mcq", q: "What is the probability of getting a head when tossing a fair coin once?", options: ["0", "0.5", "1", "0.25"] },
+        { id: 8, subject: "English", difficulty: "Easy", type: "mcq", q: "Choose the synonym of the word 'ANCIENT'.", options: ["Modern", "New", "Old", "Beautiful"] },
+        { id: 9, subject: "Maths", difficulty: "Medium", type: "blank", q: "In a right-angled triangle, if base = 3cm and perpendicular = 4cm, the length of the hypotenuse is _________ cm." },
+        { id: 10, subject: "English", difficulty: "Medium", type: "mcq", q: "Change into indirect speech: She said, 'I am reading a book.'", options: ["She said that she is reading a book.", "She said that she was reading a book.", "She says that she read a book.", "She told she was reading a book."] },
+        { id: 11, subject: "Maths", difficulty: "Hard", type: "descriptive", q: "Prove that √5 is an irrational number using the method of contradiction explicitly." },
+        { id: 12, subject: "English", difficulty: "Hard", type: "blank", q: "Fill in the blank with appropriate preposition: 'The old man was completely absorbed _________ his deep structural thoughts.'" },
+        { id: 13, subject: "Maths", difficulty: "Easy", type: "mcq", q: "Which of the following numbers is a prime number?", options: ["4", "9", "15", "17"] },
+        { id: 14, subject: "English", difficulty: "Medium", type: "mcq", q: "Identify the part of speech for the underlined word: 'She walks very <u>gracefully</u>.'", options: ["Noun", "Adjective", "Adverb", "Verb"] },
+        { id: 15, subject: "Maths", difficulty: "Hard", type: "mcq", q: "Find the 10th term of the Arithmetic Progression (AP): 2, 7, 12, 17, ...", options: ["45", "47", "50", "52"] }
+    ];
+
+    window.addEventListener('DOMContentLoaded', () => {
+        preventCopyPasteOperations();
+        checkPersistentExamState();
+    });
+
+    function preventCopyPasteOperations() {
+        document.addEventListener('copy', e => e.preventDefault());
+        document.addEventListener('paste', e => e.preventDefault());
+        document.addEventListener('cut', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+    }
+
+    function disableSecurityKeys(e) {
+        if (e.keyCode == 123 || (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || (e.ctrlKey && (e.keyCode == 82 || e.keyCode == 85)) || e.keyCode == 116) {
+            return false;
+        }
+    }
+
+    function validateRollDatabase() {
+        const inputRoll = document.getElementById('rollSearchInput').value.trim();
+        const errBox = document.getElementById('lockupError');
+        const btn = document.getElementById('btnLookup');
+
+        if(!inputRoll) { alert("Please input roll token allocation."); return; }
+
+        btn.innerText = "Verifying Database Connection...";
+        btn.disabled = true;
+        errBox.style.display = "none";
+
+        db.ref('candidates/' + inputRoll).once('value')
+        .then((snapshot) => {
+            if(snapshot.exists()) {
+                activeCandidate = snapshot.val();
+                
+                document.getElementById('admRoll').innerText = activeCandidate.rollNumber;
+                document.getElementById('admName').innerText = activeCandidate.name.toUpperCase();
+                document.getElementById('admFather').innerText = activeCandidate.fatherName.toUpperCase();
+                document.getElementById('admCity').innerText = activeCandidate.city.toUpperCase() + " / " + activeCandidate.country;
+                document.getElementById('admDate').innerText = activeCandidate.examDate;
+                
+                if(activeCandidate.photo && activeCandidate.photo !== "No Photo Attached") {
+                    document.getElementById('admPhotoBox').innerHTML = `<img src="${activeCandidate.photo}">`;
+                }
+
+                showTargetScreen('scrVerifyAdmit');
+            } else {
+                errBox.innerText = "ERROR: Roll code missing from system node registration records.";
+                errBox.style.display = "block";
+                btn.disabled = false;
+                btn.innerText = "Verify & Load Admit Card";
+            }
+        }).catch(err => {
+            alert("Network delay error: " + err.message);
+            btn.disabled = false;
+        });
+    }
+
+    function toggleAgreeBtn() {
+        document.getElementById('btnProceedOTP').disabled = !document.getElementById('chkAgree').checked;
+    }
+
+    function triggerAdmitOTP() {
+        if(!activeCandidate) return;
+        localGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        showTargetScreen('scrOtp');
+
+        const payloadData = {
+            service_id: 'service_vxn4vsc',
+            template_id: 'template_7k3pgfk',
+            user_id: '-Yit64A3Gx-7a-zRz',
+            template_params: {
+                to_email: activeCandidate.email,
+                to_name: activeCandidate.name.toUpperCase(),
+                otp_code: localGeneratedOtp
+            }
+        };
+
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadData)
+        });
+    }
+
+    function verifyExamSessionOtp() {
+        const entered = document.getElementById('otpInput').value.trim();
+        if(entered === localGeneratedOtp) {
+            showTargetScreen('scrExamSign');
+        } else {
+            document.getElementById('otpError').style.display = "block";
+            document.getElementById('otpError').innerText = "SECURITY ALERT: Verification code mismatch trace.";
+        }
+    }
+
+    function showTargetScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        window.scrollTo(0,0);
+    }
+
+    function startCoreExaminationSheet() {
+        const signName = document.getElementById('examSignName').value.trim();
+        if(!signName) { alert("Please provide confirmation block signature."); return; }
+
+        document.getElementById('stripName').innerText = signName.toUpperCase();
+        document.getElementById('stripRoll').innerText = activeCandidate.rollNumber;
+
+        localStorage.setItem('rwnd_practice_roll', activeCandidate.rollNumber);
+        localStorage.setItem('rwnd_practice_name', signName.toUpperCase());
+        localStorage.setItem('rwnd_practice_seconds', totalExamSecondsLeft.toString());
+
+        renderTestContent();
+        startSecureCountdownEngine();
+        showTargetScreen('scrCoreExam');
+    }
+
+    function renderTestContent() {
+        const container = document.getElementById('sheetQuestionsContainer');
+        container.innerHTML = "";
+
+        const cachedAnswers = JSON.parse(localStorage.getItem('rwnd_practice_answers') || "{}");
+
+        practiceQuestions.forEach(qObj => {
+            const block = document.createElement('div');
+            block.className = "question-block";
+            
+            const savedValue = cachedAnswers[qObj.id] || "";
+            let inputHtml = "";
+
+            if(qObj.type === "mcq") {
+                let optionsHtml = "";
+                qObj.options.forEach(opt => {
+                    const isChecked = (savedValue === opt) ? "checked" : "";
+                    optionsHtml += `
+                        <label class="option-item">
+                            <input type="radio" name="pq_ans_${qObj.id}" value="${opt}" ${isChecked} onchange="cacheAnswerState(${qObj.id}, '${opt}')">
+                            <span>${opt}</span>
+                        </label>
+                    `;
+                });
+                inputHtml = `<div class="options-list">${optionsHtml}</div>`;
+            } else if(qObj.type === "blank") {
+                inputHtml = `<input type="text" placeholder="Type your fill-up response context here..." value="${savedValue}" oninput="cacheAnswerState(${qObj.id}, this.value)">`;
+            } else if(qObj.type === "descriptive") {
+                inputHtml = `<textarea rows="4" placeholder="Draft your detailed analysis step answer block..." oninput="cacheAnswerState(${qObj.id}, this.value)">${savedValue}</textarea>`;
+            }
+
+            block.innerHTML = `
+                <div class="question-meta">Subject: ${qObj.subject} | Level: ${qObj.difficulty}</div>
+                <div class="question-title">Q${qObj.id}. ${qObj.q}</div>
+                ${inputHtml}
+            `;
+            container.appendChild(block);
+        });
+    }
+
+    function cacheAnswerState(qId, val) {
+        let cachedAnswers = JSON.parse(localStorage.getItem('rwnd_practice_answers') || "{}");
+        cachedAnswers[qId] = val;
+        localStorage.setItem('rwnd_practice_answers', JSON.stringify(cachedAnswers));
+
+        const currentRoll = localStorage.getItem('rwnd_practice_roll');
+        if(currentRoll) {
+            db.ref('exam_recovery_states/' + currentRoll + '/practice_answers').set(cachedAnswers);
+        }
+    }
+
+    function startSecureCountdownEngine() {
+        if(examCountdownTimer) clearInterval(examCountdownTimer);
+        examCountdownTimer = setInterval(() => {
+            if(totalExamSecondsLeft <= 0) {
+                clearInterval(examCountdownTimer);
+                finalExamTransmissionSubmit(true);
+            } else {
+                totalExamSecondsLeft--;
+                localStorage.setItem('rwnd_practice_seconds', totalExamSecondsLeft.toString());
+                const mins = Math.floor(totalExamSecondsLeft / 60);
+                const secs = totalExamSecondsLeft % 60;
+                document.getElementById('examTimeDisplay').innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            }
+        }, 1000);
+    }
+
+    function checkPersistentExamState() {
+        const savedRoll = localStorage.getItem('rwnd_practice_roll');
+        const savedName = localStorage.getItem('rwnd_practice_name');
+        const savedTime = localStorage.getItem('rwnd_practice_seconds');
+
+        if(savedRoll && savedName && savedTime) {
+            totalExamSecondsLeft = parseInt(savedTime);
+            db.ref('candidates/' + savedRoll).once('value').then(snap => {
+                if(snap.exists()) {
+                    activeCandidate = snap.val();
+                    document.getElementById('stripName').innerText = savedName;
+                    document.getElementById('stripRoll').innerText = savedRoll;
+                    renderTestContent();
+                    startSecureCountdownEngine();
+                    showTargetScreen('scrCoreExam');
+                }
+            });
+        }
+    }
+
+    function finalExamTransmissionSubmit(isTimeout = false) {
+        if(!isTimeout) {
+            const confirmAction = confirm("Are you sure you want to completely finish and submit your practice test sheet?");
+            if(!confirmAction) return;
+        }
+
+        clearInterval(examCountdownTimer);
+        const finalRoll = localStorage.getItem('rwnd_practice_roll') || activeCandidate.rollNumber;
+        const finalAnswers = localStorage.getItem('rwnd_practice_answers') || "{}";
+
+        const executionPayload = {
+            rollNumber: finalRoll,
+            candidateName: localStorage.getItem('rwnd_practice_name') || "UNKNOWN",
+            responses: JSON.parse(finalAnswers),
+            submittedAt: new Date().toISOString(),
+            forcedTimeout: isTimeout,
+            evaluated: false, // Teacher checks this inside the evaluation engine dashboard
+            status: "COMMITTED_FOR_EVALUATION"
+        };
+
+        // Saving records under a separate tracking path node to prevent collisions with the 78-question system
+        db.ref('exam_submissions/' + finalRoll).set(executionPayload)
+        .then(() => {
+            localStorage.clear();
+            showTargetScreen('scrFinished');
+        })
+        .catch(err => alert("Transmission validation exception trace: " + err.message));
+    }
+</script>
+</body>
+</html>
