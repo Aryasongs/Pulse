@@ -24,7 +24,6 @@
             background-color: #cbd5e1; color: #000000; padding: 20px;
         }
 
-        /* Top Bar & Login System */
         .top-navbar {
             max-width: 1100px; margin: 0 auto 20px auto; background: #000; color: #fff; padding: 15px 25px;
             display: flex; justify-content: space-between; align-items: center; border: 2px solid #000;
@@ -44,33 +43,28 @@
         .btn-action { background: #000; color: #fff; padding: 12px 25px; border: 2px solid #000; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         .btn-action:hover { background: #fff; color: #000; }
 
-        /* Student Result View Styles */
         .result-scorecard { border: 3px solid #000; padding: 25px; margin-top: 30px; background: #f8fafc; display: none; }
         .status-badge { display: inline-block; padding: 8px 15px; font-weight: bold; color: #fff; text-transform: uppercase; margin-top: 10px; }
         .status-pass { background: var(--pass-green); }
         .status-retry { background: #ca8a04; }
         .status-fail { background: var(--secure-red); }
 
-        /* Teacher Digital Grading View */
         #teacherAdminPanel { display: none; margin-top: 30px; border-top: 4px double #000; padding-top: 30px; }
         .candidate-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 2px solid #000; margin-bottom: 10px; background: #f1f5f9; }
         .grading-sheet { border: 2px solid #000; padding: 20px; margin-top: 20px; background: #fff; }
         
-        /* Red Pen Digital Marks System */
         .grading-q-block { border-bottom: 1px dashed #000; padding: 20px 0; position: relative; }
         .teacher-controls { margin-top: 10px; display: flex; gap: 15px; align-items: center; }
         .btn-pen { padding: 5px 12px; font-weight: bold; cursor: pointer; border: 2px solid #000; text-transform: uppercase; font-size: 12px; }
         .btn-right { background: #dcfce7; color: var(--pass-green); }
         .btn-wrong { background: #fee2e2; color: var(--secure-red); }
         
-        /* Red Mark Verification Stamp Overlay */
         .red-pen-stamp { font-size: 24px; font-weight: bold; color: var(--secure-red); margin-left: 10px; display: none; }
         .grading-q-block.marked-right .red-pen-stamp::before { content: "✓"; display: inline; }
         .grading-q-block.marked-right .red-pen-stamp { display: inline; }
         .grading-q-block.marked-wrong .red-pen-stamp::before { content: "✗"; display: inline; }
         .grading-q-block.marked-wrong .red-pen-stamp { display: inline; }
 
-        /* Certificate Print Container Layout */
         #certificateTemplate {
             width: 750px; padding: 50px; background: #fff; border: 10px double #1e293b; margin: 40px auto;
             text-align: center; position: relative; display: none;
@@ -111,7 +105,7 @@
         <label for="studentRollSearch">Enter Your 8-Digit Numerical Roll Number:</label>
         <input type="number" id="studentRollSearch" placeholder="e.g. 58493021">
     </div>
-    <button class="btn-action" onclick="searchStudentResult()">Query Result Registry</button>
+    <button class="btn-action" id="searchBtn" onclick="searchStudentResult()">Query Result Registry</button>
 
     <div class="result-scorecard" id="scorecardDisplay">
         <h2 style="text-transform:uppercase; border-bottom:2px solid #000; padding-bottom:10px;">Official Statement of Marks</h2>
@@ -143,7 +137,7 @@
         <p>Active scripts awaiting manual credential audit logs</p>
     </div>
 
-    <h3 style="text-transform:uppercase; margin-bottom:15px;">Transmitted Answer Scripts Registry</h3>
+    <h3>Transmitted Answer Scripts Registry</h3>
     <div id="submissionsListContainer">
         <p style="font-weight:bold; color:#64748b;">Awaiting dynamic server data link queries...</p>
     </div>
@@ -153,7 +147,7 @@
             Evaluating Roll: <span id="gradingRollTarget" style="color:var(--secure-red);"></span>
         </h3>
         <div id="gradingQuestionsContainer"></div>
-        <button class="btn-action" style="background:var(--pass-green); border-color:var(--pass-green); margin-top:30px;" onclick="saveEvaluatedGradesToCloud()">Commit Final Evaluation Report</button>
+        <button class="btn-action" id="commitBtn" style="background:var(--pass-green); border-color:var(--pass-green); margin-top:30px;" onclick="saveEvaluatedGradesToCloud()">Commit Final Evaluation Report</button>
     </div>
 </div>
 
@@ -178,7 +172,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    // Exact synchronized database cluster parameters matching examination terminal engine
     const firebaseConfig = {
         apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
         authDomain: "pulse2-92372.firebaseapp.com",
@@ -190,13 +183,12 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
+    const databaseNodeRef = firebase.database();
 
     let activeSubmissionsCache = {};
     let activeGradingRoll = null;
     let currentGradingLocalState = {}; 
 
-    // Static mapping definition layer of 78 non-repeating configuration blocks
     const questionLabelsCache = {};
     for (let i = 1; i <= 78; i++) {
         questionLabelsCache[i] = i % 3 === 0 ? `Q${i}. Concurrent Execution Flow Loop Metrics Block` : (i % 3 === 1 ? `Q${i}. State Persistence Cloud Infrastructure Constraint Key` : `Q${i}. Structural Memory Block Thread Allocation Strategy`);
@@ -207,7 +199,6 @@
         x.style.display = (x.style.display === "none") ? "block" : "none";
     }
 
-    // AUTHENTICATION INTERCEPT STRATEGY
     function executeTeacherAuth() {
         const email = document.getElementById('teacherEmail').value.trim();
         const pass = document.getElementById('teacherPassword').value.trim();
@@ -231,11 +222,10 @@
         alert("Session cleared.");
     }
 
-    // TEACHER: READ TRANSMITTED SCRIPTS PIPELINE
     function syncTeacherSubmissionsEngine() {
         const container = document.getElementById('submissionsListContainer');
         
-        db.ref('exam_submissions').on('value', (snapshot) => {
+        databaseNodeRef.ref('exam_submissions').on('value', (snapshot) => {
             container.innerHTML = "";
             if(!snapshot.exists()) {
                 container.innerHTML = "<p>No exam responses currently written to the cloud node.</p>";
@@ -263,7 +253,7 @@
         });
     }
 
-    // TEACHER: INITIALIZE PEN GRADING MATRIX LAYOUT
+    // ANTI-FREEZE ASYNC CHUNKING: Loads questions asynchronously in pieces to completely insulate against RAM locks
     function loadTargetScriptToGradingCanvas(rollNumber) {
         activeGradingRoll = rollNumber;
         const targetRecord = activeSubmissionsCache[rollNumber];
@@ -273,43 +263,58 @@
         container.innerHTML = "";
         
         currentGradingLocalState = targetRecord.evaluatedReport || {};
+        document.getElementById('activeGradingCanvas').style.display = "block";
 
-        // Generate explicit grading rows for all 78 target questions
-        for (let i = 1; i <= 78; i++) {
-            const studentResponse = targetRecord.responses[i] || "[Item Left Unattempted / Missing response context token]";
-            const block = document.createElement('div');
-            block.className = "grading-q-block";
-            block.id = `grading_block_idx_${i}`;
+        let currentQuestionIndex = 1;
+        const totalQuestionsCount = 78;
+        const docFragmentElement = document.createDocumentFragment();
 
-            // Sync structural UI matching with previous saves if updating existing file configurations
-            if(currentGradingLocalState[i]) {
-                if(currentGradingLocalState[i].status === 'right') block.classList.add('marked-right');
-                if(currentGradingLocalState[i].status === 'wrong') block.classList.add('marked-wrong');
-            } else {
-                currentGradingLocalState[i] = { status: 'none', marks: 0 };
+        function renderChunkSequence() {
+            const endBound = Math.min(currentQuestionIndex + 15, totalQuestionsCount + 1); // 15 Questions per microsecond batch loop
+
+            for (let i = currentQuestionIndex; i < endBound; i++) {
+                const studentResponse = targetRecord.responses[i] || "[Item Left Unattempted / Missing response context token]";
+                const block = document.createElement('div');
+                block.className = "grading-q-block";
+                block.id = `grading_block_idx_${i}`;
+
+                if(currentGradingLocalState[i]) {
+                    if(currentGradingLocalState[i].status === 'right') block.classList.add('marked-right');
+                    if(currentGradingLocalState[i].status === 'wrong') block.classList.add('marked-wrong');
+                } else {
+                    currentGradingLocalState[i] = { status: 'none', marks: 0 };
+                }
+
+                const savedMarksValue = currentGradingLocalState[i].marks || 0;
+
+                block.innerHTML = `
+                    <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
+                    <div style="background:#fafafa; border-left:3px solid #000; padding:8px; margin:8px 0; font-style:italic;">
+                        Student Answer: ${studentResponse}
+                    </div>
+                    <div class="teacher-controls">
+                        <button class="btn-pen btn-right" onclick="applyPenMark(${i}, 'right')">Mark Correct (✓)</button>
+                        <button class="btn-pen btn-wrong" onclick="applyPenMark(${i}, 'wrong')">Mark Incorrect (✗)</button>
+                        <div style="margin-left:auto;">
+                            <label style="display:inline; font-size:12px;">Award Marks:</label>
+                            <input type="number" id="marks_input_${i}" value="${savedMarksValue}" style="width:70px; padding:4px; display:inline;" oninput="updateLocalMarksMemory(${i}, this.value)">
+                        </div>
+                    </div>
+                `;
+                docFragmentElement.appendChild(block);
             }
 
-            const savedMarksValue = currentGradingLocalState[i].marks || 0;
+            container.appendChild(docFragmentElement);
+            currentQuestionIndex = endBound;
 
-            block.innerHTML = `
-                <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
-                <div style="background:#fafafa; border-left:3px solid #000; padding:8px; margin:8px 0; font-style:italic;">
-                    Student Answer: ${studentResponse}
-                </div>
-                <div class="teacher-controls">
-                    <button class="btn-pen btn-right" onclick="applyPenMark(${i}, 'right')">Mark Correct (✓)</button>
-                    <button class="btn-pen btn-wrong" onclick="applyPenMark(${i}, 'wrong')">Mark Incorrect (✗)</button>
-                    <div style="margin-left:auto;">
-                        <label style="display:inline; font-size:12px;">Award Marks:</label>
-                        <input type="number" id="marks_input_${i}" value="${savedMarksValue}" style="width:70px; padding:4px; display:inline;" oninput="updateLocalMarksMemory(${i}, this.value)">
-                    </div>
-                </div>
-            `;
-            container.appendChild(block);
+            if (currentQuestionIndex <= totalQuestionsCount) {
+                setTimeout(renderChunkSequence, 10); // Deferred cycle allocation
+            } else {
+                document.getElementById('activeGradingCanvas').scrollIntoView({ behavior: 'smooth' });
+            }
         }
 
-        document.getElementById('activeGradingCanvas').style.display = "block";
-        document.getElementById('activeGradingCanvas').scrollIntoView({ behavior: 'smooth' });
+        renderChunkSequence();
     }
 
     function applyPenMark(qId, type) {
@@ -319,7 +324,6 @@
         if(type === 'right') {
             block.classList.add('marked-right');
             currentGradingLocalState[qId].status = 'right';
-            // Auto default marks allocation mapping assistance rule
             document.getElementById(`marks_input_${qId}`).value = 9; 
             currentGradingLocalState[qId].marks = 9;
         } else {
@@ -334,16 +338,18 @@
         currentGradingLocalState[qId].marks = parseFloat(value) || 0;
     }
 
-    // TEACHER: COMMIT MARKS TO CLOUD SERVER RECORD STORAGE BUCKETS
     function saveEvaluatedGradesToCloud() {
         if(!activeGradingRoll) return;
+
+        const commitBtn = document.getElementById('commitBtn');
+        commitBtn.innerText = "Saving evaluation report matrix...";
+        commitBtn.disabled = true;
 
         let finalAggregatedScore = 0;
         Object.keys(currentGradingLocalState).forEach(qId => {
             finalAggregatedScore += parseFloat(currentGradingLocalState[qId].marks || 0);
         });
 
-        // 720 Calculation Engine
         const percentageResult = ((finalAggregatedScore / 720) * 100).toFixed(1);
         let statusString = "FAIL";
 
@@ -356,9 +362,7 @@
             statusString = "FAIL";
         }
 
-        const targetUpdateRef = db.ref('exam_submissions/' + activeGradingRoll);
-        
-        targetUpdateRef.update({
+        databaseNodeRef.ref('exam_submissions/' + activeGradingRoll).update({
             evaluated: true,
             finalScore: finalAggregatedScore,
             percentage: percentageResult,
@@ -366,33 +370,43 @@
             evaluatedReport: currentGradingLocalState
         })
         .then(() => {
-            alert(`Evaluation matrix successfully saved for roll sequence ${activeGradingRoll}. Standing calculated as ${statusString} (${percentageResult}%).`);
+            alert(`Evaluation matrix successfully saved for roll sequence ${activeGradingRoll}. Status: ${statusString} (${percentageResult}%).`);
             document.getElementById('activeGradingCanvas').style.display = "none";
+            commitBtn.disabled = false;
+            commitBtn.innerText = "Commit Final Evaluation Report";
             activeGradingRoll = null;
         })
-        .catch(err => alert("Write dynamic fault exception trace: " + err.message));
+        .catch(err => {
+            alert("Database Error: " + err.message);
+            commitBtn.disabled = false;
+        });
     }
 
-
-    // STUDENT PORTAL MODULES: FETCH PERSONAL REVENUE SCORES
+    // STUDENT PREVIEW CHUNKING ENGINE: Fixes result-search viewport lagging issues
     function searchStudentResult() {
         const targetRoll = document.getElementById('studentRollSearch').value.trim();
         if(!targetRoll) { alert("Please input your unique target roll verification token."); return; }
 
-        db.ref('exam_submissions/' + targetRoll).once('value')
+        const searchBtn = document.getElementById('searchBtn');
+        searchBtn.innerText = "Searching global nodes...";
+        searchBtn.disabled = true;
+
+        databaseNodeRef.ref('exam_submissions/' + targetRoll).once('value')
         .then((snapshot) => {
+            searchBtn.disabled = false;
+            searchBtn.innerText = "Query Result Registry";
+
             if(!snapshot.exists()) {
-                alert("The requested Roll Number has no committed submission ledger saved in the system repository.");
+                alert("The requested Roll Number has no committed submission ledger saved.");
                 return;
             }
 
             const data = snapshot.val();
             if(!data.evaluated) {
-                alert("Your answers have been securely logged. However, the evaluation authority has not committed the Red Pen markings yet. Please query back shortly.");
+                alert("Your answers are secured. However, the evaluation authority has not committed the Red Pen markings yet.");
                 return;
             }
 
-            // Bind Interface Values
             document.getElementById('resName').innerText = data.candidateName.toUpperCase();
             document.getElementById('resRoll').innerText = data.rollNumber;
             document.getElementById('resScore').innerText = data.finalScore;
@@ -406,32 +420,49 @@
             else if(data.standingStatus === "RETRY") badge.classList.add('status-retry');
             else badge.classList.add('status-fail');
 
-            // Inject the complete checked sheet view for student preview
             const previewContainer = document.getElementById('checkedSheetPreviewContainer');
             previewContainer.innerHTML = "";
+            document.getElementById('scorecardDisplay').style.display = "block";
 
-            for(let i = 1; i <= 78; i++) {
-                const itemReport = data.evaluatedReport[i] || { status: 'none', marks: 0 };
-                const studentAns = data.responses[i] || "[No data logged]";
-                
-                const previewBlock = document.createElement('div');
-                previewBlock.className = "grading-q-block";
-                if(itemReport.status === 'right') previewBlock.classList.add('marked-right');
-                if(itemReport.status === 'wrong') previewBlock.classList.add('marked-wrong');
+            let currentIdx = 1;
+            const fragmentElement = document.createDocumentFragment();
 
-                previewBlock.innerHTML = `
-                    <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
-                    <div style="background:#f1f5f9; padding:8px; margin:5px 0; font-size:14px;">Your Answer: ${studentAns}</div>
-                    <div style="font-size:12px; font-weight:bold; color:var(--secure-red);">Marks Awarded: ${itemReport.marks}</div>
-                `;
-                previewContainer.appendChild(previewBlock);
+            function renderStudentViewChunks() {
+                const limitBound = Math.min(currentIdx + 15, 79);
+
+                for(let i = currentIdx; i < limitBound; i++) {
+                    const itemReport = data.evaluatedReport[i] || { status: 'none', marks: 0 };
+                    const studentAns = data.responses[i] || "[No data logged]";
+                    
+                    const previewBlock = document.createElement('div');
+                    previewBlock.className = "grading-q-block";
+                    if(itemReport.status === 'right') previewBlock.classList.add('marked-right');
+                    if(itemReport.status === 'wrong') previewBlock.classList.add('marked-wrong');
+
+                    previewBlock.innerHTML = `
+                        <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
+                        <div style="background:#f1f5f9; padding:8px; margin:5px 0; font-size:14px;">Your Answer: ${studentAns}</div>
+                        <div style="font-size:12px; font-weight:bold; color:var(--secure-red);">Marks Awarded: ${itemReport.marks}</div>
+                    `;
+                    fragmentElement.appendChild(previewBlock);
+                }
+
+                previewContainer.appendChild(fragmentElement);
+                currentIdx = limitBound;
+
+                if(currentIdx <= 78) {
+                    setTimeout(renderStudentViewChunks, 10);
+                }
             }
 
-            document.getElementById('scorecardDisplay').style.display = "block";
+            renderStudentViewChunks();
+        })
+        .catch(err => {
+            searchBtn.disabled = false;
+            alert(err.message);
         });
     }
 
-    // CLIENT GENERATOR: EXPORT PRODUCTION CERTIFICATE PDF STRUCTURES
     function generateVerifiedCertificatePDF() {
         const targetName = document.getElementById('resName').innerText;
         const targetRoll = document.getElementById('resRoll').innerText;
