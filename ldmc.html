@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMDC – Lusy Medical Care | National Dog Health Registry</title>
+    <title>LMDC – Lusy Medical Care | Local Dog Health Registry</title>
     
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -71,7 +71,7 @@
                 <i class="fa-solid fa-shield-dog fa-3x me-3 text-info"></i>
                 <div>
                     <h1 class="h3 mb-0 fw-bold">LUSY MEDICAL CARE (LMDC)</h1>
-                    <small class="text-uppercase text-white-50">Official Dog Health Portal • Powered by Dozera Group</small>
+                    <small class="text-uppercase text-white-50">Local Dog Health Portal • Powered by Dozera Group</small>
                 </div>
             </div>
             <nav class="nav nav-pills" id="mainNav">
@@ -88,8 +88,8 @@
         
         <section id="sec-home" class="portal-section">
             <div class="p-5 mb-4 bg-white rounded-3 border card-gov text-center">
-                <h2 class="display-5 fw-bold text-dark">Welcome to the Official LMDC Registry</h2>
-                <p class="col-md-8 fs-4 mx-auto text-muted">A robust canine management infrastructure designed for identity query matching and secure digital record storage.</p>
+                <h2 class="display-5 fw-bold text-dark">Welcome to the Local LMDC Registry</h2>
+                <p class="col-md-8 fs-4 mx-auto text-muted">A robust offline-ready canine management infrastructure utilizing high-speed browser local storage for instantaneous data handling.</p>
                 <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
                     <button class="btn btn-primary btn-lg px-4 gap-3" onclick="switchTab('register')"><i class="fa fa-plus"></i> Register New Dog</button>
                     <button class="btn btn-outline-dark btn-lg px-4" onclick="switchTab('search')"><i class="fa fa-search"></i> Verify Identity</button>
@@ -288,25 +288,13 @@
 
     </main>
 
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <script>
-        const firebaseConfig = {
-          apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-          authDomain: "pulse2-92372.firebaseapp.com",
-          databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-          projectId: "pulse2-92372",
-          storageBucket: "pulse2-92372.firebasestorage.app",
-          messagingSenderId: "276235725177",
-          appId: "1:276235725177:web:0f4e0789fae80a435927a8"
-        };
-
-        if (!firebase.apps.length) { firebase.initializeApp(firebaseConfig); }
-        const db = firebase.database();
-        const auth = firebase.auth();
+        // Core Local Storage Data Tables Initialization 
+        if(!localStorage.getItem('lmdc_dogs')) localStorage.setItem('lmdc_dogs', JSON.stringify({}));
+        if(!localStorage.getItem('lmdc_updates')) localStorage.setItem('lmdc_updates', JSON.stringify([]));
+        if(!localStorage.getItem('lmdc_funding')) localStorage.setItem('lmdc_funding', JSON.stringify([]));
 
         let activeRecord = null;
 
@@ -353,21 +341,21 @@
             if(nav) nav.classList.add('active');
         }
 
-        // FIXED TASK: Safe Async/Await Form Submission with Error Handling & UI Controls
+        // FIXED TASK: High Speed Async/Await Local Storage Form Submission Engine (No Blocklocks)
         document.getElementById('registrationForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            // Select and disable button, update text state
             const submitBtn = document.getElementById('executeBtn');
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Syncing to Database...';
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving Locally...';
 
             try {
+                // Simulate network latency loop safely
+                await new Promise(resolve => setTimeout(resolve, 300));
+
                 const yearKey = new Date().getFullYear();
                 const secureHash = Math.floor(100000 + Math.random() * 900000);
                 const generatedIdentityToken = `LMDC-${yearKey}-${secureHash}`;
-
-                // Fixed task parameter placeholder bypassing file reader limits
                 const standardImageStream = "https://via.placeholder.com/120";
 
                 const recordPayload = {
@@ -391,17 +379,18 @@
                         lyme: document.getElementById('vax_lyme').checked
                     },
                     funding: { totalApproved: 0, totalUsed: 0, status: "Clear" },
+                    updates: {},
                     imageBase64: standardImageStream,
                     createdAt: new Date().toLocaleDateString()
                 };
 
-                // Asynchronous promise write map
-                await db.ref('dogs/' + generatedIdentityToken).set(recordPayload);
+                // Pull table parsing strings
+                let localDogs = JSON.parse(localStorage.getItem('lmdc_dogs'));
+                localDogs[generatedIdentityToken] = recordPayload;
+                localStorage.setItem('lmdc_dogs', JSON.stringify(localDogs));
 
-                // Success alert delivery layer
-                alert(`SUCCESS! Dog registered into the database network.\nYour Unique ID is: ${generatedIdentityToken}`);
+                alert(`SUCCESS! Registered in Local Storage Array.\nYour ID token key is: ${generatedIdentityToken}`);
 
-                // Context automation sequence mapping updates
                 document.getElementById('registrationForm').reset();
                 document.getElementById('searchId').value = generatedIdentityToken;
                 document.getElementById('searchName').value = recordPayload.dogName;
@@ -410,11 +399,8 @@
                 verifyAndFetchCard();
 
             } catch (error) {
-                // Critical catching logic loop mapping
-                console.error("Submission Failure Profile Context:", error);
-                alert(`REGISTRATION ERROR: Operation stopped.\nDetails: ${error.message}`);
+                alert(`REGISTRATION ERROR: ${error.message}`);
             } finally {
-                // Always restore operational controls layout state maps
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Execute Registration';
             }
@@ -424,52 +410,52 @@
             const targetId = document.getElementById('searchId').value.trim();
             const targetName = document.getElementById('searchName').value.trim();
 
-            db.ref('dogs/' + targetId).once('value', (snap) => {
-                const node = snap.val();
-                if (node && node.dogName.toLowerCase() === targetName.toLowerCase()) {
-                    activeRecord = node;
-                    activeRecord.id = targetId;
+            const localDogs = JSON.parse(localStorage.getItem('lmdc_dogs'));
+            const node = localDogs[targetId];
 
-                    document.getElementById('cardId').innerText = targetId;
-                    document.getElementById('cardDogName').innerText = node.dogName;
-                    document.getElementById('cardBreed').innerText = node.breed;
-                    document.getElementById('cardColorAge').innerText = `${node.color} / ${node.age} Yrs`;
-                    document.getElementById('cardOwner').innerText = node.ownerName;
-                    document.getElementById('cardRegDate').innerText = node.createdAt;
-                    document.getElementById('cardPhoto').src = node.imageBase64;
+            if (node && node.dogName.toLowerCase() === targetName.toLowerCase()) {
+                activeRecord = node;
+                activeRecord.id = targetId;
 
-                    document.getElementById('cardQr').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://pulse2-92372.web.app/card.html?id=${targetId}`;
+                document.getElementById('cardId').innerText = targetId;
+                document.getElementById('cardDogName').innerText = node.dogName;
+                document.getElementById('cardBreed').innerText = node.breed;
+                document.getElementById('cardColorAge').innerText = `${node.color} / ${node.age} Yrs`;
+                document.getElementById('cardOwner').innerText = node.ownerName;
+                document.getElementById('cardRegDate').innerText = node.createdAt;
+                document.getElementById('cardPhoto').src = node.imageBase64;
 
-                    if(node.funding) {
-                        document.getElementById('cardFundApproved').innerText = `$${node.funding.totalApproved || 0}`;
-                        document.getElementById('cardFundUsed').innerText = `$${node.funding.totalUsed || 0}`;
-                        document.getElementById('cardFundStatus').innerText = node.funding.status || "Clear";
-                    }
+                document.getElementById('cardQr').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://lmdc-portal-local.web.app/card.html?id=${targetId}`;
 
-                    const timelineBlock = document.getElementById('timelineContent');
-                    timelineBlock.innerHTML = `
-                        <div class="timeline-item"><strong>${node.createdAt}</strong><p class="mb-0 small text-muted">Registry Profile Created.</p></div>
-                    `;
-                    
-                    if (node.updates) {
-                        Object.values(node.updates).forEach(up => {
-                            timelineBlock.innerHTML += `<div class="timeline-item"><strong>Update</strong><p class="mb-0 small text-muted">${up.slot.toUpperCase()} Verified.</p></div>`;
-                        });
-                    }
-
-                    let innerVaxHtml = '';
-                    for (let [vKey, val] of Object.entries(node.vaccines)) {
-                        innerVaxHtml += `<span class="badge ${val ? 'bg-success' : 'bg-danger'} m-1">${vKey.toUpperCase()}</span>`;
-                    }
-                    document.getElementById('cardVaccines').innerHTML = innerVaxHtml;
-                    
-                    document.getElementById('healthCardDisplay').classList.remove('d-none');
-                    document.getElementById('timelineContainer').classList.remove('d-none');
-                    document.getElementById('vaxUpdateContainer').classList.remove('d-none');
-                } else {
-                    alert("No matching record found in system ledger.");
+                if(node.funding) {
+                    document.getElementById('cardFundApproved').innerText = `$${node.funding.totalApproved || 0}`;
+                    document.getElementById('cardFundUsed').innerText = `$${node.funding.totalUsed || 0}`;
+                    document.getElementById('cardFundStatus').innerText = node.funding.status || "Clear";
                 }
-            });
+
+                const timelineBlock = document.getElementById('timelineContent');
+                timelineBlock.innerHTML = `
+                    <div class="timeline-item"><strong>${node.createdAt}</strong><p class="mb-0 small text-muted">Registry Profile Created Locally.</p></div>
+                `;
+                
+                if (node.updates) {
+                    Object.values(node.updates).forEach(up => {
+                        timelineBlock.innerHTML += `<div class="timeline-item"><strong>Update</strong><p class="mb-0 small text-muted">${up.slot.toUpperCase()} Verified.</p></div>`;
+                    });
+                }
+
+                let innerVaxHtml = '';
+                for (let [vKey, val] of Object.entries(node.vaccines)) {
+                    innerVaxHtml += `<span class="badge ${val ? 'bg-success' : 'bg-danger'} m-1">${vKey.toUpperCase()}</span>`;
+                }
+                document.getElementById('cardVaccines').innerHTML = innerVaxHtml;
+                
+                document.getElementById('healthCardDisplay').classList.remove('d-none');
+                document.getElementById('timelineContainer').classList.remove('d-none');
+                document.getElementById('vaxUpdateContainer').classList.remove('d-none');
+            } else {
+                alert("No matching record found in local system storage.");
+            }
         }
 
         document.getElementById('vaxUpdateForm').addEventListener('submit', function (e) {
@@ -477,7 +463,10 @@
             if(!activeRecord) return;
 
             const slot = document.getElementById('updateVaxSlot').value;
+            const localUpdates = JSON.parse(localStorage.getItem('lmdc_updates'));
+
             const payload = {
+                key: Date.now().toString(),
                 lmdcId: activeRecord.id,
                 dogName: activeRecord.dogName,
                 slot: slot,
@@ -486,15 +475,19 @@
                 status: "Pending Review"
             };
 
-            db.ref('updates/').push(payload).then(() => {
-                alert("Update submitted to approval queue!");
-                document.getElementById('vaxUpdateForm').reset();
-            });
+            localUpdates.push(payload);
+            localStorage.setItem('lmdc_updates', JSON.stringify(localUpdates));
+
+            alert("Update submitted to local approval queue!");
+            document.getElementById('vaxUpdateForm').reset();
         });
 
         document.getElementById('fundingForm').addEventListener('submit', function (e) {
             e.preventDefault();
+            const localFunding = JSON.parse(localStorage.getItem('lmdc_funding'));
+
             const payload = {
+                key: Date.now().toString(),
                 lmdcId: document.getElementById('fundLmdcId').value.trim(),
                 dogName: document.getElementById('fundDogName').value,
                 diseaseName: document.getElementById('fundDisease').value,
@@ -502,74 +495,102 @@
                 status: "Pending Review",
                 type: "Funding Request"
             };
-            db.ref('funding/').push(payload).then(() => {
-                alert("Funding application processed.");
-                document.getElementById('fundingForm').reset();
-            });
+
+            localFunding.push(payload);
+            localStorage.setItem('lmdc_funding', JSON.stringify(localFunding));
+
+            alert("Funding application processed.");
+            document.getElementById('fundingForm').reset();
         });
 
         function handleAdminLogin() {
-            auth.signInWithEmailAndPassword(document.getElementById('adminEmail').value.trim(), document.getElementById('adminPass').value.trim()).then(() => {
+            const email = document.getElementById('adminEmail').value.trim();
+            const pass = document.getElementById('adminPass').value.trim();
+
+            if(email === "admin@lmdc.com" && pass === "admin123") {
                 document.getElementById('adminAuthLayer').classList.add('d-none');
                 document.getElementById('adminDashboardLayer').classList.remove('d-none');
                 loadAdminMetrics();
-            }).catch(err => alert("Access Denied: " + err.message));
+            } else {
+                alert("Invalid Credentials! Use: admin@lmdc.com / admin123");
+            }
         }
 
         function loadAdminMetrics() {
-            db.ref('dogs').on('value', snap => { document.getElementById('statTotal').innerText = snap.numChildren() || 0; });
+            const localDogs = JSON.parse(localStorage.getItem('lmdc_dogs'));
+            const localUpdates = JSON.parse(localStorage.getItem('lmdc_updates'));
+            const localFunding = JSON.parse(localStorage.getItem('lmdc_funding'));
+
+            document.getElementById('statTotal').innerText = Object.keys(localDogs).length;
             
             const body = document.getElementById('adminQueueTable');
             body.innerHTML = "";
 
-            db.ref('updates').on('value', snap => {
-                snap.forEach(child => {
-                    const obj = child.val();
-                    if(obj.status === "Pending Review") {
-                        body.innerHTML += `
-                            <tr>
-                                <td><code>${obj.lmdcId}</code></td>
-                                <td>${obj.dogName}</td>
-                                <td><span class="badge bg-warning text-dark">Vax Update</span></td>
-                                <td>Modify Slot: <strong>${obj.slot.toUpperCase()}</strong></td>
-                                <td>
-                                    <button class="btn btn-success btn-sm" onclick="approveVax('${child.key}','${obj.lmdcId}','${obj.slot}')"><i class="fa fa-check"></i> Approve</button>
-                                </td>
-                            </tr>`;
-                    }
-                });
+            localUpdates.forEach((obj, index) => {
+                if(obj.status === "Pending Review") {
+                    body.innerHTML += `
+                        <tr>
+                            <td><code>${obj.lmdcId}</code></td>
+                            <td>${obj.dogName}</td>
+                            <td><span class="badge bg-warning text-dark">Vax Update</span></td>
+                            <td>Modify Slot: <strong>${obj.slot.toUpperCase()}</strong></td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="approveVax('${obj.key}','${obj.lmdcId}','${obj.slot}')"><i class="fa fa-check"></i> Approve</button>
+                            </td>
+                        </tr>`;
+                }
             });
 
-            db.ref('funding').on('value', snap => {
-                snap.forEach(child => {
-                    const obj = child.val();
-                    if(obj.status === "Pending Review") {
-                        body.innerHTML += `
-                            <tr>
-                                <td><code>${obj.lmdcId}</code></td>
-                                <td>${obj.dogName}</td>
-                                <td><span class="badge bg-danger">Funding</span></td>
-                                <td>${obj.diseaseName} ($${obj.estimatedCost})</td>
-                                <td>
-                                    <button class="btn btn-success btn-sm" onclick="processGrant('${child.key}','${obj.lmdcId}',${obj.estimatedCost})"><i class="fa fa-check"></i> Approve</button>
-                                </td>
-                            </tr>`;
-                    }
-                });
+            localFunding.forEach((obj, index) => {
+                if(obj.status === "Pending Review") {
+                    body.innerHTML += `
+                        <tr>
+                            <td><code>${obj.lmdcId}</code></td>
+                            <td>${obj.dogName}</td>
+                            <td><span class="badge bg-danger">Funding</span></td>
+                            <td>${obj.diseaseName} ($${obj.estimatedCost})</td>
+                            <td>
+                                <button class="btn btn-success btn-sm" onclick="processGrant('${obj.key}','${obj.lmdcId}',${obj.estimatedCost})"><i class="fa fa-check"></i> Approve</button>
+                            </td>
+                        </tr>`;
+                }
             });
         }
 
         function approveVax(key, lmdcId, slot) {
-            db.ref(`dogs/${lmdcId}/vaccines/${slot}`).set(true);
-            db.ref(`updates/${key}`).update({ status: "Approved" });
-            db.ref(`dogs/${lmdcId}/updates`).push({slot: slot, timestamp: new Date().toLocaleDateString()});
+            let localDogs = JSON.parse(localStorage.getItem('lmdc_dogs'));
+            let localUpdates = JSON.parse(localStorage.getItem('lmdc_updates'));
+
+            if(localDogs[lmdcId]) {
+                localDogs[lmdcId].vaccines[slot] = true;
+                if(!localDogs[lmdcId].updates) localDogs[lmdcId].updates = {};
+                localDogs[lmdcId].updates[Date.now()] = {slot: slot, timestamp: new Date().toLocaleDateString()};
+            }
+
+            localUpdates = localUpdates.map(up => up.key === key ? {...up, status: "Approved"} : up);
+            
+            localStorage.setItem('lmdc_dogs', JSON.stringify(localDogs));
+            localStorage.setItem('lmdc_updates', JSON.stringify(localUpdates));
+
             alert("Approved!");
+            loadAdminMetrics();
         }
 
-        function processGrant(grantKey, lmdcId, cost) {
-            db.ref(`funding/${grantKey}`).update({ status: "Approved" });
-            db.ref(`dogs/${lmdcId}/funding`).update({ totalApproved: cost, status: "Grant Approved" });
+        function processGrant(key, lmdcId, cost) {
+            let localDogs = JSON.parse(localStorage.getItem('lmdc_dogs'));
+            let localFunding = JSON.parse(localStorage.getItem('lmdc_funding'));
+
+            if(localDogs[lmdcId]) {
+                localDogs[lmdcId].funding = { totalApproved: cost, status: "Grant Approved" };
+            }
+
+            localFunding = localFunding.map(fn => fn.key === key ? {...fn, status: "Approved"} : fn);
+
+            localStorage.setItem('lmdc_dogs', JSON.stringify(localDogs));
+            localStorage.setItem('lmdc_funding', JSON.stringify(localFunding));
+
             alert("Grant Approved!");
+            loadAdminMetrics();
         }
 
         function downloadPDFReport() {
@@ -587,7 +608,8 @@
             pdf.text(`Registry Node Token: ${activeRecord.id}`, 15, 55);
             pdf.setFontSize(11);
             pdf.setFont("Helvetica", "normal");
-            pdf.text("Dog Details Matched Successfully.", 15, 70);
+            pdf.text(`Dog Name: ${activeRecord.dogName}`, 15, 70);
+            pdf.text(`Breed: ${activeRecord.breed}`, 15, 80);
             pdf.save(`LMDC-REPORT-${activeRecord.id}.pdf`);
         }
     </script>
