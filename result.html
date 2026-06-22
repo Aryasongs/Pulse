@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RWND Central Evaluation Engine - Admin Only</title>
+    <title>RWND Central Evaluation & Result Registry</title>
     <style>
         :root {
             --primary-dark: #0f172a;
@@ -11,115 +11,149 @@
             --secure-red: #dc2626;
             --secure-green: #16a34a;
             --bg-light: #f8fafc;
+            --sheet-border: #1e293b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
-        body { background-color: #cbd5e1; color: #000; padding: 20px; }
+        * {
+            box-sizing: border-box; margin: 0; padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+        }
 
-        .container { max-width: 1100px; margin: 30px auto; background: #ffffff; padding: 40px; border: 4px double #000; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
-        .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
-        .header h1 { font-size: 26px; text-transform: uppercase; }
+        body {
+            background-color: #cbd5e1; color: #000000; padding: 20px;
+        }
 
-        /* Login Screen styling */
-        .login-box { max-width: 450px; margin: 80px auto; background: #fff; padding: 30px; border: 3px solid #000; }
+        /* Top Bar Layout */
+        .top-navbar {
+            max-width: 1100px; margin: 0 auto 20px auto; background: #000; color: #fff;
+            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
+            border: 2px solid var(--sheet-border);
+        }
+        .top-navbar h2 { font-size: 18px; letter-spacing: 1px; }
+        .nav-btn { background: #fff; color: #000; padding: 6px 15px; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; }
+        .nav-btn:hover { background: var(--secure-red); color: #fff; }
+
+        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        .section-title { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; text-transform: uppercase; }
+        
         .form-group { margin-bottom: 20px; }
-        label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 13px; }
-        input[type="text"], input[type="email"], input[type="password"], input[type="number"] { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 14px; }
+        input[type="text"], input[type="number"], input[type="email"], input[type="password"] { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; background: #fafafa; }
         
         .btn-action { background: #000; color: #fff; padding: 12px 25px; border: 2px solid #000; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; }
         .btn-action:hover { background: #fff; color: #000; }
 
-        /* Dashboard layout */
-        .dashboard-view { display: none; }
-        .submission-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .submission-table th, .submission-table td { border: 2px solid #000; padding: 12px; text-align: left; font-weight: bold; }
-        .submission-table th { background: #e2e8f0; }
+        /* Student View Styles */
+        .search-box { background: #f1f5f9; padding: 25px; border: 2px dashed #000; margin-bottom: 30px; }
+        
+        /* Teacher Dashboard Panels */
+        .dashboard-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        .student-list-panel { border: 2px solid #000; padding: 15px; max-height: 600px; overflow-y: auto; }
+        .evaluation-panel { border: 2px solid #000; padding: 20px; display: none; }
+        
+        .student-item { padding: 10px; border-bottom: 1px solid #ccc; cursor: pointer; margin-bottom: 8px; font-weight: bold; background: #f8fafc; }
+        .student-item:hover { background: #e2e8f0; }
+        .student-item.active { background: #000; color: #fff; }
 
-        /* Checker Area Layout */
-        .evaluation-window { display: none; margin-top: 30px; border-top: 4px dashed #000; padding-top: 30px; }
-        .candidate-info-bar { display: flex; justify-content: space-between; background: #f1f5f9; padding: 15px; border: 2px solid #000; margin-bottom: 25px; font-weight: bold; }
+        /* Dynamic Digital Pen Correction Elements */
+        .eval-q-block { border: 1px dashed #000; padding: 15px; margin-bottom: 15px; background: #fafafa; position: relative; }
+        .response-text { background: #fff; padding: 10px; border: 1px solid #aaa; margin: 10px 0; min-height: 40px; font-weight: bold; }
         
-        .eval-q-block { border: 2px solid #000; padding: 20px; margin-bottom: 20px; background: #fafafa; position: relative; }
-        .eval-q-text { font-size: 15px; font-weight: bold; margin-bottom: 10px; color: #1e293b; }
-        .eval-student-ans { background: #fff; border: 1px dashed #64748b; padding: 12px; font-size: 16px; font-weight: bold; color: #0f172a; min-height: 40px; margin-bottom: 15px; }
-        
-        /* Interactive Tick/Cross System */
-        .grading-controls { display: flex; gap: 15px; align-items: center; }
-        .btn-status { padding: 8px 15px; font-weight: bold; cursor: pointer; border: 2px solid #000; text-transform: uppercase; font-size: 12px; }
+        .pen-controls { display: flex; gap: 15px; align-items: center; margin-top: 10px; }
+        .btn-pen { padding: 5px 12px; font-weight: bold; cursor: pointer; border: 2px solid #000; font-size: 12px; text-transform: uppercase; }
         .btn-tick { background: #fff; color: var(--secure-green); border-color: var(--secure-green); }
-        .btn-tick.active { background: var(--secure-green); color: #fff; }
         .btn-cross { background: #fff; color: var(--secure-red); border-color: var(--secure-red); }
+        .btn-tick.active { background: var(--secure-green); color: #fff; }
         .btn-cross.active { background: var(--secure-red); color: #fff; }
         
-        .marks-input-wrapper { display: flex; align-items: center; gap: 8px; font-weight: bold; }
-        .marks-input-wrapper input { width: 70px; padding: 6px; text-align: center; }
+        .pen-status-overlay { position: absolute; top: 10px; right: 15px; font-size: 26px; font-weight: bold; }
+        .pen-status-overlay.tick { color: var(--secure-green); }
+        .pen-status-overlay.cross { color: var(--secure-red); }
 
-        .live-indicator { position: absolute; top: 15px; right: 15px; font-size: 24px; font-weight: bold; }
-        .live-indicator.tick { color: var(--secure-green); }
-        .live-indicator.cross { color: var(--secure-red); }
+        /* Result Card & Certificate Structure */
+        .result-card { border: 4px double #000; padding: 30px; margin-top: 30px; background: #fff; background-image: radial-gradient(#e2e8f0 1px, transparent 0); background-size: 10px 10px; }
+        .cert-header { text-align: center; margin-bottom: 25px; }
+        .cert-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .cert-table th, .cert-table td { border: 1px solid #000; padding: 10px; text-align: left; font-weight: bold; }
+        .cert-table th { background: #f1f5f9; }
+
+        .status-msg { color: var(--secure-red); font-weight: bold; margin-top: 10px; text-align: center; }
+        
+        /* Print/Download Blueprint Configuration */
+        @media print {
+            body { background: #fff; padding: 0; }
+            .top-navbar, .search-box, .btn-action, .dashboard-layout { display: none !important; }
+            .result-card { border: 4px double #000; width: 100%; margin: 0; }
+        }
     </style>
 </head>
 <body>
 
-<div id="authContainer" class="login-box">
-    <div style="text-align:center; margin-bottom:20px;">
-        <h2 style="font-size: 18px; text-transform: uppercase;">Evaluator Gateway</h2>
-        <p style="font-size:12px; margin-top:5px;">Authorized Credentials Verification Required</p>
-    </div>
-    <div class="form-group">
-        <label>Official Admin Email:</label>
-        <input type="email" id="adminEmail" placeholder="username@domain.com">
-    </div>
-    <div class="form-group">
-        <label>Secure System Password:</label>
-        <input type="password" id="adminPassword" placeholder="••••••••">
-    </div>
-    <button class="btn-action" onclick="executeAdminAuthentication()">Unlock Panel</button>
-    <p id="loginError" style="color:var(--secure-red); text-align:center; margin-top:10px; font-weight:bold; display:none;">ACCESS DENIED: Invalid Matrix Parameters.</p>
+<div class="top-navbar">
+    <h2>ORIONTEC DOZERA CENTRAL PORTAL</h2>
+    <button class="nav-btn" id="toggleAuthBtn" onclick="toggleAuthView()">Teacher Login</button>
 </div>
 
-<div id="dashboardContainer" class="container dashboard-view">
-    <div class="header">
-        <h1>RWND Secure Examination Script Registry</h1>
-        <p>Live Evaluation & Digital Paper Marking Terminal</p>
+<div class="container" id="studentPortalContainer">
+    <div class="section-title">
+        <h1>National Examination Result Registry</h1>
+        <p>Enter your credentials below to retrieve audited scoring sheets</p>
     </div>
 
-    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
-        <h3>Incoming Student Submissions:</h3>
-        <button class="btn-action" style="width: auto; padding: 8px 15px; background: var(--secure-red);" onclick="window.location.reload()">Log Out / Safe Lock</button>
+    <div class="search-box">
+        <div class="form-group">
+            <label for="studentRollSearch">Enter 8-Digit Numerical Roll Number:</label>
+            <input type="number" id="studentRollSearch" placeholder="e.g. 58493021">
+        </div>
+        <button class="btn-action" onclick="searchStudentResult()">Search Registry Record</button>
+        <div id="searchError" class="status-msg" style="display:none;"></div>
     </div>
 
-    <table class="submission-table">
-        <thead>
-            <tr>
-                <th>Roll Number</th>
-                <th>Candidate Name</th>
-                <th>Submission Timestamp</th>
-                <th>Evaluation Status</th>
-                <th>Action Node</th>
-            </tr>
-        </thead>
-        <tbody id="submissionTableBody">
-            </tbody>
-    </table>
+    <div id="resultOutputDisplayArea" style="display:none;"></div>
+</div>
 
-    <div id="evaluationWindow" class="evaluation-window">
-        <div class="header" style="border-bottom: 2px dashed #000;">
-            <h2>Digital Answer Script Verification</h2>
-            <p>Affix Ticks, Crosses, and Question-Specific Marks Directly</p>
+<div class="container" id="teacherPortalContainer" style="display:none;">
+    <div class="section-title">
+        <h1>Teacher Lockdown Evaluation Desk</h1>
+        <p>Authorized Script Grading and Digital Red-Pen Matrix</p>
+    </div>
+
+    <div id="adminLoginBlock" style="max-width: 500px; margin: 0 auto;">
+        <div class="form-group">
+            <label>Secure Academic Email:</label>
+            <input type="email" id="authEmail" placeholder="email@domain.com">
+        </div>
+        <div class="form-group">
+            <label>Security Access Token Password:</label>
+            <input type="password" id="authPass" placeholder="••••••••">
+        </div>
+        <button class="btn-action" onclick="executeAdminAuthentication()">Verify Credentials</button>
+        <div id="loginError" class="status-msg" style="display:none;"></div>
+    </div>
+
+    <div id="adminDashboardBlock" class="dashboard-layout" style="display:none;">
+        
+        <div class="student-list-panel">
+            <h3 style="margin-bottom:15px; border-bottom:2px solid #000; padding-bottom:5px; font-size:14px;">PENDING EXAMS</h3>
+            <div id="studentsListNodeTarget"></div>
         </div>
 
-        <div class="candidate-info-bar">
-            <div>TARGET ROLL: <span id="evalRoll"></span></div>
-            <div>CANDIDATE NAME: <span id="evalName"></span></div>
-            <div style="color: var(--accent-blue);">STATUS: LIVE GRADING MODE</div>
-        </div>
+        <div class="evaluation-panel" id="evalSheetCoreNode">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
+                <div>
+                    <h2 id="evalTargetName">CANDIDATE LOG</h2>
+                    <p id="evalTargetRoll">ROLL: </p>
+                </div>
+                <div style="text-align:right;">
+                    <h3 style="font-size:14px; color:var(--secure-red);">LIVE CALCULATED SCORING</h3>
+                    <p style="font-size:22px; font-weight:bold;" id="liveSumDisplay">0 / 720</p>
+                </div>
+            </div>
 
-        <div id="questionsGradingWrapper"></div>
+            <div id="questionsGradingTargetNode"></div>
 
-        <div style="margin-top: 30px; display: flex; gap: 20px;">
-            <button class="btn-action" style="background: var(--secure-green); border-color: var(--secure-green);" onclick="transmitEvaluatedGradesToCloud()">Commit Marks & Push to Live Results</button>
-            <button class="btn-action" style="background: #64748b; border-color: #64748b;" onclick="closeEvaluationEngine()">Cancel Audit</button>
+            <button class="btn-action" style="background:var(--secure-green); border-color:var(--secure-green); margin-top:20px;" onclick="commitTeacherEvaluationPayload()">Commit Graded Script & Lock Score</button>
         </div>
     </div>
 </div>
@@ -128,7 +162,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
-    // System Core Configurations Mapped via App Node
     const firebaseConfig = {
         apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
         authDomain: "pulse2-92372.firebaseapp.com",
@@ -142,199 +175,304 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let runtimeSubmissionsCache = {};
-    let activeEvaluationRoll = null;
-    let evaluationStateDraft = {}; // Holds unique question verification parameters (status, marks)
+    let currentActiveView = "STUDENT";
+    let isTeacherAuthenticated = false;
+    let selectedStudentRoll = null;
+    let evaluationState = {}; // Local memory allocation map for virtual marks and tick tracking
 
-    // Questions Definitions to match your Exam Array
-    const dynamicExamQuestionsMapping = {
-        1: "Q1. What is the worst-case time complexity of searching an element in a standard balanced Binary Search Tree (AVL Tree)?",
-        2: "Q2. The data structure that operates strictly under the Last-In-First-Out (LIFO) memory allocation rule is named ________.",
-        3: "Q3. Which of the following sorting algorithms utilizes a divide-and-conquer strategy with a guaranteed worst-case time complexity of O(n log n)?",
-        4: "Q4. In a singly linked list architecture, the final terminal node traditionally points to the ________ pointer value.",
-        5: "Q5. Differentiate clearly between Primitive Data Types and Linear Abstract Data Structures.",
-        6: "Q6. Which of the following layer of standard OSI framework is responsible for routing data packets across subnets?",
-        7: "Q7. Secure global communications routing Hypertext Transfer Protocol (HTTPS) payloads utilize TCP Port number _______.",
-        8: "Q8. What protocol is natively used to map and resolve a known dynamic IP address directly into physical hardware MAC address?",
-        9: "Q9. The mechanism used by system firewalls to translate local private IP addresses to public external router interface is called ________.",
-        10: "Q10. Analyze how a standard TCP Three-Way Handshake establishes active synchronization state session between client and server.",
-        11: "Q11. In asymmetric cryptography infrastructures, a message encrypted securely using the sender's private key ensures which parameter?",
-        12: "Q12. The industry-standard symmetric block cipher standard used globally to protect federal sensitive data is known as ________.",
-        13: "Q13. Which of the following is considered a common secure cryptographic hash function vulnerable to zero collisions?",
-        14: "Q14. An intentional cryptographic attack vector that intercepts ongoing safe network requests to subtly alter data packets is called a ________-in-the-middle attack.",
-        15: "Q15. Explain how Public Key Infrastructure (PKI) manages, distributes, and revokes digital certificates.",
-        16: "Q16. Under multi-threaded program environments, what critical failure scenario triggers when multiple concurrent threads remain permanently locked?",
-        17: "Q17. The transactional property that guarantees database operations remain completely isolated from concurrent transactions until commit is ________.",
-        18: "Q18. What core architectural hardware element inside Operating System kernel bridges direct runtime requests to actual CPU hardware cycles?",
-        19: "Q19. The system memory management routine that maps inactive volatile RAM cache sectors into temporary secondary storage spaces is called ________ memory.",
-        20: "Q20. Architect a robust mitigation strategy for preventing SQL Injection and Cross-Site Scripting (XSS) attacks inside a highly available modern web framework."
+    // Static Unique Reference definition model matching Master Exam Template V4
+    const questionsReferenceTemplate = {
+        1: { q: "Q1. What is the worst-case time complexity of searching an element in a standard balanced Binary Search Tree (AVL Tree)?", max: 36 },
+        2: { q: "Q2. The data structure that operates strictly under the Last-In-First-Out (LIFO) memory allocation rule is named ________.", max: 36 },
+        3: { q: "Q3. Which of the following sorting algorithms utilizes a divide-and-conquer strategy with a guaranteed worst-case time complexity of O(n log n)?", max: 36 },
+        4: { q: "Q4. In a singly linked list architecture, the final terminal node traditionally points to the ________ pointer value.", max: 36 },
+        5: { q: "Q5. Differentiate clearly between Primitive Data Types and Linear Abstract Data Structures.", max: 36 },
+        6: { q: "Q6. Which layer of the standard OSI model reference framework is fundamentally responsible for routing data packets across disparate subnets?", max: 36 },
+        7: { q: "Q7. Secure global communications routing Hypertext Transfer Protocol (HTTPS) payloads utilize destination TCP Port number _______.", max: 36 },
+        8: { q: "Q8. What protocol is natively used to map and resolve a known dynamic IP address directly into a physical hardware MAC address?", max: 36 },
+        9: { q: "Q9. The mechanism used by system firewalls to translate local private IP addresses to a public external router interface is called ________.", max: 36 },
+        10: { q: "Q10. Analyze how a standard TCP Three-Way Handshake establishes an active synchronization state session between a web client interface and a remote server infrastructure.", max: 36 },
+        11: { q: "Q11. In asymmetric cryptography infrastructures, a message encrypted securely using the sender's private key ensures which parameter?", max: 36 },
+        12: { q: "Q12. The industry-standard symmetric block cipher standard used globally to protect federal sensitive data is known as ________.", max: 36 },
+        13: { q: "Q13. Which of the following is considered a common secure cryptographic hash function vulnerable to zero collisions?", max: 36 },
+        14: { q: "Q14. An intentional cryptographic attack vector that intercepts ongoing safe network requests to subtly alter data packets without detection is called a ________-in-the-middle attack.", max: 36 },
+        15: { q: "Q15. Explain how Public Key Infrastructure (PKI) manages, distributes, and revokes digital certificates via centralized Certificate Authorities (CA).", max: 36 },
+        16: { q: "Q16. Under multi-threaded program environments, what critical failure scenario triggers when multiple concurrent threads remain permanently locked waiting for mutual resources?", max: 36 },
+        17: { q: "Q17. The transactional property that guarantees database operations remain completely isolated from concurrent transactions until commit is ________.", max: 36 },
+        18: { q: "Q18. What core architectural hardware element inside an Operating System kernel bridges direct runtime requests from software applications to actual CPU hardware cycles?", max: 36 },
+        19: { q: "Q19. The system memory management routine that maps inactive volatile RAM cache sectors into temporary secondary storage spaces is called ________ memory.", max: 36 },
+        20: { q: "Q20. Architect a robust mitigation strategy for preventing SQL Injection and Cross-Site Scripting (XSS) attacks inside a highly available modern web application framework.", max: 36 }
     };
 
-    // SECURE CREDENTIAL ARREST SYSTEM
-    // Hash equivalents simulation used to prevent raw string exposure during general client inspect operations
-    function executeAdminAuthentication() {
-        const email = document.getElementById('adminEmail').value.trim();
-        const password = document.getElementById('adminPassword').value.trim();
-        const err = document.getElementById('loginError');
-
-        // Credentials gatekeeper enforcement mapping
-        if(email === "sgursharn076@gmail.com" && password === "7973804008") {
-            document.getElementById('authContainer').style.display = "none";
-            document.getElementById('dashboardContainer').classList.add('active');
-            initializeSubmissionsStreamReader();
+    function toggleAuthView() {
+        const btn = document.getElementById('toggleAuthBtn');
+        if(currentActiveView === "STUDENT") {
+            currentActiveView = "TEACHER";
+            btn.innerText = "Student Portal";
+            document.getElementById('studentPortalContainer').style.display = "none";
+            document.getElementById('teacherPortalContainer').style.display = "block";
+            if(isTeacherAuthenticated) loadSubmissionsList();
         } else {
-            err.style.display = "block";
+            currentActiveView = "STUDENT";
+            btn.innerText = "Teacher Login";
+            document.getElementById('studentPortalContainer').style.display = "block";
+            document.getElementById('teacherPortalContainer').style.display = "none";
         }
     }
 
-    function initializeSubmissionsStreamReader() {
-        db.ref('exam_submissions').on('value', (snapshot) => {
-            const tbody = document.getElementById('submissionTableBody');
-            tbody.innerHTML = "";
-            
-            if(snapshot.exists()) {
-                runtimeSubmissionsCache = snapshot.val();
-                
-                Object.keys(runtimeSubmissionsCache).forEach(roll => {
-                    const record = runtimeSubmissionsCache[roll];
-                    const row = document.createElement('tr');
-                    
-                    let statusLabel = `<span style="color:#b45309;">PENDING GRADING</span>`;
-                    if(record.status === "GRADED_PUBLISHED") {
-                        statusLabel = `<span style="color:var(--secure-green);">EVALUATED & LIVE</span>`;
-                    }
+    // TEACHER LOGIN AUTH PROTOCOL
+    function executeAdminAuthentication() {
+        const email = document.getElementById('authEmail').value.trim();
+        const pass = document.getElementById('authPass').value.trim();
+        const errBox = document.getElementById('loginError');
 
-                    row.innerHTML = `
-                        <td>${record.rollNumber}</td>
-                        <td>${record.candidateName}</td>
-                        <td>${new Date(record.submittedAt).toLocaleString()}</td>
-                        <td>${statusLabel}</td>
-                        <td><button class="btn-action" style="font-size:12px; padding:6px 12px;" onclick="loadScriptToEvaluationTable('${record.rollNumber}')">Open Verification Matrix</button></td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            } else {
-                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No examination scripts found on central data cloud node.</td></tr>`;
+        // Explicit highly confidential verification parameters mapping requested criteria
+        if(email === "sgursharn076@gmail.com" && pass === "7973804008") {
+            isTeacherAuthenticated = true;
+            errBox.style.display = "none";
+            document.getElementById('adminLoginBlock').style.display = "none";
+            document.getElementById('adminDashboardBlock').style.display = "grid";
+            loadSubmissionsList();
+        } else {
+            errBox.innerText = "ACCESS DENIED: Token signatures matching root clearance keys not verified.";
+            errBox.style.display = "block";
+        }
+    }
+
+    // FETCH EXAM PAYLOADS
+    function loadSubmissionsList() {
+        const container = document.getElementById('studentsListNodeTarget');
+        container.innerHTML = "<p style='font-size:12px;'>Fetching streaming payloads...</p>";
+
+        db.ref('exam_submissions').on('value', (snapshot) => {
+            container.innerHTML = "";
+            if(!snapshot.exists()) {
+                container.innerHTML = "<p style='font-size:12px; padding:10px;'>No active script payloads submitted inside database storage.</p>";
+                return;
             }
+
+            snapshot.forEach((child) => {
+                const data = child.val();
+                const item = document.createElement('div');
+                item.className = "student-item";
+                if(selectedStudentRoll === data.rollNumber) item.className += " active";
+                
+                const isCheckedText = data.status === "EVALUATED_COMMITTED" ? " ✅ Graded" : " ⏳ Pending";
+                item.innerText = `${data.rollNumber} - ${data.candidateName} ${isCheckedText}`;
+                
+                item.onclick = () => loadStudentScriptForGrading(data.rollNumber);
+                container.appendChild(item);
+            });
         });
     }
 
-    function loadScriptToEvaluationTable(rollNum) {
-        activeEvaluationRoll = rollNum;
-        const record = runtimeSubmissionsCache[rollNum];
-        
-        document.getElementById('evalRoll').innerText = record.rollNumber;
-        document.getElementById('evalName').innerText = record.candidateName;
+    // DYNAMIC SCRIPT WRITER & RED-PEN ATTESTATION INTERFACE
+    function loadStudentScriptForGrading(rollNumber) {
+        selectedStudentRoll = rollNumber;
+        loadSubmissionsList(); // Refresh lists view selection focus
 
-        const container = document.getElementById('questionsGradingWrapper');
-        container.innerHTML = "";
-        
-        evaluationStateDraft = {};
+        db.ref('exam_submissions/' + rollNumber).once('value', (snapshot) => {
+            if(!snapshot.exists()) return;
+            const payload = snapshot.val();
 
-        // Loop across complete 20 comprehensive points sequentially
-        for(let i = 1; i <= 20; i++) {
-            const questionText = dynamicExamQuestionsMapping[i];
-            const studentResponse = record.responses[i] || "[CANDIDATE LEFT THIS QUESTION BLANK / UNATTEMPTED]";
+            document.getElementById('evalTargetName').innerText = payload.candidateName.toUpperCase();
+            document.getElementById('evalTargetRoll').innerText = `ROLL IDENTIFIER CODE: ${payload.rollNumber}`;
+            document.getElementById('evalSheetCoreNode').style.display = "block";
 
-            evaluationStateDraft[i] = { markStatus: "none", scoreEarned: 0 };
+            const responses = payload.responses || {};
+            const gradingTarget = document.getElementById('questionsGradingTargetNode');
+            gradingTarget.innerHTML = "";
 
-            const block = document.createElement('div');
-            block.className = "eval-q-block";
-            block.id = `q_eval_wrapper_${i}`;
+            // Initialize local configuration registry memory
+            evaluationState = payload.evaluationData || { marks: {}, pens: {} };
 
-            block.innerHTML = `
-                <div class="live-indicator" id="indicator_icon_${i}"></div>
-                <div class="eval-q-text">${questionText}</div>
-                <div class="eval-student-ans">${studentResponse}</div>
+            for(let i = 1; i <= 20; i++) {
+                const qRef = questionsReferenceTemplate[i];
+                const studentAns = responses[i] || "[CANDIDATE OMITTED FIELD RESPONSE]";
                 
-                <div class="grading-controls">
-                    <button class="btn-status btn-tick" id="tick_${i}" onclick="setQuestionMarkStatus(${i}, 'tick')">✔ Right Tick</button>
-                    <button class="btn-status btn-cross" id="cross_${i}" onclick="setQuestionMarkStatus(${i}, 'cross')">✖ Wrong Cut</button>
+                const currentMark = evaluationState.marks[i] !== undefined ? evaluationState.marks[i] : 0;
+                const currentPen = evaluationState.pens[i] || ""; // 'TICK' or 'CROSS'
+
+                const block = document.createElement('div');
+                block.className = "eval-q-block";
+                block.id = `eval_block_${i}`;
+
+                // Setup overlay layer for reactive ink drawing rendering
+                let overlayClass = "";
+                let overlaySym = "";
+                if(currentPen === "TICK") { overlayClass = "tick"; overlaySym = "✓"; }
+                if(currentPen === "CROSS") { overlayClass = "cross"; overlaySym = "✗"; }
+
+                block.innerHTML = `
+                    <div class="question-title" style="font-size:13px;">${qRef.q}</div>
+                    <div class="response-text">${studentAns}</div>
+                    <div class="pen-status-overlay ${overlayClass}" id="overlay_sign_${i}">${overlaySym}</div>
                     
-                    <div class="marks-input-wrapper">
-                        <span>Assign Marks:</span>
-                        <input type="number" id="marks_given_${i}" min="0" max="36" value="0" oninput="updateDraftScoreValue(${i}, this.value)">
-                        <span style="font-size:12px; color:#64748b;">/ 36 Marks</span>
+                    <div class="pen-controls">
+                        <button class="btn-pen btn-tick ${currentPen === 'TICK' ? 'active' : ''}" onclick="applyDigitalPenStroke(${i}, 'TICK')">Right Tick</button>
+                        <button class="btn-pen btn-cross ${currentPen === 'CROSS' ? 'active' : ''}" onclick="applyDigitalPenStroke(${i}, 'CROSS')">Wrong Cut</button>
+                        <div style="margin-left:auto; display:flex; align-items:center; gap:5px;">
+                            <label style="margin:0; font-size:11px;">MARKS (Max ${qRef.max}):</label>
+                            <input type="number" value="${currentMark}" min="0" max="${qRef.max}" style="width:70px; padding:4px; text-align:center;" oninput="updateLiveScoreValue(${i}, this.value)">
+                        </div>
+                    </div>
+                `;
+                gradingTarget.appendChild(block);
+            }
+            recalculateLiveSumTotal();
+        });
+    }
+
+    function applyDigitalPenStroke(qId, type) {
+        const overlay = document.getElementById(`overlay_sign_${qId}`);
+        const parent = document.getElementById(`eval_block_${qId}`);
+        
+        const tickBtn = parent.querySelector('.btn-tick');
+        const crossBtn = parent.querySelector('.btn-cross');
+
+        if(evaluationState.pens[qId] === type) {
+            // Undo execution route if clicked recursively
+            evaluationState.pens[qId] = "";
+            overlay.innerText = "";
+            overlay.className = "pen-status-overlay";
+            tickBtn.classList.remove('active');
+            crossBtn.classList.remove('active');
+        } else {
+            evaluationState.pens[qId] = type;
+            tickBtn.classList.toggle('active', type === 'TICK');
+            crossBtn.classList.toggle('active', type === 'CROSS');
+
+            if(type === 'TICK') {
+                overlay.innerText = "✓";
+                overlay.className = "pen-status-overlay tick";
+            } else {
+                overlay.innerText = "✗";
+                overlay.className = "pen-status-overlay cross";
+            }
+        }
+    }
+
+    function updateLiveScoreValue(qId, val) {
+        let numericValue = parseInt(val) || 0;
+        const maxLimit = questionsReferenceTemplate[qId].max;
+        if(numericValue > maxLimit) numericValue = maxLimit;
+        
+        evaluationState.marks[qId] = numericValue;
+        recalculateLiveSumTotal();
+    }
+
+    function recalculateLiveSumTotal() {
+        let sum = 0;
+        for(let i = 1; i <= 20; i++) {
+            sum += evaluationState.marks[i] || 0;
+        }
+        evaluationState.totalScoreCalculated = sum;
+        document.getElementById('liveSumDisplay').innerText = `${sum} / 720`;
+    }
+
+    function commitTeacherEvaluationPayload() {
+        if(!selectedStudentRoll) return;
+        
+        // Populate standard default initialization for non-touched configurations fields safely
+        for(let i = 1; i <= 20; i++) {
+            if(evaluationState.marks[i] === undefined) evaluationState.marks[i] = 0;
+            if(evaluationState.pens[i] === undefined) evaluationState.pens[i] = "";
+        }
+
+        const updates = {
+            status: "EVALUATED_COMMITTED",
+            evaluationData: evaluationState
+        };
+
+        db.ref('exam_submissions/' + selectedStudentRoll).update(updates)
+        .then(() => {
+            alert("SUCCESS: Candidate script metrics verified, compiled, and locked safely.");
+            document.getElementById('evalSheetCoreNode').style.display = "none";
+            selectedStudentRoll = null;
+            loadSubmissionsList();
+        })
+        .catch(err => alert("Database transmission failure: " + err.message));
+    }
+
+
+    // ==========================================
+    // STUDENT RESULTS QUERY SEARCH ENGINE ARCHITECTURE
+    // ==========================================
+    function searchStudentResult() {
+        const rollCode = document.getElementById('studentRollSearch').value.trim();
+        const errBox = document.getElementById('searchError');
+        const outputNode = document.getElementById('resultOutputDisplayArea');
+
+        if(!rollCode) { alert("Please provide input entry token."); return; }
+        
+        errBox.style.display = "none";
+        outputNode.style.display = "none";
+
+        db.ref('exam_submissions/' + rollCode).once('value', (snapshot) => {
+            if(!snapshot.exists()) {
+                errBox.innerText = "REGISTRY TRACE FAULT: Target evaluation parameters matching roll code not identified inside system node. Either candidate hasn't submitted or validation failed.";
+                errBox.style.display = "block";
+                return;
+            }
+
+            const payload = snapshot.val();
+            if(payload.status !== "EVALUATED_COMMITTED") {
+                errBox.innerText = "PENDING SHEET METRICS: Your responses have been safely saved, but the designated red-pen structural audit calculation is processing by human grader panel. Re-check in a short while.";
+                errBox.style.display = "block";
+                return;
+            }
+
+            // EXTRACT & PRINT RICH AUDIO SHEET WITH RED TICKS LAYOUT
+            outputNode.style.display = "block";
+            const evalData = payload.evaluationData;
+            
+            let sheetInspectionHtml = "";
+            for(let i = 1; i <= 20; i++) {
+                const qRef = questionsReferenceTemplate[i];
+                const sAns = payload.responses[i] || "[NOT ATTEMPTED]";
+                const penType = evalData.pens[i] || "";
+                const marksScored = evalData.marks[i] || 0;
+
+                let markerOverlay = "";
+                let overlayColorClass = "";
+                if(penType === "TICK") { markerOverlay = "✓"; overlayColorClass = "tick"; }
+                if(penType === "CROSS") { markerOverlay = "✗"; overlayColorClass = "cross"; }
+
+                sheetInspectionHtml += `
+                    <div class="eval-q-block">
+                        <div style="font-size:12px; font-weight:bold; color:#475569;">${qRef.q}</div>
+                        <div class="response-text" style="border-color:#cbd5e1; font-size:14px;">${sAns}</div>
+                        <div class="pen-status-overlay ${overlayColorClass}" style="top:5px; right:15px; font-size:28px;">${markerOverlay}</div>
+                        <div style="text-align:right; font-size:11px; font-weight:bold; color:#000;">
+                            GRADED EXTRACT VALUE: ${marksScored} / ${qRef.max} MARKS
+                        </div>
+                    </div>
+                `;
+            }
+
+            outputNode.innerHTML = `
+                <div class="result-card">
+                    <div class="cert-header">
+                        <h2 style="font-size:24px; letter-spacing:1px;">NATIONAL SECURE AUDIT SCORECARD</h2>
+                        <p style="font-size:11px; text-transform:uppercase; margin-top:5px;">Oriontec Dozera Performance Credential Certificate</p>
+                    </div>
+
+                    <table class="cert-table">
+                        <tr><td>CANDIDATE REGISTERED NAME</td><td>${payload.candidateName.toUpperCase()}</td></tr>
+                        <tr><td>SYSTEM ALLOCATION CODE (ROLL)</td><td>${payload.rollNumber}</td></tr>
+                        <tr><td>AGGREGATE EVALUATED MARKS</td><td style="color:var(--accent-blue); font-size:18px;">${evalData.totalScoreCalculated} / 720 MARKS</td></tr>
+                        <tr><td>FINAL PORTAL STATUS CODE</td><td style="color:var(--secure-green);">SECURE PASS / VERIFIED RECORD</td></tr>
+                    </table>
+
+                    <button class="btn-action" style="margin-top:25px; background:var(--accent-blue); border-color:var(--accent-blue);" onclick="window.print()">Download & Print Official Certificate PDF</button>
+
+                    <div style="margin-top:40px; border-top:3px double #000; padding-top:20px;">
+                        <h3 style="font-size:14px; text-transform:uppercase; text-align:center; margin-bottom:20px;">Detailed Audited Answer Sheet with Evaluation Markers</h3>
+                        ${sheetInspectionHtml}
                     </div>
                 </div>
             `;
-            container.appendChild(block);
-        }
-
-        // If it was already evaluated previously, restore active values seamlessly
-        if(record.evaluationDetails) {
-            evaluationStateDraft = record.evaluationDetails.questionsBreakdown || evaluationStateDraft;
-            for(let i=1; i<=20; i++) {
-                if(evaluationStateDraft[i]) {
-                    if(evaluationStateDraft[i].markStatus === "tick") setQuestionMarkStatus(i, 'tick', false);
-                    if(evaluationStateDraft[i].markStatus === "cross") setQuestionMarkStatus(i, 'cross', false);
-                    document.getElementById(`marks_given_${i}`).value = evaluationStateDraft[i].scoreEarned;
-                }
-            }
-        }
-
-        document.getElementById('evaluationWindow').style.display = "block";
-        document.getElementById('evaluationWindow').scrollIntoView({ behavior: 'smooth' });
-    }
-
-    function setQuestionMarkStatus(qId, statusType, userTriggered = true) {
-        const tickBtn = document.getElementById(`tick_${qId}`);
-        const crossBtn = document.getElementById(`cross_${qId}`);
-        const indicator = document.getElementById(`indicator_icon_${qId}`);
-
-        tickBtn.classList.remove('active');
-        crossBtn.classList.remove('active');
-        indicator.className = "live-indicator";
-
-        if(statusType === 'tick') {
-            tickBtn.classList.add('active');
-            indicator.innerText = "✔";
-            indicator.classList.add('tick');
-            evaluationStateDraft[qId].markStatus = "tick";
-            if(userTriggered) { document.getElementById(`marks_given_${qId}`).value = 36; evaluationStateDraft[qId].scoreEarned = 36; }
-        } else if(statusType === 'cross') {
-            crossBtn.classList.add('active');
-            indicator.innerText = "✖";
-            indicator.classList.add('cross');
-            evaluationStateDraft[qId].markStatus = "cross";
-            if(userTriggered) { document.getElementById(`marks_given_${qId}`).value = 0; evaluationStateDraft[qId].scoreEarned = 0; }
-        }
-    }
-
-    function updateDraftScoreValue(qId, value) {
-        evaluationStateDraft[qId].scoreEarned = parseFloat(value) || 0;
-    }
-
-    function transmitEvaluatedGradesToCloud() {
-        if(!activeEvaluationRoll) return;
-        
-        let integratedTotalScore = 0;
-        Object.keys(evaluationStateDraft).forEach(qId => {
-            integratedTotalScore += parseFloat(evaluationStateDraft[qId].scoreEarned || 0);
         });
-
-        const packetPayload = {
-            evaluatedTotalMarks: integratedTotalScore,
-            maxMarksPossible: 720,
-            evaluatedAt: new Date().toISOString(),
-            questionsBreakdown: evaluationStateDraft
-        };
-
-        db.ref('exam_submissions/' + activeEvaluationRoll).update({
-            status: "GRADED_PUBLISHED",
-            evaluationDetails: packetPayload
-        })
-        .then(() => {
-            alert(`SUCCESS: Evaluation complete. Total Marks assigned: ${integratedTotalScore} / 720. Result pushed to live portal!`);
-            closeEvaluationEngine();
-        })
-        .catch(err => alert("Data sync error: " + err.message));
-    }
-
-    function closeEvaluationEngine() {
-        document.getElementById('evaluationWindow').style.display = "none";
-        activeEvaluationRoll = null;
-        window.scrollTo(0,0);
     }
 </script>
 </body>
