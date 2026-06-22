@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RWND National Secure Examination Portal</title>
+    <style>
+        :root {
+            --primary-dark: #0f172a;
+            --accent-blue: #2563eb;
+            --secure-red: #dc2626;
+            --bg-light: #f8fafc;
+            --sheet-border: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box; margin: 0; padding: 0;
+            font-family: 'Courier New', Courier, monospace;
+            user-select: none; -webkit-user-select: none;
+        }
+
+        body {
+            background-color: #cbd5e1; color: #000000; padding: 20px;
+            overflow-x: hidden;
+        }
+
+        .screen { display: none; max-width: 900px; margin: 30px auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .screen.active { display: block; }
+
+        .sheet-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
+        .sheet-header h1 { font-size: 26px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 14px; }
+        input[type="text"], input[type="number"], textarea { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; background: #fafafa; }
+        
+        .btn-action { background: #000; color: #fff; padding: 12px 25px; border: none; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; margin-top: 15px; border: 2px solid #000; }
+        .btn-action:hover { background: #fff; color: #000; }
+        .btn-action:disabled { background: #94a3b8; cursor: not-allowed; border-color: #94a3b8; }
+
+        /* Admit Card Cardboard Component */
+        .admit-card-embed { border: 2px dashed #000; padding: 20px; margin: 20px 0; background: #fdfdfd; display: grid; grid-template-columns: 3fr 1fr; gap: 20px; }
+        .admit-meta td { padding: 6px; font-size: 14px; }
+        .admit-photo { width: 120px; height: 150px; border: 2px solid #000; background: #eee; overflow: hidden; }
+        .admit-photo img { width: 100%; height: 100%; object-fit: cover; }
+
+        .agreement-box { display: flex; gap: 12px; align-items: flex-start; margin-top: 25px; background: #fffbeb; padding: 15px; border: 1px dashed #b45309; }
+        .agreement-box input { margin-top: 4px; transform: scale(1.3); }
+
+        /* Sticky Security Banner */
+        .security-bar { background: var(--secure-red); color: white; text-align: center; padding: 8px; font-weight: bold; font-size: 12px; position: fixed; top: 0; left: 0; width: 100%; z-index: 99999; letter-spacing: 1px; }
+
+        /* Exam Sheet Layout */
+        .exam-meta-strip { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 25px; font-weight: bold; font-size: 14px; }
+        .question-block { border-bottom: 1px dashed #000; padding: 25px 0; margin-bottom: 10px; }
+        .question-title { font-size: 16px; font-weight: bold; margin-bottom: 15px; line-height: 1.5; }
+        
+        .options-list { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+        .option-item { display: flex; align-items: center; gap: 10px; padding: 8px; border: 1px solid #ccc; cursor: pointer; }
+        .option-item input { transform: scale(1.2); }
+
+        .timer-box { font-size: 18px; font-weight: bold; color: var(--secure-red); border: 2px solid var(--secure-red); padding: 5px 15px; display: inline-block; }
+        
+        .status-msg { color: var(--secure-red); font-weight: bold; margin-top: 10px; text-align: center; font-size: 14px; }
+    </style>
+</head>
+<body oncontextmenu="return false;" onkeydown="return disableSecurityKeys(event);">
+
+<div class="security-bar">SECURE LOCKDOWN ACTIVE - REFRESH TRAPPED / COPY-PASTE BLOCKED / SCREEN MONITOR MONITORING ENGINE</div>
+
+<div class="screen active" id="scrLockup">
+    <div class="sheet-header">
+        <h1>Oriontec Dozera RWND Node</h1>
+        <p>National Examination Secure Gateway Sheet</p>
+    </div>
+    <div class="form-group">
+        <label for="rollSearchInput">Enter Your 8-Digit Numerical Roll Number:</label>
+        <input type="number" id="rollSearchInput" placeholder="e.g. 58493021">
+        <div id="lockupError" class="status-msg" style="display:none;"></div>
+    </div>
+    <button class="btn-action" id="btnLookup" onclick="validateRollDatabase()">Fetch Admit Record</button>
+</div>
+
+<div class="screen" id="scrVerifyAdmit">
+    <div class="sheet-header">
+        <h1>Verify Candidate Identity</h1>
+        <p>Verification Checkpoint Matrix</p>
+    </div>
+    
+    <div class="admit-card-embed">
+        <div>
+            <table class="admit-meta">
+                <tr><td><strong>Roll Number:</strong></td><td id="admRoll"></td></tr>
+                <tr><td><strong>Candidate Name:</strong></td><td id="admName"></td></tr>
+                <tr><td><strong>Father's Name:</strong></td><td id="admFather"></td></tr>
+                <tr><td><strong>Allotted City:</strong></td><td id="admCity"></td></tr>
+                <tr><td><strong>Exam Date Window:</strong></td><td id="admDate" style="color:var(--accent-blue); font-weight:bold;"></td></tr>
+            </table>
+        </div>
+        <div class="admit-photo" id="admPhotoBox">No Photo</div>
+    </div>
+
+    <div class="agreement-box">
+        <input type="checkbox" id="chkAgree" onclick="toggleAgreeBtn()">
+        <label for="chkAgree" style="font-weight: normal; text-transform: none; line-height: 1.4;">
+            I'm agreed for Oriontec Dozera examination policy guidelines. I declare that I am the genuine candidate appearing in this secure session. I understand switching tabs, resizing window, or trying to inject external console frames will permanently destroy my raw scores.
+        </label>
+    </div>
+
+    <button class="btn-action" id="btnProceedOTP" disabled onclick="triggerAdmitOTP()">Send Secure OTP to Linked Mail</button>
+</div>
+
+<div class="screen" id="scrOtp">
+    <div class="sheet-header">
+        <h1>Two-Factor Mail Stream Auth</h1>
+        <p>Enter the OTP routed through your linked registration email address</p>
+    </div>
+    <div class="form-group">
+        <label for="otpInput">Enter 6-Digit Verification Token:</label>
+        <input type="number" id="otpInput" placeholder="000000" style="text-align: center; font-size: 22px; letter-spacing: 5px;">
+        <div id="otpError" class="status-msg" style="display:none;"></div>
+    </div>
+    <button class="btn-action" onclick="verifyExamSessionOtp()">Validate Gateway Token</button>
+</div>
+
+<div class="screen" id="scrExamSign">
+    <div class="sheet-header">
+        <h1>RWND Real Answer Sheet Template</h1>
+        <p>Final Validation Signature Registry</p>
+    </div>
+    <div style="background: #f1f5f9; padding: 15px; margin-bottom: 20px; font-weight: bold; border-left: 4px solid #000;">
+        Rule: Please manually re-verify your full name inside the entry block below. This binds the dynamic exam script data to your persistent local browser registry profile.
+    </div>
+    <div class="form-group">
+        <label for="examSignName">Confirm Candidate Signature Name (CAPITAL LETTERS):</label>
+        <input type="text" id="examSignName" placeholder="ENTER FULL NAME">
+    </div>
+    <div class="form-group">
+        <label for="examSignRoll">Confirm Candidate Roll Number:</label>
+        <input type="number" id="examSignRoll" readonly style="background-color: #e2e8f0;">
+    </div>
+    <button class="btn-action" onclick="startCoreExaminationSheet()">Break Seal & Start Exam</button>
+</div>
+
+<div class="screen" id="scrCoreExam" style="max-width: 1050px;">
+    <div class="sheet-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:3px double #000;">
+        <div style="text-align: left;">
+            <h2 style="font-size: 20px;">RWND TEST INSIGHT SHEET</h2>
+            <p style="font-size: 12px; font-weight: bold;">MAX ASSESSMENT SCORE: 720 MARKS (78 ITEMS)</p>
+        </div>
+        <div class="timer-box" id="examTimeDisplay">180:00</div>
+    </div>
+
+    <div class="exam-meta-strip">
+        <div>CANDIDATE: <span id="stripName"></span></div>
+        <div>ROLL CODE: <span id="stripRoll"></span></div>
+        <div>STATUS: HARD ENGINE PERSISTENT</div>
+    </div>
+
+    <div id="questionsContainer"></div>
+
+    <button class="btn-action" style="background:var(--secure-red); border-color:var(--secure-red);" onclick="finalExamTransmissionSubmit(false)">Finalize & Lock Answer Script</button>
+</div>
+
+<div class="screen" id="scrFinished">
+    <div class="sheet-header">
+        <h1>Answer Sheet Transmitted Successfully</h1>
+        <p>Session Closed Safe</p>
+    </div>
+    <div style="text-align: center; font-weight: bold; line-height: 1.8;">
+        <p style="font-size: 18px; color: var(--accent-blue);">Aapka exam successfully lock ho chuka hai.</p>
+        <p style="margin-top: 15px;">Aapka raw execution metrics block secure database node pe push ho gaya hai.</p>
+        <p style="color: var(--secure-red); font-size: 15px; margin-top: 10px;">Note: 720 Marks me se aapka evaluated final secure result is website par nahi aayega, woh aapko scheduled date par alag official result website par check karna hoga.</p>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+    // System Configurations Shared with Candidate Registration Database Node
+    const firebaseConfig = {
+        apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+        authDomain: "pulse2-92372.firebaseapp.com",
+        databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+        projectId: "pulse2-92372",
+        storageBucket: "pulse2-92372.firebasestorage.app",
+        messagingSenderId: "276235725177",
+        appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // Application Global Context Variables
+    let activeCandidate = null;
+    let localGeneratedOtp = "";
+    let examCountdownTimer = null;
+    let totalExamSecondsLeft = 180 * 60; // 3 Hours allocated for 78 Hard questions
+
+    // GRADUAL DIFFICULTY SHEET DATASET STRUCT (Easy -> Conceptual -> Complex Matrix)
+    // 78 Questions total payload frame distribution mapping.
+    const masterQuestionsDataset = [
+        { id: 1, type: "mcq", q: "Q1. What is the execution time complexity of looking up a unique primary key value inside a balanced Binary Search Tree (BST) under absolute worst-case parameters?", options: ["O(1)", "O(log N)", "O(N)", "O(N log N)"] },
+        { id: 2, type: "blank", q: "Q2. In a secure network paradigm, standard HTTPS connections run globally routing payloads natively over TCP destination port number _______." },
+        { id: 3, type: "descriptive", q: "Q3. Critically analyze how memory management cycles differ between dynamic Stack frame allocations and Garbage Collected Heap segments during a high-concurrency event load. Explain structural memory leaks." },
+        { id: 4, type: "mcq", q: "Q4. Which transactional consistency attribute ensures that a database moves directly from one valid state configuration matrix to another without corruption intermediate phases?", options: ["Atomicity", "Consistency", "Isolation", "Durability"] },
+        { id: 5, type: "blank", q: "Q5. The algorithmic mechanism used to prevent circular dependencies during resource allocation loops inside concurrent operating environments is famously called the ________ Algorithm." },
+        // Seeded hard questions layout mock frames to simulate complete 78 entries array safely
+    ];
+
+    // Build operational elements up to 78 programmatically with dynamic difficulty ramping
+    for(let i = 6; i <= 78; i++) {
+        if(i % 3 === 0) {
+            masterQuestionsDataset.push({
+                id: i, type: "mcq",
+                q: `Q${i}. [Advanced Tier Matrix Level ${i}] Evaluate the optimal load distribution threshold logic under a distributed Paxos consensus framework when cluster size approaches limit node N. What is the quorum?`,
+                options: ["Floor(N/2) + 1", "Ceil(N/3)", "N - 1", "2N + 1"]
+            });
+        } else if(i % 3 === 1) {
+            masterQuestionsDataset.push({
+                id: i, type: "blank",
+                q: `Q${i}. [Cryptographic Hard Challenge ${i}] In asymmetric cryptography handshakes, messages encrypted strictly using the recipient's public key can only be structurally decrypted via the corresponding ________ key.`
+            });
+        } else {
+            masterQuestionsDataset.push({
+                id: i, type: "descriptive",
+                q: `Q${i}. [System Core Engineering Sheet ${i}] Architect a highly available shard design pattern for a global real-time synchronization system. Map memory-efficient structures, lock strategies, and fallback routines under transactional write pressure.`
+            });
+        }
+    }
+
+    // STATE CONTROLLER ENGINE
+    window.addEventListener('DOMContentLoaded', () => {
+        preventCopyPasteOperations();
+        checkPersistentExamState();
+    });
+
+    function preventCopyPasteOperations() {
+        document.addEventListener('copy', e => e.preventDefault());
+        document.addEventListener('paste', e => e.preventDefault());
+        document.addEventListener('cut', e => e.preventDefault());
+        document.addEventListener('selectstart', e => e.preventDefault());
+    }
+
+    function disableSecurityKeys(e) {
+        // Blocks F12, Ctrl+Shift+I, Ctrl+Shift+C, Ctrl+Shift+J, Ctrl+R, F5
+        if (e.keyCode == 123 || 
+            (e.ctrlKey && e.shiftKey && (e.keyCode == 73 || e.keyCode == 74 || e.keyCode == 67)) || 
+            (e.ctrlKey && (e.keyCode == 82 || e.keyCode == 85)) || 
+            e.keyCode == 116) {
+            return false;
+        }
+    }
+
+    // DATABASE RECORD ACQUISITION & DATE VALIDATION MOCK
+    function validateRollDatabase() {
+        const inputRoll = document.getElementById('rollSearchInput').value.trim();
+        const errBox = document.getElementById('lockupError');
+        const btn = document.getElementById('btnLookup');
+
+        if(!inputRoll) { alert("Please input your numerical roll allocation code."); return; }
+
+        btn.innerText = "Querying Central Secure Node...";
+        btn.disabled = true;
+        errBox.style.display = "none";
+
+        db.ref('candidates/' + inputRoll).once('value')
+        .then((snapshot) => {
+            if(snapshot.exists()) {
+                const data = snapshot.val();
+                
+                // EXAM DATE COMPLIANCE ENFORCEMENT ENGINE
+                const examDateObj = new Date(data.examDate);
+                const today = new Date();
+                
+                // Reset time parameters for pure date equality evaluation
+                today.setHours(0,0,0,0);
+                examDateObj.setHours(0,0,0,0);
+
+                if (today > examDateObj) {
+                    errBox.innerText = `ACCESS BLOCK: Your allocated exam window date (${data.examDate}) has expired. Examination window is permanently closed.`;
+                    errBox.style.display = "block";
+                    btn.innerText = "Fetch Admit Record";
+                    btn.disabled = false;
+                    return;
+                }
+
+                activeCandidate = data;
+                
+                // Render Embedded Sheet Fields
+                document.getElementById('admRoll').innerText = data.rollNumber;
+                document.getElementById('admName').innerText = data.name.toUpperCase();
+                document.getElementById('admFather').innerText = data.fatherName.toUpperCase();
+                document.getElementById('admCity').innerText = data.city.toUpperCase() + " / " + data.country;
+                document.getElementById('admDate').innerText = data.examDate;
+                
+                if(data.photo && data.photo !== "No Photo Attached") {
+                    document.getElementById('admPhotoBox').innerHTML = `<img src="${data.photo}">`;
+                }
+
+                showTargetScreen('scrVerifyAdmit');
+            } else {
+                errBox.innerText = "ERROR: Roll number trace record not found inside secure sync server. Please register first.";
+                errBox.style.display = "block";
+                btn.disabled = false;
+                btn.innerText = "Fetch Admit Record";
+            }
+        })
+        .catch(err => {
+            alert("Network dropped: " + err.message);
+            btn.disabled = false;
+        });
+    }
+
+    function toggleAgreeBtn() {
+        document.getElementById('btnProceedOTP').disabled = !document.getElementById('chkAgree').checked;
+    }
+
+    // OTP THROUGH EXTERNAL EMAILJS TRANSLATION BRIDGE
+    function triggerAdmitOTP() {
+        if(!activeCandidate) return;
+        
+        localGeneratedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+        showTargetScreen('scrOtp');
+
+        // Fire request payload seamlessly to EmailJS Routing Agent Node
+        const payloadData = {
+            service_id: 'service_vxn4vsc',
+            template_id: 'template_7k3pgfk',
+            user_id: '-Yit64A3Gx-7a-zRz',
+            template_params: {
+                to_email: activeCandidate.email,
+                to_name: activeCandidate.name.toUpperCase(),
+                otp_code: localGeneratedOtp
+            }
+        };
+
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadData)
+        })
+        .then(res => console.log("Secure verification stream sent."))
+        .catch(err => console.error("OTP routing drop."));
+    }
+
+    function verifyExamSessionOtp() {
+        const entered = document.getElementById('otpInput').value.trim();
+        const err = document.getElementById('otpError');
+
+        if(entered === localGeneratedOtp) {
+            document.getElementById('examSignRoll').value = activeCandidate.rollNumber;
+            showTargetScreen('scrExamSign');
+        } else {
+            err.innerText = "SECURITY ALERT: OTP mismatch sequence detected.";
+            err.style.display = "block";
+        }
+    }
+
+    // CORE SCREEN SWAP AGENT
+    function showTargetScreen(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+        window.scrollTo(0,0);
+    }
+
+    // FIRST PAGE SIGN ENTRY VALIDATION
+    function startCoreExaminationSheet() {
+        const signName = document.getElementById('examSignName').value.trim();
+        if(!signName) { alert("Please affix your verification signature name block."); return; }
+
+        document.getElementById('stripName').innerText = signName.toUpperCase();
+        document.getElementById('stripRoll').innerText = activeCandidate.rollNumber;
+
+        // Initialize Local Storage Safe Buffers to handle sudden client machine restarts
+        localStorage.setItem('rwnd_active_roll', activeCandidate.rollNumber);
+        localStorage.setItem('rwnd_active_name', signName.toUpperCase());
+        localStorage.setItem('rwnd_seconds_left', totalExamSecondsLeft.toString());
+
+        injectGradualDifficultyQuestions();
+        startSecureCountdownEngine();
+        showTargetScreen('scrCoreExam');
+    }
+
+    // GENERATIVE QUESTION LAYOUT ENGINE
+    function injectGradualDifficultyQuestions() {
+        const container = document.getElementById('questionsContainer');
+        container.innerHTML = "";
+
+        // Read previously saved answer matrix if recovering from page refresh
+        const cachedAnswers = JSON.parse(localStorage.getItem('rwnd_saved_answers') || "{}");
+
+        masterQuestionsDataset.forEach((qObj, index) => {
+            const block = document.createElement('div');
+            block.className = "question-block";
+            
+            let inputFieldHtml = "";
+            const savedValue = cachedAnswers[qObj.id] || "";
+
+            if(qObj.type === "mcq") {
+                let optionsHtml = "";
+                qObj.options.forEach(opt => {
+                    const isChecked = (savedValue === opt) ? "checked" : "";
+                    optionsHtml += `
+                        <label class="option-item">
+                            <input type="radio" name="q_ans_${qObj.id}" value="${opt}" ${isChecked} onchange="cacheAnswerState(${qObj.id}, '${opt}')">
+                            <span>${opt}</span>
+                        </label>
+                    `;
+                });
+                inputFieldHtml = `<div class="options-list">${optionsHtml}</div>`;
+            } else if(qObj.type === "blank") {
+                inputFieldHtml = `
+                    <input type="text" placeholder="Type your targeted structural answer here..." value="${savedValue}" oninput="cacheAnswerState(${qObj.id}, this.value)">
+                `;
+            } else if(qObj.type === "descriptive") {
+                inputFieldHtml = `
+                    <textarea rows="4" placeholder="Draft dynamic architectural logic details here..." oninput="cacheAnswerState(${qObj.id}, this.value)">${savedValue}</textarea>
+                `;
+            }
+
+            block.innerHTML = `
+                <div class="question-title">${qObj.q}</div>
+                ${inputFieldHtml}
+            `;
+            container.appendChild(block);
+        });
+    }
+
+    // BACKGROUND STATE RECOVERY ENGINE (ANTI-REFRESH)
+    function cacheAnswerState(qId, val) {
+        let cachedAnswers = JSON.parse(localStorage.getItem('rwnd_saved_answers') || "{}");
+        cachedAnswers[qId] = val;
+        localStorage.setItem('rwnd_saved_answers', JSON.stringify(cachedAnswers));
+
+        // Background delta push directly into dynamic Firebase server recovery nodes
+        const currentRoll = localStorage.getItem('rwnd_active_roll');
+        if(currentRoll) {
+            db.ref('exam_recovery_states/' + currentRoll + '/answers').set(cachedAnswers);
+        }
+    }
+
+    function checkPersistentExamState() {
+        const savedRoll = localStorage.getItem('rwnd_active_roll');
+        const savedName = localStorage.getItem('rwnd_active_name');
+        const savedTime = localStorage.getItem('rwnd_seconds_left');
+
+        if(savedRoll && savedName && savedTime) {
+            // Restore context parameters immediately
+            totalExamSecondsLeft = parseInt(savedTime);
+            
+            db.ref('candidates/' + savedRoll).once('value').then(snap => {
+                if(snap.exists()) {
+                    activeCandidate = snap.val();
+                    document.getElementById('stripName').innerText = savedName;
+                    document.getElementById('stripRoll').innerText = savedRoll;
+                    
+                    injectGradualDifficultyQuestions();
+                    startSecureCountdownEngine();
+                    showTargetScreen('scrCoreExam');
+                }
+            });
+        }
+    }
+
+    // CLOCK ENGINE
+    function startSecureCountdownEngine() {
+        if(examCountdownTimer) clearInterval(examCountdownTimer);
+
+        examCountdownTimer = setInterval(() => {
+            if(totalExamSecondsLeft <= 0) {
+                clearInterval(examCountdownTimer);
+                finalExamTransmissionSubmit(true); // Auto-timeout trigger
+            } else {
+                totalExamSecondsLeft--;
+                localStorage.setItem('rwnd_seconds_left', totalExamSecondsLeft.toString());
+
+                // Format Time Display
+                const mins = Math.floor(totalExamSecondsLeft / 60);
+                const secs = totalExamSecondsLeft % 60;
+                document.getElementById('examTimeDisplay').innerText = 
+                    `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+            }
+        }, 1000);
+    }
+
+    // TRANSMISSION PIPELINE (Scores are kept invisible to candidate frontend framework)
+    function finalExamTransmissionSubmit(isTimeout = false) {
+        if(!isTimeout) {
+            const confirmAction = confirm("Are you sure you want to finish the exam and lock your answer sheet?");
+            if(!confirmAction) return;
+        }
+
+        clearInterval(examCountdownTimer);
+        const finalRoll = localStorage.getItem('rwnd_active_roll') || activeCandidate.rollNumber;
+        const finalAnswers = localStorage.getItem('rwnd_saved_answers') || "{}";
+
+        const executionPayload = {
+            rollNumber: finalRoll,
+            candidateName: localStorage.getItem('rwnd_active_name') || "UNKNOWN",
+            responses: JSON.parse(finalAnswers),
+            submittedAt: new Date().toISOString(),
+            forcedTimeout: isTimeout,
+            status: "COMMITTED_FOR_EVALUATION"
+        };
+
+        // Post metrics block into evaluation bucket safely
+        db.ref('exam_submissions/' + finalRoll).set(executionPayload)
+        .then(() => {
+            // Wipe persistent state local descriptors clean to allow safe next-candidate cycles
+            localStorage.clear();
+            showTargetScreen('scrFinished');
+        })
+        .catch(err => {
+            alert("Critical Transmission Failure! Re-attempting storage lock... " + err.message);
+        });
+    }
+</script>
+
+</body>
+</html>
