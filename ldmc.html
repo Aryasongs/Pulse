@@ -141,7 +141,7 @@
                         </div>
 
                         <h5 class="text-secondary mt-4"><i class="fa fa-file-arrow-up"></i> Required Visual Profile</h5>
-                        <div class="col-md-12"><label class="form-label">Dog Passport Image *</label><input type="file" class="form-control" id="uploadPhoto" accept="image/*" required></div>
+                        <div class="col-md-12"><label class="form-label">Dog Passport Image (Optional)</label><input type="file" class="form-control" id="uploadPhoto" accept="image/*"></div>
 
                         <div class="col-12 text-center mt-4">
                             <button type="submit" class="btn btn-dark btn-lg w-50" id="executeBtn">Execute Registration</button>
@@ -353,55 +353,71 @@
             if(nav) nav.classList.add('active');
         }
 
-        // COMPLETELY DECOUPLED FROM FILEREADER SECURITY RESTRICTIONS
-        document.getElementById('registrationForm').addEventListener('submit', function (e) {
+        // FIXED TASK: Safe Async/Await Form Submission with Error Handling & UI Controls
+        document.getElementById('registrationForm').addEventListener('submit', async function (e) {
             e.preventDefault();
 
-            const yearKey = new Date().getFullYear();
-            const secureHash = Math.floor(100000 + Math.random() * 900000);
-            const generatedIdentityToken = `LMDC-${yearKey}-${secureHash}`;
+            // Select and disable button, update text state
+            const submitBtn = document.getElementById('executeBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Syncing to Database...';
 
-            // Mock raw visual standard string stream to securely bypass local file security freezes
-            const standardImageStream = "https://via.placeholder.com/120";
+            try {
+                const yearKey = new Date().getFullYear();
+                const secureHash = Math.floor(100000 + Math.random() * 900000);
+                const generatedIdentityToken = `LMDC-${yearKey}-${secureHash}`;
 
-            const recordPayload = {
-                ownerName: document.getElementById('ownerName').value,
-                ownerMobile: document.getElementById('ownerMobile').value,
-                ownerEmail: document.getElementById('ownerEmail').value,
-                city: document.getElementById('ownerCity').value,
-                state: document.getElementById('ownerState').value,
-                dogName: document.getElementById('dogName').value,
-                breed: document.getElementById('dogBreed').value,
-                color: document.getElementById('dogColor').value,
-                gender: document.getElementById('dogGender').value,
-                age: document.getElementById('dogAge').value,
-                weight: document.getElementById('dogWeight').value,
-                vaccines: {
-                    rabies: document.getElementById('vax_rabies').checked,
-                    dhpp: document.getElementById('vax_dhpp').checked,
-                    lepto: document.getElementById('vax_lepto').checked,
-                    bordetella: document.getElementById('vax_bordetella').checked,
-                    flu: document.getElementById('vax_flu').checked,
-                    lyme: document.getElementById('vax_lyme').checked
-                },
-                funding: { totalApproved: 0, totalUsed: 0, status: "Clear" },
-                imageBase64: standardImageStream,
-                createdAt: new Date().toLocaleDateString()
-            };
+                // Fixed task parameter placeholder bypassing file reader limits
+                const standardImageStream = "https://via.placeholder.com/120";
 
-            // Direct execution payload sync dispatch
-            db.ref('dogs/' + generatedIdentityToken).set(recordPayload, function(error) {
-                if (error) {
-                    alert("Firebase write access denied! Check your database security tab.");
-                } else {
-                    alert(`SUCCESS! Registered.\nYour ID token key is: ${generatedIdentityToken}`);
-                    document.getElementById('registrationForm').reset();
-                    document.getElementById('searchId').value = generatedIdentityToken;
-                    document.getElementById('searchName').value = recordPayload.dogName;
-                    switchTab('search');
-                    verifyAndFetchCard();
-                }
-            });
+                const recordPayload = {
+                    ownerName: document.getElementById('ownerName').value,
+                    ownerMobile: document.getElementById('ownerMobile').value,
+                    ownerEmail: document.getElementById('ownerEmail').value,
+                    city: document.getElementById('ownerCity').value,
+                    state: document.getElementById('ownerState').value,
+                    dogName: document.getElementById('dogName').value,
+                    breed: document.getElementById('dogBreed').value,
+                    color: document.getElementById('dogColor').value,
+                    gender: document.getElementById('dogGender').value,
+                    age: document.getElementById('dogAge').value,
+                    weight: document.getElementById('dogWeight').value,
+                    vaccines: {
+                        rabies: document.getElementById('vax_rabies').checked,
+                        dhpp: document.getElementById('vax_dhpp').checked,
+                        lepto: document.getElementById('vax_lepto').checked,
+                        bordetella: document.getElementById('vax_bordetella').checked,
+                        flu: document.getElementById('vax_flu').checked,
+                        lyme: document.getElementById('vax_lyme').checked
+                    },
+                    funding: { totalApproved: 0, totalUsed: 0, status: "Clear" },
+                    imageBase64: standardImageStream,
+                    createdAt: new Date().toLocaleDateString()
+                };
+
+                // Asynchronous promise write map
+                await db.ref('dogs/' + generatedIdentityToken).set(recordPayload);
+
+                // Success alert delivery layer
+                alert(`SUCCESS! Dog registered into the database network.\nYour Unique ID is: ${generatedIdentityToken}`);
+
+                // Context automation sequence mapping updates
+                document.getElementById('registrationForm').reset();
+                document.getElementById('searchId').value = generatedIdentityToken;
+                document.getElementById('searchName').value = recordPayload.dogName;
+                
+                switchTab('search');
+                verifyAndFetchCard();
+
+            } catch (error) {
+                // Critical catching logic loop mapping
+                console.error("Submission Failure Profile Context:", error);
+                alert(`REGISTRATION ERROR: Operation stopped.\nDetails: ${error.message}`);
+            } finally {
+                // Always restore operational controls layout state maps
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Execute Registration';
+            }
         });
 
         function verifyAndFetchCard() {
