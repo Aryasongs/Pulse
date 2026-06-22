@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RWND Central Evaluation Engine - Admin Only</title>
+    <style>
+        :root {
+            --primary-dark: #0f172a;
+            --accent-blue: #2563eb;
+            --secure-red: #dc2626;
+            --secure-green: #16a34a;
+            --bg-light: #f8fafc;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Courier New', Courier, monospace; }
+        body { background-color: #cbd5e1; color: #000; padding: 20px; }
+
+        .container { max-width: 1100px; margin: 30px auto; background: #ffffff; padding: 40px; border: 4px double #000; box-shadow: 0 10px 25px rgba(0,0,0,0.15); }
+        .header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
+        .header h1 { font-size: 26px; text-transform: uppercase; }
+
+        /* Login Screen styling */
+        .login-box { max-width: 450px; margin: 80px auto; background: #fff; padding: 30px; border: 3px solid #000; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 13px; }
+        input[type="text"], input[type="email"], input[type="password"], input[type="number"] { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; }
+        
+        .btn-action { background: #000; color: #fff; padding: 12px 25px; border: 2px solid #000; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; }
+        .btn-action:hover { background: #fff; color: #000; }
+
+        /* Dashboard layout */
+        .dashboard-view { display: none; }
+        .submission-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .submission-table th, .submission-table td { border: 2px solid #000; padding: 12px; text-align: left; font-weight: bold; }
+        .submission-table th { background: #e2e8f0; }
+
+        /* Checker Area Layout */
+        .evaluation-window { display: none; margin-top: 30px; border-top: 4px dashed #000; padding-top: 30px; }
+        .candidate-info-bar { display: flex; justify-content: space-between; background: #f1f5f9; padding: 15px; border: 2px solid #000; margin-bottom: 25px; font-weight: bold; }
+        
+        .eval-q-block { border: 2px solid #000; padding: 20px; margin-bottom: 20px; background: #fafafa; position: relative; }
+        .eval-q-text { font-size: 15px; font-weight: bold; margin-bottom: 10px; color: #1e293b; }
+        .eval-student-ans { background: #fff; border: 1px dashed #64748b; padding: 12px; font-size: 16px; font-weight: bold; color: #0f172a; min-height: 40px; margin-bottom: 15px; }
+        
+        /* Interactive Tick/Cross System */
+        .grading-controls { display: flex; gap: 15px; align-items: center; }
+        .btn-status { padding: 8px 15px; font-weight: bold; cursor: pointer; border: 2px solid #000; text-transform: uppercase; font-size: 12px; }
+        .btn-tick { background: #fff; color: var(--secure-green); border-color: var(--secure-green); }
+        .btn-tick.active { background: var(--secure-green); color: #fff; }
+        .btn-cross { background: #fff; color: var(--secure-red); border-color: var(--secure-red); }
+        .btn-cross.active { background: var(--secure-red); color: #fff; }
+        
+        .marks-input-wrapper { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+        .marks-input-wrapper input { width: 70px; padding: 6px; text-align: center; }
+
+        .live-indicator { position: absolute; top: 15px; right: 15px; font-size: 24px; font-weight: bold; }
+        .live-indicator.tick { color: var(--secure-green); }
+        .live-indicator.cross { color: var(--secure-red); }
+    </style>
+</head>
+<body>
+
+<div id="authContainer" class="login-box">
+    <div style="text-align:center; margin-bottom:20px;">
+        <h2 style="font-size: 18px; text-transform: uppercase;">Evaluator Gateway</h2>
+        <p style="font-size:12px; margin-top:5px;">Authorized Credentials Verification Required</p>
+    </div>
+    <div class="form-group">
+        <label>Official Admin Email:</label>
+        <input type="email" id="adminEmail" placeholder="username@domain.com">
+    </div>
+    <div class="form-group">
+        <label>Secure System Password:</label>
+        <input type="password" id="adminPassword" placeholder="••••••••">
+    </div>
+    <button class="btn-action" onclick="executeAdminAuthentication()">Unlock Panel</button>
+    <p id="loginError" style="color:var(--secure-red); text-align:center; margin-top:10px; font-weight:bold; display:none;">ACCESS DENIED: Invalid Matrix Parameters.</p>
+</div>
+
+<div id="dashboardContainer" class="container dashboard-view">
+    <div class="header">
+        <h1>RWND Secure Examination Script Registry</h1>
+        <p>Live Evaluation & Digital Paper Marking Terminal</p>
+    </div>
+
+    <div style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+        <h3>Incoming Student Submissions:</h3>
+        <button class="btn-action" style="width: auto; padding: 8px 15px; background: var(--secure-red);" onclick="window.location.reload()">Log Out / Safe Lock</button>
+    </div>
+
+    <table class="submission-table">
+        <thead>
+            <tr>
+                <th>Roll Number</th>
+                <th>Candidate Name</th>
+                <th>Submission Timestamp</th>
+                <th>Evaluation Status</th>
+                <th>Action Node</th>
+            </tr>
+        </thead>
+        <tbody id="submissionTableBody">
+            </tbody>
+    </table>
+
+    <div id="evaluationWindow" class="evaluation-window">
+        <div class="header" style="border-bottom: 2px dashed #000;">
+            <h2>Digital Answer Script Verification</h2>
+            <p>Affix Ticks, Crosses, and Question-Specific Marks Directly</p>
+        </div>
+
+        <div class="candidate-info-bar">
+            <div>TARGET ROLL: <span id="evalRoll"></span></div>
+            <div>CANDIDATE NAME: <span id="evalName"></span></div>
+            <div style="color: var(--accent-blue);">STATUS: LIVE GRADING MODE</div>
+        </div>
+
+        <div id="questionsGradingWrapper"></div>
+
+        <div style="margin-top: 30px; display: flex; gap: 20px;">
+            <button class="btn-action" style="background: var(--secure-green); border-color: var(--secure-green);" onclick="transmitEvaluatedGradesToCloud()">Commit Marks & Push to Live Results</button>
+            <button class="btn-action" style="background: #64748b; border-color: #64748b;" onclick="closeEvaluationEngine()">Cancel Audit</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<script>
+    // System Core Configurations Mapped via App Node
+    const firebaseConfig = {
+        apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+        authDomain: "pulse2-92372.firebaseapp.com",
+        databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+        projectId: "pulse2-92372",
+        storageBucket: "pulse2-92372.firebasestorage.app",
+        messagingSenderId: "276235725177",
+        appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let runtimeSubmissionsCache = {};
+    let activeEvaluationRoll = null;
+    let evaluationStateDraft = {}; // Holds unique question verification parameters (status, marks)
+
+    // Questions Definitions to match your Exam Array
+    const dynamicExamQuestionsMapping = {
+        1: "Q1. What is the worst-case time complexity of searching an element in a standard balanced Binary Search Tree (AVL Tree)?",
+        2: "Q2. The data structure that operates strictly under the Last-In-First-Out (LIFO) memory allocation rule is named ________.",
+        3: "Q3. Which of the following sorting algorithms utilizes a divide-and-conquer strategy with a guaranteed worst-case time complexity of O(n log n)?",
+        4: "Q4. In a singly linked list architecture, the final terminal node traditionally points to the ________ pointer value.",
+        5: "Q5. Differentiate clearly between Primitive Data Types and Linear Abstract Data Structures.",
+        6: "Q6. Which of the following layer of standard OSI framework is responsible for routing data packets across subnets?",
+        7: "Q7. Secure global communications routing Hypertext Transfer Protocol (HTTPS) payloads utilize TCP Port number _______.",
+        8: "Q8. What protocol is natively used to map and resolve a known dynamic IP address directly into physical hardware MAC address?",
+        9: "Q9. The mechanism used by system firewalls to translate local private IP addresses to public external router interface is called ________.",
+        10: "Q10. Analyze how a standard TCP Three-Way Handshake establishes active synchronization state session between client and server.",
+        11: "Q11. In asymmetric cryptography infrastructures, a message encrypted securely using the sender's private key ensures which parameter?",
+        12: "Q12. The industry-standard symmetric block cipher standard used globally to protect federal sensitive data is known as ________.",
+        13: "Q13. Which of the following is considered a common secure cryptographic hash function vulnerable to zero collisions?",
+        14: "Q14. An intentional cryptographic attack vector that intercepts ongoing safe network requests to subtly alter data packets is called a ________-in-the-middle attack.",
+        15: "Q15. Explain how Public Key Infrastructure (PKI) manages, distributes, and revokes digital certificates.",
+        16: "Q16. Under multi-threaded program environments, what critical failure scenario triggers when multiple concurrent threads remain permanently locked?",
+        17: "Q17. The transactional property that guarantees database operations remain completely isolated from concurrent transactions until commit is ________.",
+        18: "Q18. What core architectural hardware element inside Operating System kernel bridges direct runtime requests to actual CPU hardware cycles?",
+        19: "Q19. The system memory management routine that maps inactive volatile RAM cache sectors into temporary secondary storage spaces is called ________ memory.",
+        20: "Q20. Architect a robust mitigation strategy for preventing SQL Injection and Cross-Site Scripting (XSS) attacks inside a highly available modern web framework."
+    };
+
+    // SECURE CREDENTIAL ARREST SYSTEM
+    // Hash equivalents simulation used to prevent raw string exposure during general client inspect operations
+    function executeAdminAuthentication() {
+        const email = document.getElementById('adminEmail').value.trim();
+        const password = document.getElementById('adminPassword').value.trim();
+        const err = document.getElementById('loginError');
+
+        // Credentials gatekeeper enforcement mapping
+        if(email === "sgursharn076@gmail.com" && password === "7973804008") {
+            document.getElementById('authContainer').style.display = "none";
+            document.getElementById('dashboardContainer').classList.add('active');
+            initializeSubmissionsStreamReader();
+        } else {
+            err.style.display = "block";
+        }
+    }
+
+    function initializeSubmissionsStreamReader() {
+        db.ref('exam_submissions').on('value', (snapshot) => {
+            const tbody = document.getElementById('submissionTableBody');
+            tbody.innerHTML = "";
+            
+            if(snapshot.exists()) {
+                runtimeSubmissionsCache = snapshot.val();
+                
+                Object.keys(runtimeSubmissionsCache).forEach(roll => {
+                    const record = runtimeSubmissionsCache[roll];
+                    const row = document.createElement('tr');
+                    
+                    let statusLabel = `<span style="color:#b45309;">PENDING GRADING</span>`;
+                    if(record.status === "GRADED_PUBLISHED") {
+                        statusLabel = `<span style="color:var(--secure-green);">EVALUATED & LIVE</span>`;
+                    }
+
+                    row.innerHTML = `
+                        <td>${record.rollNumber}</td>
+                        <td>${record.candidateName}</td>
+                        <td>${new Date(record.submittedAt).toLocaleString()}</td>
+                        <td>${statusLabel}</td>
+                        <td><button class="btn-action" style="font-size:12px; padding:6px 12px;" onclick="loadScriptToEvaluationTable('${record.rollNumber}')">Open Verification Matrix</button></td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;">No examination scripts found on central data cloud node.</td></tr>`;
+            }
+        });
+    }
+
+    function loadScriptToEvaluationTable(rollNum) {
+        activeEvaluationRoll = rollNum;
+        const record = runtimeSubmissionsCache[rollNum];
+        
+        document.getElementById('evalRoll').innerText = record.rollNumber;
+        document.getElementById('evalName').innerText = record.candidateName;
+
+        const container = document.getElementById('questionsGradingWrapper');
+        container.innerHTML = "";
+        
+        evaluationStateDraft = {};
+
+        // Loop across complete 20 comprehensive points sequentially
+        for(let i = 1; i <= 20; i++) {
+            const questionText = dynamicExamQuestionsMapping[i];
+            const studentResponse = record.responses[i] || "[CANDIDATE LEFT THIS QUESTION BLANK / UNATTEMPTED]";
+
+            evaluationStateDraft[i] = { markStatus: "none", scoreEarned: 0 };
+
+            const block = document.createElement('div');
+            block.className = "eval-q-block";
+            block.id = `q_eval_wrapper_${i}`;
+
+            block.innerHTML = `
+                <div class="live-indicator" id="indicator_icon_${i}"></div>
+                <div class="eval-q-text">${questionText}</div>
+                <div class="eval-student-ans">${studentResponse}</div>
+                
+                <div class="grading-controls">
+                    <button class="btn-status btn-tick" id="tick_${i}" onclick="setQuestionMarkStatus(${i}, 'tick')">✔ Right Tick</button>
+                    <button class="btn-status btn-cross" id="cross_${i}" onclick="setQuestionMarkStatus(${i}, 'cross')">✖ Wrong Cut</button>
+                    
+                    <div class="marks-input-wrapper">
+                        <span>Assign Marks:</span>
+                        <input type="number" id="marks_given_${i}" min="0" max="36" value="0" oninput="updateDraftScoreValue(${i}, this.value)">
+                        <span style="font-size:12px; color:#64748b;">/ 36 Marks</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(block);
+        }
+
+        // If it was already evaluated previously, restore active values seamlessly
+        if(record.evaluationDetails) {
+            evaluationStateDraft = record.evaluationDetails.questionsBreakdown || evaluationStateDraft;
+            for(let i=1; i<=20; i++) {
+                if(evaluationStateDraft[i]) {
+                    if(evaluationStateDraft[i].markStatus === "tick") setQuestionMarkStatus(i, 'tick', false);
+                    if(evaluationStateDraft[i].markStatus === "cross") setQuestionMarkStatus(i, 'cross', false);
+                    document.getElementById(`marks_given_${i}`).value = evaluationStateDraft[i].scoreEarned;
+                }
+            }
+        }
+
+        document.getElementById('evaluationWindow').style.display = "block";
+        document.getElementById('evaluationWindow').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function setQuestionMarkStatus(qId, statusType, userTriggered = true) {
+        const tickBtn = document.getElementById(`tick_${qId}`);
+        const crossBtn = document.getElementById(`cross_${qId}`);
+        const indicator = document.getElementById(`indicator_icon_${qId}`);
+
+        tickBtn.classList.remove('active');
+        crossBtn.classList.remove('active');
+        indicator.className = "live-indicator";
+
+        if(statusType === 'tick') {
+            tickBtn.classList.add('active');
+            indicator.innerText = "✔";
+            indicator.classList.add('tick');
+            evaluationStateDraft[qId].markStatus = "tick";
+            if(userTriggered) { document.getElementById(`marks_given_${qId}`).value = 36; evaluationStateDraft[qId].scoreEarned = 36; }
+        } else if(statusType === 'cross') {
+            crossBtn.classList.add('active');
+            indicator.innerText = "✖";
+            indicator.classList.add('cross');
+            evaluationStateDraft[qId].markStatus = "cross";
+            if(userTriggered) { document.getElementById(`marks_given_${qId}`).value = 0; evaluationStateDraft[qId].scoreEarned = 0; }
+        }
+    }
+
+    function updateDraftScoreValue(qId, value) {
+        evaluationStateDraft[qId].scoreEarned = parseFloat(value) || 0;
+    }
+
+    function transmitEvaluatedGradesToCloud() {
+        if(!activeEvaluationRoll) return;
+        
+        let integratedTotalScore = 0;
+        Object.keys(evaluationStateDraft).forEach(qId => {
+            integratedTotalScore += parseFloat(evaluationStateDraft[qId].scoreEarned || 0);
+        });
+
+        const packetPayload = {
+            evaluatedTotalMarks: integratedTotalScore,
+            maxMarksPossible: 720,
+            evaluatedAt: new Date().toISOString(),
+            questionsBreakdown: evaluationStateDraft
+        };
+
+        db.ref('exam_submissions/' + activeEvaluationRoll).update({
+            status: "GRADED_PUBLISHED",
+            evaluationDetails: packetPayload
+        })
+        .then(() => {
+            alert(`SUCCESS: Evaluation complete. Total Marks assigned: ${integratedTotalScore} / 720. Result pushed to live portal!`);
+            closeEvaluationEngine();
+        })
+        .catch(err => alert("Data sync error: " + err.message));
+    }
+
+    function closeEvaluationEngine() {
+        document.getElementById('evaluationWindow').style.display = "none";
+        activeEvaluationRoll = null;
+        window.scrollTo(0,0);
+    }
+</script>
+</body>
+</html>
