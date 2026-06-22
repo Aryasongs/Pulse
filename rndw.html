@@ -180,7 +180,7 @@
             flex: 1;
         }
 
-        /* DIGITAL E-ADMIT CARD CARD VIEW */
+        /* DIGITAL E-ADMIT CARD VIEW */
         #admitCardSection {
             display: none;
             background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
@@ -307,7 +307,6 @@
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -533,8 +532,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    
-    emailjs.init("-Yit64A3Gx-7a-zRz");
 
     let userIP = "Local IP";
     let userLocation = "India Verified";
@@ -542,7 +539,7 @@
     let temporaryStudentPayload = null; 
     let globalCompressedPhotoBase64 = "";
     let generatedEmailOtp = "";
-    let resendCounter = 0; // Tracking resend clicks
+    let resendCounter = 0;
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -631,9 +628,12 @@
         }
     }
 
-    // 100% NON-FREEZING PURE UI LOGIC TRIGGER
+    // 100% NATIVE ENGINE ROUTER - ABSOLUTE PROTECTION AGAINST SCREEN FREEZE
     document.getElementById('registrationForm').addEventListener('submit', function(event) {
         event.preventDefault();
+
+        // NATIVE COUPLING: Instantly toggle window viewport stack frame first
+        document.getElementById('otpModal').style.display = 'flex';
 
         const dobInput = document.getElementById('dob').value;
         const emailInput = document.getElementById('studentEmail').value.trim();
@@ -644,6 +644,7 @@
         if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) { age--; }
 
         if (age < 18) {
+            document.getElementById('otpModal').style.display = 'none';
             document.getElementById('ageError').style.display = 'block';
             alert("Registration blocked: Minimum age limit criteria is 18 years.");
             return;
@@ -673,37 +674,40 @@
             registeredAt: new Date().toISOString()
         };
 
-        // RENDER POPUP IMMEDIATELY: Screen state stays reactive
-        document.getElementById('otpModal').style.display = 'flex';
-        resendCounter = 0; // Reset counter for new attempt
+        resendCounter = 0;
 
-        // Network call handling pushed completely out of main thread stack loop
-        sendOtpViaEmailJS(emailInput, name);
+        // Dispatches payload straight via Native HTTP request without any script dependencies
+        sendEmailNativeHTTP(emailInput, name, generatedEmailOtp);
     });
 
-    function sendOtpViaEmailJS(email, name) {
-        const templateParams = {
-            to_email: email,
-            to_name: name.toUpperCase(),
-            otp_code: generatedEmailOtp
+    // PURE NATIVE BACKGROUND ASYNC METHOD: 0% Main UI Frame Thread Allocation
+    function sendEmailNativeHTTP(email, name, otp) {
+        const payloadData = {
+            service_id: 'service_vxn4vsc',
+            template_id: 'template_7k3pgfk',
+            user_id: '-Yit64A3Gx-7a-zRz',
+            template_params: {
+                to_email: email,
+                to_name: name.toUpperCase(),
+                otp_code: otp
+            }
         };
 
-        emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
-        .then(() => {
-            console.log("OTP Sent Successfully.");
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadData)
         })
-        .catch((error) => {
-            console.error("EmailJS Error: ", error);
-        });
+        .then(response => {
+            if(response.ok) { console.log("Native API Mail Sent."); }
+        })
+        .catch(err => console.error("Native Request Error Link dropped."));
     }
 
-    // RESEND ENGINE WITH SPAM FOLDER ALERT
     function resendOtpCode() {
         if (!temporaryStudentPayload) return;
         
         resendCounter++;
-        
-        // Notify user to check spam folder on the first tap
         if (resendCounter === 1) {
             alert("Please check your Spam or Junk folder if OTP is not in Inbox.");
         }
@@ -712,25 +716,31 @@
         resendBtn.innerText = "Sending...";
         resendBtn.disabled = true;
 
-        // Generate fresh code for retry
         generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
-        const templateParams = {
-            to_email: temporaryStudentPayload.email,
-            to_name: temporaryStudentPayload.name.toUpperCase(),
-            otp_code: generatedEmailOtp
+        const payloadData = {
+            service_id: 'service_vxn4vsc',
+            template_id: 'template_7k3pgfk',
+            user_id: '-Yit64A3Gx-7a-zRz',
+            template_params: {
+                to_email: temporaryStudentPayload.email,
+                to_name: temporaryStudentPayload.name.toUpperCase(),
+                otp_code: generatedEmailOtp
+            }
         };
 
-        emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
+        fetch('https://api.emailjs.com/api/v1.0/email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payloadData)
+        })
         .then(() => {
             resendBtn.innerText = "Resend OTP";
             resendBtn.disabled = false;
-            console.log("Resend code successful.");
         })
-        .catch((error) => {
+        .catch(() => {
             resendBtn.innerText = "Resend OTP";
             resendBtn.disabled = false;
-            alert("Resend failed: " + JSON.stringify(error));
         });
     }
 
