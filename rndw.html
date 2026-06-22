@@ -163,6 +163,23 @@
         .otp-box h3 { margin-bottom: 10px; color: var(--primary-color); }
         .otp-box p { font-size: 13px; color: #64748b; margin-bottom: 20px; }
 
+        .otp-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .resend-btn {
+            background-color: #64748b;
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+        }
+
         /* DIGITAL E-ADMIT CARD CARD VIEW */
         #admitCardSection {
             display: none;
@@ -493,7 +510,10 @@
         <div class="form-group">
             <input type="number" id="otpInput" placeholder="000000" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
         </div>
-        <button type="button" class="submit-btn" onclick="verifyOtpCode()" id="verifyOtpBtn">Confirm OTP & Save Profile</button>
+        <div class="otp-actions">
+            <button type="button" class="submit-btn" onclick="verifyOtpCode()" id="verifyOtpBtn">Confirm OTP</button>
+            <button type="button" class="resend-btn" onclick="resendOtpCode()" id="resendOtpBtn">Resend OTP</button>
+        </div>
     </div>
 </div>
 
@@ -514,7 +534,6 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
     
-    // Initialize EmailJS with your Public Key
     emailjs.init("-Yit64A3Gx-7a-zRz");
 
     let userIP = "Local IP";
@@ -522,7 +541,8 @@
     let currentActiveData = null;
     let temporaryStudentPayload = null; 
     let globalCompressedPhotoBase64 = "";
-    let generatedEmailOtp = ""; // Memory block to store active session OTP variable
+    let generatedEmailOtp = "";
+    let resendCounter = 0; // Tracking resend clicks
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -611,12 +631,9 @@
         }
     }
 
-    // 100% FLUID NON-FREEZING PATH SUBMISSION LINK
+    // 100% NON-FREEZING PURE UI LOGIC TRIGGER
     document.getElementById('registrationForm').addEventListener('submit', function(event) {
         event.preventDefault();
-
-        // INSTANT INTERFACE TRIGGER: Show popup bar instantly without blocking browser execution UI loops
-        document.getElementById('otpModal').style.display = 'flex';
 
         const dobInput = document.getElementById('dob').value;
         const emailInput = document.getElementById('studentEmail').value.trim();
@@ -627,7 +644,6 @@
         if (today.getMonth() < dob.getMonth() || (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())) { age--; }
 
         if (age < 18) {
-            document.getElementById('otpModal').style.display = 'none';
             document.getElementById('ageError').style.display = 'block';
             alert("Registration blocked: Minimum age limit criteria is 18 years.");
             return;
@@ -640,7 +656,6 @@
         const country = document.getElementById('country').value;
         const rollNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-        // Generate dynamic 6-digit Email verification code
         generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
 
         temporaryStudentPayload = {
@@ -658,24 +673,66 @@
             registeredAt: new Date().toISOString()
         };
 
-        // Asynchronous execution dispatch handler maps your EmailJS specifications safely
-        setTimeout(() => {
-            const templateParams = {
-                to_email: emailInput,
-                to_name: name.toUpperCase(),
-                otp_code: generatedEmailOtp // Dynamically binds the string variable tag inside your template layout parameters
-            };
+        // RENDER POPUP IMMEDIATELY: Screen state stays reactive
+        document.getElementById('otpModal').style.display = 'flex';
+        resendCounter = 0; // Reset counter for new attempt
 
-            emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
-            .then(() => {
-                console.log("Verification email sent securely via EmailJS network cloud.");
-            })
-            .catch((error) => {
-                document.getElementById('otpModal').style.display = 'none';
-                alert("Email Delivery Engine Failure: " + JSON.stringify(error));
-            });
-        }, 50);
+        // Network call handling pushed completely out of main thread stack loop
+        sendOtpViaEmailJS(emailInput, name);
     });
+
+    function sendOtpViaEmailJS(email, name) {
+        const templateParams = {
+            to_email: email,
+            to_name: name.toUpperCase(),
+            otp_code: generatedEmailOtp
+        };
+
+        emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
+        .then(() => {
+            console.log("OTP Sent Successfully.");
+        })
+        .catch((error) => {
+            console.error("EmailJS Error: ", error);
+        });
+    }
+
+    // RESEND ENGINE WITH SPAM FOLDER ALERT
+    function resendOtpCode() {
+        if (!temporaryStudentPayload) return;
+        
+        resendCounter++;
+        
+        // Notify user to check spam folder on the first tap
+        if (resendCounter === 1) {
+            alert("Please check your Spam or Junk folder if OTP is not in Inbox.");
+        }
+
+        const resendBtn = document.getElementById('resendOtpBtn');
+        resendBtn.innerText = "Sending...";
+        resendBtn.disabled = true;
+
+        // Generate fresh code for retry
+        generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
+        const templateParams = {
+            to_email: temporaryStudentPayload.email,
+            to_name: temporaryStudentPayload.name.toUpperCase(),
+            otp_code: generatedEmailOtp
+        };
+
+        emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
+        .then(() => {
+            resendBtn.innerText = "Resend OTP";
+            resendBtn.disabled = false;
+            console.log("Resend code successful.");
+        })
+        .catch((error) => {
+            resendBtn.innerText = "Resend OTP";
+            resendBtn.disabled = false;
+            alert("Resend failed: " + JSON.stringify(error));
+        });
+    }
 
     function verifyOtpCode() {
         const userEnteredOtp = document.getElementById('otpInput').value.trim();
@@ -686,13 +743,12 @@
             return;
         }
 
-        // Strict validation check against memory string token
         if (userEnteredOtp !== generatedEmailOtp) {
             alert("Security Error: Invalid Verification OTP Code mismatch.");
             return;
         }
 
-        verifyOtpBtn.innerText = "Syncing Profile...";
+        verifyOtpBtn.innerText = "Syncing...";
         verifyOtpBtn.disabled = true;
 
         document.getElementById('otpModal').style.display = 'none';
@@ -713,7 +769,8 @@
         })
         .catch(err => {
             alert("Database Sync Failed: " + err.message);
-            document.getElementById('otpModal').style.display = 'none';
+            verifyOtpBtn.disabled = false;
+            verifyOtpBtn.innerText = "Confirm OTP";
         });
     }
 
