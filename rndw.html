@@ -139,7 +139,7 @@
             font-weight: 500;
         }
 
-        /* OTP MODAL POPUP */
+        /* OTP MODAL SCREEN */
         .otp-modal {
             display: none;
             position: fixed;
@@ -253,7 +253,7 @@
             object-fit: cover;
         }
 
-        /* PRINT EXPORT FORMAT */
+        /* PRINT EXPORT REAL LAYOUT FORMAT */
         #realPdfTemplate {
             display: none;
             width: 700px;
@@ -290,6 +290,7 @@
     </style>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 </head>
 <body>
 
@@ -357,12 +358,7 @@
                 </div>
             </div>
 
-            <div class="form-group">
-                <label for="studentMobile">Mobile Number (with Country Code, e.g., +919876543210) *</label>
-                <input type="tel" id="studentMobile" required placeholder="+91 00000 00000">
-            </div>
-
-            <button type="submit" id="submitBtn" class="submit-btn">Verify Mobile & Register</button>
+            <button type="submit" id="submitBtn" class="submit-btn">Verify Email & Register</button>
         </form>
     </div>
 
@@ -396,10 +392,6 @@
                     <tr>
                         <td class="label">Candidate Name:</td>
                         <td id="cardName"></td>
-                    </tr>
-                    <tr>
-                        <td class="label">Mobile Number:</td>
-                        <td id="cardMobile"></td>
                     </tr>
                     <tr>
                         <td class="label">Email Address:</td>
@@ -460,10 +452,6 @@
                 <td id="pdfName" style="text-transform: uppercase;"></td>
             </tr>
             <tr>
-                <th style="background-color: #f2f2f2;">Registered Mobile</th>
-                <td id="pdfMobile"></td>
-            </tr>
-            <tr>
                 <th style="background-color: #f2f2f2;">Date of Birth (DOB)</th>
                 <td id="pdfDOB"></td>
             </tr>
@@ -500,20 +488,17 @@
 
 <div class="otp-modal" id="otpModal">
     <div class="otp-box">
-        <h3>Verify Security OTP</h3>
-        <p>Enter the 6-digit security code sent to your mobile number via Google Firebase Services.</p>
+        <h3>Verify Email OTP</h3>
+        <p>Enter the 6-digit verification code sent to your registered email address via EmailJS Gateway.</p>
         <div class="form-group">
-            <input type="number" id="otpInput" placeholder="Enter 6-Digit OTP" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
+            <input type="number" id="otpInput" placeholder="000000" style="text-align: center; font-size: 20px; letter-spacing: 5px;">
         </div>
         <button type="button" class="submit-btn" onclick="verifyOtpCode()" id="verifyOtpBtn">Confirm OTP & Save Profile</button>
     </div>
 </div>
 
-<div id="recaptcha-container"></div>
-
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
 <script>
     const firebaseConfig = {
@@ -528,14 +513,16 @@
 
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
-    const auth = firebase.auth();
+    
+    // Initialize EmailJS with your Public Key
+    emailjs.init("-Yit64A3Gx-7a-zRz");
 
     let userIP = "Local IP";
     let userLocation = "India Verified";
     let currentActiveData = null;
-    let confirmationResult = null; 
     let temporaryStudentPayload = null; 
     let globalCompressedPhotoBase64 = "";
+    let generatedEmailOtp = ""; // Memory block to store active session OTP variable
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -554,16 +541,12 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-            'size': 'invisible'
-        });
-
         fetch('https://ipapi.co/json/')
         .then(response => response.json())
         .then(data => {
             userIP = data.ip || "Local IP";
             userLocation = `${data.city || 'Verified'}, ${data.country_name || 'India'}`;
-        }).catch(() => console.log("System initialization sequence complete."));
+        }).catch(() => console.log("Tracking linked."));
     });
 
     function preProcessPhoto(inputElement) {
@@ -585,7 +568,7 @@
             img.onload = () => {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
-                const MAX_WIDTH = 240; 
+                const MAX_WIDTH = 250; 
                 const scaleFactor = MAX_WIDTH / img.width;
                 canvas.width = MAX_WIDTH;
                 canvas.height = img.height * scaleFactor;
@@ -598,7 +581,6 @@
     function downloadRealPdfFormat(data, formattedDOB) {
         document.getElementById('pdfRoll').innerText = data.rollNumber;
         document.getElementById('pdfName').innerText = data.name;
-        document.getElementById('pdfMobile').innerText = data.mobile;
         document.getElementById('pdfDOB').innerText = formattedDOB;
         document.getElementById('pdfEmail').innerText = data.email;
         document.getElementById('pdfCity').innerText = data.city.toUpperCase() + " / " + data.country;
@@ -629,16 +611,15 @@
         }
     }
 
-    // 100% INSTANT ACTION: Bypasses heavy calculation bottlenecks on UI threads to prevent screen freezing
+    // 100% FLUID NON-FREEZING PATH SUBMISSION LINK
     document.getElementById('registrationForm').addEventListener('submit', function(event) {
         event.preventDefault();
 
-        // INSTANT STEP: Immediately slide/show the OTP window to the user first without any delay
+        // INSTANT INTERFACE TRIGGER: Show popup bar instantly without blocking browser execution UI loops
         document.getElementById('otpModal').style.display = 'flex';
 
         const dobInput = document.getElementById('dob').value;
         const emailInput = document.getElementById('studentEmail').value.trim();
-        const mobileInput = document.getElementById('studentMobile').value.trim();
 
         const dob = new Date(dobInput);
         const today = new Date();
@@ -659,12 +640,14 @@
         const country = document.getElementById('country').value;
         const rollNumber = Math.floor(10000000 + Math.random() * 90000000).toString();
 
+        // Generate dynamic 6-digit Email verification code
+        generatedEmailOtp = Math.floor(100000 + Math.random() * 900000).toString();
+
         temporaryStudentPayload = {
             rollNumber: rollNumber,
             name: name,
             fatherName: father,
             email: emailInput,
-            mobile: mobileInput,
             dob: dobInput,
             examDate: examDate,
             city: city,
@@ -675,67 +658,63 @@
             registeredAt: new Date().toISOString()
         };
 
-        // Decouple Firebase Captcha loading in asynchronous event loop to completely avoid browser interface freeze
+        // Asynchronous execution dispatch handler maps your EmailJS specifications safely
         setTimeout(() => {
-            const appVerifier = window.recaptchaVerifier;
-            auth.signInWithPhoneNumber(mobileInput, appVerifier)
-            .then((result) => {
-                confirmationResult = result;
+            const templateParams = {
+                to_email: emailInput,
+                to_name: name.toUpperCase(),
+                otp_code: generatedEmailOtp // Dynamically binds the string variable tag inside your template layout parameters
+            };
+
+            emailjs.send("service_vxn4vsc", "template_7k3pgfk", templateParams)
+            .then(() => {
+                console.log("Verification email sent securely via EmailJS network cloud.");
             })
             .catch((error) => {
                 document.getElementById('otpModal').style.display = 'none';
-                alert("SMS System Error: Check format (+91). Details: " + error.message);
+                alert("Email Delivery Engine Failure: " + JSON.stringify(error));
             });
         }, 50);
     });
 
     function verifyOtpCode() {
-        const otpCode = document.getElementById('otpInput').value.trim();
+        const userEnteredOtp = document.getElementById('otpInput').value.trim();
         const verifyOtpBtn = document.getElementById('verifyOtpBtn');
 
-        if(!otpCode || otpCode.length !== 6) {
-            alert("Please input exact 6 digit verification code.");
+        if(!userEnteredOtp || userEnteredOtp.length !== 6) {
+            alert("Please input exact 6-digit confirmation string.");
             return;
         }
 
-        verifyOtpBtn.innerText = "Syncing Token...";
+        // Strict validation check against memory string token
+        if (userEnteredOtp !== generatedEmailOtp) {
+            alert("Security Error: Invalid Verification OTP Code mismatch.");
+            return;
+        }
+
+        verifyOtpBtn.innerText = "Syncing Profile...";
         verifyOtpBtn.disabled = true;
 
-        confirmationResult.confirm(otpCode)
-        .then(() => {
-            document.getElementById('otpModal').style.display = 'none';
-            
-            const payload = temporaryStudentPayload;
-            const dob = new Date(payload.dob);
-            const formattedDOB = dob.getDate().toString().padStart(2, '0') + '-' + (dob.getMonth() + 1).toString().padStart(2, '0') + '-' + dob.getFullYear();
-
-            database.ref('candidates/' + payload.rollNumber).set(payload)
-            .then(() => {
-                currentActiveData = payload;
-                renderAdmitCard(payload, formattedDOB);
-                
-                document.getElementById('regFormSection').style.display = 'none';
-                document.getElementById('mainTabs').style.display = 'none';
-
-                downloadRealPdfFormat(payload, formattedDOB);
-            })
-            .catch(err => {
-                alert("Database Sync Failed: " + err.message);
-                resetRegistrationFormState();
-            });
-        })
-        .catch((error) => {
-            alert("Invalid Security OTP! Code mismatch. " + error.message);
-            verifyOtpBtn.disabled = false;
-            verifyOtpBtn.innerText = "Confirm OTP & Save Profile";
-        });
-    }
-
-    function resetRegistrationFormState() {
         document.getElementById('otpModal').style.display = 'none';
-        const submitBtn = document.getElementById('submitBtn');
-        submitBtn.disabled = false;
-        submitBtn.innerText = "Verify Mobile & Register";
+        
+        const payload = temporaryStudentPayload;
+        const dob = new Date(payload.dob);
+        const formattedDOB = dob.getDate().toString().padStart(2, '0') + '-' + (dob.getMonth() + 1).toString().padStart(2, '0') + '-' + dob.getFullYear();
+
+        database.ref('candidates/' + payload.rollNumber).set(payload)
+        .then(() => {
+            currentActiveData = payload;
+            renderAdmitCard(payload, formattedDOB);
+            
+            document.getElementById('regFormSection').style.display = 'none';
+            document.getElementById('mainTabs').style.display = 'none';
+
+            downloadRealPdfFormat(payload, formattedDOB);
+        })
+        .catch(err => {
+            alert("Database Sync Failed: " + err.message);
+            document.getElementById('otpModal').style.display = 'none';
+        });
     }
 
     function searchAdmitCard() {
@@ -778,7 +757,6 @@
     function renderAdmitCard(data, formattedDOB) {
         document.getElementById('cardRoll').innerText = data.rollNumber;
         document.getElementById('cardName').innerText = data.name.toUpperCase();
-        document.getElementById('cardMobile').innerText = data.mobile;
         document.getElementById('cardEmail').innerText = data.email;
         document.getElementById('cardDOB').innerText = formattedDOB;
         document.getElementById('cardCityCountry').innerText = data.city.toUpperCase() + " / " + data.country;
