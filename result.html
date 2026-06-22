@@ -3,15 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RWND Central Evaluation & Result Registry</title>
+    <title>RWND National Examination - Result & Evaluation Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --primary-dark: #0f172a;
             --accent-blue: #2563eb;
             --secure-red: #dc2626;
-            --secure-green: #16a34a;
             --bg-light: #f8fafc;
             --sheet-border: #1e293b;
+            --pass-green: #16a34a;
         }
 
         * {
@@ -23,138 +24,153 @@
             background-color: #cbd5e1; color: #000000; padding: 20px;
         }
 
-        /* Top Bar Layout */
+        /* Top Bar & Login System */
         .top-navbar {
-            max-width: 1100px; margin: 0 auto 20px auto; background: #000; color: #fff;
-            padding: 15px 25px; display: flex; justify-content: space-between; align-items: center;
-            border: 2px solid var(--sheet-border);
+            max-width: 1100px; margin: 0 auto 20px auto; background: #000; color: #fff; padding: 15px 25px;
+            display: flex; justify-content: space-between; align-items: center; border: 2px solid #000;
         }
-        .top-navbar h2 { font-size: 18px; letter-spacing: 1px; }
-        .nav-btn { background: #fff; color: #000; padding: 6px 15px; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; }
-        .nav-btn:hover { background: var(--secure-red); color: #fff; }
+        .nav-title { font-weight: bold; font-size: 16px; text-transform: uppercase; letter-spacing: 1px; }
+        .login-trigger-btn { background: #fff; color: #000; padding: 8px 15px; font-weight: bold; border: none; cursor: pointer; text-transform: uppercase; }
+        .login-trigger-btn:hover { background: var(--secure-red); color: #fff; }
 
-        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        
-        .section-title { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; text-transform: uppercase; }
-        
+        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 40px; border: 4px double var(--sheet-border); box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        .portal-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 30px; }
+        .portal-header h1 { font-size: 26px; text-transform: uppercase; letter-spacing: 1px; }
+
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: bold; margin-bottom: 8px; text-transform: uppercase; font-size: 14px; }
-        input[type="text"], input[type="number"], input[type="email"], input[type="password"] { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; background: #fafafa; }
+        input[type="text"], input[type="number"], input[type="password"] { width: 100%; padding: 12px; border: 2px solid #000; font-size: 16px; font-weight: bold; outline: none; background: #fafafa; }
         
-        .btn-action { background: #000; color: #fff; padding: 12px 25px; border: 2px solid #000; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; width: 100%; }
+        .btn-action { background: #000; color: #fff; padding: 12px 25px; border: 2px solid #000; font-size: 16px; font-weight: bold; cursor: pointer; text-transform: uppercase; }
         .btn-action:hover { background: #fff; color: #000; }
 
-        /* Student View Styles */
-        .search-box { background: #f1f5f9; padding: 25px; border: 2px dashed #000; margin-bottom: 30px; }
-        
-        /* Teacher Dashboard Panels */
-        .dashboard-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
-        .student-list-panel { border: 2px solid #000; padding: 15px; max-height: 600px; overflow-y: auto; }
-        .evaluation-panel { border: 2px solid #000; padding: 20px; display: none; }
-        
-        .student-item { padding: 10px; border-bottom: 1px solid #ccc; cursor: pointer; margin-bottom: 8px; font-weight: bold; background: #f8fafc; }
-        .student-item:hover { background: #e2e8f0; }
-        .student-item.active { background: #000; color: #fff; }
+        /* Student Result View Styles */
+        .result-scorecard { border: 3px solid #000; padding: 25px; margin-top: 30px; background: #f8fafc; display: none; }
+        .status-badge { display: inline-block; padding: 8px 15px; font-weight: bold; color: #fff; text-transform: uppercase; margin-top: 10px; }
+        .status-pass { background: var(--pass-green); }
+        .status-retry { background: #ca8a04; }
+        .status-fail { background: var(--secure-red); }
 
-        /* Dynamic Digital Pen Correction Elements */
-        .eval-q-block { border: 1px dashed #000; padding: 15px; margin-bottom: 15px; background: #fafafa; position: relative; }
-        .response-text { background: #fff; padding: 10px; border: 1px solid #aaa; margin: 10px 0; min-height: 40px; font-weight: bold; }
+        /* Teacher Digital Grading View */
+        #teacherAdminPanel { display: none; margin-top: 30px; border-top: 4px double #000; padding-top: 30px; }
+        .candidate-row { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 2px solid #000; margin-bottom: 10px; background: #f1f5f9; }
+        .grading-sheet { border: 2px solid #000; padding: 20px; margin-top: 20px; background: #fff; }
         
-        .pen-controls { display: flex; gap: 15px; align-items: center; margin-top: 10px; }
-        .btn-pen { padding: 5px 12px; font-weight: bold; cursor: pointer; border: 2px solid #000; font-size: 12px; text-transform: uppercase; }
-        .btn-tick { background: #fff; color: var(--secure-green); border-color: var(--secure-green); }
-        .btn-cross { background: #fff; color: var(--secure-red); border-color: var(--secure-red); }
-        .btn-tick.active { background: var(--secure-green); color: #fff; }
-        .btn-cross.active { background: var(--secure-red); color: #fff; }
+        /* Red Pen Digital Marks System */
+        .grading-q-block { border-bottom: 1px dashed #000; padding: 20px 0; position: relative; }
+        .teacher-controls { margin-top: 10px; display: flex; gap: 15px; align-items: center; }
+        .btn-pen { padding: 5px 12px; font-weight: bold; cursor: pointer; border: 2px solid #000; text-transform: uppercase; font-size: 12px; }
+        .btn-right { background: #dcfce7; color: var(--pass-green); }
+        .btn-wrong { background: #fee2e2; color: var(--secure-red); }
         
-        .pen-status-overlay { position: absolute; top: 10px; right: 15px; font-size: 26px; font-weight: bold; }
-        .pen-status-overlay.tick { color: var(--secure-green); }
-        .pen-status-overlay.cross { color: var(--secure-red); }
+        /* Red Mark Verification Stamp Overlay */
+        .red-pen-stamp { font-size: 24px; font-weight: bold; color: var(--secure-red); margin-left: 10px; display: none; }
+        .grading-q-block.marked-right .red-pen-stamp::before { content: "✓"; display: inline; }
+        .grading-q-block.marked-right .red-pen-stamp { display: inline; }
+        .grading-q-block.marked-wrong .red-pen-stamp::before { content: "✗"; display: inline; }
+        .grading-q-block.marked-wrong .red-pen-stamp { display: inline; }
 
-        /* Result Card & Certificate Structure */
-        .result-card { border: 4px double #000; padding: 30px; margin-top: 30px; background: #fff; background-image: radial-gradient(#e2e8f0 1px, transparent 0); background-size: 10px 10px; }
-        .cert-header { text-align: center; margin-bottom: 25px; }
-        .cert-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .cert-table th, .cert-table td { border: 1px solid #000; padding: 10px; text-align: left; font-weight: bold; }
-        .cert-table th { background: #f1f5f9; }
-
-        .status-msg { color: var(--secure-red); font-weight: bold; margin-top: 10px; text-align: center; }
-        
-        /* Print/Download Blueprint Configuration */
-        @media print {
-            body { background: #fff; padding: 0; }
-            .top-navbar, .search-box, .btn-action, .dashboard-layout { display: none !important; }
-            .result-card { border: 4px double #000; width: 100%; margin: 0; }
+        /* Certificate Print Container Layout */
+        #certificateTemplate {
+            width: 750px; padding: 50px; background: #fff; border: 10px double #1e293b; margin: 40px auto;
+            text-align: center; position: relative; display: none;
         }
+        .cert-title { font-size: 32px; font-weight: bold; color: var(--primary-dark); margin-bottom: 20px; text-transform: uppercase; }
+        .cert-body { font-size: 16px; line-height: 1.8; margin-top: 30px; }
+        .cert-footer { margin-top: 50px; display: flex; justify-content: space-between; padding: 0 40px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="top-navbar">
-    <h2>ORIONTEC DOZERA CENTRAL PORTAL</h2>
-    <button class="nav-btn" id="toggleAuthBtn" onclick="toggleAuthView()">Teacher Login</button>
+    <div class="nav-title">RWND Cloud Assessment Database Node</div>
+    <button class="login-trigger-btn" id="loginNavBtn" onclick="toggleLoginModal()">Teacher Access Panel</button>
 </div>
 
-<div class="container" id="studentPortalContainer">
-    <div class="section-title">
+<div class="container" id="loginSection" style="display:none; margin-bottom: 30px; background: #f1f5f9;">
+    <h3 style="text-transform:uppercase; margin-bottom:15px; border-bottom:2px solid #000; padding-bottom:5px;">Secure Evaluator Gateway</h3>
+    <div class="form-group">
+        <label>Official Evaluator Email ID:</label>
+        <input type="text" id="teacherEmail" placeholder="email@domain.com">
+    </div>
+    <div class="form-group">
+        <label>System Cryptographic Password:</label>
+        <input type="password" id="teacherPassword" placeholder="••••••••">
+    </div>
+    <button class="btn-action" onclick="executeTeacherAuth()">Verify Gate Authorization</button>
+    <button class="btn-action" style="background:#fff; color:#000; margin-left:10px;" onclick="toggleLoginModal()">Cancel</button>
+</div>
+
+<div class="container" id="studentPortal">
+    <div class="portal-header">
         <h1>National Examination Result Registry</h1>
-        <p>Enter your credentials below to retrieve audited scoring sheets</p>
+        <p>Search raw telemetry scores & download verified performance credentials</p>
     </div>
 
-    <div class="search-box">
-        <div class="form-group">
-            <label for="studentRollSearch">Enter 8-Digit Numerical Roll Number:</label>
-            <input type="number" id="studentRollSearch" placeholder="e.g. 58493021">
+    <div class="form-group">
+        <label for="studentRollSearch">Enter Your 8-Digit Numerical Roll Number:</label>
+        <input type="number" id="studentRollSearch" placeholder="e.g. 58493021">
+    </div>
+    <button class="btn-action" onclick="searchStudentResult()">Query Result Registry</button>
+
+    <div class="result-scorecard" id="scorecardDisplay">
+        <h2 style="text-transform:uppercase; border-bottom:2px solid #000; padding-bottom:10px;">Official Statement of Marks</h2>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:20px; font-weight:bold;">
+            <div>CANDIDATE NAME: <span id="resName" style="color:var(--accent-blue);"></span></div>
+            <div>ROLL NUMBER: <span id="resRoll"></span></div>
+            <div>AGGREGATE SCORE: <span id="resScore"></span> / 720</div>
+            <div>PERCENTAGE WEIGHT: <span id="resPercentage"></span>%</div>
         </div>
-        <button class="btn-action" onclick="searchStudentResult()">Search Registry Record</button>
-        <div id="searchError" class="status-msg" style="display:none;"></div>
-    </div>
+        <div style="margin-top:15px;">
+            <strong>EXAMINATION STANDING STATUS:</strong><br>
+            <span id="resStatusBadge" class="status-badge"></span>
+        </div>
 
-    <div id="resultOutputDisplayArea" style="display:none;"></div>
+        <div style="margin-top:30px; display:flex; gap:15px;">
+            <button class="btn-action" style="background:var(--accent-blue); border-color:var(--accent-blue);" onclick="generateVerifiedCertificatePDF()">Download Official Certificate (PDF)</button>
+        </div>
+
+        <div style="margin-top:40px; border-top:2px dashed #000; padding-top:20px;">
+            <h3 style="text-transform:uppercase; margin-bottom:15px;">Evaluated Script Preview (Red Pen Trace)</h3>
+            <div id="checkedSheetPreviewContainer"></div>
+        </div>
+    </div>
 </div>
 
-<div class="container" id="teacherPortalContainer" style="display:none;">
-    <div class="section-title">
-        <h1>Teacher Lockdown Evaluation Desk</h1>
-        <p>Authorized Script Grading and Digital Red-Pen Matrix</p>
+<div class="container" id="teacherAdminPanel">
+    <div class="portal-header" style="border-color: var(--secure-red);">
+        <h1 style="color:var(--secure-red);">Evaluator Matrix Dashboard</h1>
+        <p>Active scripts awaiting manual credential audit logs</p>
     </div>
 
-    <div id="adminLoginBlock" style="max-width: 500px; margin: 0 auto;">
-        <div class="form-group">
-            <label>Secure Academic Email:</label>
-            <input type="email" id="authEmail" placeholder="email@domain.com">
-        </div>
-        <div class="form-group">
-            <label>Security Access Token Password:</label>
-            <input type="password" id="authPass" placeholder="••••••••">
-        </div>
-        <button class="btn-action" onclick="executeAdminAuthentication()">Verify Credentials</button>
-        <div id="loginError" class="status-msg" style="display:none;"></div>
+    <h3 style="text-transform:uppercase; margin-bottom:15px;">Transmitted Answer Scripts Registry</h3>
+    <div id="submissionsListContainer">
+        <p style="font-weight:bold; color:#64748b;">Awaiting dynamic server data link queries...</p>
     </div>
 
-    <div id="adminDashboardBlock" class="dashboard-layout" style="display:none;">
-        
-        <div class="student-list-panel">
-            <h3 style="margin-bottom:15px; border-bottom:2px solid #000; padding-bottom:5px; font-size:14px;">PENDING EXAMS</h3>
-            <div id="studentsListNodeTarget"></div>
-        </div>
+    <div class="grading-sheet" id="activeGradingCanvas" style="display:none;">
+        <h3 style="text-transform:uppercase; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
+            Evaluating Roll: <span id="gradingRollTarget" style="color:var(--secure-red);"></span>
+        </h3>
+        <div id="gradingQuestionsContainer"></div>
+        <button class="btn-action" style="background:var(--pass-green); border-color:var(--pass-green); margin-top:30px;" onclick="saveEvaluatedGradesToCloud()">Commit Final Evaluation Report</button>
+    </div>
+</div>
 
-        <div class="evaluation-panel" id="evalSheetCoreNode">
-            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
-                <div>
-                    <h2 id="evalTargetName">CANDIDATE LOG</h2>
-                    <p id="evalTargetRoll">ROLL: </p>
-                </div>
-                <div style="text-align:right;">
-                    <h3 style="font-size:14px; color:var(--secure-red);">LIVE CALCULATED SCORING</h3>
-                    <p style="font-size:22px; font-weight:bold;" id="liveSumDisplay">0 / 720</p>
-                </div>
-            </div>
-
-            <div id="questionsGradingTargetNode"></div>
-
-            <button class="btn-action" style="background:var(--secure-green); border-color:var(--secure-green); margin-top:20px;" onclick="commitTeacherEvaluationPayload()">Commit Graded Script & Lock Score</button>
-        </div>
+<div id="certificateTemplate">
+    <div class="cert-title">Certificate of Merit</div>
+    <p style="font-size: 14px; text-transform: uppercase; letter-spacing: 2px;">Oriontec Dozera Examination Authority</p>
+    <div class="cert-body">
+        <p>This is to verify and officially record that</p>
+        <h2 id="certCandidateName" style="margin:15px 0; text-transform:uppercase; font-size:24px; color:var(--accent-blue);"></h2>
+        <p>bearing Roll Number registration sequence <strong id="certRoll"></strong> has successfully appeared for the National Examination Matrix, securing an aggregate evaluation total of</p>
+        <h3 style="margin:15px 0; font-size:20px;"><span id="certScore"></span> Out of 720 Max Marks</h3>
+        <p>resulting in a final performance percentage execution metric of <strong id="certPercent"></strong>% and achieving the rank classification standing tier of:</p>
+        <div id="certStatus" style="font-size:22px; font-weight:bold; margin-top:15px; text-transform:uppercase;"></div>
+    </div>
+    <div class="cert-footer">
+        <div>Date: 22-06-2026</div>
+        <div>Authorized Controller Signature</div>
     </div>
 </div>
 
@@ -162,6 +178,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 
 <script>
+    // Exact synchronized database cluster parameters matching examination terminal engine
     const firebaseConfig = {
         apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
         authDomain: "pulse2-92372.firebaseapp.com",
@@ -175,303 +192,272 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let currentActiveView = "STUDENT";
-    let isTeacherAuthenticated = false;
-    let selectedStudentRoll = null;
-    let evaluationState = {}; // Local memory allocation map for virtual marks and tick tracking
+    let activeSubmissionsCache = {};
+    let activeGradingRoll = null;
+    let currentGradingLocalState = {}; 
 
-    // Static Unique Reference definition model matching Master Exam Template V4
-    const questionsReferenceTemplate = {
-        1: { q: "Q1. What is the worst-case time complexity of searching an element in a standard balanced Binary Search Tree (AVL Tree)?", max: 36 },
-        2: { q: "Q2. The data structure that operates strictly under the Last-In-First-Out (LIFO) memory allocation rule is named ________.", max: 36 },
-        3: { q: "Q3. Which of the following sorting algorithms utilizes a divide-and-conquer strategy with a guaranteed worst-case time complexity of O(n log n)?", max: 36 },
-        4: { q: "Q4. In a singly linked list architecture, the final terminal node traditionally points to the ________ pointer value.", max: 36 },
-        5: { q: "Q5. Differentiate clearly between Primitive Data Types and Linear Abstract Data Structures.", max: 36 },
-        6: { q: "Q6. Which layer of the standard OSI model reference framework is fundamentally responsible for routing data packets across disparate subnets?", max: 36 },
-        7: { q: "Q7. Secure global communications routing Hypertext Transfer Protocol (HTTPS) payloads utilize destination TCP Port number _______.", max: 36 },
-        8: { q: "Q8. What protocol is natively used to map and resolve a known dynamic IP address directly into a physical hardware MAC address?", max: 36 },
-        9: { q: "Q9. The mechanism used by system firewalls to translate local private IP addresses to a public external router interface is called ________.", max: 36 },
-        10: { q: "Q10. Analyze how a standard TCP Three-Way Handshake establishes an active synchronization state session between a web client interface and a remote server infrastructure.", max: 36 },
-        11: { q: "Q11. In asymmetric cryptography infrastructures, a message encrypted securely using the sender's private key ensures which parameter?", max: 36 },
-        12: { q: "Q12. The industry-standard symmetric block cipher standard used globally to protect federal sensitive data is known as ________.", max: 36 },
-        13: { q: "Q13. Which of the following is considered a common secure cryptographic hash function vulnerable to zero collisions?", max: 36 },
-        14: { q: "Q14. An intentional cryptographic attack vector that intercepts ongoing safe network requests to subtly alter data packets without detection is called a ________-in-the-middle attack.", max: 36 },
-        15: { q: "Q15. Explain how Public Key Infrastructure (PKI) manages, distributes, and revokes digital certificates via centralized Certificate Authorities (CA).", max: 36 },
-        16: { q: "Q16. Under multi-threaded program environments, what critical failure scenario triggers when multiple concurrent threads remain permanently locked waiting for mutual resources?", max: 36 },
-        17: { q: "Q17. The transactional property that guarantees database operations remain completely isolated from concurrent transactions until commit is ________.", max: 36 },
-        18: { q: "Q18. What core architectural hardware element inside an Operating System kernel bridges direct runtime requests from software applications to actual CPU hardware cycles?", max: 36 },
-        19: { q: "Q19. The system memory management routine that maps inactive volatile RAM cache sectors into temporary secondary storage spaces is called ________ memory.", max: 36 },
-        20: { q: "Q20. Architect a robust mitigation strategy for preventing SQL Injection and Cross-Site Scripting (XSS) attacks inside a highly available modern web application framework.", max: 36 }
-    };
-
-    function toggleAuthView() {
-        const btn = document.getElementById('toggleAuthBtn');
-        if(currentActiveView === "STUDENT") {
-            currentActiveView = "TEACHER";
-            btn.innerText = "Student Portal";
-            document.getElementById('studentPortalContainer').style.display = "none";
-            document.getElementById('teacherPortalContainer').style.display = "block";
-            if(isTeacherAuthenticated) loadSubmissionsList();
-        } else {
-            currentActiveView = "STUDENT";
-            btn.innerText = "Teacher Login";
-            document.getElementById('studentPortalContainer').style.display = "block";
-            document.getElementById('teacherPortalContainer').style.display = "none";
-        }
+    // Static mapping definition layer of 78 non-repeating configuration blocks
+    const questionLabelsCache = {};
+    for (let i = 1; i <= 78; i++) {
+        questionLabelsCache[i] = i % 3 === 0 ? `Q${i}. Concurrent Execution Flow Loop Metrics Block` : (i % 3 === 1 ? `Q${i}. State Persistence Cloud Infrastructure Constraint Key` : `Q${i}. Structural Memory Block Thread Allocation Strategy`);
     }
 
-    // TEACHER LOGIN AUTH PROTOCOL
-    function executeAdminAuthentication() {
-        const email = document.getElementById('authEmail').value.trim();
-        const pass = document.getElementById('authPass').value.trim();
-        const errBox = document.getElementById('loginError');
+    function toggleLoginModal() {
+        const x = document.getElementById('loginSection');
+        x.style.display = (x.style.display === "none") ? "block" : "none";
+    }
 
-        // Explicit highly confidential verification parameters mapping requested criteria
+    // AUTHENTICATION INTERCEPT STRATEGY
+    function executeTeacherAuth() {
+        const email = document.getElementById('teacherEmail').value.trim();
+        const pass = document.getElementById('teacherPassword').value.trim();
+
         if(email === "sgursharn076@gmail.com" && pass === "7973804008") {
-            isTeacherAuthenticated = true;
-            errBox.style.display = "none";
-            document.getElementById('adminLoginBlock').style.display = "none";
-            document.getElementById('adminDashboardBlock').style.display = "grid";
-            loadSubmissionsList();
+            alert("Evaluator identity verified successfully. Dashboard unlocked.");
+            document.getElementById('loginSection').style.display = "none";
+            document.getElementById('loginNavBtn').innerText = "Log out Panel";
+            document.getElementById('loginNavBtn').onclick = logoutTeacherPanel;
+            document.getElementById('teacherAdminPanel').style.display = "block";
+            syncTeacherSubmissionsEngine();
         } else {
-            errBox.innerText = "ACCESS DENIED: Token signatures matching root clearance keys not verified.";
-            errBox.style.display = "block";
+            alert("ACCESS CRITICAL ERROR: Cryptographic verification mismatch.");
         }
     }
 
-    // FETCH EXAM PAYLOADS
-    function loadSubmissionsList() {
-        const container = document.getElementById('studentsListNodeTarget');
-        container.innerHTML = "<p style='font-size:12px;'>Fetching streaming payloads...</p>";
+    function logoutTeacherPanel() {
+        document.getElementById('teacherAdminPanel').style.display = "none";
+        document.getElementById('loginNavBtn').innerText = "Teacher Access Panel";
+        document.getElementById('loginNavBtn').onclick = toggleLoginModal;
+        alert("Session cleared.");
+    }
 
+    // TEACHER: READ TRANSMITTED SCRIPTS PIPELINE
+    function syncTeacherSubmissionsEngine() {
+        const container = document.getElementById('submissionsListContainer');
+        
         db.ref('exam_submissions').on('value', (snapshot) => {
             container.innerHTML = "";
             if(!snapshot.exists()) {
-                container.innerHTML = "<p style='font-size:12px; padding:10px;'>No active script payloads submitted inside database storage.</p>";
+                container.innerHTML = "<p>No exam responses currently written to the cloud node.</p>";
                 return;
             }
 
-            snapshot.forEach((child) => {
-                const data = child.val();
-                const item = document.createElement('div');
-                item.className = "student-item";
-                if(selectedStudentRoll === data.rollNumber) item.className += " active";
+            activeSubmissionsCache = snapshot.val();
+            
+            Object.keys(activeSubmissionsCache).forEach(roll => {
+                const item = activeSubmissionsCache[roll];
+                const row = document.createElement('div');
+                row.className = "candidate-row";
                 
-                const isCheckedText = data.status === "EVALUATED_COMMITTED" ? " ✅ Graded" : " ⏳ Pending";
-                item.innerText = `${data.rollNumber} - ${data.candidateName} ${isCheckedText}`;
+                let evaluationStatusString = item.evaluated ? `<span style="color:var(--pass-green); font-weight:bold;">GRADED (${item.finalScore}/720)</span>` : `<span style="color:var(--secure-red); font-weight:bold;">AWAITING RED PEN CHECK</span>`;
                 
-                item.onclick = () => loadStudentScriptForGrading(data.rollNumber);
-                container.appendChild(item);
+                row.innerHTML = `
+                    <div>
+                        <strong>Roll: ${item.rollNumber}</strong> | Name: ${item.candidateName.toUpperCase()}<br>
+                        Status: ${evaluationStatusString}
+                    </div>
+                    <button class="btn-action" style="padding:5px 12px; font-size:12px;" onclick="loadTargetScriptToGradingCanvas('${item.rollNumber}')">Audit Script</button>
+                `;
+                container.appendChild(row);
             });
         });
     }
 
-    // DYNAMIC SCRIPT WRITER & RED-PEN ATTESTATION INTERFACE
-    function loadStudentScriptForGrading(rollNumber) {
-        selectedStudentRoll = rollNumber;
-        loadSubmissionsList(); // Refresh lists view selection focus
-
-        db.ref('exam_submissions/' + rollNumber).once('value', (snapshot) => {
-            if(!snapshot.exists()) return;
-            const payload = snapshot.val();
-
-            document.getElementById('evalTargetName').innerText = payload.candidateName.toUpperCase();
-            document.getElementById('evalTargetRoll').innerText = `ROLL IDENTIFIER CODE: ${payload.rollNumber}`;
-            document.getElementById('evalSheetCoreNode').style.display = "block";
-
-            const responses = payload.responses || {};
-            const gradingTarget = document.getElementById('questionsGradingTargetNode');
-            gradingTarget.innerHTML = "";
-
-            // Initialize local configuration registry memory
-            evaluationState = payload.evaluationData || { marks: {}, pens: {} };
-
-            for(let i = 1; i <= 20; i++) {
-                const qRef = questionsReferenceTemplate[i];
-                const studentAns = responses[i] || "[CANDIDATE OMITTED FIELD RESPONSE]";
-                
-                const currentMark = evaluationState.marks[i] !== undefined ? evaluationState.marks[i] : 0;
-                const currentPen = evaluationState.pens[i] || ""; // 'TICK' or 'CROSS'
-
-                const block = document.createElement('div');
-                block.className = "eval-q-block";
-                block.id = `eval_block_${i}`;
-
-                // Setup overlay layer for reactive ink drawing rendering
-                let overlayClass = "";
-                let overlaySym = "";
-                if(currentPen === "TICK") { overlayClass = "tick"; overlaySym = "✓"; }
-                if(currentPen === "CROSS") { overlayClass = "cross"; overlaySym = "✗"; }
-
-                block.innerHTML = `
-                    <div class="question-title" style="font-size:13px;">${qRef.q}</div>
-                    <div class="response-text">${studentAns}</div>
-                    <div class="pen-status-overlay ${overlayClass}" id="overlay_sign_${i}">${overlaySym}</div>
-                    
-                    <div class="pen-controls">
-                        <button class="btn-pen btn-tick ${currentPen === 'TICK' ? 'active' : ''}" onclick="applyDigitalPenStroke(${i}, 'TICK')">Right Tick</button>
-                        <button class="btn-pen btn-cross ${currentPen === 'CROSS' ? 'active' : ''}" onclick="applyDigitalPenStroke(${i}, 'CROSS')">Wrong Cut</button>
-                        <div style="margin-left:auto; display:flex; align-items:center; gap:5px;">
-                            <label style="margin:0; font-size:11px;">MARKS (Max ${qRef.max}):</label>
-                            <input type="number" value="${currentMark}" min="0" max="${qRef.max}" style="width:70px; padding:4px; text-align:center;" oninput="updateLiveScoreValue(${i}, this.value)">
-                        </div>
-                    </div>
-                `;
-                gradingTarget.appendChild(block);
-            }
-            recalculateLiveSumTotal();
-        });
-    }
-
-    function applyDigitalPenStroke(qId, type) {
-        const overlay = document.getElementById(`overlay_sign_${qId}`);
-        const parent = document.getElementById(`eval_block_${qId}`);
+    // TEACHER: INITIALIZE PEN GRADING MATRIX LAYOUT
+    function loadTargetScriptToGradingCanvas(rollNumber) {
+        activeGradingRoll = rollNumber;
+        const targetRecord = activeSubmissionsCache[rollNumber];
+        document.getElementById('gradingRollTarget').innerText = rollNumber;
         
-        const tickBtn = parent.querySelector('.btn-tick');
-        const crossBtn = parent.querySelector('.btn-cross');
+        const container = document.getElementById('gradingQuestionsContainer');
+        container.innerHTML = "";
+        
+        currentGradingLocalState = targetRecord.evaluatedReport || {};
 
-        if(evaluationState.pens[qId] === type) {
-            // Undo execution route if clicked recursively
-            evaluationState.pens[qId] = "";
-            overlay.innerText = "";
-            overlay.className = "pen-status-overlay";
-            tickBtn.classList.remove('active');
-            crossBtn.classList.remove('active');
-        } else {
-            evaluationState.pens[qId] = type;
-            tickBtn.classList.toggle('active', type === 'TICK');
-            crossBtn.classList.toggle('active', type === 'CROSS');
+        // Generate explicit grading rows for all 78 target questions
+        for (let i = 1; i <= 78; i++) {
+            const studentResponse = targetRecord.responses[i] || "[Item Left Unattempted / Missing response context token]";
+            const block = document.createElement('div');
+            block.className = "grading-q-block";
+            block.id = `grading_block_idx_${i}`;
 
-            if(type === 'TICK') {
-                overlay.innerText = "✓";
-                overlay.className = "pen-status-overlay tick";
+            // Sync structural UI matching with previous saves if updating existing file configurations
+            if(currentGradingLocalState[i]) {
+                if(currentGradingLocalState[i].status === 'right') block.classList.add('marked-right');
+                if(currentGradingLocalState[i].status === 'wrong') block.classList.add('marked-wrong');
             } else {
-                overlay.innerText = "✗";
-                overlay.className = "pen-status-overlay cross";
-            }
-        }
-    }
-
-    function updateLiveScoreValue(qId, val) {
-        let numericValue = parseInt(val) || 0;
-        const maxLimit = questionsReferenceTemplate[qId].max;
-        if(numericValue > maxLimit) numericValue = maxLimit;
-        
-        evaluationState.marks[qId] = numericValue;
-        recalculateLiveSumTotal();
-    }
-
-    function recalculateLiveSumTotal() {
-        let sum = 0;
-        for(let i = 1; i <= 20; i++) {
-            sum += evaluationState.marks[i] || 0;
-        }
-        evaluationState.totalScoreCalculated = sum;
-        document.getElementById('liveSumDisplay').innerText = `${sum} / 720`;
-    }
-
-    function commitTeacherEvaluationPayload() {
-        if(!selectedStudentRoll) return;
-        
-        // Populate standard default initialization for non-touched configurations fields safely
-        for(let i = 1; i <= 20; i++) {
-            if(evaluationState.marks[i] === undefined) evaluationState.marks[i] = 0;
-            if(evaluationState.pens[i] === undefined) evaluationState.pens[i] = "";
-        }
-
-        const updates = {
-            status: "EVALUATED_COMMITTED",
-            evaluationData: evaluationState
-        };
-
-        db.ref('exam_submissions/' + selectedStudentRoll).update(updates)
-        .then(() => {
-            alert("SUCCESS: Candidate script metrics verified, compiled, and locked safely.");
-            document.getElementById('evalSheetCoreNode').style.display = "none";
-            selectedStudentRoll = null;
-            loadSubmissionsList();
-        })
-        .catch(err => alert("Database transmission failure: " + err.message));
-    }
-
-
-    // ==========================================
-    // STUDENT RESULTS QUERY SEARCH ENGINE ARCHITECTURE
-    // ==========================================
-    function searchStudentResult() {
-        const rollCode = document.getElementById('studentRollSearch').value.trim();
-        const errBox = document.getElementById('searchError');
-        const outputNode = document.getElementById('resultOutputDisplayArea');
-
-        if(!rollCode) { alert("Please provide input entry token."); return; }
-        
-        errBox.style.display = "none";
-        outputNode.style.display = "none";
-
-        db.ref('exam_submissions/' + rollCode).once('value', (snapshot) => {
-            if(!snapshot.exists()) {
-                errBox.innerText = "REGISTRY TRACE FAULT: Target evaluation parameters matching roll code not identified inside system node. Either candidate hasn't submitted or validation failed.";
-                errBox.style.display = "block";
-                return;
+                currentGradingLocalState[i] = { status: 'none', marks: 0 };
             }
 
-            const payload = snapshot.val();
-            if(payload.status !== "EVALUATED_COMMITTED") {
-                errBox.innerText = "PENDING SHEET METRICS: Your responses have been safely saved, but the designated red-pen structural audit calculation is processing by human grader panel. Re-check in a short while.";
-                errBox.style.display = "block";
-                return;
-            }
+            const savedMarksValue = currentGradingLocalState[i].marks || 0;
 
-            // EXTRACT & PRINT RICH AUDIO SHEET WITH RED TICKS LAYOUT
-            outputNode.style.display = "block";
-            const evalData = payload.evaluationData;
-            
-            let sheetInspectionHtml = "";
-            for(let i = 1; i <= 20; i++) {
-                const qRef = questionsReferenceTemplate[i];
-                const sAns = payload.responses[i] || "[NOT ATTEMPTED]";
-                const penType = evalData.pens[i] || "";
-                const marksScored = evalData.marks[i] || 0;
-
-                let markerOverlay = "";
-                let overlayColorClass = "";
-                if(penType === "TICK") { markerOverlay = "✓"; overlayColorClass = "tick"; }
-                if(penType === "CROSS") { markerOverlay = "✗"; overlayColorClass = "cross"; }
-
-                sheetInspectionHtml += `
-                    <div class="eval-q-block">
-                        <div style="font-size:12px; font-weight:bold; color:#475569;">${qRef.q}</div>
-                        <div class="response-text" style="border-color:#cbd5e1; font-size:14px;">${sAns}</div>
-                        <div class="pen-status-overlay ${overlayColorClass}" style="top:5px; right:15px; font-size:28px;">${markerOverlay}</div>
-                        <div style="text-align:right; font-size:11px; font-weight:bold; color:#000;">
-                            GRADED EXTRACT VALUE: ${marksScored} / ${qRef.max} MARKS
-                        </div>
-                    </div>
-                `;
-            }
-
-            outputNode.innerHTML = `
-                <div class="result-card">
-                    <div class="cert-header">
-                        <h2 style="font-size:24px; letter-spacing:1px;">NATIONAL SECURE AUDIT SCORECARD</h2>
-                        <p style="font-size:11px; text-transform:uppercase; margin-top:5px;">Oriontec Dozera Performance Credential Certificate</p>
-                    </div>
-
-                    <table class="cert-table">
-                        <tr><td>CANDIDATE REGISTERED NAME</td><td>${payload.candidateName.toUpperCase()}</td></tr>
-                        <tr><td>SYSTEM ALLOCATION CODE (ROLL)</td><td>${payload.rollNumber}</td></tr>
-                        <tr><td>AGGREGATE EVALUATED MARKS</td><td style="color:var(--accent-blue); font-size:18px;">${evalData.totalScoreCalculated} / 720 MARKS</td></tr>
-                        <tr><td>FINAL PORTAL STATUS CODE</td><td style="color:var(--secure-green);">SECURE PASS / VERIFIED RECORD</td></tr>
-                    </table>
-
-                    <button class="btn-action" style="margin-top:25px; background:var(--accent-blue); border-color:var(--accent-blue);" onclick="window.print()">Download & Print Official Certificate PDF</button>
-
-                    <div style="margin-top:40px; border-top:3px double #000; padding-top:20px;">
-                        <h3 style="font-size:14px; text-transform:uppercase; text-align:center; margin-bottom:20px;">Detailed Audited Answer Sheet with Evaluation Markers</h3>
-                        ${sheetInspectionHtml}
+            block.innerHTML = `
+                <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
+                <div style="background:#fafafa; border-left:3px solid #000; padding:8px; margin:8px 0; font-style:italic;">
+                    Student Answer: ${studentResponse}
+                </div>
+                <div class="teacher-controls">
+                    <button class="btn-pen btn-right" onclick="applyPenMark(${i}, 'right')">Mark Correct (✓)</button>
+                    <button class="btn-pen btn-wrong" onclick="applyPenMark(${i}, 'wrong')">Mark Incorrect (✗)</button>
+                    <div style="margin-left:auto;">
+                        <label style="display:inline; font-size:12px;">Award Marks:</label>
+                        <input type="number" id="marks_input_${i}" value="${savedMarksValue}" style="width:70px; padding:4px; display:inline;" oninput="updateLocalMarksMemory(${i}, this.value)">
                     </div>
                 </div>
             `;
+            container.appendChild(block);
+        }
+
+        document.getElementById('activeGradingCanvas').style.display = "block";
+        document.getElementById('activeGradingCanvas').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function applyPenMark(qId, type) {
+        const block = document.getElementById(`grading_block_idx_${qId}`);
+        block.classList.remove('marked-right', 'marked-wrong');
+        
+        if(type === 'right') {
+            block.classList.add('marked-right');
+            currentGradingLocalState[qId].status = 'right';
+            // Auto default marks allocation mapping assistance rule
+            document.getElementById(`marks_input_${qId}`).value = 9; 
+            currentGradingLocalState[qId].marks = 9;
+        } else {
+            block.classList.add('marked-wrong');
+            currentGradingLocalState[qId].status = 'wrong';
+            document.getElementById(`marks_input_${qId}`).value = 0;
+            currentGradingLocalState[qId].marks = 0;
+        }
+    }
+
+    function updateLocalMarksMemory(qId, value) {
+        currentGradingLocalState[qId].marks = parseFloat(value) || 0;
+    }
+
+    // TEACHER: COMMIT MARKS TO CLOUD SERVER RECORD STORAGE BUCKETS
+    function saveEvaluatedGradesToCloud() {
+        if(!activeGradingRoll) return;
+
+        let finalAggregatedScore = 0;
+        Object.keys(currentGradingLocalState).forEach(qId => {
+            finalAggregatedScore += parseFloat(currentGradingLocalState[qId].marks || 0);
+        });
+
+        // 720 Calculation Engine
+        const percentageResult = ((finalAggregatedScore / 720) * 100).toFixed(1);
+        let statusString = "FAIL";
+
+        const pNum = parseFloat(percentageResult);
+        if (pNum >= 35.0) {
+            statusString = "PASS";
+        } else if (pNum >= 33.5 && pNum < 35.0) {
+            statusString = "RETRY";
+        } else {
+            statusString = "FAIL";
+        }
+
+        const targetUpdateRef = db.ref('exam_submissions/' + activeGradingRoll);
+        
+        targetUpdateRef.update({
+            evaluated: true,
+            finalScore: finalAggregatedScore,
+            percentage: percentageResult,
+            standingStatus: statusString,
+            evaluatedReport: currentGradingLocalState
+        })
+        .then(() => {
+            alert(`Evaluation matrix successfully saved for roll sequence ${activeGradingRoll}. Standing calculated as ${statusString} (${percentageResult}%).`);
+            document.getElementById('activeGradingCanvas').style.display = "none";
+            activeGradingRoll = null;
+        })
+        .catch(err => alert("Write dynamic fault exception trace: " + err.message));
+    }
+
+
+    // STUDENT PORTAL MODULES: FETCH PERSONAL REVENUE SCORES
+    function searchStudentResult() {
+        const targetRoll = document.getElementById('studentRollSearch').value.trim();
+        if(!targetRoll) { alert("Please input your unique target roll verification token."); return; }
+
+        db.ref('exam_submissions/' + targetRoll).once('value')
+        .then((snapshot) => {
+            if(!snapshot.exists()) {
+                alert("The requested Roll Number has no committed submission ledger saved in the system repository.");
+                return;
+            }
+
+            const data = snapshot.val();
+            if(!data.evaluated) {
+                alert("Your answers have been securely logged. However, the evaluation authority has not committed the Red Pen markings yet. Please query back shortly.");
+                return;
+            }
+
+            // Bind Interface Values
+            document.getElementById('resName').innerText = data.candidateName.toUpperCase();
+            document.getElementById('resRoll').innerText = data.rollNumber;
+            document.getElementById('resScore').innerText = data.finalScore;
+            document.getElementById('resPercentage').innerText = data.percentage;
+
+            const badge = document.getElementById('resStatusBadge');
+            badge.innerText = data.standingStatus;
+            badge.className = "status-badge";
+            
+            if(data.standingStatus === "PASS") badge.classList.add('status-pass');
+            else if(data.standingStatus === "RETRY") badge.classList.add('status-retry');
+            else badge.classList.add('status-fail');
+
+            // Inject the complete checked sheet view for student preview
+            const previewContainer = document.getElementById('checkedSheetPreviewContainer');
+            previewContainer.innerHTML = "";
+
+            for(let i = 1; i <= 78; i++) {
+                const itemReport = data.evaluatedReport[i] || { status: 'none', marks: 0 };
+                const studentAns = data.responses[i] || "[No data logged]";
+                
+                const previewBlock = document.createElement('div');
+                previewBlock.className = "grading-q-block";
+                if(itemReport.status === 'right') previewBlock.classList.add('marked-right');
+                if(itemReport.status === 'wrong') previewBlock.classList.add('marked-wrong');
+
+                previewBlock.innerHTML = `
+                    <div><strong>${questionLabelsCache[i]}</strong> <span class="red-pen-stamp"></span></div>
+                    <div style="background:#f1f5f9; padding:8px; margin:5px 0; font-size:14px;">Your Answer: ${studentAns}</div>
+                    <div style="font-size:12px; font-weight:bold; color:var(--secure-red);">Marks Awarded: ${itemReport.marks}</div>
+                `;
+                previewContainer.appendChild(previewBlock);
+            }
+
+            document.getElementById('scorecardDisplay').style.display = "block";
+        });
+    }
+
+    // CLIENT GENERATOR: EXPORT PRODUCTION CERTIFICATE PDF STRUCTURES
+    function generateVerifiedCertificatePDF() {
+        const targetName = document.getElementById('resName').innerText;
+        const targetRoll = document.getElementById('resRoll').innerText;
+        const targetScore = document.getElementById('resScore').innerText;
+        const targetPercent = document.getElementById('resPercentage').innerText;
+        const targetStatus = document.getElementById('resStatusBadge').innerText;
+
+        document.getElementById('certCandidateName').innerText = targetName;
+        document.getElementById('certRoll').innerText = targetRoll;
+        document.getElementById('certScore').innerText = targetScore;
+        document.getElementById('certPercent').innerText = targetPercent;
+        document.getElementById('certStatus').innerText = targetStatus;
+
+        const element = document.getElementById('certificateTemplate');
+        element.style.display = "block";
+
+        const optimizationConfig = {
+            margin:       10,
+            filename:     `Certificate_Roll_${targetRoll}.pdf`,
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+        };
+
+        html2pdf().from(element).set(optimizationConfig).save().then(() => {
+            element.style.display = "none";
         });
     }
 </script>
