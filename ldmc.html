@@ -1,369 +1,1873 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LMDC - Lusy Medical Care Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LMDC — Lusy Medical Dog Care | Official Portal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getStorage, ref as sRef, uploadString, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    <style>
-        .govt-gradient {
-            background: linear-gradient(135deg, #0f4c3a 0%, #1a365d 100%);
-        }
-    </style>
+const firebaseConfig = {
+  apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+  authDomain: "pulse2-92372.firebaseapp.com",
+  databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+  projectId: "pulse2-92372",
+  storageBucket: "pulse2-92372.firebasestorage.app",
+  messagingSenderId: "276235725177",
+  appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+const storage = getStorage(app);
+
+window._db = db;
+window._storage = storage;
+window._ref = ref;
+window._sRef = sRef;
+window._set = set;
+window._get = get;
+window._push = push;
+window._update = update;
+window._uploadString = uploadString;
+window._getDownloadURL = getDownloadURL;
+window._firebaseReady = true;
+window.dispatchEvent(new Event('firebaseReady'));
+</script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --navy: #0a1628;
+  --navy-mid: #112240;
+  --navy-light: #1d3461;
+  --gold: #c8a951;
+  --gold-light: #e8c97a;
+  --green: #2ecc71;
+  --red: #e74c3c;
+  --blue-accent: #4a9eff;
+  --bg: #f0f4f8;
+  --card-bg: #ffffff;
+  --text: #1a2332;
+  --text-muted: #5a6a7e;
+  --border: #d4dce8;
+  --success: #27ae60;
+  --warning: #f39c12;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ===== HEADER ===== */
+.gov-strip {
+  background: var(--navy);
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 0;
+  text-align: center;
+  letter-spacing: 1px;
+  border-bottom: 2px solid var(--gold);
+}
+.gov-strip span { color: var(--gold); }
+
+header {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, var(--navy-light) 100%);
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.logo-block {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.logo-emblem {
+  width: 70px; height: 70px;
+  background: radial-gradient(circle, var(--gold-light) 0%, var(--gold) 100%);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  border: 3px solid #fff;
+  box-shadow: 0 0 20px rgba(200,169,81,0.4);
+}
+
+.logo-text h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  color: #fff;
+  letter-spacing: 2px;
+}
+.logo-text .subtitle {
+  font-size: 11px;
+  color: var(--gold-light);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+.logo-text .powered {
+  font-size: 10px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 4px;
+}
+
+.header-right {
+  text-align: right;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+}
+.header-right .reg-no {
+  color: var(--gold);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+/* ===== NAV ===== */
+nav {
+  background: var(--navy-mid);
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--gold);
+  overflow-x: auto;
+}
+nav button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  padding: 14px 22px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+nav button:hover { background: rgba(200,169,81,0.15); color: var(--gold-light); }
+nav button.active { background: var(--gold); color: var(--navy); font-weight: 700; }
+
+/* ===== MAIN ===== */
+main { max-width: 1100px; margin: 0 auto; padding: 30px 20px; }
+
+.page { display: none; }
+.page.active { display: block; }
+
+/* ===== HERO ===== */
+.hero {
+  background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%);
+  border-radius: 12px;
+  padding: 50px 40px;
+  text-align: center;
+  color: #fff;
+  margin-bottom: 30px;
+  border: 1px solid rgba(200,169,81,0.3);
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '🐕';
+  position: absolute;
+  font-size: 200px;
+  opacity: 0.05;
+  right: -30px;
+  bottom: -30px;
+}
+.hero h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 36px;
+  margin-bottom: 12px;
+}
+.hero p { color: rgba(255,255,255,0.75); font-size: 16px; max-width: 600px; margin: 0 auto 25px; }
+.hero-stats {
+  display: flex;
+  justify-content: center;
+  gap: 40px;
+  margin-top: 30px;
+  flex-wrap: wrap;
+}
+.hero-stat { text-align: center; }
+.hero-stat .num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 28px;
+  color: var(--gold);
+  font-weight: 700;
+}
+.hero-stat .lbl { font-size: 11px; color: rgba(255,255,255,0.6); margin-top: 4px; letter-spacing: 1px; }
+
+/* ===== CARDS ===== */
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  color: var(--navy);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 2px solid var(--gold);
+  display: flex; align-items: center; gap: 10px;
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 28px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  border: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+}
+@media(max-width:640px){ .form-grid { grid-template-columns: 1fr; } }
+
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: 1/-1; }
+.form-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: #fff;
+  transition: border 0.2s;
+}
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+  outline: none;
+  border-color: var(--navy-light);
+}
+
+/* Vaccine checklist */
+.vaccine-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+.vaccine-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+}
+.vaccine-item:hover { border-color: var(--navy-light); background: #f7f9fc; }
+.vaccine-item input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--navy); }
+.vaccine-item.checked { border-color: var(--success); background: #f0faf4; }
+
+/* Image upload */
+.img-upload-area {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafbfc;
+}
+.img-upload-area:hover { border-color: var(--navy-light); background: #f0f4f8; }
+.img-upload-area.has-img { border-style: solid; border-color: var(--success); }
+#dogImgPreview { max-width: 120px; max-height: 120px; border-radius: 8px; margin-top: 10px; display: none; }
+
+/* Buttons */
+.btn {
+  padding: 11px 24px;
+  border-radius: 7px;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  letter-spacing: 0.3px;
+}
+.btn-primary { background: var(--navy); color: #fff; }
+.btn-primary:hover { background: var(--navy-light); transform: translateY(-1px); }
+.btn-gold { background: var(--gold); color: var(--navy); }
+.btn-gold:hover { background: var(--gold-light); }
+.btn-green { background: var(--success); color: #fff; }
+.btn-red { background: var(--red); color: #fff; }
+.btn-outline {
+  background: none;
+  border: 2px solid var(--navy);
+  color: var(--navy);
+}
+.btn-outline:hover { background: var(--navy); color: #fff; }
+.btn-sm { padding: 7px 16px; font-size: 12px; }
+
+/* ===== HEALTH CARD ===== */
+#healthCardDisplay { display: none; margin-top: 30px; }
+
+.dog-health-card {
+  background: linear-gradient(145deg, #0d1f3c 0%, #1a3a6b 50%, #0d1f3c 100%);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 700px;
+  margin: 0 auto;
+  color: #fff;
+  border: 2px solid var(--gold);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3), inset 0 0 80px rgba(200,169,81,0.03);
+  position: relative;
+  overflow: hidden;
+}
+.dog-health-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -20%;
+  width: 300px; height: 300px;
+  background: radial-gradient(circle, rgba(200,169,81,0.08) 0%, transparent 70%);
+  border-radius: 50%;
+}
+
+.card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(200,169,81,0.3);
+  padding-bottom: 16px;
+}
+.card-org { }
+.card-org .org-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 14px;
+  color: var(--gold);
+  letter-spacing: 2px;
+}
+.card-org .card-type {
+  font-size: 10px;
+  color: rgba(255,255,255,0.6);
+  letter-spacing: 2px;
+  margin-top: 3px;
+}
+.card-unique-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  color: var(--gold-light);
+  text-align: right;
+}
+.card-unique-id .id-label { font-size: 9px; color: rgba(255,255,255,0.5); letter-spacing: 1px; }
+
+.card-body-row {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.card-dog-img {
+  width: 100px; height: 100px;
+  border-radius: 10px;
+  border: 2px solid var(--gold);
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px;
+}
+.card-dog-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+.card-info { flex: 1; }
+.card-dog-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.card-breed { font-size: 13px; color: var(--gold-light); margin-bottom: 12px; }
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.info-item .info-label { font-size: 9px; color: rgba(255,255,255,0.5); letter-spacing: 1px; text-transform: uppercase; }
+.info-item .info-val { font-size: 13px; color: #fff; font-weight: 500; margin-top: 2px; }
+
+.card-vaccines {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(200,169,81,0.25);
+}
+.card-vaccines-title { font-size: 10px; color: var(--gold); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 10px; }
+.vaccine-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.vaccine-tag {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.vaccine-tag.yes { background: rgba(46,204,113,0.25); color: #2ecc71; border: 1px solid rgba(46,204,113,0.4); }
+.vaccine-tag.no { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+
+.card-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(200,169,81,0.25);
+}
+.card-qr { background: #fff; padding: 6px; border-radius: 6px; }
+.card-issued { font-size: 10px; color: rgba(255,255,255,0.5); }
+.card-issued strong { color: var(--gold-light); display: block; font-size: 12px; }
+
+/* ===== SEARCH PAGE ===== */
+.search-box {
+  display: flex; gap: 10px;
+  margin-bottom: 20px;
+}
+.search-box input { flex: 1; }
+
+.dog-record-view {
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 25px;
+  border: 1px solid var(--border);
+}
+.record-header {
+  display: flex; gap: 20px; align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--border);
+}
+.record-dog-img {
+  width: 80px; height: 80px;
+  border-radius: 10px;
+  border: 2px solid var(--gold);
+  object-fit: cover;
+  font-size: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: #f0f4f8;
+}
+.record-dog-img img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+
+.record-name { font-family: 'Playfair Display', serif; font-size: 22px; }
+.record-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-muted); }
+.record-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 10px;
+}
+.badge-active { background: #d4f5e1; color: #1a6b3a; }
+.badge-pending { background: #fff3cd; color: #856404; }
+
+.info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+.info-table td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border); }
+.info-table td:first-child { font-weight: 600; color: var(--text-muted); width: 35%; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* ===== FUND REQUEST ===== */
+.steps-bar {
+  display: flex;
+  margin-bottom: 30px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.step-item {
+  flex: 1;
+  padding: 12px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f7f9fc;
+  color: var(--text-muted);
+  border-right: 1px solid var(--border);
+  transition: all 0.3s;
+}
+.step-item:last-child { border-right: none; }
+.step-item.active { background: var(--navy); color: #fff; }
+.step-item.done { background: var(--success); color: #fff; }
+.step-num { font-family: 'JetBrains Mono', monospace; font-size: 16px; display: block; }
+
+/* ===== TOAST ===== */
+.toast {
+  position: fixed;
+  bottom: 30px; right: 30px;
+  background: var(--navy);
+  color: #fff;
+  padding: 14px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+  border-left: 4px solid var(--gold);
+  display: none;
+  z-index: 9999;
+  max-width: 320px;
+}
+.toast.success { border-left-color: var(--success); }
+.toast.error { border-left-color: var(--red); }
+
+/* ===== FOOTER ===== */
+footer {
+  background: var(--navy);
+  color: rgba(255,255,255,0.6);
+  text-align: center;
+  padding: 24px;
+  font-size: 12px;
+  margin-top: 40px;
+  border-top: 3px solid var(--gold);
+}
+footer strong { color: var(--gold); }
+
+/* Loader */
+.loader {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle; margin-right: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.hidden { display: none !important; }
+
+/* Fund status chips */
+.fund-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.fund-status.pending { background: #fff3cd; color: #856404; }
+.fund-status.approved { background: #d4edda; color: #155724; }
+.fund-status.rejected { background: #f8d7da; color: #721c24; }
+
+/* Proof upload area */
+.proof-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.proof-area:hover { border-color: var(--navy-light); background: #f7f9fc; }
+.proof-area.uploaded { border-color: var(--success); background: #f0faf4; }
+
+.update-proof-area {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+}
+.update-proof-area:hover { border-color: var(--navy-light); }
+</style>
 </head>
-<body class="bg-gray-50 font-sans min-h-screen">
+<body>
 
-    <header class="govt-gradient text-white shadow-md">
-        <div class="container mx-auto px-6 py-4 flex flex-col md:flex-row justify-between items-center text-center md:text-left">
-            <div>
-                <h1 class="text-2xl md:text-3xl font-bold tracking-wide">LUSY MEDICAL CARE (LMDC)</h1>
-                <p class="text-xs uppercase tracking-widest text-emerald-300 font-semibold mt-1">National Dog Health Registry & Management Portal</p>
-            </div>
-            <div class="mt-3 md:mt-0 bg-white/10 px-4 py-2 rounded text-sm border border-white/20">
-                Powered by <span class="font-bold text-emerald-300">DOZERA</span>
-            </div>
-        </div>
-    </header>
+<div class="gov-strip">
+  🇮🇳 &nbsp;OFFICIAL GOVERNMENT AUTHORIZED PORTAL &nbsp;|&nbsp; <span>LUSY MEDICAL DOG CARE (LMDC)</span> &nbsp;|&nbsp; POWERED BY DOZERA &nbsp;|&nbsp; REG. NO: LMDC-IND-2024-001
+</div>
 
-    <div class="bg-white border-b sticky top-0 z-50 shadow-sm">
-        <div class="container mx-auto flex justify-center space-x-2 md:space-x-6 p-2">
-            <button onclick="switchTab('register-section')" id="btn-register-section" class="tab-btn px-4 py-2 font-medium text-sm rounded bg-emerald-800 text-white transition-all">Issue Health Card</button>
-            <button onclick="switchTab('search-section')" id="btn-search-section" class="tab-btn px-4 py-2 font-medium text-sm rounded text-gray-600 hover:bg-gray-100 transition-all">Verify / Search Card</button>
-            <button onclick="switchTab('funds-section')" id="btn-funds-section" class="tab-btn px-4 py-2 font-medium text-sm rounded text-gray-600 hover:bg-gray-100 transition-all">Request Medical Funds</button>
+<header>
+  <div class="logo-block">
+    <div class="logo-emblem">🐕</div>
+    <div class="logo-text">
+      <h1>LMDC</h1>
+      <div class="subtitle">Lusy Medical Dog Care</div>
+      <div class="powered">Powered by Dozera · Official Health Registry</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="reg-no">REG: LMDC-IND-2024-001</div>
+    <div style="margin-top:5px;">Ministry of Animal Welfare · India</div>
+    <div id="currentDateTime" style="margin-top:4px; color:var(--gold-light); font-size:11px;"></div>
+  </div>
+</header>
+
+<nav>
+  <button class="active" onclick="showPage('home')">🏠 Home</button>
+  <button onclick="showPage('register')">📋 Register Dog</button>
+  <button onclick="showPage('search')">🔍 Search / View Record</button>
+  <button onclick="showPage('fund')">💰 Fund Request</button>
+  <button onclick="showPage('admin')">🔐 Admin Panel</button>
+</nav>
+
+<main>
+
+<!-- ===== HOME PAGE ===== -->
+<div class="page active" id="page-home">
+  <div class="hero">
+    <h2>Official Dog Health Card Portal</h2>
+    <p>Register your dog, generate a government-verified digital health card with QR code, manage vaccination records, and apply for medical funds — all in one place.</p>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <button class="btn btn-gold" onclick="showPage('register')">📋 Register New Dog</button>
+      <button class="btn btn-outline" style="color:#fff; border-color:rgba(255,255,255,0.5);" onclick="showPage('search')">🔍 Search Dog Record</button>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="num" id="statTotal">—</div><div class="lbl">Dogs Registered</div></div>
+      <div class="hero-stat"><div class="num" id="statVaccinated">—</div><div class="lbl">Vaccinated</div></div>
+      <div class="hero-stat"><div class="num" id="statFunds">—</div><div class="lbl">Fund Requests</div></div>
+    </div>
+  </div>
+
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; flex-wrap:wrap;">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:40px; margin-bottom:12px;">📋</div>
+      <h3 style="font-size:16px; margin-bottom:8px;">Register Dog</h3>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">Create an official health card with a unique ID and QR code for your dog.</p>
+      <button class="btn btn-primary btn-sm" onclick="showPage('register')">Get Started</button>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:40px; margin-bottom:12px;">🔍</div>
+      <h3 style="font-size:16px; margin-bottom:8px;">View Record</h3>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">Search by unique ID to view vaccination history, health record, and download PDF.</p>
+      <button class="btn btn-primary btn-sm" onclick="showPage('search')">Search Now</button>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:40px; margin-bottom:12px;">💰</div>
+      <h3 style="font-size:16px; margin-bottom:8px;">Fund Request</h3>
+      <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">Apply for medical fund allocation for your registered dog's treatment.</p>
+      <button class="btn btn-primary btn-sm" onclick="showPage('fund')">Apply Now</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:0; background: linear-gradient(135deg, var(--navy) 0%, var(--navy-light) 100%); color:#fff; border:none;">
+    <h3 style="color:var(--gold); font-family:'Playfair Display',serif; margin-bottom:10px;">📌 How It Works</h3>
+    <ol style="font-size:13px; color:rgba(255,255,255,0.8); line-height:2; padding-left:20px;">
+      <li>Register your dog with details, photo, and vaccination history</li>
+      <li>Get a unique LMDC-ID and official digital health card with QR code</li>
+      <li>Scan QR from any device to instantly view the dog's full medical record</li>
+      <li>Update vaccination records anytime by submitting proof documents</li>
+      <li>Apply for medical funds by providing diagnosis reports and bills</li>
+    </ol>
+  </div>
+</div>
+
+<!-- ===== REGISTER PAGE ===== -->
+<div class="page" id="page-register">
+  <div class="section-title">📋 Dog Registration Form</div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-bottom:18px; color:var(--navy);">Step 1 — Dog Information</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Dog Name *</label>
+        <input type="text" id="reg_dogName" placeholder="e.g. Bruno"/>
+      </div>
+      <div class="form-group">
+        <label>Breed *</label>
+        <select id="reg_breed">
+          <option value="">Select Breed</option>
+          <option>Labrador Retriever</option><option>German Shepherd</option>
+          <option>Golden Retriever</option><option>Bulldog</option>
+          <option>Poodle</option><option>Beagle</option>
+          <option>Rottweiler</option><option>Yorkshire Terrier</option>
+          <option>Boxer</option><option>Dachshund</option>
+          <option>Siberian Husky</option><option>Doberman Pinscher</option>
+          <option>Great Dane</option><option>Shih Tzu</option>
+          <option>Pomeranian</option><option>Chihuahua</option>
+          <option>Border Collie</option><option>Australian Shepherd</option>
+          <option>Cocker Spaniel</option><option>Maltese</option>
+          <option>Pitbull Terrier</option><option>Dalmatian</option>
+          <option>Indian Pariah Dog</option><option>Rajapalayam</option>
+          <option>Kombai</option><option>Mudhol Hound</option>
+          <option>Mixed/Stray</option><option>Other</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Age *</label>
+        <input type="text" id="reg_age" placeholder="e.g. 2 years 3 months"/>
+      </div>
+      <div class="form-group">
+        <label>Color / Coat *</label>
+        <select id="reg_color">
+          <option value="">Select Color</option>
+          <option>Black</option><option>White</option><option>Brown</option>
+          <option>Golden/Yellow</option><option>Cream</option>
+          <option>Grey/Silver</option><option>Red/Rust</option>
+          <option>Black & White</option><option>Black & Tan</option>
+          <option>Brown & White</option><option>Tricolor</option>
+          <option>Merle</option><option>Brindle</option><option>Spotted</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Gender *</label>
+        <select id="reg_gender">
+          <option value="">Select</option>
+          <option>Male</option><option>Female</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Date of Birth</label>
+        <input type="date" id="reg_dob"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-bottom:18px; color:var(--navy);">Step 2 — Owner Information</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Owner Full Name *</label>
+        <input type="text" id="reg_ownerName" placeholder="e.g. Rahul Kumar"/>
+      </div>
+      <div class="form-group">
+        <label>Phone Number *</label>
+        <input type="tel" id="reg_phone" placeholder="+91 XXXXX XXXXX"/>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg_email" placeholder="owner@email.com"/>
+      </div>
+      <div class="form-group">
+        <label>City / District *</label>
+        <input type="text" id="reg_city" placeholder="e.g. Mumbai"/>
+      </div>
+      <div class="form-group full">
+        <label>Full Address</label>
+        <textarea id="reg_address" rows="2" placeholder="House No, Street, Area, City, State, PIN"></textarea>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 3 — Vaccination Record</h3>
+    <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">✅ Tick the vaccines your dog has received</p>
+    <div class="vaccine-grid" id="vaccineChecklist">
+      <!-- dynamically filled -->
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 4 — Dog Photo</h3>
+    <div class="img-upload-area" id="dogImgUploadArea" onclick="document.getElementById('dogImgInput').click()">
+      <div style="font-size:36px; margin-bottom:8px;">📷</div>
+      <p style="font-size:14px; color:var(--text-muted);">Click to upload dog photo</p>
+      <p style="font-size:11px; color:var(--text-muted); margin-top:4px;">JPG/PNG, max 2MB · Will be stored securely</p>
+      <img id="dogImgPreview" src="" alt="Dog Preview"/>
+    </div>
+    <input type="file" id="dogImgInput" accept="image/*" style="display:none;" onchange="handleDogImgUpload(event)"/>
+  </div>
+
+  <div class="card">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 5 — Medical Notes</h3>
+    <div class="form-group">
+      <label>Known Medical Conditions / Allergies / Notes</label>
+      <textarea id="reg_medNotes" rows="3" placeholder="e.g. Allergic to dust mites, had surgery in 2023 for leg fracture..."></textarea>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:12px; flex-wrap:wrap;">
+    <button class="btn btn-primary" onclick="registerDog()" id="registerBtn">
+      📋 Generate Health Card & Register
+    </button>
+    <button class="btn btn-outline" onclick="clearForm()">Clear Form</button>
+  </div>
+
+  <div id="healthCardDisplay">
+    <div class="section-title" style="margin-top:30px;">🎉 Dog Health Card Generated!</div>
+    <div id="dogHealthCard" class="dog-health-card">
+      <div class="card-header-row">
+        <div class="card-org">
+          <div class="org-name">LMDC · LUSY MEDICAL DOG CARE</div>
+          <div class="card-type">OFFICIAL HEALTH CARD · POWERED BY DOZERA</div>
         </div>
+        <div class="card-unique-id">
+          <div class="id-label">UNIQUE ID</div>
+          <div id="card_uid"></div>
+        </div>
+      </div>
+      <div class="card-body-row">
+        <div class="card-dog-img" id="card_img_wrap">🐕</div>
+        <div class="card-info">
+          <div class="card-dog-name" id="card_dogName">—</div>
+          <div class="card-breed" id="card_breed">—</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-label">Age</div><div class="info-val" id="card_age">—</div></div>
+            <div class="info-item"><div class="info-label">Gender</div><div class="info-val" id="card_gender">—</div></div>
+            <div class="info-item"><div class="info-label">Color</div><div class="info-val" id="card_color">—</div></div>
+            <div class="info-item"><div class="info-label">DOB</div><div class="info-val" id="card_dob">—</div></div>
+            <div class="info-item"><div class="info-label">Owner</div><div class="info-val" id="card_owner">—</div></div>
+            <div class="info-item"><div class="info-label">City</div><div class="info-val" id="card_city">—</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="card-vaccines">
+        <div class="card-vaccines-title">🔬 Vaccination Status</div>
+        <div class="vaccine-tags" id="card_vaccines"></div>
+      </div>
+      <div class="card-footer-row">
+        <div>
+          <div class="card-issued"><span>Issued By</span><strong>LMDC Official Registry</strong></div>
+          <div class="card-issued" style="margin-top:6px;"><span>Issue Date</span><strong id="card_issueDate">—</strong></div>
+        </div>
+        <div class="card-qr" id="card_qr_container"></div>
+      </div>
+    </div>
+    <div style="display:flex; gap:12px; margin-top:20px; flex-wrap:wrap;">
+      <button class="btn btn-gold" onclick="downloadHealthCardPDF()">⬇️ Download Health Card PDF</button>
+      <button class="btn btn-outline" onclick="showPage('search')">🔍 View in Search</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SEARCH PAGE ===== -->
+<div class="page" id="page-search">
+  <div class="section-title">🔍 Search Dog Record</div>
+
+  <div class="card">
+    <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">Enter the unique LMDC Dog ID to search the record. You can find the ID on the health card or QR code.</p>
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Enter LMDC Dog ID (e.g. LMDC-2024-XXXXXX)" style="border:1.5px solid var(--border); border-radius:6px; padding:10px 14px; font-size:14px;"/>
+      <button class="btn btn-primary" onclick="searchDog()">Search</button>
+    </div>
+    <p style="font-size:12px; color:var(--text-muted);">OR scan the QR code on the dog's health card with your phone camera</p>
+  </div>
+
+  <div id="searchResult" style="display:none;">
+    <div class="dog-record-view">
+      <div class="record-header">
+        <div class="record-dog-img" id="rec_img_wrap">🐕</div>
+        <div>
+          <div class="record-name" id="rec_dogName">—</div>
+          <div class="record-id" id="rec_uid">—</div>
+          <span class="record-badge badge-active">✅ Registered</span>
+        </div>
+      </div>
+
+      <table class="info-table">
+        <tr><td>Breed</td><td id="rec_breed">—</td></tr>
+        <tr><td>Age</td><td id="rec_age">—</td></tr>
+        <tr><td>Color</td><td id="rec_color">—</td></tr>
+        <tr><td>Gender</td><td id="rec_gender">—</td></tr>
+        <tr><td>Date of Birth</td><td id="rec_dob">—</td></tr>
+        <tr><td>Owner Name</td><td id="rec_owner">—</td></tr>
+        <tr><td>Phone</td><td id="rec_phone">—</td></tr>
+        <tr><td>City</td><td id="rec_city">—</td></tr>
+        <tr><td>Medical Notes</td><td id="rec_notes">—</td></tr>
+        <tr><td>Registered On</td><td id="rec_date">—</td></tr>
+      </table>
+
+      <div class="section-title" style="font-size:16px;">🔬 Vaccination Record</div>
+      <div id="rec_vaccines" style="margin-bottom:20px;"></div>
+
+      <div class="section-title" style="font-size:16px;">💰 Fund History</div>
+      <div id="rec_funds">No fund requests on record.</div>
+
+      <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap;">
+        <button class="btn btn-gold" onclick="downloadRecordPDF()">⬇️ Download PDF Report</button>
+        <button class="btn btn-primary" onclick="openUpdateVaccine()">💉 Update Vaccination</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Update Vaccine Modal -->
+  <div id="updateVaccinePanel" style="display:none; margin-top:20px;">
+    <div class="card">
+      <div class="section-title" style="font-size:16px;">💉 Update Vaccination Record</div>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Select the vaccine given and upload proof of vaccination (doctor certificate / report).</p>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Select Vaccine</label>
+        <select id="updateVaccineSelect">
+          <option value="">Select Vaccine</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>Vaccination Date</label>
+        <input type="date" id="updateVaccineDate"/>
+      </div>
+      <div class="form-group">
+        <label>Proof of Vaccination (Image/Document)</label>
+        <div class="update-proof-area" id="updateProofArea" onclick="document.getElementById('updateProofInput').click()">
+          <div style="font-size:28px; margin-bottom:6px;">📄</div>
+          <p style="font-size:13px; color:var(--text-muted);">Click to upload vaccination certificate</p>
+        </div>
+        <input type="file" id="updateProofInput" accept="image/*,application/pdf" style="display:none;" onchange="handleUpdateProof(event)"/>
+      </div>
+      <div style="margin-top:14px; display:flex; gap:10px;">
+        <button class="btn btn-green" onclick="submitVaccineUpdate()">✅ Submit Update</button>
+        <button class="btn btn-outline" onclick="document.getElementById('updateVaccinePanel').style.display='none'">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FUND REQUEST PAGE ===== -->
+<div class="page" id="page-fund">
+  <div class="section-title">💰 Medical Fund Request</div>
+
+  <div class="steps-bar">
+    <div class="step-item active" id="fstep1"><span class="step-num">01</span>Verify Dog</div>
+    <div class="step-item" id="fstep2"><span class="step-num">02</span>Request Details</div>
+    <div class="step-item" id="fstep3"><span class="step-num">03</span>Upload Documents</div>
+    <div class="step-item" id="fstep4"><span class="step-num">04</span>Review & Submit</div>
+  </div>
+
+  <!-- Fund Step 1: Verify -->
+  <div id="fundStep1" class="card">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 1 — Verify Your Dog</h3>
+    <p style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">Enter your dog's unique LMDC ID and their name for verification.</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>LMDC Unique Dog ID *</label>
+        <input type="text" id="fund_uid" placeholder="LMDC-2024-XXXXXX"/>
+      </div>
+      <div class="form-group">
+        <label>Dog Name (Security Verification) *</label>
+        <input type="text" id="fund_dogNameVerify" placeholder="Must match registered name"/>
+      </div>
+    </div>
+    <div id="fundVerifyResult" style="margin-top:12px; display:none;"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-primary" onclick="verifyDogForFund()">Verify Dog Identity</button>
+    </div>
+  </div>
+
+  <!-- Fund Step 2: Request Details -->
+  <div id="fundStep2" class="card hidden">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 2 — Medical Request Details</h3>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>Diagnosis / Illness *</label>
+        <input type="text" id="fund_illness" placeholder="e.g. Canine Parvovirus, Fracture, Cancer..."/>
+      </div>
+      <div class="form-group full">
+        <label>Description of Condition *</label>
+        <textarea id="fund_description" rows="3" placeholder="Describe the medical condition in detail..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Estimated Treatment Cost (₹) *</label>
+        <input type="number" id="fund_amount" placeholder="e.g. 15000"/>
+      </div>
+      <div class="form-group">
+        <label>Veterinary Hospital / Clinic *</label>
+        <input type="text" id="fund_hospital" placeholder="Hospital name and city"/>
+      </div>
+      <div class="form-group">
+        <label>Treating Veterinarian Name</label>
+        <input type="text" id="fund_vetName" placeholder="Dr. Name"/>
+      </div>
+      <div class="form-group">
+        <label>Treatment Urgency</label>
+        <select id="fund_urgency">
+          <option value="normal">Normal</option>
+          <option value="urgent">Urgent</option>
+          <option value="critical">Critical / Emergency</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="fundStep(3)">Next →</button>
+      <button class="btn btn-outline" onclick="fundStep(1)">← Back</button>
+    </div>
+  </div>
+
+  <!-- Fund Step 3: Upload Documents -->
+  <div id="fundStep3" class="card hidden">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 3 — Upload Supporting Documents</h3>
+    <p style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">Upload the diagnosis report and medical bill. These will be reviewed before fund allocation.</p>
+
+    <div class="form-group" style="margin-bottom:16px;">
+      <label>Diagnosis Report (Image/PDF) *</label>
+      <div class="proof-area" id="diagReportArea" onclick="document.getElementById('diagReportInput').click()">
+        <div style="font-size:28px;">🩺</div>
+        <p style="font-size:13px; color:var(--text-muted);">Click to upload diagnosis report</p>
+      </div>
+      <input type="file" id="diagReportInput" accept="image/*,application/pdf" style="display:none;" onchange="handleDocUpload(event,'diagReport','diagReportArea')"/>
     </div>
 
-    <main class="container mx-auto px-4 py-8 max-w-5xl">
+    <div class="form-group">
+      <label>Medical Bill / Estimate *</label>
+      <div class="proof-area" id="medBillArea" onclick="document.getElementById('medBillInput').click()">
+        <div style="font-size:28px;">🧾</div>
+        <p style="font-size:13px; color:var(--text-muted);">Click to upload medical bill or estimate</p>
+      </div>
+      <input type="file" id="medBillInput" accept="image/*,application/pdf" style="display:none;" onchange="handleDocUpload(event,'medBill','medBillArea')"/>
+    </div>
 
-        <section id="register-section" class="tab-content block bg-white p-6 md:p-8 rounded-xl shadow-md border border-gray-100">
-            <div class="border-b pb-4 mb-6">
-                <h2 class="text-xl font-bold text-gray-800">Application for Digital Dog Health Card</h2>
-                <p class="text-sm text-gray-500">Provide accurate details to generate an official cryptographic ID card.</p>
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn btn-primary" onclick="fundStep(4)">Next →</button>
+      <button class="btn btn-outline" onclick="fundStep(2)">← Back</button>
+    </div>
+  </div>
+
+  <!-- Fund Step 4: Review & Submit -->
+  <div id="fundStep4" class="card hidden">
+    <h3 style="font-size:15px; margin-bottom:14px; color:var(--navy);">Step 4 — Review & Submit</h3>
+    <div id="fundReviewContent"></div>
+    <div style="margin-top:16px; display:flex; gap:10px;">
+      <button class="btn btn-green" onclick="submitFundRequest()" id="fundSubmitBtn">✅ Submit Fund Request</button>
+      <button class="btn btn-outline" onclick="fundStep(3)">← Back</button>
+    </div>
+  </div>
+
+  <!-- Fund Success -->
+  <div id="fundSuccess" class="card hidden" style="text-align:center; border-color:var(--success);">
+    <div style="font-size:50px; margin-bottom:12px;">✅</div>
+    <h3 style="font-size:20px; margin-bottom:8px; color:var(--success);">Fund Request Submitted!</h3>
+    <p style="color:var(--text-muted); margin-bottom:8px;">Your fund request has been sent for review.</p>
+    <div id="fundReqId" style="font-family:'JetBrains Mono',monospace; background:var(--bg); display:inline-block; padding:8px 18px; border-radius:6px; font-size:13px; margin-bottom:16px;"></div>
+    <p style="font-size:12px; color:var(--text-muted);">You can check the status of your request by searching the dog's record.</p>
+  </div>
+</div>
+
+<!-- ===== ADMIN PAGE ===== -->
+<div class="page" id="page-admin">
+  <div class="section-title">🔐 Admin Panel</div>
+  <div id="adminLoginPanel" class="card" style="max-width:400px;">
+    <h3 style="margin-bottom:14px;">Admin Login</h3>
+    <div class="form-group" style="margin-bottom:12px;">
+      <label>Admin Password</label>
+      <input type="password" id="adminPwd" placeholder="Enter admin password"/>
+    </div>
+    <button class="btn btn-primary" onclick="adminLogin()">Login</button>
+  </div>
+
+  <div id="adminDashboard" style="display:none;">
+    <div style="display:flex; gap:12px; margin-bottom:20px; flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="loadAdminFunds()">💰 Fund Requests</button>
+      <button class="btn btn-outline" onclick="loadAdminDogs()">🐕 All Dogs</button>
+    </div>
+
+    <div id="adminContent"></div>
+  </div>
+</div>
+
+</main>
+
+<footer>
+  <strong>LMDC — Lusy Medical Dog Care</strong> · Official Dog Health Registry Portal<br/>
+  Powered by <strong>Dozera</strong> · Ministry of Animal Welfare · India<br/>
+  <span style="font-size:10px; margin-top:6px; display:block;">© 2024 LMDC. All rights reserved. | REG: LMDC-IND-2024-001</span>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ===========================
+// GLOBALS
+// ===========================
+const VACCINES = [
+  { id: 'rabies', name: 'Rabies', icon: '🦠' },
+  { id: 'dhpp', name: 'DHPP (Distemper, Hepatitis, Parvo, Para)', icon: '💉' },
+  { id: 'parvovirus', name: 'Parvovirus', icon: '🧬' },
+  { id: 'distemper', name: 'Distemper', icon: '🦠' },
+  { id: 'leptospirosis', name: 'Leptospirosis', icon: '💉' },
+  { id: 'bordetella', name: 'Bordetella (Kennel Cough)', icon: '🫁' },
+  { id: 'hepatitis', name: 'Canine Hepatitis', icon: '🩺' },
+  { id: 'coronavirus', name: 'Canine Coronavirus', icon: '🧫' },
+  { id: 'influenza', name: 'Canine Influenza', icon: '🤧' },
+  { id: 'lyme', name: 'Lyme Disease', icon: '🦟' },
+];
+
+let dogImgBase64 = null;
+let currentSearchDog = null;
+let fundVerifiedDog = null;
+let updateProofBase64 = null;
+let diagReportBase64 = null;
+let medBillBase64 = null;
+let currentFundStep = 1;
+const ADMIN_PWD = 'lmdc2024admin';
+
+// Wait for Firebase
+function waitForFirebase(cb) {
+  if (window._firebaseReady) { cb(); return; }
+  window.addEventListener('firebaseReady', cb, { once: true });
+}
+
+// ===========================
+// INIT
+// ===========================
+document.addEventListener('DOMContentLoaded', () => {
+  renderVaccineChecklist();
+  updateClock();
+  setInterval(updateClock, 1000);
+  waitForFirebase(loadStats);
+
+  // Check URL params for QR scan
+  const params = new URLSearchParams(window.location.search);
+  const uid = params.get('uid');
+  if (uid) {
+    showPage('search');
+    document.getElementById('searchInput').value = uid;
+    waitForFirebase(() => searchDog(uid));
+  }
+});
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('currentDateTime').textContent =
+    now.toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) + ' ' +
+    now.toLocaleTimeString('en-IN', {hour:'2-digit',minute:'2-digit'});
+}
+
+function renderVaccineChecklist() {
+  const container = document.getElementById('vaccineChecklist');
+  container.innerHTML = VACCINES.map(v => `
+    <label class="vaccine-item" id="vi_${v.id}" onclick="toggleVaccine('${v.id}')">
+      <input type="checkbox" id="vc_${v.id}"/>
+      <span>${v.icon} ${v.name}</span>
+    </label>
+  `).join('');
+
+  // Also populate update dropdown
+  const sel = document.getElementById('updateVaccineSelect');
+  VACCINES.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id; opt.textContent = v.name;
+    sel.appendChild(opt);
+  });
+}
+
+function toggleVaccine(id) {
+  const el = document.getElementById('vi_' + id);
+  const cb = document.getElementById('vc_' + id);
+  cb.checked = !cb.checked;
+  el.classList.toggle('checked', cb.checked);
+}
+
+// ===========================
+// NAVIGATION
+// ===========================
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const btns = document.querySelectorAll('nav button');
+  const pageMap = { home: 0, register: 1, search: 2, fund: 3, admin: 4 };
+  btns[pageMap[name]].classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+// ===========================
+// TOAST
+// ===========================
+function showToast(msg, type = 'info') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + type;
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+}
+
+// ===========================
+// IMAGE UPLOAD
+// ===========================
+function handleDogImgUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 2 * 1024 * 1024) { showToast('Image too large. Max 2MB.', 'error'); return; }
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    dogImgBase64 = ev.target.result;
+    const preview = document.getElementById('dogImgPreview');
+    preview.src = dogImgBase64;
+    preview.style.display = 'block';
+    document.getElementById('dogImgUploadArea').classList.add('has-img');
+    showToast('Photo uploaded!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleUpdateProof(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    updateProofBase64 = ev.target.result;
+    document.getElementById('updateProofArea').classList.add('uploaded');
+    document.getElementById('updateProofArea').innerHTML = '<div style="font-size:28px;">✅</div><p style="font-size:13px;color:var(--success);">Document uploaded</p>';
+    showToast('Proof uploaded!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleDocUpload(e, key, areaId) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    if (key === 'diagReport') diagReportBase64 = ev.target.result;
+    if (key === 'medBill') medBillBase64 = ev.target.result;
+    const area = document.getElementById(areaId);
+    area.classList.add('uploaded');
+    area.innerHTML = '<div style="font-size:28px;">✅</div><p style="font-size:13px;color:var(--success);">Document uploaded</p>';
+    showToast('Document uploaded!', 'success');
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===========================
+// GENERATE UNIQUE ID
+// ===========================
+function generateUID() {
+  const year = new Date().getFullYear();
+  const rand = Math.random().toString(36).substring(2, 8).toUpperCase();
+  return `LMDC-${year}-${rand}`;
+}
+
+// ===========================
+// REGISTER DOG
+// ===========================
+async function registerDog() {
+  const dogName = document.getElementById('reg_dogName').value.trim();
+  const breed = document.getElementById('reg_breed').value;
+  const age = document.getElementById('reg_age').value.trim();
+  const color = document.getElementById('reg_color').value;
+  const gender = document.getElementById('reg_gender').value;
+  const dob = document.getElementById('reg_dob').value;
+  const ownerName = document.getElementById('reg_ownerName').value.trim();
+  const phone = document.getElementById('reg_phone').value.trim();
+  const email = document.getElementById('reg_email').value.trim();
+  const city = document.getElementById('reg_city').value.trim();
+  const address = document.getElementById('reg_address').value.trim();
+  const medNotes = document.getElementById('reg_medNotes').value.trim();
+
+  if (!dogName || !breed || !age || !color || !gender || !ownerName || !phone || !city) {
+    showToast('Please fill all required fields (*)', 'error');
+    return;
+  }
+
+  // Collect vaccines
+  const vaccines = {};
+  VACCINES.forEach(v => {
+    vaccines[v.id] = document.getElementById('vc_' + v.id).checked;
+  });
+
+  const btn = document.getElementById('registerBtn');
+  btn.innerHTML = '<span class="loader"></span> Registering...';
+  btn.disabled = true;
+
+  const uid = generateUID();
+  const now = new Date();
+  const issueDate = now.toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
+
+  const dogData = {
+    uid, dogName, breed, age, color, gender, dob, ownerName, phone, email,
+    city, address, medNotes, vaccines,
+    dogImg: dogImgBase64 || null,
+    registeredOn: now.toISOString(),
+    issueDate,
+    status: 'active'
+  };
+
+  try {
+    waitForFirebase(async () => {
+      const dbRef = window._ref(window._db, 'dogs/' + uid);
+      await window._set(dbRef, dogData);
+      showHealthCard(dogData);
+      loadStats();
+      showToast('Dog registered successfully! ID: ' + uid, 'success');
+      btn.innerHTML = '📋 Generate Health Card & Register';
+      btn.disabled = false;
+    });
+  } catch (err) {
+    showToast('Error saving. Please try again.', 'error');
+    btn.innerHTML = '📋 Generate Health Card & Register';
+    btn.disabled = false;
+  }
+}
+
+// ===========================
+// SHOW HEALTH CARD
+// ===========================
+function showHealthCard(data) {
+  document.getElementById('card_uid').textContent = data.uid;
+  document.getElementById('card_dogName').textContent = data.dogName;
+  document.getElementById('card_breed').textContent = data.breed + ' · ' + data.color;
+  document.getElementById('card_age').textContent = data.age;
+  document.getElementById('card_gender').textContent = data.gender;
+  document.getElementById('card_color').textContent = data.color;
+  document.getElementById('card_dob').textContent = data.dob || 'N/A';
+  document.getElementById('card_owner').textContent = data.ownerName;
+  document.getElementById('card_city').textContent = data.city;
+  document.getElementById('card_issueDate').textContent = data.issueDate;
+
+  // Dog image
+  const imgWrap = document.getElementById('card_img_wrap');
+  if (data.dogImg) {
+    imgWrap.innerHTML = `<img src="${data.dogImg}" alt="Dog"/>`;
+  } else {
+    imgWrap.innerHTML = '🐕';
+  }
+
+  // Vaccines
+  const vContainer = document.getElementById('card_vaccines');
+  vContainer.innerHTML = VACCINES.map(v => {
+    const given = data.vaccines[v.id];
+    return `<span class="vaccine-tag ${given ? 'yes' : 'no'}">${given ? '✅' : '❌'} ${v.name}</span>`;
+  }).join('');
+
+  // QR Code
+  const qrContainer = document.getElementById('card_qr_container');
+  qrContainer.innerHTML = '';
+  const qrURL = window.location.href.split('?')[0] + '?uid=' + data.uid;
+  new QRCode(qrContainer, { text: qrURL, width: 80, height: 80, colorDark: '#0a1628', colorLight: '#ffffff' });
+
+  document.getElementById('healthCardDisplay').style.display = 'block';
+  document.getElementById('healthCardDisplay').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===========================
+// DOWNLOAD HEALTH CARD PDF
+// ===========================
+async function downloadHealthCardPDF() {
+  showToast('Generating PDF...', 'info');
+  const { jsPDF } = window.jspdf;
+  const card = document.getElementById('dogHealthCard');
+  const canvas = await html2canvas(card, { scale: 2, backgroundColor: '#0d1f3c' });
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [700, 360] });
+  pdf.addImage(imgData, 'PNG', 0, 0, 700, 360);
+  const uid = document.getElementById('card_uid').textContent;
+  pdf.save(`LMDC-HealthCard-${uid}.pdf`);
+  showToast('PDF downloaded!', 'success');
+}
+
+// ===========================
+// CLEAR FORM
+// ===========================
+function clearForm() {
+  document.getElementById('reg_dogName').value = '';
+  document.getElementById('reg_breed').value = '';
+  document.getElementById('reg_age').value = '';
+  document.getElementById('reg_color').value = '';
+  document.getElementById('reg_gender').value = '';
+  document.getElementById('reg_dob').value = '';
+  document.getElementById('reg_ownerName').value = '';
+  document.getElementById('reg_phone').value = '';
+  document.getElementById('reg_email').value = '';
+  document.getElementById('reg_city').value = '';
+  document.getElementById('reg_address').value = '';
+  document.getElementById('reg_medNotes').value = '';
+  dogImgBase64 = null;
+  document.getElementById('dogImgPreview').style.display = 'none';
+  document.getElementById('dogImgUploadArea').classList.remove('has-img');
+  VACCINES.forEach(v => {
+    document.getElementById('vc_' + v.id).checked = false;
+    document.getElementById('vi_' + v.id).classList.remove('checked');
+  });
+  document.getElementById('healthCardDisplay').style.display = 'none';
+}
+
+// ===========================
+// SEARCH DOG
+// ===========================
+async function searchDog(preUid) {
+  const uid = preUid || document.getElementById('searchInput').value.trim().toUpperCase();
+  if (!uid) { showToast('Please enter a Dog ID', 'error'); return; }
+
+  showToast('Searching...', 'info');
+
+  waitForFirebase(async () => {
+    try {
+      const dbRef = window._ref(window._db, 'dogs/' + uid);
+      const snapshot = await window._get(dbRef);
+      if (!snapshot.exists()) {
+        showToast('No dog found with this ID.', 'error');
+        document.getElementById('searchResult').style.display = 'none';
+        return;
+      }
+      const data = snapshot.val();
+      currentSearchDog = data;
+      renderDogRecord(data);
+      showToast('Record found!', 'success');
+    } catch (e) {
+      showToast('Error fetching record.', 'error');
+    }
+  });
+}
+
+function renderDogRecord(data) {
+  document.getElementById('rec_dogName').textContent = data.dogName;
+  document.getElementById('rec_uid').textContent = 'ID: ' + data.uid;
+  document.getElementById('rec_breed').textContent = data.breed;
+  document.getElementById('rec_age').textContent = data.age;
+  document.getElementById('rec_color').textContent = data.color;
+  document.getElementById('rec_gender').textContent = data.gender;
+  document.getElementById('rec_dob').textContent = data.dob || 'N/A';
+  document.getElementById('rec_owner').textContent = data.ownerName;
+  document.getElementById('rec_phone').textContent = data.phone;
+  document.getElementById('rec_city').textContent = data.city;
+  document.getElementById('rec_notes').textContent = data.medNotes || 'None';
+  document.getElementById('rec_date').textContent = new Date(data.registeredOn).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+
+  // Image
+  const imgWrap = document.getElementById('rec_img_wrap');
+  if (data.dogImg) {
+    imgWrap.innerHTML = `<img src="${data.dogImg}" alt="Dog"/>`;
+  } else {
+    imgWrap.textContent = '🐕';
+  }
+
+  // Vaccines
+  const vDiv = document.getElementById('rec_vaccines');
+  vDiv.innerHTML = `<div style="display:flex; flex-wrap:wrap; gap:8px;">` +
+    VACCINES.map(v => {
+      const given = data.vaccines && data.vaccines[v.id];
+      return `<span class="vaccine-tag ${given ? 'yes' : 'no'}">${given ? '✅' : '❌'} ${v.name}</span>`;
+    }).join('') + '</div>';
+
+  // Funds
+  loadFundsForDog(data.uid);
+
+  document.getElementById('searchResult').style.display = 'block';
+  document.getElementById('updateVaccinePanel').style.display = 'none';
+  document.getElementById('searchResult').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function loadFundsForDog(uid) {
+  waitForFirebase(async () => {
+    try {
+      const dbRef = window._ref(window._db, 'funds');
+      const snapshot = await window._get(dbRef);
+      const fundsDiv = document.getElementById('rec_funds');
+      if (!snapshot.exists()) { fundsDiv.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No fund requests on record.</p>'; return; }
+      const allFunds = snapshot.val();
+      const dogFunds = Object.values(allFunds).filter(f => f.uid === uid);
+      if (dogFunds.length === 0) { fundsDiv.innerHTML = '<p style="font-size:13px;color:var(--text-muted);">No fund requests on record.</p>'; return; }
+      fundsDiv.innerHTML = dogFunds.map(f => `
+        <div style="border:1px solid var(--border); border-radius:8px; padding:12px; margin-bottom:10px; font-size:13px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong>${f.illness}</strong>
+            <span class="fund-status ${f.status}">${f.status === 'approved' ? '✅ Approved' : f.status === 'rejected' ? '❌ Rejected' : '⏳ Pending'}</span>
+          </div>
+          <div style="color:var(--text-muted);">Amount: ₹${Number(f.amount).toLocaleString('en-IN')} · Hospital: ${f.hospital}</div>
+          <div style="color:var(--text-muted); font-size:11px; margin-top:4px;">Request ID: ${f.fundId}</div>
+          ${f.adminNote ? `<div style="margin-top:6px; padding:6px 10px; background:#f0f4f8; border-radius:5px; font-size:12px; color:var(--navy);">Admin Note: ${f.adminNote}</div>` : ''}
+        </div>
+      `).join('');
+    } catch(e) {}
+  });
+}
+
+// ===========================
+// UPDATE VACCINATION
+// ===========================
+function openUpdateVaccine() {
+  document.getElementById('updateVaccinePanel').style.display = 'block';
+  document.getElementById('updateVaccinePanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function submitVaccineUpdate() {
+  const vaccine = document.getElementById('updateVaccineSelect').value;
+  const date = document.getElementById('updateVaccineDate').value;
+  if (!vaccine) { showToast('Select a vaccine', 'error'); return; }
+  if (!updateProofBase64) { showToast('Please upload proof of vaccination', 'error'); return; }
+  if (!currentSearchDog) { showToast('No dog selected', 'error'); return; }
+
+  waitForFirebase(async () => {
+    try {
+      const uid = currentSearchDog.uid;
+      const updates = {};
+      updates[`dogs/${uid}/vaccines/${vaccine}`] = true;
+      updates[`dogs/${uid}/vaccineHistory/${vaccine}`] = {
+        date: date || new Date().toISOString().split('T')[0],
+        proof: updateProofBase64,
+        updatedOn: new Date().toISOString()
+      };
+      await window._update(window._ref(window._db), updates);
+      currentSearchDog.vaccines[vaccine] = true;
+      showToast('Vaccination record updated!', 'success');
+      document.getElementById('updateVaccinePanel').style.display = 'none';
+      renderDogRecord(currentSearchDog);
+    } catch(e) {
+      showToast('Error updating record.', 'error');
+    }
+  });
+}
+
+// ===========================
+// DOWNLOAD RECORD PDF
+// ===========================
+async function downloadRecordPDF() {
+  if (!currentSearchDog) { showToast('No record loaded', 'error'); return; }
+  showToast('Generating PDF report...', 'info');
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const d = currentSearchDog;
+  const pw = pdf.internal.pageSize.getWidth();
+
+  // Background header
+  pdf.setFillColor(10, 22, 40);
+  pdf.rect(0, 0, pw, 90, 'F');
+
+  pdf.setTextColor(200, 169, 81);
+  pdf.setFontSize(20);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('LMDC — LUSY MEDICAL DOG CARE', pw / 2, 35, { align: 'center' });
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(255, 255, 255);
+  pdf.text('OFFICIAL DOG HEALTH RECORD · POWERED BY DOZERA', pw / 2, 52, { align: 'center' });
+  pdf.text(`UID: ${d.uid}`, pw / 2, 68, { align: 'center' });
+
+  // Dog image if available
+  let yStart = 110;
+  if (d.dogImg) {
+    try {
+      pdf.addImage(d.dogImg, 'JPEG', 30, 100, 70, 70);
+      yStart = 100;
+    } catch(e) {}
+  }
+
+  pdf.setTextColor(10, 22, 40);
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(d.dogName, 120, yStart + 20);
+  pdf.setFontSize(12);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(90, 106, 126);
+  pdf.text(`Breed: ${d.breed}`, 120, yStart + 38);
+  pdf.text(`Owner: ${d.ownerName}`, 120, yStart + 54);
+
+  // Separator
+  let y = yStart + 90;
+  pdf.setDrawColor(200, 169, 81);
+  pdf.setLineWidth(1.5);
+  pdf.line(30, y, pw - 30, y);
+  y += 16;
+
+  const rows = [
+    ['Dog Name', d.dogName], ['Breed', d.breed], ['Age', d.age],
+    ['Color', d.color], ['Gender', d.gender], ['Date of Birth', d.dob || 'N/A'],
+    ['Owner Name', d.ownerName], ['Phone', d.phone], ['City', d.city],
+    ['Registered On', new Date(d.registeredOn).toLocaleDateString('en-IN')],
+    ['Medical Notes', d.medNotes || 'None']
+  ];
+  pdf.setFontSize(11);
+  rows.forEach(([label, val]) => {
+    pdf.setFont('helvetica', 'bold');
+    pdf.setTextColor(90, 106, 126);
+    pdf.text(label + ':', 30, y);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(10, 22, 40);
+    pdf.text(String(val), 180, y);
+    y += 18;
+  });
+
+  y += 10;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(10, 22, 40);
+  pdf.setFontSize(13);
+  pdf.text('VACCINATION RECORD', 30, y);
+  y += 14;
+  pdf.setDrawColor(200, 169, 81);
+  pdf.line(30, y, pw - 30, y);
+  y += 12;
+
+  pdf.setFontSize(10);
+  VACCINES.forEach(v => {
+    const given = d.vaccines && d.vaccines[v.id];
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(given ? 39 : 200, given ? 174 : 80, given ? 96 : 60);
+    pdf.text((given ? '✓ ' : '✗ ') + v.name + ': ' + (given ? 'Vaccinated' : 'Not Vaccinated'), 30, y);
+    y += 16;
+  });
+
+  // Footer
+  const ph = pdf.internal.pageSize.getHeight();
+  pdf.setFillColor(10, 22, 40);
+  pdf.rect(0, ph - 40, pw, 40, 'F');
+  pdf.setTextColor(200, 169, 81);
+  pdf.setFontSize(9);
+  pdf.text('LMDC Official Health Record · Powered by Dozera · REG: LMDC-IND-2024-001', pw / 2, ph - 20, { align: 'center' });
+
+  pdf.save(`LMDC-Record-${d.uid}.pdf`);
+  showToast('PDF report downloaded!', 'success');
+}
+
+// ===========================
+// FUND REQUEST
+// ===========================
+function fundStep(n) {
+  currentFundStep = n;
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('fundStep' + i);
+    const stepEl = document.getElementById('fstep' + i);
+    if (i === n) { el.classList.remove('hidden'); }
+    else { el.classList.add('hidden'); }
+    if (i < n) { stepEl.className = 'step-item done'; }
+    else if (i === n) { stepEl.className = 'step-item active'; }
+    else { stepEl.className = 'step-item'; }
+  }
+}
+
+async function verifyDogForFund() {
+  const uid = document.getElementById('fund_uid').value.trim().toUpperCase();
+  const name = document.getElementById('fund_dogNameVerify').value.trim().toLowerCase();
+  if (!uid || !name) { showToast('Enter both ID and dog name', 'error'); return; }
+
+  waitForFirebase(async () => {
+    try {
+      const dbRef = window._ref(window._db, 'dogs/' + uid);
+      const snap = await window._get(dbRef);
+      const resultDiv = document.getElementById('fundVerifyResult');
+      if (!snap.exists()) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="padding:10px;background:#f8d7da;color:#721c24;border-radius:6px;font-size:13px;">❌ No dog found with this ID.</div>';
+        return;
+      }
+      const data = snap.val();
+      if (data.dogName.toLowerCase() !== name) {
+        resultDiv.style.display = 'block';
+        resultDiv.innerHTML = '<div style="padding:10px;background:#f8d7da;color:#721c24;border-radius:6px;font-size:13px;">❌ Dog name does not match. Please check and try again.</div>';
+        return;
+      }
+      fundVerifiedDog = data;
+      resultDiv.style.display = 'block';
+      resultDiv.innerHTML = `<div style="padding:10px;background:#d4f5e1;color:#1a6b3a;border-radius:6px;font-size:13px;">✅ Verified: <strong>${data.dogName}</strong> (${data.breed}) — Owner: ${data.ownerName}</div>`;
+      setTimeout(() => fundStep(2), 1000);
+    } catch(e) {
+      showToast('Verification error.', 'error');
+    }
+  });
+}
+
+function buildFundReview() {
+  const illness = document.getElementById('fund_illness').value;
+  const desc = document.getElementById('fund_description').value;
+  const amount = document.getElementById('fund_amount').value;
+  const hospital = document.getElementById('fund_hospital').value;
+  const vetName = document.getElementById('fund_vetName').value;
+  const urgency = document.getElementById('fund_urgency').value;
+
+  document.getElementById('fundReviewContent').innerHTML = `
+    <table class="info-table">
+      <tr><td>Dog</td><td><strong>${fundVerifiedDog.dogName}</strong> (${fundVerifiedDog.uid})</td></tr>
+      <tr><td>Owner</td><td>${fundVerifiedDog.ownerName}</td></tr>
+      <tr><td>Diagnosis</td><td>${illness}</td></tr>
+      <tr><td>Description</td><td>${desc}</td></tr>
+      <tr><td>Amount Requested</td><td>₹${Number(amount).toLocaleString('en-IN')}</td></tr>
+      <tr><td>Hospital</td><td>${hospital}</td></tr>
+      <tr><td>Veterinarian</td><td>${vetName || 'N/A'}</td></tr>
+      <tr><td>Urgency</td><td>${urgency}</td></tr>
+      <tr><td>Diagnosis Report</td><td>${diagReportBase64 ? '✅ Uploaded' : '❌ Not uploaded'}</td></tr>
+      <tr><td>Medical Bill</td><td>${medBillBase64 ? '✅ Uploaded' : '❌ Not uploaded'}</td></tr>
+    </table>
+  `;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Override fundStep4 click to also build review
+  const origFundStep = window.fundStep;
+});
+
+// Override step 4 to also build review
+const _origFundStep = fundStep;
+window.fundStep = function(n) {
+  if (n === 4) {
+    const illness = document.getElementById('fund_illness').value;
+    const amount = document.getElementById('fund_amount').value;
+    const hospital = document.getElementById('fund_hospital').value;
+    if (!illness || !amount || !hospital) { showToast('Please fill all required fields', 'error'); return; }
+    if (!diagReportBase64 || !medBillBase64) { showToast('Please upload both diagnosis report and medical bill', 'error'); return; }
+    _origFundStep(n);
+    buildFundReview();
+  } else {
+    _origFundStep(n);
+  }
+};
+
+async function submitFundRequest() {
+  if (!fundVerifiedDog) { showToast('Dog not verified', 'error'); return; }
+  const btn = document.getElementById('fundSubmitBtn');
+  btn.innerHTML = '<span class="loader"></span> Submitting...';
+  btn.disabled = true;
+
+  const fundId = 'FUND-' + Date.now().toString(36).toUpperCase();
+  const fundData = {
+    fundId,
+    uid: fundVerifiedDog.uid,
+    dogName: fundVerifiedDog.dogName,
+    ownerName: fundVerifiedDog.ownerName,
+    ownerPhone: fundVerifiedDog.phone,
+    illness: document.getElementById('fund_illness').value,
+    description: document.getElementById('fund_description').value,
+    amount: document.getElementById('fund_amount').value,
+    hospital: document.getElementById('fund_hospital').value,
+    vetName: document.getElementById('fund_vetName').value,
+    urgency: document.getElementById('fund_urgency').value,
+    diagReport: diagReportBase64,
+    medBill: medBillBase64,
+    status: 'pending',
+    submittedOn: new Date().toISOString()
+  };
+
+  waitForFirebase(async () => {
+    try {
+      const dbRef = window._ref(window._db, 'funds/' + fundId);
+      await window._set(dbRef, fundData);
+      document.getElementById('fundStep4').classList.add('hidden');
+      document.getElementById('fundSuccess').classList.remove('hidden');
+      document.getElementById('fundReqId').textContent = 'Request ID: ' + fundId;
+      loadStats();
+      showToast('Fund request submitted!', 'success');
+    } catch(e) {
+      showToast('Error submitting request.', 'error');
+      btn.innerHTML = '✅ Submit Fund Request';
+      btn.disabled = false;
+    }
+  });
+}
+
+// ===========================
+// STATS
+// ===========================
+async function loadStats() {
+  waitForFirebase(async () => {
+    try {
+      const dogsSnap = await window._get(window._ref(window._db, 'dogs'));
+      const fundsSnap = await window._get(window._ref(window._db, 'funds'));
+      const dogs = dogsSnap.exists() ? Object.values(dogsSnap.val()) : [];
+      const vaccinated = dogs.filter(d => d.vaccines && d.vaccines.rabies).length;
+      document.getElementById('statTotal').textContent = dogs.length;
+      document.getElementById('statVaccinated').textContent = vaccinated;
+      const funds = fundsSnap.exists() ? Object.keys(fundsSnap.val()).length : 0;
+      document.getElementById('statFunds').textContent = funds;
+    } catch(e) {}
+  });
+}
+
+// ===========================
+// ADMIN
+// ===========================
+function adminLogin() {
+  const pwd = document.getElementById('adminPwd').value;
+  if (pwd === ADMIN_PWD) {
+    document.getElementById('adminLoginPanel').style.display = 'none';
+    document.getElementById('adminDashboard').style.display = 'block';
+    loadAdminFunds();
+  } else {
+    showToast('Incorrect password', 'error');
+  }
+}
+
+async function loadAdminFunds() {
+  const content = document.getElementById('adminContent');
+  content.innerHTML = '<p style="font-size:13px; color:var(--text-muted);">Loading...</p>';
+  waitForFirebase(async () => {
+    try {
+      const snap = await window._get(window._ref(window._db, 'funds'));
+      if (!snap.exists()) { content.innerHTML = '<p>No fund requests yet.</p>'; return; }
+      const funds = Object.values(snap.val());
+      content.innerHTML = `<div class="section-title">💰 Fund Requests (${funds.length})</div>` +
+        funds.map(f => `
+          <div class="card" style="margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+              <div>
+                <strong style="font-size:16px;">${f.dogName}</strong>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-muted); margin-left:10px;">${f.uid}</span>
+              </div>
+              <span class="fund-status ${f.status}">${f.status === 'approved' ? '✅ Approved' : f.status === 'rejected' ? '❌ Rejected' : '⏳ Pending Review'}</span>
             </div>
-
-            <form id="registrationForm" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Dog's Name *</label>
-                        <input type="text" id="dogName" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Owner's Full Name *</label>
-                        <input type="text" id="ownerName" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Breed *</label>
-                        <select id="dogBreed" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none bg-white">
-                            <option value="">Select Breed</option>
-                            <option value="American Bully (Pocket Size)">American Bully (Pocket Size)</option>
-                            <option value="Shih Tzu">Shih Tzu</option>
-                            <option value="Labrador Retriever">Labrador Retriever</option>
-                            <option value="German Shepherd">German Shepherd</option>
-                            <option value="Golden Retriever">Golden Retriever</option>
-                            <option value="Rottweiler">Rottweiler</option>
-                            <option value="Pug">Pug</option>
-                            <option value="Beagle">Beagle</option>
-                            <option value="Indie / Mixed Breed">Indie / Mixed Breed</option>
-                        </select>
-                    </div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">Age (Years) *</label>
-                            <input type="number" id="dogAge" min="0" max="30" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-semibold text-gray-700 mb-1">Coat Color *</label>
-                            <input type="text" id="dogColor" placeholder="e.g., Black, Fawn" required class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-4 rounded-xl border">
-                    <h3 class="font-bold text-gray-700 mb-3 text-sm tracking-wide uppercase">Official Vaccination Mandate Checklist</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <label class="flex items-center p-3 bg-white border rounded-lg cursor-pointer hover:bg-emerald-50 transition">
-                            <input type="checkbox" id="vaxRabies" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500">
-                            <span class="ml-3 text-sm font-medium text-gray-700">Anti-Rabies Vaccine (ARV)</span>
-                        </label>
-                        <label class="flex items-center p-3 bg-white border rounded-lg cursor-pointer hover:bg-emerald-50 transition">
-                            <input type="checkbox" id="vaxDHPPiL" class="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500">
-                            <span class="ml-3 text-sm font-medium text-gray-700">DHPPi + Lepto (7-in-1 Combo)</span>
-                        </label>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Upload Dog Photograph *</label>
-                    <input type="file" id="dogPhoto" accept="image/*" required class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100">
-                    <input type="hidden" id="photoBase64">
-                </div>
-
-                <button type="submit" class="w-full govt-gradient text-white font-bold py-3 px-6 rounded-lg shadow hover:opacity-95 transition-all uppercase tracking-wider text-sm">Generate & Register Health Card</button>
-            </form>
-        </section>
-
-        <section id="search-section" class="tab-content hidden bg-white p-6 md:p-8 rounded-xl shadow-md border border-gray-100">
-            <div class="border-b pb-4 mb-6">
-                <h2 class="text-xl font-bold text-gray-800">Search Digital Registry</h2>
-                <p class="text-sm text-gray-500">Enter the unique system identification code to fetch live digital records.</p>
+            <table class="info-table" style="font-size:12px;">
+              <tr><td>Owner</td><td>${f.ownerName} · ${f.ownerPhone}</td></tr>
+              <tr><td>Illness</td><td>${f.illness}</td></tr>
+              <tr><td>Amount</td><td>₹${Number(f.amount).toLocaleString('en-IN')}</td></tr>
+              <tr><td>Hospital</td><td>${f.hospital}</td></tr>
+              <tr><td>Urgency</td><td>${f.urgency}</td></tr>
+              <tr><td>Submitted</td><td>${new Date(f.submittedOn).toLocaleDateString('en-IN')}</td></tr>
+            </table>
+            <div style="display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;">
+              ${f.diagReport ? `<a href="${f.diagReport}" target="_blank"><button class="btn btn-outline btn-sm">📄 View Report</button></a>` : ''}
+              ${f.medBill ? `<a href="${f.medBill}" target="_blank"><button class="btn btn-outline btn-sm">🧾 View Bill</button></a>` : ''}
+              ${f.status === 'pending' ? `
+                <input type="text" id="note_${f.fundId}" placeholder="Admin note (optional)" style="padding:6px 10px; border:1px solid var(--border); border-radius:5px; font-size:12px; flex:1; min-width:150px;"/>
+                <button class="btn btn-green btn-sm" onclick="updateFundStatus('${f.fundId}','approved')">✅ Approve</button>
+                <button class="btn btn-red btn-sm" onclick="updateFundStatus('${f.fundId}','rejected')">❌ Reject</button>
+              ` : ''}
             </div>
+          </div>
+        `).join('');
+    } catch(e) {
+      content.innerHTML = '<p style="color:red;">Error loading funds.</p>';
+    }
+  });
+}
 
-            <div class="flex flex-col sm:flex-row gap-4 mb-8">
-                <input type="text" id="searchId" placeholder="Enter Unique Dog ID (e.g., LMDC-XXXXXX)" class="flex-1 p-3 border rounded-lg uppercase tracking-wider outline-none focus:ring-2 focus:ring-emerald-600">
-                <button id="btnSearchQuery" class="bg-slate-800 text-white font-bold px-6 py-3 rounded-lg hover:bg-slate-900 transition-all">Query System</button>
-            </div>
+async function updateFundStatus(fundId, status) {
+  const note = document.getElementById('note_' + fundId)?.value || '';
+  waitForFirebase(async () => {
+    try {
+      await window._update(window._ref(window._db), {
+        [`funds/${fundId}/status`]: status,
+        [`funds/${fundId}/adminNote`]: note,
+        [`funds/${fundId}/reviewedOn`]: new Date().toISOString()
+      });
+      showToast(`Fund request ${status}!`, status === 'approved' ? 'success' : 'error');
+      loadAdminFunds();
+    } catch(e) {
+      showToast('Error updating status', 'error');
+    }
+  });
+}
 
-            <div id="cardOutputContainer" class="hidden space-y-6">
-                <div class="flex justify-end">
-                    <button onclick="downloadPDFReport()" class="bg-rose-700 text-white text-xs font-bold px-4 py-2 rounded shadow hover:bg-rose-800 transition">Download Official PDF Report</button>
-                </div>
-                
-                <div id="printableHealthCard" class="max-w-md mx-auto bg-white border-4 border-slate-800 rounded-2xl overflow-hidden shadow-2xl relative">
-                    <div class="bg-slate-800 text-white p-4 text-center border-b">
-                        <span class="text-xs font-bold tracking-widest text-emerald-400">LUSY MEDICAL CARE SYSTEM</span>
-                        <h3 class="text-base font-extrabold tracking-wider">OFFICIAL CANINE HEALTH IDENTITY</h3>
-                    </div>
-                    
-                    <div class="p-5 grid grid-cols-3 gap-4 bg-amber-50/30">
-                        <div class="col-span-1 flex flex-col items-center justify-start space-y-2">
-                            <img id="renderPhoto" src="" alt="Dog Portrait" class="w-24 h-28 object-cover rounded-md border-2 border-slate-700 shadow-sm bg-gray-200">
-                            <div class="text-[10px] font-bold text-slate-500 bg-gray-100 px-1 py-0.5 rounded border text-center uppercase">Verified</div>
-                        </div>
-                        
-                        <div class="col-span-2 space-y-1.5 text-xs text-slate-800">
-                            <p><strong>Unique ID:</strong> <span id="renderId" class="text-red-700 font-mono font-bold"></span></p>
-                            <p><strong>Name:</strong> <span id="renderName" class="font-bold"></span></p>
-                            <p><strong>Owner:</strong> <span id="renderOwner"></span></p>
-                            <p><strong>Breed:</strong> <span id="renderBreed"></span></p>
-                            <p><strong>Age:</strong> <span id="renderAge"></span> Yrs | <strong>Color:</strong> <span id="renderColor"></span></p>
-                            
-                            <div class="mt-3 pt-2 border-t border-dashed border-slate-300">
-                                <p class="text-[10px] uppercase font-bold tracking-wider text-slate-500 mb-1">Vaccination Checks:</p>
-                                <div class="space-y-0.5 text-[11px]">
-                                    <div>Rabies: <span id="renderRabies" class="font-bold"></span></div>
-                                    <div>7-in-1 Combo: <span id="renderCombo" class="font-bold"></span></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-gray-100 border-t p-3 text-center">
-                        <div class="text-[10px] text-slate-600 font-medium">
-                            Powered by <span class="font-bold text-emerald-800">Dozera Technologies</span> | Dynamic Live Registry
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <section id="funds-section" class="tab-content hidden bg-white p-6 md:p-8 rounded-xl shadow-md border border-gray-100">
-            <div class="border-b pb-4 mb-6">
-                <h2 class="text-xl font-bold text-gray-800">Medical Grant & Fund Allocation Protocol</h2>
-                <p class="text-sm text-gray-500">Submit requests for financial allocations directly into your digital health record profile.</p>
-            </div>
-
-            <div class="mb-6 grid grid-cols-3 text-center text-xs font-bold text-gray-500 border-b pb-3">
-                <div id="step1-lbl" class="text-emerald-700 border-b-2 border-emerald-700 pb-2">1. Profile Auth</div>
-                <div id="step2-lbl" class="pb-2">2. Upload Evidence</div>
-                <div id="step3-lbl" class="pb-2">3. Admin Audit</div>
-            </div>
-
-            <form id="fundRequestForm" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Unique Dog ID *</label>
-                        <input type="text" id="fundUid" required placeholder="LMDC-XXXXXX" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none uppercase font-mono">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Dog Name (Security Match Check) *</label>
-                        <input type="text" id="fundNameCheck" required placeholder="Must match system exactly" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                    </div>
-                </div>
-
-                <div class="border-t pt-4">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1">Diagnosis / Medical Condition Details *</label>
-                    <textarea id="fundReason" required rows="3" placeholder="Describe illness, emergency nature, or surgical requirements..." class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none"></textarea>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Medical Report / Bill Upload *</label>
-                        <input type="file" id="fundEvidence" accept="image/*,application/pdf" required class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700">
-                        <input type="hidden" id="evidenceBase64">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-1">Requested Capital Amount (INR) *</label>
-                        <input type="number" id="fundAmount" required min="1" placeholder="₹ Amount Required" class="w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-emerald-600 outline-none">
-                    </div>
-                </div>
-
-                <button type="submit" class="w-full bg-slate-800 text-white font-bold py-3 px-6 rounded-lg shadow hover:bg-slate-950 transition-all uppercase tracking-wider text-sm">Transmit Grant Request File</button>
-            </form>
-        </section>
-
-    </main>
-
-    <script>
-        // Production App Configuration Initialization
-        const firebaseConfig = {
-            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-            authDomain: "pulse2-92372.firebaseapp.com",
-            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-            projectId: "pulse2-92372",
-            storageBucket: "pulse2-92372.firebasestorage.app",
-            messagingSenderId: "276235725177",
-            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
-        };
-
-        // Initialize Global App Setup
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        // Base64 File Readers Setup
-        function setupBase64Listener(inputId, hiddenId) {
-            document.getElementById(inputId).addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                const reader = new FileReader();
-                reader.onloadend = function() {
-                    document.getElementById(hiddenId).value = reader.result;
-                }
-                if (file) { reader.readAsDataURL(file); }
-            });
-        }
-        setupBase64Listener('dogPhoto', 'photoBase64');
-        setupBase64Listener('fundEvidence', 'evidenceBase64');
-
-        // Form Submission Execution Handler
-        document.getElementById('registrationForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const uniqueId = 'LMDC-' + Math.floor(100000 + Math.random() * 900000);
-            
-            const payload = {
-                id: uniqueId,
-                dogName: document.getElementById('dogName').value,
-                ownerName: document.getElementById('ownerName').value,
-                breed: document.getElementById('dogBreed').value,
-                age: document.getElementById('dogAge').value,
-                color: document.getElementById('dogColor').value,
-                rabiesVax: document.getElementById('vaxRabies').checked ? "YES (Verified)" : "NO",
-                comboVax: document.getElementById('vaxDHPPiL').checked ? "YES (Verified)" : "NO",
-                photo: document.getElementById('photoBase64').value || "", 
-                allottedFunds: "₹0"
-            };
-
-            db.ref('dogs/' + uniqueId).set(payload, function(error) {
-                if (error) {
-                    alert("Write failed! Please ensure your Firebase Console Rules are set to true.");
-                } else {
-                    alert(`Registration Successful!\nGenerated ID: ${uniqueId}`);
-                    document.getElementById('registrationForm').reset();
-                    document.getElementById('searchId').value = uniqueId;
-                    switchTab('search-section');
-                    searchDogRecord();
-                }
-            });
-        });
-
-        // Search Engine Query Trigger
-        function searchDogRecord() {
-            const idInput = document.getElementById('searchId').value.trim().toUpperCase();
-            if(!idInput) return alert("Input a valid key.");
-
-            db.ref('dogs/' + idInput).once('value').then((snapshot) => {
-                if(snapshot.exists()) {
-                    const data = snapshot.val();
-                    
-                    document.getElementById('renderId').innerText = data.id;
-                    document.getElementById('renderName').innerText = data.dogName;
-                    document.getElementById('renderOwner').innerText = data.ownerName;
-                    document.getElementById('renderBreed').innerText = data.breed;
-                    document.getElementById('renderAge').innerText = data.age;
-                    document.getElementById('renderColor').innerText = data.color;
-                    document.getElementById('renderRabies').innerText = data.rabiesVax;
-                    document.getElementById('renderCombo').innerText = data.comboVax;
-                    document.getElementById('renderPhoto').src = data.photo || "https://via.placeholder.com/150";
-                    
-                    document.getElementById('cardOutputContainer').classList.remove('hidden');
-                } else {
-                    alert("No matching record found.");
-                    document.getElementById('cardOutputContainer').classList.add('hidden');
-                }
-            }).catch((err) => {
-                alert("Cloud connection error.");
-            });
-        }
-        document.getElementById('btnSearchQuery').addEventListener('click', searchDogRecord);
-
-        // Funds Request Allocation Logic Handler
-        document.getElementById('fundRequestForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const targetId = document.getElementById('fundUid').value.trim().toUpperCase();
-            const nameCheckInput = document.getElementById('fundNameCheck').value.trim().toLowerCase();
-
-            db.ref('dogs/' + targetId).once('value').then((snapshot) => {
-                if(!snapshot.exists()) {
-                    return alert("Verification Error: Unique Key Unregistered.");
-                }
-
-                const actualData = snapshot.val();
-                if(actualData.dogName.toLowerCase() !== nameCheckInput) {
-                    return alert("Security Block: Parameters do not match current registry files.");
-                }
-
-                const currentRequestedAmount = document.getElementById('fundAmount').value;
-                const updatePayload = {
-                    allottedFunds: `Pending Audit - Requested: ₹${currentRequestedAmount}`,
-                    medicalClaimReason: document.getElementById('fundReason').value,
-                    claimDocumentProof: document.getElementById('evidenceBase64').value
-                };
-
-                db.ref('dogs/' + targetId).update(updatePayload, function(err) {
-                    if(err) {
-                        alert("Update rejected.");
-                    } else {
-                        alert("File successfully transmitted to administrative deck.");
-                        document.getElementById('fundRequestForm').reset();
-                    }
-                });
-            });
-        });
-
-        // Navigation Tabs Engine Utility
-        function switchTab(targetSectionId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(targetSectionId).classList.remove('hidden');
-            
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('bg-emerald-800', 'text-white');
-                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-            });
-            
-            const currentTabBtn = document.getElementById('btn-' + targetSectionId);
-            if(currentTabBtn){
-                currentTabBtn.classList.add('bg-emerald-800', 'text-white');
-                currentTabBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-            }
-        }
-    </script>
-
-    <script>
-        function downloadPDFReport() {
-            const targetElement = document.getElementById('printableHealthCard');
-            const targetUid = document.getElementById('renderId').innerText || "Registry";
-            const setupConfig = {
-                margin:       [0.5, 0.5, 0.5, 0.5],
-                filename:     `LMDC_Report_${targetUid}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-            html2pdf().set(setupConfig).from(targetElement).save();
-        }
-    </script>
+async function loadAdminDogs() {
+  const content = document.getElementById('adminContent');
+  content.innerHTML = '<p style="font-size:13px; color:var(--text-muted);">Loading...</p>';
+  waitForFirebase(async () => {
+    try {
+      const snap = await window._get(window._ref(window._db, 'dogs'));
+      if (!snap.exists()) { content.innerHTML = '<p>No dogs registered yet.</p>'; return; }
+      const dogs = Object.values(snap.val());
+      content.innerHTML = `<div class="section-title">🐕 All Registered Dogs (${dogs.length})</div>
+        <table class="info-table" style="background:#fff; border-radius:8px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,0.07);">
+          <tr style="background:var(--navy); color:#fff;">
+            <td><strong>UID</strong></td>
+            <td><strong>Name</strong></td>
+            <td><strong>Breed</strong></td>
+            <td><strong>Owner</strong></td>
+            <td><strong>City</strong></td>
+            <td><strong>Registered</strong></td>
+          </tr>
+          ${dogs.map(d => `
+            <tr>
+              <td style="font-family:'JetBrains Mono',monospace; font-size:11px;">${d.uid}</td>
+              <td><strong>${d.dogName}</strong></td>
+              <td>${d.breed}</td>
+              <td>${d.ownerName}</td>
+              <td>${d.city}</td>
+              <td>${new Date(d.registeredOn).toLocaleDateString('en-IN')}</td>
+            </tr>
+          `).join('')}
+        </table>`;
+    } catch(e) {
+      content.innerHTML = '<p style="color:red;">Error loading dogs.</p>';
+    }
+  });
+}
+</script>
 </body>
 </html>
