@@ -7,8 +7,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 
     <style>
         .govt-gradient {
@@ -46,7 +46,7 @@
                 <p class="text-sm text-gray-500">Provide accurate details to generate an official cryptographic ID card.</p>
             </div>
 
-            <form id="registrationForm" onsubmit="handleRegistration(event)" class="space-y-6">
+            <form id="registrationForm" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Dog's Name *</label>
@@ -106,7 +106,7 @@
 
             <div class="flex flex-col sm:flex-row gap-4 mb-8">
                 <input type="text" id="searchId" placeholder="Enter Unique Dog ID (e.g., LMDC-XXXXXX)" class="flex-1 p-3 border rounded-lg uppercase tracking-wider outline-none focus:ring-2 focus:ring-emerald-600">
-                <button onclick="searchDogRecord()" class="bg-slate-800 text-white font-bold px-6 py-3 rounded-lg hover:bg-slate-900 transition-all">Query System</button>
+                <button id="btnSearchQuery" class="bg-slate-800 text-white font-bold px-6 py-3 rounded-lg hover:bg-slate-900 transition-all">Query System</button>
             </div>
 
             <div id="cardOutputContainer" class="hidden space-y-6">
@@ -123,7 +123,7 @@
                     <div class="p-5 grid grid-cols-3 gap-4 bg-amber-50/30">
                         <div class="col-span-1 flex flex-col items-center justify-start space-y-2">
                             <img id="renderPhoto" src="" alt="Dog Portrait" class="w-24 h-28 object-cover rounded-md border-2 border-slate-700 shadow-sm bg-gray-200">
-                            <div class="text-[10px] font-bold text-slate-500 bg-gray-100 px-1 py-0.5 rounded border text-center uppercase">Photo Verified</div>
+                            <div class="text-[10px] font-bold text-slate-500 bg-gray-100 px-1 py-0.5 rounded border text-center uppercase">Verified</div>
                         </div>
                         
                         <div class="col-span-2 space-y-1.5 text-xs text-slate-800">
@@ -143,12 +143,10 @@
                         </div>
                     </div>
 
-                    <div class="bg-gray-100 border-t p-3 flex justify-between items-center px-5">
-                        <div class="text-[9px] text-slate-500 leading-tight">
-                            Powered by <strong>Dozera Technologies</strong><br>
-                            Scan code to check real-time dynamic changes.
+                    <div class="bg-gray-100 border-t p-3 text-center">
+                        <div class="text-[10px] text-slate-600 font-medium">
+                            Powered by <span class="font-bold text-emerald-800">Dozera Technologies</span> | Dynamic Live Registry
                         </div>
-                        <img id="renderQr" src="" alt="Dynamic QR" class="w-16 h-16 border bg-white p-0.5">
                     </div>
                 </div>
             </div>
@@ -166,7 +164,7 @@
                 <div id="step3-lbl" class="pb-2">3. Admin Audit</div>
             </div>
 
-            <form id="fundRequestForm" onsubmit="handleFundRequest(event)" class="space-y-6">
+            <form id="fundRequestForm" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-1">Unique Dog ID *</label>
@@ -202,7 +200,7 @@
     </main>
 
     <script>
-        // Provided Configuration
+        // Production Configuration initialization
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -213,11 +211,11 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase cleanly without ES6 Modules conflict
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-        // 1. Dynamic Dropdown Breeds API Loader (Background execution)
+        // Fetch Dogs Breed List directly in background
         async function loadBreeds() {
             const selectEl = document.getElementById('dogBreed');
             try {
@@ -238,7 +236,7 @@
         }
         loadBreeds();
 
-        // 2. Base64 File Readers Config
+        // Base64 Image Processing Listeners
         function setupBase64Listener(inputId, hiddenId) {
             document.getElementById(inputId).addEventListener('change', function(e) {
                 const file = e.target.files[0];
@@ -252,25 +250,8 @@
         setupBase64Listener('dogPhoto', 'photoBase64');
         setupBase64Listener('fundEvidence', 'evidenceBase64');
 
-        // Tab Switch Routing
-        function switchTab(targetSectionId) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(targetSectionId).classList.remove('hidden');
-            
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                btn.classList.remove('bg-emerald-800', 'text-white');
-                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
-            });
-            
-            const currentTabBtn = document.getElementById('btn-' + targetSectionId);
-            if(currentTabBtn){
-                currentTabBtn.classList.add('bg-emerald-800', 'text-white');
-                currentTabBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
-            }
-        }
-
-        // 3. Register Function Execution
-        async function handleRegistration(e) {
+        // Form Registration Handler
+        document.getElementById('registrationForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const uniqueId = 'LMDC-' + Math.floor(100000 + Math.random() * 900000);
             
@@ -287,100 +268,102 @@
                 allottedFunds: "₹0"
             };
 
-            db.ref('dogs/' + uniqueId).set(payload)
-                .then(() => {
-                    alert(`Registration successful!\nGenerated ID: ${uniqueId}`);
+            db.ref('dogs/' + uniqueId).set(payload, function(error) {
+                if (error) {
+                    alert("Firebase write blocked! Please review Database Rules configuration.");
+                } else {
+                    alert(`Registration Successful!\nGenerated ID: ${uniqueId}`);
                     document.getElementById('registrationForm').reset();
                     document.getElementById('searchId').value = uniqueId;
                     switchTab('search-section');
                     searchDogRecord();
-                })
-                .catch((err) => {
-                    alert("Firebase write blocked. Check rules configuration.");
-                    console.error(err);
-                });
-        }
+                }
+            });
+        });
 
-        // 4. Query Registry Search Engine
-        async function searchDogRecord() {
+        // Search Engine Query Action
+        function searchDogRecord() {
             const idInput = document.getElementById('searchId').value.trim().toUpperCase();
-            if(!idInput) return alert("Input a valid reference key.");
+            if(!idInput) return alert("Input a valid key.");
 
-            db.ref('dogs/' + idInput).once('value')
-                .then((snapshot) => {
-                    if(snapshot.exists()) {
-                        const data = snapshot.val();
-                        
-                        document.getElementById('renderId').innerText = data.id;
-                        document.getElementById('renderName').innerText = data.dogName;
-                        document.getElementById('renderOwner').innerText = data.ownerName;
-                        document.getElementById('renderBreed').innerText = data.breed;
-                        document.getElementById('renderAge').innerText = data.age;
-                        document.getElementById('renderColor').innerText = data.color;
-                        document.getElementById('renderRabies').innerText = data.rabiesVax;
-                        document.getElementById('renderCombo').innerText = data.comboVax;
-                        document.getElementById('renderPhoto').src = data.photo || "https://via.placeholder.com/150";
-                        
-                        const livePortalUrl = `${window.location.origin}${window.location.pathname}?verifyId=${data.id}`;
-                        document.getElementById('renderQr').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(livePortalUrl)}`;
-                        
-                        document.getElementById('cardOutputContainer').classList.remove('hidden');
-                    } else {
-                        alert("No registered data match found.");
-                        document.getElementById('cardOutputContainer').classList.add('hidden');
-                    }
-                })
-                .catch((err) => {
-                    alert("Data connection timeout.");
-                });
+            db.ref('dogs/' + idInput).once('value').then((snapshot) => {
+                if(snapshot.exists()) {
+                    const data = snapshot.val();
+                    
+                    document.getElementById('renderId').innerText = data.id;
+                    document.getElementById('renderName').innerText = data.dogName;
+                    document.getElementById('renderOwner').innerText = data.ownerName;
+                    document.getElementById('renderBreed').innerText = data.breed;
+                    document.getElementById('renderAge').innerText = data.age;
+                    document.getElementById('renderColor').innerText = data.color;
+                    document.getElementById('renderRabies').innerText = data.rabiesVax;
+                    document.getElementById('renderCombo').innerText = data.comboVax;
+                    document.getElementById('renderPhoto').src = data.photo || "https://via.placeholder.com/150";
+                    
+                    document.getElementById('cardOutputContainer').classList.remove('hidden');
+                } else {
+                    alert("No matching record found.");
+                    document.getElementById('cardOutputContainer').classList.add('hidden');
+                }
+            }).catch((err) => {
+                alert("Cloud Sync failure.");
+            });
         }
+        document.getElementById('btnSearchQuery').addEventListener('click', searchDogRecord);
 
-        // 5. Submit Fund Allocations
-        async function handleFundRequest(e) {
+        // Fund Allocation Request System Handler
+        document.getElementById('fundRequestForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const targetId = document.getElementById('fundUid').value.trim().toUpperCase();
             const nameCheckInput = document.getElementById('fundNameCheck').value.trim().toLowerCase();
 
-            db.ref('dogs/' + targetId).once('value')
-                .then((snapshot) => {
-                    if(!snapshot.exists()) {
-                        return alert("Verification Error: Unique Key Unregistered.");
+            db.ref('dogs/' + targetId).once('value').then((snapshot) => {
+                if(!snapshot.exists()) {
+                    return alert("Verification Error: Unique Key Unregistered.");
+                }
+
+                const actualData = snapshot.val();
+                if(actualData.dogName.toLowerCase() !== nameCheckInput) {
+                    return alert("Security Block: Parameters do not match current registry files.");
+                }
+
+                const currentRequestedAmount = document.getElementById('fundAmount').value;
+                const updatePayload = {
+                    allottedFunds: `Pending Audit - Requested: ₹${currentRequestedAmount}`,
+                    medicalClaimReason: document.getElementById('fundReason').value,
+                    claimDocumentProof: document.getElementById('evidenceBase64').value
+                };
+
+                db.ref('dogs/' + targetId).update(updatePayload, function(err) {
+                    if(err) {
+                        alert("Update rejected.");
+                    } else {
+                        alert("File successfully transmitted to administrative deck.");
+                        document.getElementById('fundRequestForm').reset();
                     }
-
-                    const actualData = snapshot.val();
-                    if(actualData.dogName.toLowerCase() !== nameCheckInput) {
-                        return alert("Security Block: Parameters do not match current registry files.");
-                    }
-
-                    const currentRequestedAmount = document.getElementById('fundAmount').value;
-                    const updatePayload = {
-                        allottedFunds: `Pending Audit - Requested: ₹${currentRequestedAmount}`,
-                        medicalClaimReason: document.getElementById('fundReason').value,
-                        claimDocumentProof: document.getElementById('evidenceBase64').value
-                    };
-
-                    return db.ref('dogs/' + targetId).update(updatePayload);
-                })
-                .then(() => {
-                    alert("File successfully transmitted to administrative deck.");
-                    document.getElementById('fundRequestForm').reset();
-                })
-                .catch((err) => {
-                    alert("Operation failed context mismatch.");
                 });
-        }
-
-        // Check for QR URL redirects parameters
-        window.addEventListener('DOMContentLoaded', () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const autoKey = urlParams.get('verifyId');
-            if(autoKey) {
-                switchTab('search-section');
-                document.getElementById('searchId').value = autoKey.toUpperCase();
-                setTimeout(() => { searchDogRecord(); }, 1000);
-            }
+            });
         });
 
+        // Tab routing utility logic
+        function switchTab(targetSectionId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(targetSectionId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('bg-emerald-800', 'text-white');
+                btn.classList.add('text-gray-600', 'hover:bg-gray-100');
+            });
+            
+            const currentTabBtn = document.getElementById('btn-' + targetSectionId);
+            if(currentTabBtn){
+                currentTabBtn.classList.add('bg-emerald-800', 'text-white');
+                currentTabBtn.classList.remove('text-gray-600', 'hover:bg-gray-100');
+            }
+        }
+    </script>
+
+    <script>
         function downloadPDFReport() {
             const targetElement = document.getElementById('printableHealthCard');
             const targetUid = document.getElementById('renderId').innerText || "Registry";
