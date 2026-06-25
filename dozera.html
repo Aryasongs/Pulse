@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dozera Group — System Check Portal</title>
+
+<!-- Firebase SDKs -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+  import { getDatabase, ref, get, onValue, push, serverTimestamp }
+    from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+    authDomain: "pulse2-92372.firebaseapp.com",
+    databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+    projectId: "pulse2-92372",
+    storageBucket: "pulse2-92372.firebasestorage.app",
+    messagingSenderId: "276235725177",
+    appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getDatabase(app);
+
+  // ─── HELPERS ────────────────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const show = id => $(id) && ($(id).style.display = "flex");
+  const hide = id => $(id) && ($(id).style.display = "none");
+
+  // ─── LOGIN ───────────────────────────────────────────────────────────────────
+  window.doLogin = async () => {
+    const email    = $("loginEmail").value.trim();
+    const password = $("loginPassword").value.trim();
+    const btn      = $("loginBtn");
+    const err      = $("loginError");
+
+    if (!email || !password) { err.textContent = "Please fill in all fields."; err.style.display = "block"; return; }
+
+    btn.disabled = true; btn.textContent = "Signing in…";
+    err.style.display = "none";
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged handles next step
+    } catch (e) {
+      let msg = "Login failed. Check your credentials.";
+      if (e.code === "auth/user-disabled")      msg = "⚠️ Your account has been suspended.";
+      else if (e.code === "auth/user-not-found") msg = "No account found for this email.";
+      else if (e.code === "auth/wrong-password") msg = "Incorrect password.";
+      err.textContent = msg; err.style.display = "block";
+      btn.disabled = false; btn.textContent = "Sign In";
+    }
+  };
+
+  // ─── AUTH STATE ──────────────────────────────────────────────────────────────
+  onAuthStateChanged(auth, async user => {
+    if (!user) { showScreen("loginScreen"); return; }
+
+    // Check disabled flag in Realtime Database (Firebase client can't detect disabled via auth alone after token refresh)
+    const suspendRef = ref(db, `suspensions/${user.uid}`);
+    const suspendSnap = await get(suspendRef);
+
+    if (suspendSnap.exists() && suspendSnap.val().suspended === true) {
+      showScreen("suspendedScreen");
+      loadSuspensionDetails(user.uid, suspendSnap.val());
+      return;
+    }
+
+    // Normal user — load dashboard
+    showScreen("dashboardScreen");
+    loadDashboard(user);
+  });
+
+  // ─── SCREEN SWITCHER ─────────────────────────────────────────────────────────
+  function showScreen(id) {
+    ["loginScreen","dashboardScreen","suspendedScreen","appealScreen"].forEach(hide);
+    show(id);
+  }
+
+  // ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  async function loadDashboard(user) {
+    $("userEmail").textContent   = user.email;
+    $("userUid").textContent     = user.uid;
+    $("userVerified").textContent = user.emailVerified ? "✅ Verified" : "❌ Not Verified";
+
+    const dataRef = ref(db, `users/${user.uid}`);
+    onValue(dataRef, snap => {
+      const data = snap.val() || {};
+      renderFirebaseData(data, user.uid);
+    });
+  }
+
+  function renderFirebaseData(data, uid) {
+    const container = $("firebaseDataContainer");
+    container.innerHTML = "";
+
+    if (!data || Object.keys(data).length === 0) {
+      container.innerHTML = `<p class="no-data">No data found in the database for your account.</p>`;
+      return;
+    }
+
+    // Map of known keys to friendly labels + icons
+    const sectionMeta = {
+      profile:      { label: "Profile Info",        icon: "👤" },
+      projects:     { label: "Projects",             icon: "📁" },
+      attendance:   { label: "Attendance Records",   icon: "🗓️" },
+      tasks:        { label: "Assigned Tasks",        icon: "✅" },
+      salary:       { label: "Salary Details",       icon: "💰" },
+      leave:        { label: "Leave History",        icon: "🏖️" },
+      performance:  { label: "Performance Reviews",  icon: "📈" },
+      documents:    { label: "Documents",            icon: "📄" },
+      notifications:{ label: "Notifications",        icon: "🔔" },
+      companies:    { label: "Company Access",       icon: "🏢" },
+      bans:         { label: "Ban Records",          icon: "🚫" },
+    };
+
+    // Oriontec ban check — special callout
+    const oriontecBanned = checkOriontecBan(data);
+
+    if (oriontecBanned) {
+      const card = document.createElement("div");
+      card.className = "data-card ban-card";
+      card.innerHTML = `
+        <div class="card-header"><span>🚫</span><span>Oriontec (Dozera Group Sub-Company) — Access Restricted</span></div>
+        <div class="card-body">
+          <p class="ban-detail">You are <strong>banned</strong> from Oriontec systems.</p>
+          <p class="ban-reason"><strong>Reason:</strong> ${oriontecBanned.reason || "Policy violation"}</p>
+          <p class="ban-since"><strong>Since:</strong> ${oriontecBanned.since || "N/A"}</p>
+        </div>`;
+      container.appendChild(card);
+    }
+
+    // Render all sections
+    for (const [key, val] of Object.entries(data)) {
+      const meta = sectionMeta[key] || { label: capitalize(key), icon: "📋" };
+      const card = document.createElement("div");
+      card.className = "data-card";
+      card.innerHTML = `
+        <div class="card-header"><span>${meta.icon}</span><span>${meta.label}</span>
+          <button class="toggle-btn" onclick="toggleCard(this)">▼</button>
+        </div>
+        <div class="card-body card-content">${renderValue(val)}</div>`;
+      container.appendChild(card);
+    }
+  }
+
+  function checkOriontecBan(data) {
+    // Check multiple possible paths: data.bans.oriontec, data.companies.oriontec.banned, etc.
+    if (data.bans?.oriontec)                          return data.bans.oriontec;
+    if (data.companies?.oriontec?.banned === true)    return data.companies.oriontec;
+    if (data.oriontec?.banned === true)               return data.oriontec;
+    return null;
+  }
+
+  function renderValue(val) {
+    if (val === null || val === undefined) return `<span class="null-val">null</span>`;
+    if (typeof val === "boolean") return `<span class="bool-val">${val}</span>`;
+    if (typeof val !== "object")  return `<span class="scalar-val">${val}</span>`;
+    return `<table class="db-table">${Object.entries(val).map(([k,v]) =>
+      `<tr><td class="db-key">${k}</td><td class="db-val">${typeof v === "object" ? `<pre>${JSON.stringify(v,null,2)}</pre>` : v}</td></tr>`
+    ).join("")}</table>`;
+  }
+
+  function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  // ─── SUSPENDED SCREEN ────────────────────────────────────────────────────────
+  function loadSuspensionDetails(uid, suspData) {
+    $("suspEmail").textContent   = auth.currentUser?.email || "N/A";
+    $("suspReason").textContent  = suspData.reason  || "Violation of company policy";
+    $("suspSince").textContent   = suspData.since   || "N/A";
+    $("suspExpiry").textContent  = suspData.expiry  || "Indefinite";
+    $("suspBannedBy").textContent= suspData.by      || "Dozera Group Admin";
+
+    // Show which companies are affected
+    const companiesRef = ref(db, `users/${uid}/companies`);
+    get(companiesRef).then(snap => {
+      const data = snap.val() || {};
+      const list = $("suspCompanyList");
+      list.innerHTML = "";
+
+      const allCompanies = ["Dozera Group", "Oriontec", ...Object.keys(data)];
+      const unique = [...new Set(allCompanies)];
+      unique.forEach(c => {
+        const li = document.createElement("li");
+        li.className = "company-item";
+        const banned = data[c.toLowerCase()]?.banned || suspData.suspended;
+        li.innerHTML = `<span class="company-name">${c}</span>
+          <span class="company-status ${banned ? 'banned' : 'active'}">${banned ? "🚫 Banned" : "✅ Active"}</span>`;
+        list.appendChild(li);
+      });
+      if (list.children.length === 0) {
+        list.innerHTML = "<li class='company-item'><span class='company-name'>All Dozera Group companies</span><span class='company-status banned'>🚫 Banned</span></li>";
+      }
+    });
+  }
+
+  // ─── APPEAL ──────────────────────────────────────────────────────────────────
+  window.openAppeal = () => { showScreen("appealScreen"); };
+  window.backToSuspended = () => { showScreen("suspendedScreen"); };
+
+  window.submitAppeal = async () => {
+    const reason  = $("appealReason").value.trim();
+    const details = $("appealDetails").value.trim();
+    const btn     = $("appealBtn");
+    const msg     = $("appealMsg");
+
+    if (!reason || !details) { msg.textContent = "Please fill in all required fields."; msg.className = "alert alert-error"; msg.style.display="block"; return; }
+
+    btn.disabled = true; btn.textContent = "Submitting…";
+    const user = auth.currentUser;
+
+    try {
+      await push(ref(db, `appeals/${user.uid}`), {
+        email: user.email,
+        uid: user.uid,
+        reason,
+        details,
+        timestamp: serverTimestamp(),
+        status: "pending"
+      });
+      msg.textContent = "✅ Appeal submitted successfully! You will be notified within 3–5 business days.";
+      msg.className = "alert alert-success";
+      msg.style.display = "block";
+      btn.textContent = "Submitted";
+    } catch (e) {
+      msg.textContent = "Failed to submit appeal. Please try again.";
+      msg.className = "alert alert-error";
+      msg.style.display = "block";
+      btn.disabled = false; btn.textContent = "Submit Appeal";
+    }
+  };
+
+  // ─── LOGOUT ──────────────────────────────────────────────────────────────────
+  window.doLogout = () => signOut(auth);
+  window.toggleCard = btn => {
+    const body = btn.closest(".data-card").querySelector(".card-content");
+    if (body.style.display === "none") { body.style.display = "block"; btn.textContent = "▼"; }
+    else { body.style.display = "none"; btn.textContent = "►"; }
+  };
+  window.togglePassword = () => {
+    const f = $("loginPassword");
+    f.type = f.type === "password" ? "text" : "password";
+  };
+</script>
+
+<style>
+  /* ── TOKENS ─────────────────────────────────── */
+  :root {
+    --bg:        #0a0c12;
+    --surface:   #111520;
+    --surface2:  #171c2c;
+    --border:    #1e2638;
+    --accent:    #3b6cf8;
+    --accent2:   #7c3cf8;
+    --danger:    #e84545;
+    --warn:      #f5a623;
+    --success:   #22c55e;
+    --text:      #e8eaf0;
+    --muted:     #6b7280;
+    --card-r:    12px;
+    --ff:        'Inter', system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--ff);
+    min-height: 100vh;
+    line-height: 1.6;
+  }
+
+  /* ── SCREENS ────────────────────────────────── */
+  .screen {
+    display: none;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+  /* ── NAV ────────────────────────────────────── */
+  nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .nav-brand {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .brand-logo {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; letter-spacing: -0.5px;
+  }
+  .brand-name { font-weight: 700; font-size: 15px; letter-spacing: -0.3px; }
+  .brand-sub  { font-size: 11px; color: var(--muted); }
+
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .badge-status {
+    padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    background: #0f2e1a; color: var(--success); border: 1px solid #1a4a2e;
+  }
+  .badge-suspended { background: #2e1515; color: var(--danger); border-color: #4a2020; }
+
+  /* ── BUTTONS ────────────────────────────────── */
+  .btn {
+    padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer;
+    font-family: var(--ff); font-size: 14px; font-weight: 600;
+    transition: opacity .15s, transform .1s;
+  }
+  .btn:hover { opacity: .88; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  .btn-primary  { background: var(--accent);  color: #fff; }
+  .btn-danger   { background: var(--danger);  color: #fff; }
+  .btn-ghost    { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn-sm       { padding: 7px 14px; font-size: 12px; }
+  .btn-full     { width: 100%; }
+
+  /* ── LOGIN SCREEN ───────────────────────────── */
+  #loginScreen {
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 24px;
+    background: radial-gradient(ellipse at 60% 0%, #0f1a3a 0%, var(--bg) 60%);
+  }
+  .login-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%; max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  .login-logo {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; font-size: 20px; margin: 0 auto 20px;
+    box-shadow: 0 8px 24px rgba(59,108,248,.35);
+  }
+  .login-card h2 { text-align: center; font-size: 22px; font-weight: 700; }
+  .login-card p  { text-align: center; color: var(--muted); font-size: 13px; margin-top: 4px; margin-bottom: 28px; }
+  .field { margin-bottom: 16px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .6px; }
+  .field input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text);
+    font-family: var(--ff); font-size: 14px; outline: none;
+    transition: border-color .15s;
+  }
+  .field input:focus { border-color: var(--accent); }
+  .pwd-wrap { position: relative; }
+  .pwd-wrap input { padding-right: 44px; }
+  .show-pwd {
+    position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+    background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px;
+  }
+  .alert {
+    padding: 11px 14px; border-radius: 8px; font-size: 13px;
+    margin-top: 12px; display: none;
+  }
+  .alert-error   { background: #2e1515; color: var(--danger); border: 1px solid #4a1f1f; }
+  .alert-success { background: #0f2e1a; color: var(--success); border: 1px solid #1a4a2e; }
+  .login-footer  { text-align: center; font-size: 11px; color: var(--muted); margin-top: 24px; }
+
+  /* ── DASHBOARD SCREEN ───────────────────────── */
+  #dashboardScreen { flex-direction: column; }
+  .dash-main { padding: 24px; max-width: 960px; margin: 0 auto; width: 100%; }
+  .dash-header {
+    background: linear-gradient(135deg, #0d1a3a, #0a1228);
+    border: 1px solid var(--border); border-radius: var(--card-r);
+    padding: 24px 28px; margin-bottom: 24px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .dash-header h3 { font-size: 18px; font-weight: 700; }
+  .meta-row { display: flex; gap: 24px; flex-wrap: wrap; margin-top: 8px; }
+  .meta-item { font-size: 12px; color: var(--muted); }
+  .meta-item span { color: var(--text); font-weight: 500; }
+  .section-title {
+    font-size: 13px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .8px;
+    margin-bottom: 14px; padding-left: 2px;
+  }
+
+  /* DATA CARDS */
+  .data-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--card-r); margin-bottom: 14px; overflow: hidden;
+  }
+  .data-card.ban-card { border-color: #4a1f1f; background: #1a0d0d; }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 18px; font-weight: 600; font-size: 14px;
+    background: var(--surface2);
+  }
+  .ban-card .card-header { background: #2a1010; color: var(--danger); }
+  .toggle-btn {
+    margin-left: auto; background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 12px; padding: 4px 8px;
+  }
+  .card-body { padding: 16px 18px; }
+  .ban-detail  { color: var(--danger); font-size: 14px; margin-bottom: 6px; }
+  .ban-reason, .ban-since { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .ban-reason strong, .ban-since strong { color: var(--text); }
+  .db-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .db-table tr:not(:last-child) { border-bottom: 1px solid var(--border); }
+  .db-key  { padding: 8px 12px 8px 0; color: var(--muted); width: 38%; font-weight: 500; vertical-align: top; }
+  .db-val  { padding: 8px 0; color: var(--text); vertical-align: top; word-break: break-all; }
+  .db-val pre { font-size: 11px; background: var(--bg); padding: 8px; border-radius: 6px; overflow-x: auto; }
+  .null-val { color: var(--muted); font-style: italic; }
+  .bool-val { color: #7dd3fc; font-weight: 600; }
+  .scalar-val { color: var(--text); }
+  .no-data { color: var(--muted); font-size: 13px; text-align: center; padding: 24px 0; }
+
+  /* ── SUSPENDED SCREEN ───────────────────────── */
+  #suspendedScreen { flex-direction: column; }
+  .susp-main { padding: 24px; max-width: 700px; margin: 0 auto; width: 100%; }
+  .susp-banner {
+    background: linear-gradient(135deg, #1e0808, #2a0a0a);
+    border: 1px solid #5a1f1f; border-radius: var(--card-r);
+    padding: 28px; margin-bottom: 20px; text-align: center;
+  }
+  .susp-icon { font-size: 48px; margin-bottom: 12px; }
+  .susp-banner h2 { font-size: 22px; font-weight: 800; color: var(--danger); }
+  .susp-banner p  { color: #c0a0a0; font-size: 13px; margin-top: 6px; }
+  .susp-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px;
+  }
+  .susp-info-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 16px;
+  }
+  .susp-info-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .susp-info-card .value { font-size: 14px; font-weight: 600; margin-top: 4px; }
+  .susp-companies {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 18px 20px; margin-bottom: 20px;
+  }
+  .susp-companies h4 { font-size: 13px; font-weight: 700; margin-bottom: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .company-item {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border); list-style: none;
+  }
+  .company-item:last-child { border-bottom: none; }
+  .company-name  { font-size: 14px; font-weight: 500; }
+  .company-status { font-size: 12px; font-weight: 600; }
+  .company-status.banned { color: var(--danger); }
+  .company-status.active { color: var(--success); }
+  .susp-actions { display: flex; gap: 12px; }
+
+  /* ── APPEAL SCREEN ──────────────────────────── */
+  #appealScreen { flex-direction: column; }
+  .appeal-main { padding: 24px; max-width: 620px; margin: 0 auto; width: 100%; }
+  .appeal-header {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 22px; margin-bottom: 20px;
+  }
+  .appeal-header h3 { font-size: 18px; font-weight: 700; }
+  .appeal-header p  { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .appeal-form {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--card-r); padding: 24px;
+  }
+  .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text);
+    font-family: var(--ff); font-size: 14px; outline: none;
+  }
+  .field textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 11px 14px; color: var(--text);
+    font-family: var(--ff); font-size: 14px; outline: none; resize: vertical; min-height: 120px;
+  }
+  .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .appeal-info { font-size: 12px; color: var(--muted); margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* ── RESPONSIVE ─────────────────────────────── */
+  @media (max-width: 520px) {
+    .susp-grid { grid-template-columns: 1fr; }
+    .field-row  { grid-template-columns: 1fr; }
+    .susp-actions { flex-direction: column; }
+    .login-card { padding: 28px 20px; }
+    .dash-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     LOGIN SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-logo">DG</div>
+    <h2>Dozera Group</h2>
+    <p>System Check Portal — Sign in to your account</p>
+
+    <div class="field">
+      <label>Email Address</label>
+      <input type="email" id="loginEmail" placeholder="you@dozera.com" />
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <div class="pwd-wrap">
+        <input type="password" id="loginPassword" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter') doLogin()" />
+        <button class="show-pwd" onclick="togglePassword()" title="Show/hide">👁</button>
+      </div>
+    </div>
+
+    <div class="alert alert-error" id="loginError"></div>
+
+    <button class="btn btn-primary btn-full" id="loginBtn" onclick="doLogin()"
+            style="margin-top:20px">Sign In</button>
+
+    <p class="login-footer">Dozera Group Internal Portal · All access is monitored</p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DASHBOARD SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="dashboardScreen" style="flex-direction:column">
+  <nav>
+    <div class="nav-brand">
+      <div class="brand-logo">DG</div>
+      <div>
+        <div class="brand-name">Dozera Group</div>
+        <div class="brand-sub">System Check Portal</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="badge-status">● Active</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="dash-main">
+    <div class="dash-header">
+      <div>
+        <h3>Welcome back 👋</h3>
+        <div class="meta-row">
+          <div class="meta-item">Email: <span id="userEmail">—</span></div>
+          <div class="meta-item">UID: <span id="userUid">—</span></div>
+          <div class="meta-item">Status: <span id="userVerified">—</span></div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign Out</button>
+    </div>
+
+    <div class="section-title">Your Firebase Data</div>
+    <div id="firebaseDataContainer">
+      <div class="data-card" style="padding:24px;text-align:center;color:var(--muted);font-size:13px">
+        Loading your data…
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     SUSPENDED SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="suspendedScreen" style="flex-direction:column">
+  <nav>
+    <div class="nav-brand">
+      <div class="brand-logo">DG</div>
+      <div>
+        <div class="brand-name">Dozera Group</div>
+        <div class="brand-sub">System Check Portal</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <span class="badge-status badge-suspended">⚠ Suspended</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign Out</button>
+    </div>
+  </nav>
+
+  <div class="susp-main">
+    <div class="susp-banner">
+      <div class="susp-icon">🚫</div>
+      <h2>Account Suspended</h2>
+      <p>Your access to Dozera Group systems has been suspended.<br>
+         You may still log in but access to services is restricted.</p>
+    </div>
+
+    <div class="susp-grid">
+      <div class="susp-info-card">
+        <div class="label">Account</div>
+        <div class="value" id="suspEmail">—</div>
+      </div>
+      <div class="susp-info-card">
+        <div class="label">Banned By</div>
+        <div class="value" id="suspBannedBy">—</div>
+      </div>
+      <div class="susp-info-card">
+        <div class="label">Reason</div>
+        <div class="value" id="suspReason" style="color:var(--warn)">—</div>
+      </div>
+      <div class="susp-info-card">
+        <div class="label">Suspended Since</div>
+        <div class="value" id="suspSince">—</div>
+      </div>
+      <div class="susp-info-card" style="grid-column:1/-1">
+        <div class="label">Expected Expiry</div>
+        <div class="value" id="suspExpiry">—</div>
+      </div>
+    </div>
+
+    <div class="susp-companies">
+      <h4>Companies — Access Status</h4>
+      <ul id="suspCompanyList"></ul>
+    </div>
+
+    <div class="susp-actions">
+      <button class="btn btn-primary" onclick="openAppeal()" style="flex:1">
+        📝 Submit an Appeal
+      </button>
+      <button class="btn btn-ghost" onclick="doLogout()" style="flex:1">
+        Sign Out
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     APPEAL SCREEN
+═══════════════════════════════════════════ -->
+<div class="screen" id="appealScreen" style="flex-direction:column">
+  <nav>
+    <div class="nav-brand">
+      <div class="brand-logo">DG</div>
+      <div>
+        <div class="brand-name">Dozera Group</div>
+        <div class="brand-sub">Appeal Portal</div>
+      </div>
+    </div>
+    <div class="nav-right">
+      <button class="btn btn-ghost btn-sm" onclick="backToSuspended()">← Back</button>
+    </div>
+  </nav>
+
+  <div class="appeal-main">
+    <div class="appeal-header">
+      <h3>📝 Submit a Suspension Appeal</h3>
+      <p>Fill out this form carefully. Your appeal will be reviewed by Dozera Group admins within 3–5 business days.</p>
+    </div>
+
+    <div class="appeal-form">
+      <div class="field">
+        <label>Appeal Reason *</label>
+        <select id="appealReason">
+          <option value="">— Select a reason —</option>
+          <option value="wrongful_ban">Wrongful / Mistaken Ban</option>
+          <option value="misunderstanding">Misunderstanding / Miscommunication</option>
+          <option value="policy_clarification">I was unaware of the policy</option>
+          <option value="account_hacked">My account was compromised / Hacked</option>
+          <option value="changed_behaviour">I acknowledge the violation and have changed</option>
+          <option value="technical_error">Technical error or system mistake</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Your Full Name</label>
+          <input type="text" id="appealName" placeholder="Muhammad Ali" />
+        </div>
+        <div class="field">
+          <label>Contact Number</label>
+          <input type="text" id="appealPhone" placeholder="+92 300 0000000" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Detailed Explanation *</label>
+        <textarea id="appealDetails"
+          placeholder="Explain in detail why you believe your suspension should be reviewed or lifted. Include any relevant context, dates, or evidence."></textarea>
+      </div>
+
+      <div class="field">
+        <label>Supporting Evidence / Reference (optional)</label>
+        <input type="text" id="appealEvidence" placeholder="Link, ticket number, or reference ID" />
+      </div>
+
+      <div class="alert" id="appealMsg"></div>
+
+      <button class="btn btn-primary btn-full" id="appealBtn" onclick="submitAppeal()"
+              style="margin-top:20px">Submit Appeal</button>
+
+      <div class="appeal-info">
+        ⚠️ False or misleading appeals may result in a permanent ban. All submissions are reviewed by Dozera Group's compliance team.
+        Appeals are typically resolved within <strong>3–5 business days</strong>.
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
