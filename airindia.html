@@ -1,85 +1,326 @@
-// 5. Open Source / REST API Fetch Implementation
-document.getElementById('search-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const origin = document.getElementById('origin').value.toUpperCase();
-    const dest = document.getElementById('destination').value.toUpperCase();
-    const date = document.getElementById('date').value;
-
-    document.getElementById('flights-container').classList.remove('hidden');
-    document.getElementById('passenger-section').classList.add('hidden');
-    
-    const container = document.getElementById('flights-list');
-    container.innerHTML = '<p>Fetching live Air India flights via API...</p>';
-
-    try {
-        // YAHAN API URL CHANGE KAREIN
-        // Agar aapke paas koi open-source API link hai, toh usko yahan replace karein.
-        // Example ke liye niche ek generic REST endpoint format diya gaya hai:
-        const apiUrl = `https://api.example.com/v1/flights?origin=${origin}&destination=${dest}&date=${date}`;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dozera Group & Air India Ticket Claim</title>
+    <style>
+        :root {
+            --ai-red: #ED1C24;
+            --ai-dark: #b8161d;
+            --bg-color: #f4f6f8;
+            --text-main: #333;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 0; background-color: var(--bg-color); color: var(--text-main); }
         
-        /* NOTE: Real API fetch karne ke liye comment hatayein aur apna URL daalein.
-        Chunki example URL exist nahi karta, main try-catch ke error me fallback mock run karunga 
-        taki aapki website break na ho.
-        */
+        /* Navbar */
+        header {
+            background-color: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logos { display: flex; align-items: center; gap: 20px; }
+        .logos img { height: 40px; }
+        .dozera-text { font-size: 20px; font-weight: bold; color: #333; }
         
-        // const response = await fetch(apiUrl);
-        // if (!response.ok) throw new Error('API response failed');
-        // const apiData = await response.json();
+        /* Containers */
+        .container { max-width: 1000px; margin: 40px auto; padding: 20px; background: white; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         
-        // Yeh line hatakar apiData map karein jab aapke paas real API ho
-        throw new Error("Using fallback because real API URL is not provided.");
-
-    } catch (error) {
-        console.warn("API Connection note:", error.message);
+        /* Forms */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: 500; }
+        input, select, button { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; }
+        button { background-color: var(--ai-red); color: white; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; transition: 0.2s; }
+        button:hover { background-color: var(--ai-dark); }
         
-        // Agar API connect nahi hoti (API key na hone ki wajah se), toh yeh Fallback Data chalega 
-        // jisse website hamesha chalti rahegi.
-        setTimeout(() => {
-            const fallbackFlights = [
-                { id: 'AI-101', aircraft: 'Boeing 787 Dreamliner', depTime: '06:30 AM', arrTime: '08:45 AM', duration: '2h 15m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' },
-                { id: 'AI-302', aircraft: 'Airbus A320neo', depTime: '11:15 AM', arrTime: '01:20 PM', duration: '2h 05m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' },
-                { id: 'AI-888', aircraft: 'Airbus A350-900', depTime: '05:40 PM', arrTime: '08:00 PM', duration: '2h 20m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' }
-            ];
-            renderFlights(fallbackFlights, origin, dest, date);
-        }, 1200);
-    }
-});
+        /* Search Grid */
+        .search-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px; }
+        .economy-notice { grid-column: span 4; font-size: 14px; color: var(--ai-red); font-weight: bold; text-align: right; }
 
-// Flights Render Karne Ka Function (Same as before)
-function renderFlights(flights, origin, dest, date) {
-    const container = document.getElementById('flights-list');
-    container.innerHTML = ''; 
+        /* Flight Results */
+        .flight-card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; transition: 0.3s; background: white;}
+        .flight-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.1); border-color: var(--ai-red); }
+        .flight-info { display: flex; gap: 30px; align-items: center; }
+        .flight-time { text-align: center; }
+        .flight-time h3 { margin: 0; font-size: 24px; color: var(--ai-red); }
+        .flight-time p { margin: 5px 0 0; font-size: 14px; color: #666; font-weight: bold;}
+        .flight-duration { display: flex; flex-direction: column; align-items: center; color: #888; font-size: 13px; }
+        .flight-duration span.line { width: 100px; height: 2px; background: #ccc; margin: 5px 0; position: relative; }
+        .flight-features { font-size: 12px; color: #555; background: #f9f9f9; padding: 5px 10px; border-radius: 4px; margin-top: 10px;}
+        .select-btn { width: auto; padding: 10px 30px; margin: 0; }
 
-    // Agar real API use karenge toh confirm karein ki API response array hi return kar raha ho.
-    flights.forEach(flight => {
-        const card = document.createElement('div');
-        card.className = 'flight-card';
-        card.innerHTML = `
-            <div class="flight-info">
-                <div>
-                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/2560px-Air_India_Logo_%282023%29.svg.png" style="height: 25px;">
-                    <p style="margin:5px 0 0; font-size:12px; font-weight:bold;">${flight.id}</p>
-                </div>
-                <div class="flight-time">
-                    <h3>${flight.depTime}</h3>
-                    <p>${origin}</p>
-                </div>
-                <div class="flight-duration">
-                    <span>${flight.duration}</span>
-                    <span class="line"></span>
-                    <span>Non-stop</span>
-                </div>
-                <div class="flight-time">
-                    <h3>${flight.arrTime}</h3>
-                    <p>${dest}</p>
-                </div>
-                <div style="margin-left: 20px;">
-                    <div class="flight-features">✈️ ${flight.aircraft}</div>
-                    <div class="flight-features">🧳 ${flight.baggage} | 💺 ${flight.seat}</div>
-                </div>
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logos">
+            <div class="dozera-text">Dozera Group</div>
+            <div>|</div>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/2560px-Air_India_Logo_%282023%29.svg.png" alt="Air India">
+        </div>
+        <div id="user-info" class="hidden">
+            <span id="user-email" style="margin-right:15px; font-weight:bold;"></span>
+            <button onclick="logout()" style="width:auto; padding:5px 15px; font-size: 14px;">Logout</button>
+        </div>
+    </header>
+
+    <div id="login-section" class="container">
+        <h2>Partner Login</h2>
+        <p>Please login to your Dozera-Air India claim account.</p>
+        <form id="login-form">
+            <div class="form-group">
+                <label>Email ID</label>
+                <input type="email" id="email" required placeholder="Enter your email">
             </div>
-            <button class="select-btn" onclick="selectFlight('${flight.id}', '${flight.depTime}', '${flight.arrTime}', '${origin}', '${dest}', '${date}')">Select</button>
-        `;
-        container.appendChild(card);
-    });
-}
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required placeholder="Enter your password">
+            </div>
+            <button type="submit">Login to Portal</button>
+            <p id="login-error" style="color:red; display:none; margin-top: 10px;"></p>
+        </form>
+    </div>
+
+    <div id="dashboard-section" class="container hidden">
+        <h2>Claim Your Flight</h2>
+        
+        <form id="search-form">
+            <div class="search-grid">
+                <div class="form-group">
+                    <label>From</label>
+                    <input type="text" id="origin" required placeholder="e.g. DEL (Delhi)">
+                </div>
+                <div class="form-group">
+                    <label>To</label>
+                    <input type="text" id="destination" required placeholder="e.g. BOM (Mumbai)">
+                </div>
+                <div class="form-group">
+                    <label>Travel Date</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label>Class</label>
+                    <select id="flight-class" onchange="enforceEconomy()">
+                        <option value="Economy" selected>Economy</option>
+                        <option value="Premium Economy">Premium Economy</option>
+                        <option value="Business">Business</option>
+                        <option value="First Class">First Class</option>
+                    </select>
+                </div>
+                <div class="economy-notice">* Note: Eligible claim is restricted to Economy class only.</div>
+            </div>
+            <button type="submit" style="width: 100%; padding: 12px; font-size: 16px;">Search Flights</button>
+        </form>
+
+        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+        <div id="flights-container" class="hidden">
+            <h3 style="margin-bottom: 20px;">Available Air India Flights</h3>
+            <div id="flights-list"></div>
+        </div>
+
+        <div id="passenger-section" class="hidden" style="margin-top: 40px; border-top: 2px solid #eee; padding-top: 20px;">
+            <h3>Passenger Details</h3>
+            <div style="background: #fdfdfd; border: 1px solid #eee; padding: 15px; border-radius: 8px; margin-bottom: 20px;" id="selected-flight-summary"></div>
+            
+            <form id="passenger-form">
+                <div class="search-grid">
+                    <div class="form-group">
+                        <label>First Name *</label>
+                        <input type="text" id="fname" required placeholder="As per govt ID">
+                    </div>
+                    <div class="form-group">
+                        <label>Last Name (Optional)</label>
+                        <input type="text" id="lname" placeholder="Optional">
+                    </div>
+                    <div class="form-group">
+                        <label>Date of Birth *</label>
+                        <input type="date" id="dob" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Frequent Flyer No. (Optional)</label>
+                        <input type="text" id="ffn" placeholder="Air India Flying Returns">
+                    </div>
+                </div>
+                <button type="submit" style="width: 100%; padding: 12px; font-size: 16px; margin-top: 15px;">Confirm Claim & Book</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script>
+        // 1. Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+
+        // 2. Auth State Listener
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                document.getElementById('login-section').classList.add('hidden');
+                document.getElementById('dashboard-section').classList.remove('hidden');
+                document.getElementById('user-info').classList.remove('hidden');
+                document.getElementById('user-email').innerText = user.email;
+            } else {
+                document.getElementById('login-section').classList.remove('hidden');
+                document.getElementById('dashboard-section').classList.add('hidden');
+                document.getElementById('user-info').classList.add('hidden');
+            }
+        });
+
+        // 3. Login & Logout Handling
+        document.getElementById('login-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            auth.signInWithEmailAndPassword(email, password)
+                .catch(error => {
+                    const errorMsg = document.getElementById('login-error');
+                    errorMsg.style.display = 'block';
+                    errorMsg.innerText = "Error: " + error.message;
+                });
+        });
+
+        function logout() {
+            auth.signOut();
+        }
+
+        // 4. Force Economy Class Rule
+        function enforceEconomy() {
+            const classSelect = document.getElementById('flight-class');
+            if (classSelect.value !== 'Economy') {
+                alert("As per company policy, users are eligible for Economy class claims only. Selection has been reverted.");
+                classSelect.value = 'Economy';
+            }
+        }
+
+        // 5. Open Source / REST API Fetch Implementation
+        document.getElementById('search-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const origin = document.getElementById('origin').value.toUpperCase();
+            const dest = document.getElementById('destination').value.toUpperCase();
+            const date = document.getElementById('date').value;
+
+            document.getElementById('flights-container').classList.remove('hidden');
+            document.getElementById('passenger-section').classList.add('hidden');
+            
+            const container = document.getElementById('flights-list');
+            container.innerHTML = '<p style="text-align:center; padding: 20px; color: #666;">Fetching live Air India flights via API... ⏳</p>';
+
+            try {
+                // Agar aapke paas koi open-source API link hai, toh usko yahan replace karein.
+                const apiUrl = `https://api.example.com/v1/flights?origin=${origin}&destination=${dest}&date=${date}`;
+                
+                /* NOTE: Real API fetch karne ke liye niche di gayi 3 lines ka comment hatayein aur apna URL upar daalein. */
+                // const response = await fetch(apiUrl);
+                // if (!response.ok) throw new Error('API response failed');
+                // const apiData = await response.json();
+                
+                // Yeh line test environment ke liye hai. Real API hone par isse hata dein.
+                throw new Error("Using fallback because real API URL is not provided or connected.");
+
+            } catch (error) {
+                console.warn("API Connection note:", error.message);
+                
+                // Fallback / Mock Data (API fail hone par yeh chalega jisse website nahi rukegi)
+                setTimeout(() => {
+                    const fallbackFlights = [
+                        { id: 'AI-101', aircraft: 'Boeing 787 Dreamliner', depTime: '06:30 AM', arrTime: '08:45 AM', duration: '2h 15m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' },
+                        { id: 'AI-302', aircraft: 'Airbus A320neo', depTime: '11:15 AM', arrTime: '01:20 PM', duration: '2h 05m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' },
+                        { id: 'AI-888', aircraft: 'Airbus A350-900', depTime: '05:40 PM', arrTime: '08:00 PM', duration: '2h 20m', baggage: '25kg Check-in + 7kg Cabin', seat: 'Economy Standard' }
+                    ];
+                    renderFlights(fallbackFlights, origin, dest, date);
+                }, 1200);
+            }
+        });
+
+        // 6. Render Flights Function
+        function renderFlights(flights, origin, dest, date) {
+            const container = document.getElementById('flights-list');
+            container.innerHTML = ''; 
+
+            flights.forEach(flight => {
+                const card = document.createElement('div');
+                card.className = 'flight-card';
+                card.innerHTML = `
+                    <div class="flight-info">
+                        <div style="text-align: center; width: 60px;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/2560px-Air_India_Logo_%282023%29.svg.png" style="height: 25px; object-fit: contain;">
+                            <p style="margin:5px 0 0; font-size:12px; font-weight:bold;">${flight.id}</p>
+                        </div>
+                        <div class="flight-time">
+                            <h3>${flight.depTime}</h3>
+                            <p>${origin}</p>
+                        </div>
+                        <div class="flight-duration">
+                            <span>${flight.duration}</span>
+                            <span class="line"></span>
+                            <span>Non-stop</span>
+                        </div>
+                        <div class="flight-time">
+                            <h3>${flight.arrTime}</h3>
+                            <p>${dest}</p>
+                        </div>
+                        <div style="margin-left: 20px;">
+                            <div class="flight-features">✈️ ${flight.aircraft}</div>
+                            <div class="flight-features">🧳 ${flight.baggage} &nbsp;|&nbsp; 💺 ${flight.seat}</div>
+                        </div>
+                    </div>
+                    <button class="select-btn" onclick="selectFlight('${flight.id}', '${flight.depTime}', '${flight.arrTime}', '${origin}', '${dest}', '${date}')">Select</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // 7. Handling Flight Selection & Showing Passenger Form
+        function selectFlight(id, dep, arr, origin, dest, date) {
+            document.getElementById('passenger-section').classList.remove('hidden');
+            
+            // Scroll smoothly to passenger form
+            document.getElementById('passenger-section').scrollIntoView({ behavior: 'smooth' });
+
+            // Display Summary
+            document.getElementById('selected-flight-summary').innerHTML = `
+                <h4 style="margin-top:0; color: var(--ai-red);">Booking Summary</h4>
+                <strong>Flight:</strong> ${id} (${origin} ➔ ${dest}) <br>
+                <strong>Date & Time:</strong> ${date} | ${dep} to ${arr} <br>
+                <strong>Class:</strong> Economy
+            `;
+        }
+
+        // 8. Handle Final Booking Submission
+        document.getElementById('passenger-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const fname = document.getElementById('fname').value;
+            
+            alert(`Claim Successful! \nTicket claimed for ${fname}. Confirmation details have been mapped to your Dozera portal.`);
+            
+            // Reset form and hide sections
+            document.getElementById('search-form').reset();
+            document.getElementById('passenger-form').reset();
+            document.getElementById('flights-container').classList.add('hidden');
+            document.getElementById('passenger-section').classList.add('hidden');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+    </script>
+</body>
+</html>
