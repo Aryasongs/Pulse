@@ -2,204 +2,454 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- STRICT ZOOM DISABLED FOR NATIVE APP FEEL -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Dozera | Air India Official Claim Portal</title>
+    <title>Dozera Group | Corporate Air India Portal</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Google Fonts & FontAwesome -->
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- PDF Generator Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
+        /* ================= VARIABLES & RESETS ================= */
         :root {
             --ai-red: #E31837; 
             --ai-aubergine: #311339;
             --ai-gold: #B18A51;
-            --bg-light: #f7f7f7;
-            --text-dark: #1a1a1a;
+            --bg-light: #f4f5f7;
+            --text-dark: #111;
+            --text-gray: #666;
+            --border-color: #e2e8f0;
+            --success: #10b981;
         }
+        * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--bg-light); color: var(--text-dark); overflow-x: hidden; }
+        a { text-decoration: none; color: inherit; }
+        .hidden { display: none !important; }
         
-        * { box-sizing: border-box; font-family: 'Montserrat', sans-serif; margin: 0; padding: 0; }
-        body { background-color: var(--bg-light); color: var(--text-dark); -webkit-text-size-adjust: 100%; }
+        /* ================= ANIMATIONS ================= */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spinner { animation: spin 1s linear infinite; display: inline-block; }
+
+        /* ================= LAYOUT & NAVBAR ================= */
+        .wrapper { display: flex; min-height: 100vh; flex-direction: column;}
         
         header {
-            background-color: var(--ai-aubergine); padding: 15px 40px; display: flex;
-            justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100;
+            background: linear-gradient(to right, var(--ai-aubergine), #4a1d56);
+            padding: 15px 40px; display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); position: sticky; top: 0; z-index: 1000;
         }
-        .logos { display: flex; align-items: center; gap: 20px; }
-        .logos img { height: 45px; object-fit: contain; }
-        .dozera-text { font-size: 20px; font-weight: 700; color: white; }
-        .btn-outline { background: transparent; border: 1px solid var(--ai-gold); color: var(--ai-gold); padding: 8px 20px; border-radius: 25px; cursor: pointer; font-weight: 600;}
-
-        .container { max-width: 1000px; margin: 40px auto; background: white; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 30px 40px; }
+        .brand-section { display: flex; align-items: center; gap: 25px; }
+        .brand-section img { height: 45px; object-fit: contain; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));}
+        .brand-divider { width: 2px; height: 30px; background-color: var(--ai-gold); opacity: 0.5; }
+        .dozera-logo { color: white; font-size: 22px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;}
         
-        h2.title { color: var(--ai-aubergine); font-size: 26px; margin-bottom: 25px; border-bottom: 2px solid #eee; padding-bottom: 10px;}
-        
-        .form-group { margin-bottom: 20px; }
-        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 13px; color: #555; text-transform: uppercase;}
-        input, select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; background-color: #fcfcfc;}
-        input:focus { border-color: var(--ai-red); outline: none; }
-        
-        .btn-primary { background-color: var(--ai-red); color: white; border: none; cursor: pointer; font-weight: 700; padding: 15px; border-radius: 6px; transition: 0.3s; width: 100%; text-transform: uppercase;}
-        .btn-primary:hover { background-color: #c2122d; }
+        .user-controls { display: flex; align-items: center; gap: 20px; color: white; font-size: 14px; font-weight: 500;}
+        .btn-logout { background: transparent; border: 1.5px solid var(--ai-gold); color: var(--ai-gold); padding: 8px 24px; border-radius: 30px; cursor: pointer; font-weight: 600; transition: 0.3s; }
+        .btn-logout:hover { background: var(--ai-gold); color: var(--ai-aubergine); }
 
-        .search-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        /* ================= MAIN CONTAINER & STEPPER ================= */
+        main { flex: 1; padding: 40px 20px; max-width: 1200px; margin: 0 auto; width: 100%; }
         
-        /* Flight Card */
-        .flight-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
-        .flight-time { text-align: center; }
-        .flight-time h3 { color: var(--ai-aubergine); font-size: 22px; }
-        .btn-select { background-color: var(--ai-aubergine); color: white; padding: 10px 30px; border-radius: 20px; cursor: pointer; border: none; font-weight: bold;}
+        .stepper-container { display: flex; justify-content: space-between; margin-bottom: 40px; position: relative; padding: 0 20px;}
+        .stepper-container::before { content: ''; position: absolute; top: 50%; left: 40px; right: 40px; height: 2px; background: #ddd; z-index: 1; transform: translateY(-50%); }
+        .step { display: flex; flex-direction: column; align-items: center; gap: 10px; position: relative; z-index: 2; }
+        .step-circle { width: 40px; height: 40px; border-radius: 50%; background: white; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #aaa; transition: 0.3s; }
+        .step.active .step-circle { background: var(--ai-aubergine); border-color: var(--ai-aubergine); color: white; box-shadow: 0 0 15px rgba(49, 19, 57, 0.4);}
+        .step.completed .step-circle { background: var(--success); border-color: var(--success); color: white; }
+        .step-label { font-size: 12px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.5px;}
+        .step.active .step-label { color: var(--ai-aubergine); }
 
-        .hidden { display: none !important; }
+        /* ================= FORMS & INPUTS ================= */
+        .card-box { background: white; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.08); padding: 40px; margin-bottom: 30px; border-top: 4px solid var(--ai-aubergine);}
+        .section-title { font-size: 24px; color: var(--ai-aubergine); font-weight: 700; margin-bottom: 25px; display: flex; align-items: center; gap: 10px;}
+        
+        .grid-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        
+        .input-group { position: relative; }
+        .input-group label { display: block; font-size: 12px; font-weight: 700; color: #555; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .input-group input, .input-group select { width: 100%; padding: 14px 15px; border: 1.5px solid var(--border-color); border-radius: 8px; font-size: 15px; color: var(--text-dark); background: #fdfdfd; transition: 0.3s; }
+        .input-group input:focus, .input-group select:focus { border-color: var(--ai-red); background: white; outline: none; box-shadow: 0 0 0 4px rgba(227, 24, 55, 0.1); }
+        .input-icon { position: absolute; bottom: 14px; left: 15px; color: #aaa; }
+        .input-group.has-icon input { padding-left: 45px; }
 
-        /* --- REALISTIC E-TICKET PDF TEMPLATE (HIDDEN ON WEB) --- */
+        .btn-primary { background: linear-gradient(to right, var(--ai-red), #c2122d); color: white; border: none; padding: 16px 30px; border-radius: 8px; font-size: 16px; font-weight: 700; cursor: pointer; width: 100%; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 4px 15px rgba(227, 24, 55, 0.3);}
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(227, 24, 55, 0.4); }
+        .btn-primary:disabled { background: #cbd5e1; cursor: not-allowed; transform: none; box-shadow: none; }
+
+        /* ================= FLIGHT RESULTS UI ================= */
+        .flight-list { display: flex; flex-direction: column; gap: 20px; }
+        .flight-card { background: white; border: 1.5px solid var(--border-color); border-radius: 12px; overflow: hidden; transition: 0.3s; }
+        .flight-card:hover { border-color: var(--ai-gold); box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        
+        .flight-header { display: flex; justify-content: space-between; padding: 25px; align-items: center; flex-wrap: wrap; gap: 20px;}
+        .flight-logo { text-align: center; width: 100px; }
+        .flight-logo img { height: 35px; object-fit: contain; }
+        .flight-logo p { font-size: 12px; font-weight: 700; color: var(--text-gray); margin-top: 5px; }
+        
+        .flight-route { display: flex; align-items: center; gap: 30px; flex: 1; justify-content: center;}
+        .time-box { text-align: center; }
+        .time-box h3 { font-size: 28px; color: var(--ai-aubergine); font-weight: 800; margin-bottom: 5px;}
+        .time-box p { font-size: 14px; font-weight: 600; color: var(--text-gray); }
+        
+        .duration-box { display: flex; flex-direction: column; align-items: center; width: 150px; }
+        .duration-box span { font-size: 12px; font-weight: 600; color: #888; margin-bottom: 5px; }
+        .duration-line { width: 100%; height: 2px; background: #ddd; position: relative; }
+        .duration-line::before, .duration-line::after { content: ''; position: absolute; width: 6px; height: 6px; border-radius: 50%; background: #ddd; top: -2px; }
+        .duration-line::before { left: 0; } .duration-line::after { right: 0; }
+        .duration-line i { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); color: var(--ai-gold); font-size: 18px; background: white; padding: 0 5px;}
+        
+        .flight-action { width: 150px; text-align: right; }
+        .btn-select { background: var(--ai-aubergine); color: white; border: none; padding: 12px 30px; border-radius: 30px; font-weight: 700; cursor: pointer; transition: 0.3s; }
+        .btn-select:hover { background: var(--ai-gold); color: var(--ai-aubergine); }
+
+        .flight-footer { background: #f8fafc; padding: 12px 25px; border-top: 1px solid var(--border-color); display: flex; gap: 20px; font-size: 12px; color: #555; font-weight: 600; }
+        .flight-footer span { display: flex; align-items: center; gap: 6px; }
+        .flight-footer i { color: var(--ai-red); }
+
+        /* ================= REVIEW & SUMMARY ================= */
+        .summary-box { background: #fdfdfd; border: 1px dashed var(--border-color); padding: 20px; border-radius: 8px; margin-bottom: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;}
+        .summary-item { font-size: 14px; }
+        .summary-item strong { color: var(--ai-aubergine); display: block; font-size: 12px; text-transform: uppercase; margin-bottom: 4px;}
+
+        /* ================= ALERTS ================= */
+        .alert { padding: 15px 20px; border-radius: 8px; margin-bottom: 20px; font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 10px; }
+        .alert-info { background: #e0f2fe; color: #0284c7; border-left: 4px solid #0284c7; }
+        .alert-error { background: #fee2e2; color: #ef4444; border-left: 4px solid #ef4444; }
+
+        /* ================= FOOTER ================= */
+        footer { background: var(--ai-aubergine); color: white; padding: 30px 40px; text-align: center; margin-top: auto;}
+        .footer-links { margin-top: 15px; font-size: 13px; color: #aaa; display: flex; justify-content: center; gap: 20px;}
+        .footer-links a:hover { color: var(--ai-gold); }
+
+        /* ================= PDF TEMPLATE (HIDDEN FROM UI, HIGH QUALITY FOR EXPORT) ================= */
         #pdf-ticket-container {
-            position: absolute; left: -9999px; top: 0; background: white; width: 800px; padding: 40px; font-family: 'Helvetica', sans-serif;
+            position: absolute; left: -9999px; top: 0; width: 850px; background: white; padding: 50px; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #333; z-index: -100;
         }
-        .ticket-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--ai-aubergine); padding-bottom: 20px; margin-bottom: 20px; }
-        .ticket-header img { height: 60px; }
-        .ticket-title { text-align: right; }
-        .ticket-title h1 { color: var(--ai-aubergine); font-size: 28px; margin: 0; text-transform: uppercase; }
-        .ticket-title p { color: var(--ai-red); font-size: 14px; font-weight: bold; margin: 5px 0 0; }
+        .pdf-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 4px solid var(--ai-aubergine); padding-bottom: 25px; margin-bottom: 30px; }
+        .pdf-logo-group img { height: 70px; margin-bottom: 10px;}
+        .pdf-title { text-align: right; }
+        .pdf-title h1 { color: var(--ai-aubergine); font-size: 32px; margin: 0; letter-spacing: 1px; text-transform: uppercase;}
+        .pdf-title h3 { color: var(--ai-red); font-size: 16px; margin: 5px 0 0; font-weight: bold; text-transform: uppercase;}
         
-        .pnr-box { background: #f4f4f4; border: 1px solid #ccc; padding: 15px; border-radius: 5px; text-align: center; margin-bottom: 20px;}
-        .pnr-box h2 { letter-spacing: 5px; color: #111; margin: 0; font-size: 32px; }
-        .pnr-box span { font-size: 12px; color: #666; text-transform: uppercase; }
+        .pdf-pnr-box { background: #f8f9fa; border: 2px solid #eaeaea; padding: 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;}
+        .pdf-pnr-item h4 { font-size: 12px; color: #777; margin: 0 0 5px; text-transform: uppercase;}
+        .pdf-pnr-item h2 { font-size: 36px; margin: 0; color: #111; letter-spacing: 4px;}
+        .pdf-status { background: #10b981; color: white; padding: 8px 15px; border-radius: 4px; font-weight: bold; font-size: 14px;}
 
-        .ticket-details { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        .ticket-details th, .ticket-details td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        .ticket-details th { background-color: var(--ai-aubergine); color: white; font-size: 13px; text-transform: uppercase; }
-        .ticket-details td { font-size: 15px; font-weight: bold; color: #333; }
+        .pdf-table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+        .pdf-table th, .pdf-table td { border: 1px solid #ddd; padding: 15px; text-align: left; }
+        .pdf-table th { background: var(--ai-aubergine); color: white; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;}
+        .pdf-table td { font-size: 15px; font-weight: 600; color: #222; }
+        .pdf-table .light-text { font-size: 12px; color: #666; font-weight: normal; display: block; margin-top: 4px;}
 
-        .barcode { text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #ccc; }
-        .barcode img { height: 50px; width: 300px; }
+        .pdf-footer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; border-top: 2px dashed #ccc; padding-top: 30px; margin-top: 20px;}
+        .pdf-qr img { width: 120px; height: 120px; border: 1px solid #eee; padding: 5px;}
+        .pdf-barcode img { height: 60px; width: 100%; margin-top: 15px; opacity: 0.8;}
+        .pdf-terms { font-size: 10px; color: #888; text-align: justify; line-height: 1.4;}
+        .pdf-watermark { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 120px; color: rgba(0,0,0,0.03); font-weight: bold; white-space: nowrap; pointer-events: none; z-index: 0;}
     </style>
 </head>
 <body>
 
+    <!-- NAVBAR -->
     <header>
-        <div class="logos">
-            <div class="dozera-text">Dozera Group</div>
-            <div style="color:var(--ai-gold);">|</div>
+        <div class="brand-section">
+            <div class="dozera-logo">Dozera Group</div>
+            <div class="brand-divider"></div>
+            <!-- Official White Rebranded Logo -->
             <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/2560px-Air_India_Logo_%282023%29.svg.png" style="filter: brightness(0) invert(1);" alt="Air India">
         </div>
-        <div id="user-info" class="hidden">
-            <span id="user-email" style="color:white; margin-right:15px;"></span>
-            <button class="btn-outline" onclick="logout()">Logout</button>
+        <div id="user-info" class="user-controls hidden">
+            <span><i class="fa-solid fa-user-tie" style="margin-right: 8px;"></i><span id="user-email"></span></span>
+            <button class="btn-logout" onclick="logout()"><i class="fa-solid fa-right-from-bracket"></i> Logout</button>
         </div>
     </header>
 
-    <div id="login-section" class="container">
-        <h2 class="title">Secure Partner Login</h2>
-        <form id="login-form">
-            <div class="form-group"><label>Email ID</label><input type="email" id="email" required></div>
-            <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
-            <button type="submit" class="btn-primary" id="login-btn">Login</button>
-        </form>
-    </div>
-
-    <div id="dashboard-section" class="container hidden">
-        <h2 class="title">Search Live Flights</h2>
-        <form id="search-form">
-            <div class="search-grid">
-                <div class="form-group">
-                    <label>From (Select Airport)</label>
-                    <select id="origin" required></select>
-                </div>
-                <div class="form-group">
-                    <label>To (Select Airport)</label>
-                    <select id="destination" required></select>
-                </div>
-                <div class="form-group">
-                    <label>Date</label>
-                    <input type="date" id="date" required>
-                </div>
-                <div class="form-group">
-                    <label>Class</label>
-                    <select id="flight-class" onchange="enforceEconomy()">
-                        <option value="Economy" selected>Economy</option>
-                        <option value="Premium Economy">Premium Economy</option>
-                    </select>
-                </div>
+    <div class="wrapper">
+        <main>
+            
+            <!-- ALERTS -->
+            <div id="global-alert" class="alert alert-info hidden">
+                <i class="fa-solid fa-circle-info"></i> <span id="alert-msg"></span>
             </div>
-            <button type="submit" class="btn-primary">Search Flights</button>
-        </form>
 
-        <div id="flights-container" class="hidden" style="margin-top: 40px;">
-            <h2 class="title">Available Air India Flights</h2>
-            <div id="flights-list"></div>
-        </div>
+            <!-- LOGIN SECTION -->
+            <section id="login-section" class="card-box animate-fade" style="max-width: 500px; margin: 40px auto;">
+                <h2 class="section-title"><i class="fa-solid fa-lock"></i> Corporate Login</h2>
+                <p style="color: var(--text-gray); font-size: 14px; margin-bottom: 25px;">Enter your Dozera authorized credentials to access the Air India Claim Portal.</p>
+                <form id="login-form">
+                    <div class="input-group has-icon" style="margin-bottom: 20px;">
+                        <label>Corporate Email</label>
+                        <i class="fa-solid fa-envelope input-icon"></i>
+                        <input type="email" id="email" required placeholder="name@dozera.com">
+                    </div>
+                    <div class="input-group has-icon" style="margin-bottom: 30px;">
+                        <label>Password</label>
+                        <i class="fa-solid fa-key input-icon"></i>
+                        <input type="password" id="password" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" class="btn-primary" id="login-btn">Secure Login <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i></button>
+                    <div id="login-error" class="alert alert-error hidden" style="margin-top: 15px;"></div>
+                </form>
+            </section>
 
-        <div id="passenger-section" class="hidden" style="margin-top: 40px;">
-            <h2 class="title">Passenger Details</h2>
-            <form id="passenger-form">
-                <div class="search-grid">
-                    <div class="form-group"><label>First Name</label><input type="text" id="fname" required></div>
-                    <div class="form-group"><label>Last Name</label><input type="text" id="lname" required></div>
-                    <div class="form-group"><label>Date of Birth</label><input type="date" id="dob" required></div>
-                    <div class="form-group"><label>Passport / ID No.</label><input type="text" id="govtid" required></div>
+            <!-- DASHBOARD / APP AREA (Hidden until login) -->
+            <div id="app-area" class="hidden animate-fade">
+                
+                <!-- STEPPER WIDGET -->
+                <div class="stepper-container">
+                    <div class="step active" id="step1-indicator">
+                        <div class="step-circle">1</div>
+                        <div class="step-label">Search</div>
+                    </div>
+                    <div class="step" id="step2-indicator">
+                        <div class="step-circle">2</div>
+                        <div class="step-label">Select</div>
+                    </div>
+                    <div class="step" id="step3-indicator">
+                        <div class="step-circle">3</div>
+                        <div class="step-label">Passenger</div>
+                    </div>
+                    <div class="step" id="step4-indicator">
+                        <div class="step-circle">4</div>
+                        <div class="step-label">Confirm</div>
+                    </div>
                 </div>
-                <button type="submit" id="book-btn" class="btn-primary">Confirm Booking & Download Ticket</button>
-            </form>
-        </div>
+
+                <!-- STEP 1: SEARCH FLIGHTS -->
+                <section id="step1-search" class="card-box">
+                    <h2 class="section-title"><i class="fa-solid fa-plane-departure"></i> Find Live Flights</h2>
+                    <form id="search-form">
+                        <div class="grid-row">
+                            <div class="input-group has-icon">
+                                <label>From Airport</label>
+                                <i class="fa-solid fa-location-dot input-icon"></i>
+                                <select id="origin" required><option value="">Loading Airports...</option></select>
+                            </div>
+                            <div class="input-group has-icon">
+                                <label>To Airport</label>
+                                <i class="fa-solid fa-location-crosshairs input-icon"></i>
+                                <select id="destination" required><option value="">Loading Airports...</option></select>
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="input-group has-icon">
+                                <label>Departure Date</label>
+                                <i class="fa-regular fa-calendar input-icon"></i>
+                                <input type="date" id="date" required>
+                            </div>
+                            <div class="input-group has-icon">
+                                <label>Cabin Class</label>
+                                <i class="fa-solid fa-chair input-icon"></i>
+                                <select id="flight-class" onchange="enforceEconomy()">
+                                    <option value="Economy" selected>Economy Class</option>
+                                    <option value="Premium">Premium Economy</option>
+                                    <option value="Business">Business Class</option>
+                                </select>
+                            </div>
+                        </div>
+                        <p style="text-align:right; font-size:12px; color:var(--ai-red); font-weight:700; margin-bottom: 20px;">* Corporate Policy: Claims restricted to Economy Class only.</p>
+                        <button type="submit" class="btn-primary" id="search-btn"><i class="fa-solid fa-magnifying-glass" style="margin-right: 8px;"></i> Search Air India Network</button>
+                    </form>
+                </section>
+
+                <!-- STEP 2: FLIGHT RESULTS -->
+                <section id="step2-flights" class="card-box hidden">
+                    <button type="button" class="btn-logout" onclick="goBack(1)" style="margin-bottom: 20px; color: var(--text-gray); border-color: #ccc;"><i class="fa-solid fa-arrow-left"></i> Modify Search</button>
+                    <h2 class="section-title"><i class="fa-solid fa-list-check"></i> Available Itineraries</h2>
+                    
+                    <div id="loading-spinner" class="hidden" style="text-align: center; padding: 40px;">
+                        <i class="fa-solid fa-circle-notch spinner" style="font-size: 40px; color: var(--ai-aubergine);"></i>
+                        <p style="margin-top: 15px; color: var(--text-gray); font-weight: 600;">Fetching live inventory from Amadeus/Aviation network...</p>
+                    </div>
+
+                    <div id="flights-list" class="flight-list"></div>
+                </section>
+
+                <!-- STEP 3 & 4: PASSENGER & CONFIRMATION -->
+                <section id="step3-passenger" class="card-box hidden">
+                    <button type="button" class="btn-logout" onclick="goBack(2)" style="margin-bottom: 20px; color: var(--text-gray); border-color: #ccc;"><i class="fa-solid fa-arrow-left"></i> Change Flight</button>
+                    
+                    <h2 class="section-title"><i class="fa-solid fa-passport"></i> Passenger & Review</h2>
+                    
+                    <div class="summary-box" id="flight-summary-box">
+                        <!-- Filled by JS -->
+                    </div>
+
+                    <form id="passenger-form">
+                        <h3 style="font-size: 16px; margin-bottom: 15px; color: var(--text-dark); border-bottom: 1px solid #eee; padding-bottom: 10px;">Primary Traveler Details</h3>
+                        <div class="grid-row">
+                            <div class="input-group">
+                                <label>First / Given Name (As per Govt ID) *</label>
+                                <input type="text" id="fname" required placeholder="e.g. Rahul" pattern="[A-Za-z\s]+" title="Only alphabets allowed">
+                            </div>
+                            <div class="input-group">
+                                <label>Last / Surname *</label>
+                                <input type="text" id="lname" required placeholder="e.g. Sharma" pattern="[A-Za-z\s]+">
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="input-group">
+                                <label>Date of Birth *</label>
+                                <input type="date" id="dob" required>
+                            </div>
+                            <div class="input-group">
+                                <label>Mobile Number *</label>
+                                <input type="tel" id="phone" required placeholder="e.g. 9876543210" pattern="[0-9]{10}" title="10 digit valid mobile number">
+                            </div>
+                        </div>
+                        <div class="grid-row">
+                            <div class="input-group">
+                                <label>Government ID / Passport No. *</label>
+                                <input type="text" id="govtid" required placeholder="e.g. A239847X">
+                            </div>
+                            <div class="input-group">
+                                <label>Air India Flying Returns (Optional)</label>
+                                <input type="text" id="ffn" placeholder="e.g. 123456789">
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info" style="margin-top: 20px;">
+                            <i class="fa-solid fa-shield-halved"></i> By clicking confirm, you agree to Dozera Group's corporate travel policies. Fare is 100% billed to corporate account.
+                        </div>
+
+                        <button type="submit" id="book-btn" class="btn-primary" style="margin-top: 10px; background: var(--success);"><i class="fa-solid fa-check-circle" style="margin-right: 8px;"></i> Confirm Booking & Generate PNR</button>
+                    </form>
+                </section>
+
+            </div>
+        </main>
+
+        <footer>
+            <div style="font-size: 20px; font-weight: 800; letter-spacing: 1px;">DOZERA GROUP</div>
+            <div style="margin: 10px 0; font-size: 14px; opacity: 0.8;">Authorized Partner Portal in association with Air India</div>
+            <div class="footer-links">
+                <a href="#">Privacy Policy</a> | 
+                <a href="#">Corporate Terms</a> | 
+                <a href="#">Support Helpdesk</a>
+            </div>
+            <p style="margin-top: 15px; font-size: 12px; opacity: 0.5;">&copy; 2026 Dozera Group Inc. Backend secured by Firebase.</p>
+        </footer>
     </div>
 
+    <!-- ================== HIDDEN HIGH-RES PDF TICKET TEMPLATE ================== -->
     <div id="pdf-ticket-container">
-        <div class="ticket-header">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/1024px-Air_India_Logo_%282023%29.svg.png" alt="Air India">
-            <div class="ticket-title">
-                <h1>E-Ticket Itinerary</h1>
-                <p>DOZERA GROUP CORPORATE CLAIM</p>
+        <div class="pdf-watermark">DOZERA CORPORATE</div>
+        
+        <div class="pdf-header">
+            <div class="pdf-logo-group">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/1024px-Air_India_Logo_%282023%29.svg.png" alt="Air India">
+                <div style="font-size: 18px; font-weight: 800; color: #555; margin-top: 5px;">| DOZERA GROUP</div>
+            </div>
+            <div class="pdf-title">
+                <h1>ELECTRONIC TICKET</h1>
+                <h3>Passenger Itinerary Receipt</h3>
+                <p style="color: #888; font-size: 12px; margin-top: 5px;">Issued: <span id="pdf-issue-date"></span></p>
             </div>
         </div>
         
-        <div class="pnr-box">
-            <span>Booking Reference (PNR)</span>
-            <h2 id="pdf-pnr">X7B9A2</h2>
+        <div class="pdf-pnr-box">
+            <div class="pdf-pnr-item">
+                <h4>Booking Reference (PNR)</h4>
+                <h2 id="pdf-pnr">XXXXXX</h2>
+            </div>
+            <div class="pdf-status">CONFIRMED (CORPORATE BILLED)</div>
         </div>
 
-        <table class="ticket-details">
+        <h3 style="margin-bottom: 10px; color: var(--ai-aubergine); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px;">PASSENGER INFORMATION</h3>
+        <table class="pdf-table">
             <tr>
                 <th>Passenger Name</th>
-                <td id="pdf-name" colspan="3">Rahul Sharma</td>
+                <th width="20%">Govt ID / Passport</th>
+                <th width="20%">Frequent Flyer</th>
+                <th width="20%">E-Ticket Number</th>
             </tr>
             <tr>
-                <th>Flight No</th>
-                <td id="pdf-flight">AI-888</td>
-                <th>Date</th>
-                <td id="pdf-date">2026-06-26</td>
-            </tr>
-            <tr>
-                <th>From</th>
-                <td id="pdf-from">DEL (Delhi)</td>
-                <th>To</th>
-                <td id="pdf-to">BOM (Mumbai)</td>
-            </tr>
-            <tr>
-                <th>Departure Time</th>
-                <td id="pdf-dep">10:00 AM</td>
-                <th>Arrival Time</th>
-                <td id="pdf-arr">12:15 PM</td>
-            </tr>
-            <tr>
-                <th>Class</th>
-                <td>Economy</td>
-                <th>Baggage</th>
-                <td>25 KG Check-in</td>
+                <td id="pdf-name">N/A</td>
+                <td id="pdf-govtid">N/A</td>
+                <td id="pdf-ffn">N/A</td>
+                <td id="pdf-eticket">098-XXXXXXXXX</td>
             </tr>
         </table>
-        
-        <div class="barcode">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/UPC-A-036000291452.svg/512px-UPC-A-036000291452.svg.png" style="height: 60px; filter: grayscale(100%); opacity: 0.8;">
-            <p style="font-size: 10px; color: #888; margin-top: 5px;">Scan at Airport Kiosk</p>
+
+        <h3 style="margin-bottom: 10px; margin-top: 30px; color: var(--ai-aubergine); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px;">FLIGHT ITINERARY</h3>
+        <table class="pdf-table">
+            <tr>
+                <th>Flight No.</th>
+                <th>Departure</th>
+                <th>Arrival</th>
+                <th>Class / Baggage</th>
+            </tr>
+            <tr>
+                <td>
+                    <strong id="pdf-flight" style="font-size: 18px; color: var(--ai-red);">AI-000</strong>
+                    <span class="light-text">Operated by Air India</span>
+                    <span class="light-text" id="pdf-aircraft">Equipment: A320</span>
+                </td>
+                <td>
+                    <strong id="pdf-from" style="font-size: 16px;">XXX</strong>
+                    <span class="light-text" id="pdf-dep-time">00:00 AM</span>
+                    <span class="light-text" id="pdf-date">YYYY-MM-DD</span>
+                </td>
+                <td>
+                    <strong id="pdf-to" style="font-size: 16px;">XXX</strong>
+                    <span class="light-text" id="pdf-arr-time">00:00 AM</span>
+                    <span class="light-text" id="pdf-date-arr">YYYY-MM-DD</span>
+                </td>
+                <td>
+                    <strong>Economy (Y)</strong>
+                    <span class="light-text">Check-in: 25 KG</span>
+                    <span class="light-text">Cabin: 8 KG</span>
+                    <span class="light-text">Meal: Included</span>
+                </td>
+            </tr>
+        </table>
+
+        <div class="pdf-footer-grid">
+            <div>
+                <h4 style="font-size: 12px; margin-bottom: 5px; color: #555;">PAYMENT DETAILS</h4>
+                <p style="font-size: 13px; line-height: 1.6;">
+                    <strong>Base Fare:</strong> INR 0.00 (Corporate Plan)<br>
+                    <strong>Taxes & Fees:</strong> INR 0.00<br>
+                    <strong>Total Amount:</strong> <span style="color:var(--success); font-weight:bold;">INR 0.00 (PAID)</span><br>
+                    <strong>Form of Payment:</strong> DOZERA INV. ACC.
+                </p>
+                <!-- Dummy Barcode -->
+                <div class="pdf-barcode">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/e9/UPC-A-036000291452.svg/512px-UPC-A-036000291452.svg.png">
+                </div>
+            </div>
+            <div style="text-align: right;" class="pdf-qr">
+                <h4 style="font-size: 12px; margin-bottom: 5px; color: #555; text-align: right;">BOARDING QR</h4>
+                <!-- Dummy QR Placeholder -->
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia.svg/330px-QR_code_for_mobile_English_Wikipedia.svg.png" alt="QR">
+            </div>
+        </div>
+        <div class="pdf-terms" style="margin-top: 20px;">
+            <strong>Important Conditions of Travel:</strong> 1. Passengers must carry a valid photo ID. 2. Check-in counters close 60 minutes prior to departure for domestic flights. 3. Boarding gates close 25 minutes prior to departure. 4. Baggage exceeding the limit will be charged as per standard corporate excess baggage rates. 5. Cancellation/Date change subject to Dozera corporate policy authorization. For support, contact your Dozera travel admin.
         </div>
     </div>
+    <!-- ========================================================================= -->
 
+    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // FIREBASE FRONTEND CONFIGURATION (Safe for Authentication purposes)
+        /**
+         * DOZERA x AIR INDIA CORE SYSTEM LOGIC
+         * Handles Auth, API Caching, Dynamic Rendering, Firebase Write, and PDF Generation
+         */
+
+        // 1. Firebase Front-End Configuration
         const firebaseConfig = {
             apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
             authDomain: "pulse2-92372.firebaseapp.com",
@@ -210,144 +460,314 @@
             appId: "1:276235725177:web:0f4e0789fae80a435927a8"
         };
         firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth(); const db = firebase.database();
-        let loggedInUser = null; let selectedFlightData = {};
+        const auth = firebase.auth(); 
+        const db = firebase.database();
+        
+        // Global State Variables
+        let loggedInUser = null; 
+        let selectedFlightData = {};
 
-        // 1. Fetch Real Airports for Native Dropdown API
+        // 2. Alert System
+        function showAlert(msg, type='info') {
+            const el = document.getElementById('global-alert');
+            const msgEl = document.getElementById('alert-msg');
+            el.className = `alert alert-${type} animate-fade`;
+            el.classList.remove('hidden');
+            msgEl.innerText = msg;
+            setTimeout(() => { el.classList.add('hidden'); }, 5000);
+        }
+
+        // 3. UI Navigation (Stepper Controller)
+        function updateStepper(stepNum) {
+            for(let i=1; i<=4; i++) {
+                const el = document.getElementById(`step${i}-indicator`);
+                if(i < stepNum) { el.className = 'step completed'; }
+                else if (i === stepNum) { el.className = 'step active'; }
+                else { el.className = 'step'; }
+            }
+        }
+        function goBack(step) {
+            document.getElementById('step1-search').classList.add('hidden');
+            document.getElementById('step2-flights').classList.add('hidden');
+            document.getElementById('step3-passenger').classList.add('hidden');
+            
+            if(step === 1) { document.getElementById('step1-search').classList.remove('hidden'); updateStepper(1); }
+            if(step === 2) { document.getElementById('step2-flights').classList.remove('hidden'); updateStepper(2); }
+        }
+
+        // 4. Load Open Source Airports API
         async function loadAirports() {
             try {
-                const res = await fetch('https://raw.githubusercontent.com/mwgg/Airports/master/airports.json');
-                const data = await res.json();
+                // Using cached local storage to prevent API spam on reload
+                let data = localStorage.getItem('ai_airports_cache');
+                if(!data) {
+                    const res = await fetch('https://raw.githubusercontent.com/mwgg/Airports/master/airports.json');
+                    const json = await res.json();
+                    
+                    // Filter and map to required format to save memory
+                    const filtered = Object.values(json).filter(a => a.country === 'IN' && a.iata).map(a => ({
+                        iata: a.iata, city: a.city, name: a.name
+                    }));
+                    
+                    data = JSON.stringify(filtered);
+                    localStorage.setItem('ai_airports_cache', data);
+                }
+                
+                const airports = JSON.parse(data);
                 const originDrop = document.getElementById('origin');
                 const destDrop = document.getElementById('destination');
                 
-                // Add default options
-                originDrop.innerHTML = '<option value="">Select Origin...</option>';
-                destDrop.innerHTML = '<option value="">Select Destination...</option>';
-
-                Object.values(data).forEach(airport => {
-                    if(airport.country === 'IN' && airport.iata) {
-                        let opt = new Option(`${airport.city} (${airport.iata}) - ${airport.name}`, airport.iata);
-                        let opt2 = new Option(`${airport.city} (${airport.iata}) - ${airport.name}`, airport.iata);
-                        originDrop.add(opt); destDrop.add(opt2);
-                    }
+                let optionsHtml = '<option value="">Select an airport...</option>';
+                // Sorting alphabetically by city
+                airports.sort((a,b) => a.city.localeCompare(b.city)).forEach(a => {
+                    optionsHtml += `<option value="${a.iata}">${a.city} (${a.iata}) - ${a.name}</option>`;
                 });
-            } catch (err) { console.error("Airport API Failed"); }
+
+                originDrop.innerHTML = optionsHtml;
+                destDrop.innerHTML = optionsHtml;
+
+                // Preselect defaults for testing
+                originDrop.value = "DEL";
+                destDrop.value = "BOM";
+                document.getElementById('date').valueAsDate = new Date(); // Today's date
+
+            } catch (err) { 
+                console.error("Airport API Failed", err); 
+                showAlert("Airport database offline. Please type IATA codes manually.", "error");
+            }
         }
         loadAirports();
 
-        // 2. Auth Logic
+        // 5. Auth State & Login
         auth.onAuthStateChanged(user => {
             if (user) {
                 loggedInUser = user;
                 document.getElementById('login-section').classList.add('hidden');
-                document.getElementById('dashboard-section').classList.remove('hidden');
+                document.getElementById('app-area').classList.remove('hidden');
                 document.getElementById('user-info').classList.remove('hidden');
                 document.getElementById('user-email').innerText = user.email;
+                showAlert(`Welcome back, ${user.email}`);
             } else {
                 document.getElementById('login-section').classList.remove('hidden');
-                document.getElementById('dashboard-section').classList.add('hidden');
+                document.getElementById('app-area').classList.add('hidden');
                 document.getElementById('user-info').classList.add('hidden');
             }
         });
 
         document.getElementById('login-form').addEventListener('submit', function(e) {
             e.preventDefault();
+            const btn = document.getElementById('login-btn');
+            const errEl = document.getElementById('login-error');
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch spinner"></i> Authenticating...`;
+            
             auth.signInWithEmailAndPassword(document.getElementById('email').value, document.getElementById('password').value)
-                .catch(err => alert(err.message));
+                .then(() => { errEl.classList.add('hidden'); })
+                .catch(err => {
+                    errEl.classList.remove('hidden');
+                    errEl.innerText = err.message;
+                })
+                .finally(() => { btn.innerHTML = `Secure Login <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>`; });
         });
 
         function logout() { auth.signOut(); }
-        function enforceEconomy() { document.getElementById('flight-class').value = 'Economy'; alert("Economy class only."); }
+        
+        function enforceEconomy() { 
+            document.getElementById('flight-class').value = 'Economy'; 
+            showAlert("Action Reverted: Corporate policy strictly enforces Economy class.", "error");
+        }
 
-        // 3. Search Flights (Calling Backend Simulation)
+        // 6. Search & Generate Live Flights
         document.getElementById('search-form').addEventListener('submit', function(e) {
             e.preventDefault();
             const origin = document.getElementById('origin').value;
             const dest = document.getElementById('destination').value;
             const date = document.getElementById('date').value;
 
-            document.getElementById('flights-container').classList.remove('hidden');
-            const container = document.getElementById('flights-list');
-            container.innerHTML = '<p>Fetching data securely from server...</p>';
+            if(origin === dest) { alert("Origin and Destination cannot be the same!"); return; }
 
-            // SIMULATING BACKEND API RESPONSE 
+            document.getElementById('step1-search').classList.add('hidden');
+            document.getElementById('step2-flights').classList.remove('hidden');
+            updateStepper(2);
+
+            const container = document.getElementById('flights-list');
+            const spinner = document.getElementById('loading-spinner');
+            
+            container.innerHTML = '';
+            spinner.classList.remove('hidden');
+
+            // SIMULATING COMPLEX BACKEND DATA GENERATION (Real APIs behave similarly)
             setTimeout(() => {
-                const liveFlights = [
-                    { id: `AI-${Math.floor(Math.random()*800)+100}`, dep: '08:00 AM', arr: '10:30 AM' },
-                    { id: `AI-${Math.floor(Math.random()*800)+100}`, dep: '02:15 PM', arr: '04:45 PM' }
-                ];
+                spinner.classList.add('hidden');
                 
-                container.innerHTML = '';
-                liveFlights.forEach(f => {
-                    container.innerHTML += `
-                        <div class="flight-card">
-                            <div><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/512px-Air_India_Logo_%282023%29.svg.png" style="height:30px;"><br><b>${f.id}</b></div>
-                            <div class="flight-time"><h3>${f.dep}</h3><p>${origin}</p></div>
-                            <div class="flight-time"><h3>${f.arr}</h3><p>${dest}</p></div>
-                            <button class="btn-select" onclick="selectFlight('${f.id}','${f.dep}','${f.arr}','${origin}','${dest}','${date}')">Select</button>
-                        </div>`;
+                const mockAircrafts = ['Airbus A320neo', 'Airbus A350-900', 'Boeing 787 Dreamliner', 'Boeing 777-300ER'];
+                const liveFlights = [];
+                
+                // Generate 3 random realistic flights
+                for(let i=0; i<3; i++) {
+                    const h1 = Math.floor(Math.random() * 12) + 1;
+                    const h2 = h1 + Math.floor(Math.random() * 2) + 2; // +2-3 hours duration
+                    liveFlights.push({
+                        id: `AI-${Math.floor(Math.random()*800)+100}`, 
+                        dep: `${h1 < 10 ? '0'+h1 : h1}:15 AM`, 
+                        arr: `${h2 < 10 ? '0'+h2 : h2}:45 AM`,
+                        duration: `${h2-h1}h 30m`,
+                        aircraft: mockAircrafts[Math.floor(Math.random() * mockAircrafts.length)]
+                    });
+                }
+                
+                liveFlights.forEach((f, idx) => {
+                    // Delaying injection slightly for visual animation effect
+                    setTimeout(() => {
+                        container.innerHTML += `
+                            <div class="flight-card animate-fade">
+                                <div class="flight-header">
+                                    <div class="flight-logo">
+                                        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/18/Air_India_Logo_%282023%29.svg/512px-Air_India_Logo_%282023%29.svg.png">
+                                        <p>${f.id}</p>
+                                    </div>
+                                    <div class="flight-route">
+                                        <div class="time-box">
+                                            <h3>${f.dep}</h3>
+                                            <p>${origin}</p>
+                                        </div>
+                                        <div class="duration-box">
+                                            <span>${f.duration}</span>
+                                            <div class="duration-line"><i class="fa-solid fa-plane"></i></div>
+                                            <span style="margin-top:5px; color:#aaa;">Non-Stop</span>
+                                        </div>
+                                        <div class="time-box">
+                                            <h3>${f.arr}</h3>
+                                            <p>${dest}</p>
+                                        </div>
+                                    </div>
+                                    <div class="flight-action">
+                                        <button class="btn-select" onclick="selectFlight('${f.id}','${f.dep}','${f.arr}','${f.duration}','${f.aircraft}','${origin}','${dest}','${date}')">Select</button>
+                                    </div>
+                                </div>
+                                <div class="flight-footer">
+                                    <span><i class="fa-solid fa-suitcase-rolling"></i> 25KG Check-in</span>
+                                    <span><i class="fa-solid fa-chair"></i> Economy (Corp)</span>
+                                    <span><i class="fa-solid fa-plane"></i> ${f.aircraft}</span>
+                                </div>
+                            </div>`;
+                    }, idx * 150);
                 });
-            }, 1000);
+            }, 1500); // 1.5s artificial network delay
         });
 
-        function selectFlight(id, dep, arr, origin, dest, date) {
-            selectedFlightData = { id, dep, arr, origin, dest, date };
-            document.getElementById('passenger-section').classList.remove('hidden');
-            document.getElementById('passenger-section').scrollIntoView({ behavior: 'smooth' });
+        // 7. Render Selection & Move to Passenger Form
+        function selectFlight(id, dep, arr, dur, ac, origin, dest, date) {
+            selectedFlightData = { id, dep, arr, dur, aircraft: ac, origin, dest, date };
+            
+            document.getElementById('step2-flights').classList.add('hidden');
+            document.getElementById('step3-passenger').classList.remove('hidden');
+            updateStepper(3);
+
+            // Populate Summary Box
+            document.getElementById('flight-summary-box').innerHTML = `
+                <div class="summary-item"><strong>Flight / Aircraft</strong> ${id} | ${ac}</div>
+                <div class="summary-item"><strong>Date of Travel</strong> ${new Date(date).toDateString()}</div>
+                <div class="summary-item"><strong>Route Details</strong> ${origin} ➔ ${dest} (Non-stop)</div>
+                <div class="summary-item"><strong>Timings</strong> ${dep} Departure ➔ ${arr} Arrival</div>
+            `;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // 4. Booking, Firebase Write & PDF Generation
+        // 8. Custom Validations
+        function validatePassengerAge() {
+            const dob = new Date(document.getElementById('dob').value);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) { age--; }
+            if(age < 12) { alert("Passenger must be at least 12 years old for corporate booking."); return false; }
+            return true;
+        }
+
+        // 9. Final Booking, Firebase Save, & PDF Generation
         document.getElementById('passenger-form').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            if(!validatePassengerAge()) return;
+
             const btn = document.getElementById('book-btn');
-            btn.innerText = "Processing & Generating Ticket...";
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch spinner"></i> Securing Claim & Generating PNR...`;
             btn.disabled = true;
 
-            const fName = document.getElementById('fname').value;
-            const lName = document.getElementById('lname').value;
+            const fName = document.getElementById('fname').value.trim();
+            const lName = document.getElementById('lname').value.trim();
+            const fullName = `${fName} ${lName}`.toUpperCase();
+            const govtId = document.getElementById('govtid').value.toUpperCase();
+            const ffn = document.getElementById('ffn').value.toUpperCase() || 'NOT PROVIDED';
+            
+            // Randomly Generate 6 Character Alphanumeric PNR & Ticket Number
             const pnr = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const eTicketNum = '098-' + Math.floor(1000000000 + Math.random() * 9000000000);
 
-            // Setup PDF Data
+            // 9.1 Prepare PDF DOM Data
+            const todayStr = new Date().toLocaleString();
+            document.getElementById('pdf-issue-date').innerText = todayStr;
             document.getElementById('pdf-pnr').innerText = pnr;
-            document.getElementById('pdf-name').innerText = `${fName} ${lName}`.toUpperCase();
+            document.getElementById('pdf-name').innerText = fullName;
+            document.getElementById('pdf-govtid').innerText = govtId;
+            document.getElementById('pdf-ffn').innerText = ffn;
+            document.getElementById('pdf-eticket').innerText = eTicketNum;
+            
             document.getElementById('pdf-flight').innerText = selectedFlightData.id;
+            document.getElementById('pdf-aircraft').innerText = `Equipment: ${selectedFlightData.aircraft}`;
             document.getElementById('pdf-date').innerText = selectedFlightData.date;
+            document.getElementById('pdf-date-arr').innerText = selectedFlightData.date;
             document.getElementById('pdf-from').innerText = selectedFlightData.origin;
             document.getElementById('pdf-to').innerText = selectedFlightData.dest;
-            document.getElementById('pdf-dep').innerText = selectedFlightData.dep;
-            document.getElementById('pdf-arr').innerText = selectedFlightData.arr;
+            document.getElementById('pdf-dep-time').innerText = selectedFlightData.dep;
+            document.getElementById('pdf-arr-time').innerText = selectedFlightData.arr;
 
+            // 9.2 Build Database Payload
             const claimData = {
-                passenger: `${fName} ${lName}`,
-                pnr: pnr, flight: selectedFlightData, bookedBy: loggedInUser.email,
+                passengerName: fullName,
+                dob: document.getElementById('dob').value,
+                phone: document.getElementById('phone').value,
+                govtId: govtId,
+                frequentFlyer: ffn,
+                pnr: pnr, 
+                eTicket: eTicketNum,
+                flightDetails: selectedFlightData, 
+                bookedBy: loggedInUser.email,
+                status: "TICKETED",
                 timestamp: firebase.database.ServerValue.TIMESTAMP
             };
 
-            // Save to Firebase Database
-            db.ref('ticket_claims').push(claimData).then(() => {
+            // 9.3 Save to Firebase DB
+            db.ref('corporate_ticket_claims').push(claimData).then(() => {
                 
-                // GENERATE REALISTIC PDF
-                const element = document.getElementById('pdf-ticket-container');
-                element.style.left = '0'; // Bring to viewport for render
-                element.style.position = 'relative';
+                updateStepper(4); // Move to confirm step visually
 
-                html2pdf().set({
-                    margin: 0, filename: `AirIndia_Ticket_${pnr}.pdf`,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-                }).from(element).save().then(() => {
-                    // Hide template again after PDF triggers
-                    element.style.left = '-9999px';
-                    element.style.position = 'absolute';
+                // 9.4 FIRE THE PDF GENERATOR
+                const pdfContainer = document.getElementById('pdf-ticket-container');
+                pdfContainer.style.left = '0'; // Bring into view to render properly (will be absolute behind content)
+                
+                // HTML2PDF Configuration for High Resolution
+                const opt = {
+                    margin: 0,
+                    filename: `AirIndia_E-Ticket_${pnr}.pdf`,
+                    image: { type: 'jpeg', quality: 1 },
+                    html2canvas: { scale: 3, useCORS: true, logging: false }, // Scale 3 for crystal clear text
+                    jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
+                };
+
+                html2pdf().set(opt).from(pdfContainer).save().then(() => {
+                    // Re-hide the template
+                    pdfContainer.style.left = '-9999px';
                     
-                    alert("Ticket Confirmed & Downloaded successfully!");
-                    window.location.reload();
+                    alert(`✅ E-Ticket Generated Successfully!\nPNR: ${pnr}\n\nThe PDF has been downloaded to your device and details saved securely.`);
+                    
+                    // Reset application state
+                    window.location.reload(); 
                 });
 
             }).catch(err => {
-                alert("Database Error: " + err.message);
-                btn.innerText = "Confirm Booking & Download Ticket";
+                alert("Transaction Failed. Check Firebase Security Rules (auth != null): " + err.message);
+                btn.innerHTML = `<i class="fa-solid fa-check-circle" style="margin-right: 8px;"></i> Confirm Booking & Generate PNR`;
                 btn.disabled = false;
             });
         });
