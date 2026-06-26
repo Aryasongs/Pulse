@@ -1,3 +1,4 @@
+HTMLEOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,1946 +6,590 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Dozera Group × Air India – Flight Ticket Claim Portal</title>
 
-<!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-
-<!-- jsPDF for PDF generation -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
-
-<!-- QRCode.js -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
-  /* ============================================================
-     GLOBAL RESET & CSS VARIABLES
-     ============================================================ */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --ai-red:       #C8102E;
-    --ai-dark-red:  #A00C24;
-    --ai-gold:      #B8902A;
-    --ai-light-gold:#D4A843;
-    --ai-navy:      #1A1F4B;
-    --ai-dark-navy: #0D1130;
-    --ai-white:     #FFFFFF;
-    --ai-off-white: #F8F6F2;
-    --ai-gray-100:  #F3F4F6;
-    --ai-gray-200:  #E5E7EB;
-    --ai-gray-400:  #9CA3AF;
-    --ai-gray-600:  #4B5563;
-    --ai-gray-800:  #1F2937;
-    --ai-success:   #059669;
-    --ai-warning:   #D97706;
-    --shadow-sm:    0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md:    0 4px 16px rgba(0,0,0,0.12);
-    --shadow-lg:    0 8px 32px rgba(0,0,0,0.18);
-    --shadow-xl:    0 20px 60px rgba(0,0,0,0.22);
-    --radius-sm:    6px;
-    --radius-md:    12px;
-    --radius-lg:    18px;
-    --radius-xl:    24px;
-    --font-display: 'Georgia', serif;
-    --font-body:    'Segoe UI', system-ui, -apple-system, sans-serif;
-    --transition:   all 0.25s cubic-bezier(0.4,0,0.2,1);
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    font-family: var(--font-body);
-    background: var(--ai-off-white);
-    color: var(--ai-gray-800);
-    min-height: 100vh;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
-    zoom: 1 !important;
-    -webkit-text-size-adjust: 100%;
-  }
-
-  /* ============================================================
-     NAVBAR
-     ============================================================ */
-  .navbar {
-    background: var(--ai-navy);
-    padding: 0;
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    box-shadow: var(--shadow-lg);
-  }
-
-  .navbar-inner {
-    max-width: 1280px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0 24px;
-    height: 68px;
-  }
-
-  .navbar-logo {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    text-decoration: none;
-  }
-
-  .ai-logo-svg {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: var(--ai-red);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 2px var(--ai-gold);
-  }
-
-  .ai-logo-svg svg {
-    width: 34px;
-    height: 34px;
-  }
-
-  .navbar-brand {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .brand-main {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--ai-white);
-    letter-spacing: 0.5px;
-    line-height: 1.1;
-  }
-
-  .brand-sub {
-    font-size: 10px;
-    color: var(--ai-gold);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    font-weight: 600;
-  }
-
-  .navbar-divider {
-    width: 1px;
-    height: 36px;
-    background: rgba(255,255,255,0.2);
-    margin: 0 4px;
-  }
-
-  .dozera-badge {
-    font-size: 11px;
-    color: rgba(255,255,255,0.7);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
-
-  .navbar-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .user-pill {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    border-radius: 50px;
-    padding: 6px 14px 6px 8px;
-    cursor: pointer;
-    transition: var(--transition);
-  }
-
-  .user-pill:hover { background: rgba(255,255,255,0.14); }
-
-  .user-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-gold));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .user-name {
-    font-size: 13px;
-    color: var(--ai-white);
-    font-weight: 500;
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .btn-logout {
-    background: transparent;
-    border: 1px solid rgba(255,255,255,0.25);
-    border-radius: var(--radius-sm);
-    color: rgba(255,255,255,0.75);
-    font-size: 12px;
-    padding: 6px 12px;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    letter-spacing: 0.5px;
-  }
-
-  .btn-logout:hover {
-    background: rgba(200,16,46,0.3);
-    border-color: var(--ai-red);
-    color: white;
-  }
-
-  /* ============================================================
-     HERO BANNER
-     ============================================================ */
-  .hero-banner {
-    background: linear-gradient(135deg, var(--ai-dark-navy) 0%, var(--ai-navy) 50%, #2D1B4E 100%);
-    padding: 40px 24px 0;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .hero-banner::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: 
-      radial-gradient(ellipse at 20% 50%, rgba(200,16,46,0.12) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 30%, rgba(184,144,42,0.10) 0%, transparent 60%);
-    pointer-events: none;
-  }
-
-  .hero-banner::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    background: var(--ai-off-white);
-    clip-path: ellipse(55% 100% at 50% 100%);
-  }
-
-  .hero-content {
-    max-width: 1280px;
-    margin: 0 auto;
-    position: relative;
-    z-index: 2;
-    text-align: center;
-    padding-bottom: 60px;
-  }
-
-  .partnership-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: rgba(184,144,42,0.15);
-    border: 1px solid rgba(184,144,42,0.35);
-    border-radius: 50px;
-    padding: 6px 16px;
-    margin-bottom: 20px;
-  }
-
-  .partnership-tag span {
-    font-size: 11px;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: var(--ai-light-gold);
-    font-weight: 600;
-  }
-
-  .partnership-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ai-gold);
-    animation: pulse-dot 2s infinite;
-  }
-
-  @keyframes pulse-dot {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.7); }
-  }
-
-  .hero-title {
-    font-family: var(--font-display);
-    font-size: clamp(28px, 5vw, 52px);
-    font-weight: 700;
-    color: var(--ai-white);
-    line-height: 1.15;
-    margin-bottom: 12px;
-    letter-spacing: -0.5px;
-  }
-
-  .hero-title .accent { color: var(--ai-light-gold); }
-
-  .hero-subtitle {
-    font-size: 15px;
-    color: rgba(255,255,255,0.6);
-    max-width: 560px;
-    margin: 0 auto 36px;
-    line-height: 1.6;
-  }
-
-  /* ============================================================
-     SEARCH CARD (MAIN BOOKING WIDGET)
-     ============================================================ */
-  .search-card-wrapper {
-    max-width: 1100px;
-    margin: -28px auto 36px;
-    padding: 0 20px;
-    position: relative;
-    z-index: 10;
-  }
-
-  .search-card {
-    background: var(--ai-white);
-    border-radius: var(--radius-xl);
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    border: 1px solid var(--ai-gray-200);
-  }
-
-  .search-card-header {
-    background: linear-gradient(90deg, var(--ai-red), var(--ai-dark-red));
-    padding: 16px 28px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .search-card-header h2 {
-    font-size: 15px;
-    font-weight: 700;
-    color: white;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-  }
-
-  .class-tabs {
-    display: flex;
-    gap: 6px;
-    margin-left: auto;
-    background: rgba(0,0,0,0.2);
-    border-radius: 50px;
-    padding: 3px;
-  }
-
-  .class-tab {
-    padding: 5px 12px;
-    border-radius: 50px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    color: rgba(255,255,255,0.65);
-    border: none;
-    background: transparent;
-    font-family: var(--font-body);
-    letter-spacing: 0.5px;
-  }
-
-  .class-tab.active {
-    background: var(--ai-white);
-    color: var(--ai-red);
-  }
-
-  .search-card-body {
-    padding: 28px;
-  }
-
-  .search-row {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr auto auto;
-    gap: 12px;
-    align-items: end;
-    margin-bottom: 20px;
-  }
-
-  .search-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    position: relative;
-  }
-
-  .search-field label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--ai-gray-400);
-  }
-
-  .search-field .field-inner {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    border: 1.5px solid var(--ai-gray-200);
-    border-radius: var(--radius-md);
-    padding: 12px 16px;
-    background: var(--ai-gray-100);
-    transition: var(--transition);
-    cursor: pointer;
-    position: relative;
-  }
-
-  .search-field .field-inner:hover,
-  .search-field .field-inner:focus-within {
-    border-color: var(--ai-red);
-    background: white;
-    box-shadow: 0 0 0 3px rgba(200,16,46,0.08);
-  }
-
-  .field-icon {
-    color: var(--ai-red);
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .field-texts { flex: 1; overflow: hidden; }
-
-  .field-code {
-    font-size: 22px;
-    font-weight: 700;
-    color: var(--ai-gray-800);
-    line-height: 1;
-    letter-spacing: -0.5px;
-  }
-
-  .field-name {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    margin-top: 1px;
-  }
-
-  .swap-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: var(--ai-off-white);
-    border: 1.5px solid var(--ai-gray-200);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: var(--transition);
-    font-size: 18px;
-    color: var(--ai-red);
-    align-self: flex-end;
-    margin-bottom: 3px;
-    flex-shrink: 0;
-  }
-
-  .swap-btn:hover {
-    background: var(--ai-red);
-    color: white;
-    border-color: var(--ai-red);
-    transform: rotate(180deg);
-  }
-
-  .search-field input[type="date"] {
-    border: none;
-    background: transparent;
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--ai-gray-800);
-    font-family: var(--font-body);
-    width: 100%;
-    cursor: pointer;
-    outline: none;
-  }
-
-  .search-field input[type="date"]::-webkit-calendar-picker-indicator {
-    opacity: 0.4;
-    cursor: pointer;
-  }
-
-  .date-label-sub {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    margin-top: 1px;
-  }
-
-  .btn-search-flights {
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 0 32px;
-    height: 68px;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-    box-shadow: 0 4px 16px rgba(200,16,46,0.35);
-    align-self: flex-end;
-  }
-
-  .btn-search-flights:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 28px rgba(200,16,46,0.45);
-  }
-
-  .btn-search-flights:active { transform: translateY(0); }
-
-  /* ============================================================
-     AIRPORT DROPDOWN
-     ============================================================ */
-  .airport-dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    background: white;
-    border: 1.5px solid var(--ai-gray-200);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-xl);
-    z-index: 9999;
-    max-height: 320px;
-    overflow: hidden;
-    display: none;
-  }
-
-  .airport-dropdown.open { display: block; }
-
-  .airport-search-input {
-    width: 100%;
-    padding: 12px 16px;
-    border: none;
-    border-bottom: 1px solid var(--ai-gray-200);
-    font-size: 14px;
-    outline: none;
-    font-family: var(--font-body);
-    color: var(--ai-gray-800);
-  }
-
-  .airport-list {
-    max-height: 260px;
-    overflow-y: auto;
-  }
-
-  .airport-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 10px 16px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .airport-item:hover { background: var(--ai-gray-100); }
-
-  .airport-item-code {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--ai-red);
-    width: 40px;
-    flex-shrink: 0;
-  }
-
-  .airport-item-info { flex: 1; overflow: hidden; }
-
-  .airport-item-city {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--ai-gray-800);
-  }
-
-  .airport-item-name {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  /* ============================================================
-     SECTION CONTAINER
-     ============================================================ */
-  .main-container {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 0 20px 60px;
-  }
-
-  /* ============================================================
-     FLIGHTS RESULTS
-     ============================================================ */
-  .results-section { margin-bottom: 40px; }
-
-  .results-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 20px;
-    padding-bottom: 14px;
-    border-bottom: 2px solid var(--ai-gray-200);
-  }
-
-  .results-title {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--ai-navy);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .results-count {
-    background: var(--ai-red);
-    color: white;
-    border-radius: 50px;
-    padding: 2px 10px;
-    font-size: 12px;
-    font-weight: 700;
-  }
-
-  .results-sort {
-    display: flex;
-    gap: 8px;
-  }
-
-  .sort-btn {
-    padding: 6px 14px;
-    border-radius: 50px;
-    border: 1.5px solid var(--ai-gray-200);
-    background: white;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: var(--transition);
-    color: var(--ai-gray-600);
-    font-family: var(--font-body);
-  }
-
-  .sort-btn.active {
-    background: var(--ai-navy);
-    border-color: var(--ai-navy);
-    color: white;
-  }
-
-  /* ============================================================
-     FLIGHT CARD
-     ============================================================ */
-  .flight-card {
-    background: var(--ai-white);
-    border-radius: var(--radius-lg);
-    border: 1.5px solid var(--ai-gray-200);
-    margin-bottom: 16px;
-    overflow: hidden;
-    box-shadow: var(--shadow-sm);
-    transition: var(--transition);
-    cursor: pointer;
-  }
-
-  .flight-card:hover {
-    border-color: var(--ai-red);
-    box-shadow: var(--shadow-md);
-    transform: translateY(-1px);
-  }
-
-  .flight-card.selected {
-    border-color: var(--ai-red);
-    box-shadow: 0 0 0 3px rgba(200,16,46,0.12), var(--shadow-md);
-  }
-
-  .flight-card-main {
-    padding: 22px 24px;
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
-
-  .flight-airline-info {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    min-width: 80px;
-  }
-
-  .flight-airline-logo {
-    width: 52px;
-    height: 52px;
-    border-radius: var(--radius-sm);
-    background: white;
-    border: 1px solid var(--ai-gray-200);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
-
-  .flight-airline-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-
-  .flight-number {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--ai-gray-400);
-    letter-spacing: 0.5px;
-  }
-
-  .flight-route {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .route-point {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 70px;
-  }
-
-  .route-time {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--ai-gray-800);
-    letter-spacing: -1px;
-    line-height: 1;
-  }
-
-  .route-code {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ai-gray-400);
-    letter-spacing: 1px;
-    margin-top: 2px;
-  }
-
-  .route-city {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    text-align: center;
-  }
-
-  .route-middle {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .route-duration {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ai-gray-600);
-  }
-
-  .route-line {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    gap: 4px;
-  }
-
-  .route-line-bar {
-    flex: 1;
-    height: 1.5px;
-    background: var(--ai-gray-200);
-    position: relative;
-  }
-
-  .route-line-bar::after {
-    content: '✈';
-    position: absolute;
-    right: -8px;
-    top: -10px;
-    font-size: 16px;
-    color: var(--ai-red);
-  }
-
-  .route-stops {
-    font-size: 11px;
-    color: var(--ai-success);
-    font-weight: 600;
-  }
-
-  .route-stops.has-stop { color: var(--ai-warning); }
-
-  .flight-price-section {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    min-width: 140px;
-  }
-
-  .price-tag {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-
-  .price-label {
-    font-size: 10px;
-    color: var(--ai-gray-400);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  .price-amount {
-    font-size: 26px;
-    font-weight: 800;
-    color: var(--ai-red);
-    letter-spacing: -0.5px;
-    line-height: 1;
-  }
-
-  .price-tax {
-    font-size: 10px;
-    color: var(--ai-gray-400);
-    margin-top: 2px;
-  }
-
-  .btn-select-flight {
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 10px 20px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    box-shadow: 0 2px 8px rgba(200,16,46,0.3);
-    margin-top: 6px;
-  }
-
-  .btn-select-flight:hover {
-    box-shadow: 0 4px 16px rgba(200,16,46,0.4);
-    transform: translateY(-1px);
-  }
-
-  .flight-card-details {
-    padding: 0 24px 20px;
-    border-top: 1px solid var(--ai-gray-100);
-    display: none;
-  }
-
-  .flight-card.selected .flight-card-details { display: block; }
-
-  .flight-detail-tabs {
-    display: flex;
-    gap: 0;
-    margin-top: 16px;
-    border-bottom: 2px solid var(--ai-gray-200);
-  }
-
-  .detail-tab {
-    padding: 8px 18px;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--ai-gray-400);
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    transition: var(--transition);
-    letter-spacing: 0.5px;
-  }
-
-  .detail-tab.active {
-    color: var(--ai-red);
-    border-bottom-color: var(--ai-red);
-  }
-
-  .detail-content {
-    padding: 16px 0;
-    display: none;
-  }
-
-  .detail-content.active { display: block; }
-
-  .detail-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    gap: 16px;
-  }
-
-  .detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-  }
-
-  .detail-item-label {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ai-gray-400);
-  }
-
-  .detail-item-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--ai-gray-800);
-  }
-
-  /* Amenities */
-  .amenities-row {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-  }
-
-  .amenity-badge {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    background: var(--ai-gray-100);
-    border-radius: 50px;
-    padding: 5px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--ai-gray-600);
-  }
-
-  .amenity-badge.yes { background: #ECFDF5; color: var(--ai-success); }
-  .amenity-badge.no { background: #FEF2F2; color: #DC2626; }
-
-  /* ============================================================
-     SEAT MAP
-     ============================================================ */
-  .seat-map-container {
-    background: var(--ai-gray-100);
-    border-radius: var(--radius-md);
-    padding: 16px;
-    margin-top: 12px;
-  }
-
-  .seat-map-title {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--ai-gray-600);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 12px;
-    text-align: center;
-  }
-
-  .aircraft-nose {
-    text-align: center;
-    font-size: 28px;
-    margin-bottom: 8px;
-  }
-
-  .seat-row {
-    display: flex;
-    justify-content: center;
-    gap: 4px;
-    margin-bottom: 4px;
-    align-items: center;
-  }
-
-  .seat-row-num {
-    font-size: 9px;
-    color: var(--ai-gray-400);
-    width: 18px;
-    text-align: center;
-  }
-
-  .seat-aisle { width: 20px; }
-
-  .seat {
-    width: 22px;
-    height: 22px;
-    border-radius: 3px 3px 0 0;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: var(--transition);
-    font-size: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 700;
-  }
-
-  .seat.available { background: #ECFDF5; border-color: #059669; color: #059669; }
-  .seat.occupied { background: var(--ai-gray-200); border-color: var(--ai-gray-400); color: var(--ai-gray-400); cursor: not-allowed; }
-  .seat.selected-seat { background: var(--ai-red); border-color: var(--ai-dark-red); color: white; }
-  .seat.business { background: #EEF2FF; border-color: #6366F1; color: #6366F1; }
-  .seat.selected-seat.business { background: #6366F1; color: white; }
-  .seat:hover:not(.occupied) { transform: scale(1.15); }
-
-  .seat-legend {
-    display: flex;
-    justify-content: center;
-    gap: 16px;
-    margin-top: 12px;
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 10px;
-    color: var(--ai-gray-600);
-  }
-
-  .legend-box {
-    width: 14px;
-    height: 14px;
-    border-radius: 2px;
-    border: 1px solid transparent;
-  }
-
-  /* ============================================================
-     BOOKING FORM
-     ============================================================ */
-  .booking-section {
-    background: var(--ai-white);
-    border-radius: var(--radius-xl);
-    border: 1.5px solid var(--ai-gray-200);
-    box-shadow: var(--shadow-md);
-    overflow: hidden;
-    margin-bottom: 40px;
-    display: none;
-  }
-
-  .booking-section.visible { display: block; }
-
-  .booking-header {
-    background: linear-gradient(90deg, var(--ai-navy), #2D3580);
-    padding: 20px 28px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .booking-header h3 {
-    font-size: 16px;
-    font-weight: 700;
-    color: white;
-    letter-spacing: 0.5px;
-  }
-
-  .booking-step-badge {
-    background: var(--ai-gold);
-    color: var(--ai-dark-navy);
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 800;
-  }
-
-  .booking-form-body {
-    padding: 28px;
-  }
-
-  .form-section-title {
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--ai-gray-400);
-    margin-bottom: 16px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid var(--ai-gray-200);
-  }
-
-  .form-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-
-  .form-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-  }
-
-  .form-field label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ai-gray-600);
-  }
-
-  .required-star { color: var(--ai-red); margin-left: 2px; }
-
-  .form-field input,
-  .form-field select {
-    border: 1.5px solid var(--ai-gray-200);
-    border-radius: var(--radius-sm);
-    padding: 11px 14px;
-    font-size: 14px;
-    color: var(--ai-gray-800);
-    background: var(--ai-gray-100);
-    font-family: var(--font-body);
-    transition: var(--transition);
-    outline: none;
-  }
-
-  .form-field input:focus,
-  .form-field select:focus {
-    border-color: var(--ai-red);
-    background: white;
-    box-shadow: 0 0 0 3px rgba(200,16,46,0.08);
-  }
-
-  .optional-tag {
-    font-size: 10px;
-    font-weight: 400;
-    color: var(--ai-gray-400);
-    letter-spacing: 0;
-    text-transform: none;
-    margin-left: 4px;
-  }
-
-  .class-notice {
-    background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
-    border: 1px solid #C7D2FE;
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 24px;
-  }
-
-  .class-notice-icon { font-size: 20px; }
-
-  .class-notice p {
-    font-size: 13px;
-    color: #4338CA;
-    font-weight: 500;
-    line-height: 1.4;
-  }
-
-  .class-notice strong { font-weight: 700; }
-
-  /* Summary panel */
-  .booking-summary-row {
-    background: var(--ai-gray-100);
-    border-radius: var(--radius-md);
-    padding: 18px 20px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-
-  .summary-flight-info { display: flex; flex-direction: column; gap: 2px; }
-
-  .summary-route {
-    font-size: 18px;
-    font-weight: 800;
-    color: var(--ai-gray-800);
-    letter-spacing: -0.5px;
-  }
-
-  .summary-meta {
-    font-size: 12px;
-    color: var(--ai-gray-400);
-  }
-
-  .summary-price-block { text-align: right; }
-
-  .summary-total-label {
-    font-size: 10px;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ai-gray-400);
-    font-weight: 700;
-  }
-
-  .summary-total-amount {
-    font-size: 28px;
-    font-weight: 800;
-    color: var(--ai-red);
-    letter-spacing: -0.5px;
-  }
-
-  .btn-confirm-booking {
-    width: 100%;
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 16px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    letter-spacing: 0.5px;
-    box-shadow: 0 4px 20px rgba(200,16,46,0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-  }
-
-  .btn-confirm-booking:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(200,16,46,0.45);
-  }
-
-  .btn-confirm-booking:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    transform: none;
-  }
-
-  /* ============================================================
-     AUTH OVERLAY
-     ============================================================ */
-  .auth-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,14,40,0.85);
-    backdrop-filter: blur(6px);
-    z-index: 10000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-  }
-
-  .auth-modal {
-    background: white;
-    border-radius: var(--radius-xl);
-    width: 100%;
-    max-width: 440px;
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-  }
-
-  .auth-modal-header {
-    background: linear-gradient(135deg, var(--ai-dark-navy), var(--ai-navy));
-    padding: 32px 32px 24px;
-    text-align: center;
-  }
-
-  .auth-modal-logo {
-    width: 70px;
-    height: 70px;
-    border-radius: 50%;
-    background: var(--ai-red);
-    margin: 0 auto 16px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 0 4px rgba(184,144,42,0.4);
-  }
-
-  .auth-modal-logo svg { width: 48px; height: 48px; }
-
-  .auth-modal-title {
-    font-family: var(--font-display);
-    font-size: 22px;
-    font-weight: 700;
-    color: white;
-    margin-bottom: 4px;
-  }
-
-  .auth-modal-sub {
-    font-size: 12px;
-    color: rgba(255,255,255,0.5);
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-  }
-
-  .auth-modal-body {
-    padding: 28px 32px 32px;
-  }
-
-  .auth-error {
-    background: #FEF2F2;
-    border: 1px solid #FECACA;
-    border-radius: var(--radius-sm);
-    padding: 10px 14px;
-    font-size: 13px;
-    color: #DC2626;
-    margin-bottom: 16px;
-    display: none;
-  }
-
-  .auth-error.show { display: block; }
-
-  .auth-field {
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-    margin-bottom: 14px;
-  }
-
-  .auth-field label {
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    color: var(--ai-gray-600);
-  }
-
-  .auth-field input {
-    border: 1.5px solid var(--ai-gray-200);
-    border-radius: var(--radius-sm);
-    padding: 12px 14px;
-    font-size: 14px;
-    color: var(--ai-gray-800);
-    font-family: var(--font-body);
-    transition: var(--transition);
-    outline: none;
-    background: var(--ai-gray-100);
-  }
-
-  .auth-field input:focus {
-    border-color: var(--ai-red);
-    background: white;
-    box-shadow: 0 0 0 3px rgba(200,16,46,0.08);
-  }
-
-  .btn-auth {
-    width: 100%;
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    padding: 14px;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    margin-top: 6px;
-    box-shadow: 0 4px 16px rgba(200,16,46,0.3);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-  }
-
-  .btn-auth:hover { transform: translateY(-1px); box-shadow: 0 8px 24px rgba(200,16,46,0.4); }
-
-  .auth-divider {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin: 18px 0;
-    color: var(--ai-gray-400);
-    font-size: 12px;
-  }
-
-  .auth-divider::before,
-  .auth-divider::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: var(--ai-gray-200);
-  }
-
-  .auth-switch {
-    text-align: center;
-    font-size: 13px;
-    color: var(--ai-gray-600);
-    margin-top: 16px;
-  }
-
-  .auth-switch a {
-    color: var(--ai-red);
-    font-weight: 700;
-    cursor: pointer;
-    text-decoration: none;
-  }
-
-  .auth-switch a:hover { text-decoration: underline; }
-
-  /* ============================================================
-     SUCCESS / TICKET SCREEN
-     ============================================================ */
-  .ticket-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,14,40,0.9);
-    backdrop-filter: blur(8px);
-    z-index: 20000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    overflow-y: auto;
-  }
-
-  .ticket-modal {
-    background: white;
-    border-radius: var(--radius-xl);
-    width: 100%;
-    max-width: 680px;
-    box-shadow: var(--shadow-xl);
-    overflow: hidden;
-    margin: auto;
-  }
-
-  .ticket-header {
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    padding: 24px 28px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .ticket-header-logo {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.15);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .ticket-header-text { flex: 1; }
-
-  .ticket-header-title {
-    font-size: 20px;
-    font-weight: 800;
-    color: white;
-    font-family: var(--font-display);
-  }
-
-  .ticket-header-sub {
-    font-size: 12px;
-    color: rgba(255,255,255,0.65);
-    margin-top: 2px;
-  }
-
-  .ticket-pnr-badge {
-    background: rgba(255,255,255,0.15);
-    border: 1px solid rgba(255,255,255,0.3);
-    border-radius: var(--radius-md);
-    padding: 8px 16px;
-    text-align: center;
-  }
-
-  .ticket-pnr-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.6); }
-  .ticket-pnr-code { font-size: 22px; font-weight: 800; color: white; letter-spacing: 3px; }
-
-  .ticket-body { padding: 0; }
-
-  .ticket-route-band {
-    background: var(--ai-off-white);
-    padding: 20px 28px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    border-bottom: 1px dashed var(--ai-gray-200);
-  }
-
-  .ticket-city { display: flex; flex-direction: column; align-items: center; }
-
-  .ticket-city-code {
-    font-size: 32px;
-    font-weight: 800;
-    color: var(--ai-navy);
-    letter-spacing: -1px;
-  }
-
-  .ticket-city-name {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  .ticket-route-arrow {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 3px;
-  }
-
-  .ticket-arrow-line {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    gap: 4px;
-  }
-
-  .ticket-arrow-bar {
-    flex: 1;
-    height: 1.5px;
-    background: linear-gradient(90deg, var(--ai-gray-200), var(--ai-red), var(--ai-gray-200));
-  }
-
-  .ticket-arrow-icon { font-size: 22px; color: var(--ai-red); }
-
-  .ticket-flight-meta {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    font-weight: 600;
-  }
-
-  .ticket-details-grid {
-    padding: 20px 28px;
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  .ticket-detail-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .ticket-detail-label {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    text-transform: uppercase;
-    color: var(--ai-gray-400);
-  }
-
-  .ticket-detail-value {
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--ai-gray-800);
-  }
-
-  .ticket-divider {
-    border: none;
-    border-top: 1.5px dashed var(--ai-gray-200);
-    margin: 0 28px;
-    position: relative;
-  }
-
-  .ticket-divider::before,
-  .ticket-divider::after {
-    content: '';
-    position: absolute;
-    top: -9px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--ai-off-white);
-    border: 1.5px solid var(--ai-gray-200);
-  }
-
-  .ticket-divider::before { left: -42px; }
-  .ticket-divider::after { right: -42px; }
-
-  .ticket-passenger-bar {
-    padding: 16px 28px;
-    background: white;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  .passenger-icon-wrap {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-gold));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    color: white;
-  }
-
-  .passenger-info { flex: 1; }
-
-  .passenger-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--ai-navy);
-  }
-
-  .passenger-meta {
-    font-size: 11px;
-    color: var(--ai-gray-400);
-    margin-top: 1px;
-  }
-
-  .ticket-class-badge {
-    background: var(--ai-navy);
-    color: white;
-    border-radius: 50px;
-    padding: 4px 12px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1px;
-  }
-
-  .ticket-footer {
-    padding: 16px 28px 20px;
-    display: flex;
-    gap: 10px;
-    border-top: 1px solid var(--ai-gray-100);
-  }
-
-  .btn-download-pdf {
-    flex: 1;
-    background: linear-gradient(135deg, var(--ai-red), var(--ai-dark-red));
-    color: white;
-    border: none;
-    border-radius: var(--radius-sm);
-    padding: 12px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-  }
-
-  .btn-download-pdf:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
-
-  .btn-close-ticket {
-    background: var(--ai-gray-100);
-    color: var(--ai-gray-600);
-    border: 1.5px solid var(--ai-gray-200);
-    border-radius: var(--radius-sm);
-    padding: 12px 20px;
-    font-size: 13px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
-    font-family: var(--font-body);
-  }
-
-  .btn-close-ticket:hover { background: var(--ai-gray-200); }
-
-  /* ============================================================
-     LOADING SPINNER
-     ============================================================ */
-  .loading-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,14,40,0.7);
-    backdrop-filter: blur(4px);
-    z-index: 30000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 16px;
-    display: none;
-  }
-
-  .loading-overlay.show { display: flex; }
-
-  .spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(255,255,255,0.2);
-    border-top-color: var(--ai-red);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .loading-text {
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-  }
-
-  /* ============================================================
-     TOAST NOTIFICATIONS
-     ============================================================ */
-  .toast-container {
-    position: fixed;
-    top: 80px;
-    right: 20px;
-    z-index: 50000;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .toast {
-    background: white;
-    border-radius: var(--radius-md);
-    padding: 12px 16px;
-    min-width: 280px;
-    max-width: 380px;
-    box-shadow: var(--shadow-xl);
-    border-left: 4px solid;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    animation: slideIn 0.3s ease;
-  }
-
-  @keyframes slideIn {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-  }
-
-  .toast.success { border-color: var(--ai-success); }
-  .toast.error { border-color: var(--ai-red); }
-  .toast.info { border-color: var(--ai-navy); }
-
-  .toast-icon { font-size: 18px; flex-shrink: 0; }
-  .toast-msg { font-size: 13px; font-weight: 500; color: var(--ai-gray-800); flex: 1; }
-
-  /* ============================================================
-     FOOTER
-     ============================================================ */
-  .footer {
-    background: var(--ai-dark-navy);
-    padding: 32px 24px;
-    text-align: center;
-  }
-
-  .footer-content {
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .footer-logo-row {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    margin-bottom: 16px;
-  }
-
-  .footer-brand {
-    font-family: var(--font-display);
-    font-size: 18px;
-    font-weight: 700;
-    color: white;
-  }
-
-  .footer-x { color: var(--ai-gold); margin: 0 4px; }
-
-  .footer-divider { width: 1px; height: 28px; background: rgba(255,255,255,0.15); }
-
-  .footer-links {
-    display: flex;
-    justify-content: center;
-    gap: 24px;
-    margin-bottom: 16px;
-    flex-wrap: wrap;
-  }
-
-  .footer-link {
-    font-size: 12px;
-    color: rgba(255,255,255,0.45);
-    text-decoration: none;
-    letter-spacing: 0.5px;
-    transition: var(--transition);
-  }
-
-  .footer-link:hover { color: var(--ai-gold); }
-
-  .footer-copy {
-    font-size: 11px;
-    color: rgba(255,255,255,0.25);
-    letter-spacing: 0.5px;
-  }
-
-  /* ============================================================
-     SKELETON LOADER
-     ============================================================ */
-  .skeleton {
-    background: linear-gradient(90deg, var(--ai-gray-200) 25%, var(--ai-gray-100) 50%, var(--ai-gray-200) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: var(--radius-sm);
-  }
-
-  @keyframes shimmer { to { background-position: -200% 0; } }
-
-  .skeleton-card {
-    height: 100px;
-    border-radius: var(--radius-lg);
-    margin-bottom: 14px;
-  }
-
-  /* ============================================================
-     RESPONSIVE
-     ============================================================ */
-  @media (max-width: 768px) {
-    .search-row {
-      grid-template-columns: 1fr;
-    }
-    .swap-btn { transform: rotate(90deg); width: 100%; height: 36px; border-radius: var(--radius-sm); }
-    .swap-btn:hover { transform: rotate(270deg); }
-    .flight-card-main { flex-wrap: wrap; gap: 14px; }
-    .flight-price-section { flex-direction: row; align-items: center; justify-content: space-between; width: 100%; }
-    .ticket-details-grid { grid-template-columns: repeat(2, 1fr); }
-    .search-card-header { flex-wrap: wrap; gap: 10px; }
-    .class-tabs { order: 3; }
-    .navbar-inner { padding: 0 14px; }
-    .hero-title { font-size: 24px; }
-  }
-
-  /* ============================================================
-     MISC UTILS
-     ============================================================ */
-  .hidden { display: none !important; }
-
-  .text-red { color: var(--ai-red); }
-  .text-navy { color: var(--ai-navy); }
-  .text-gold { color: var(--ai-gold); }
-
-  .mt-2 { margin-top: 8px; }
-  .mt-4 { margin-top: 16px; }
-
-  .spin-icon { animation: spin 1.5s linear infinite; display: inline-block; }
-
-  #qr-code-div canvas, #qr-code-div img {
-    margin: 0 auto;
-    display: block;
-  }
-
-  .barcode-strip {
-    height: 50px;
-    background: repeating-linear-gradient(
-      90deg,
-      #000 0px, #000 2px,
-      white 2px, white 4px,
-      #000 4px, #000 5px,
-      white 5px, white 8px,
-      #000 8px, #000 10px,
-      white 10px, white 12px,
-      #000 12px, #000 14px,
-      white 14px, white 18px
-    );
-    border-radius: 2px;
-    margin: 12px 28px;
-    opacity: 0.7;
-  }
-
-  .price-breakdown {
-    background: var(--ai-gray-100);
-    border-radius: var(--radius-md);
-    padding: 14px 18px;
-    margin-top: 12px;
-  }
-
-  .price-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 0;
-    font-size: 13px;
-    color: var(--ai-gray-600);
-    border-bottom: 1px solid var(--ai-gray-200);
-  }
-
-  .price-row:last-child { border-bottom: none; font-weight: 700; color: var(--ai-gray-800); font-size: 15px; }
-  .price-row .price-val { font-weight: 600; }
-
-  .partner-strip {
-    background: linear-gradient(90deg, var(--ai-navy), #1e2a5e, var(--ai-navy));
-    padding: 8px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    border-top: 1px solid rgba(255,255,255,0.07);
-  }
-
-  .partner-strip-text {
-    font-size: 11px;
-    color: rgba(255,255,255,0.45);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-  }
-
-  .partner-strip-dot {
-    width: 4px;
-    height: 4px;
-    border-radius: 50%;
-    background: var(--ai-gold);
-    opacity: 0.5;
-  }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --ai-red:#C8102E;--ai-dark-red:#A00C24;--ai-gold:#B8902A;--ai-light-gold:#D4A843;
+  --ai-navy:#1A1F4B;--ai-dark-navy:#0D1130;--ai-white:#FFFFFF;--ai-off-white:#F8F6F2;
+  --ai-gray-100:#F3F4F6;--ai-gray-200:#E5E7EB;--ai-gray-400:#9CA3AF;
+  --ai-gray-600:#4B5563;--ai-gray-800:#1F2937;--ai-success:#059669;--ai-warning:#D97706;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.08);--shadow-md:0 4px 16px rgba(0,0,0,.12);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.18);--shadow-xl:0 20px 60px rgba(0,0,0,.22);
+  --radius-sm:6px;--radius-md:12px;--radius-lg:18px;--radius-xl:24px;
+  --font-display:'Georgia',serif;--font-body:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --transition:all 0.25s cubic-bezier(0.4,0,0.2,1)
+}
+html{scroll-behavior:smooth}
+body{font-family:var(--font-body);background:var(--ai-off-white);color:var(--ai-gray-800);
+  min-height:100vh;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+
+/* ── NAVBAR ── */
+.navbar{background:var(--ai-navy);position:sticky;top:0;z-index:1000;box-shadow:var(--shadow-lg)}
+.navbar-inner{max-width:1280px;margin:0 auto;display:flex;align-items:center;
+  justify-content:space-between;padding:0 24px;height:68px}
+.navbar-logo{display:flex;align-items:center;gap:14px;text-decoration:none}
+.ai-logo-circle{width:48px;height:48px;border-radius:50%;background:white;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 2px var(--ai-gold);overflow:hidden;padding:4px}
+.ai-logo-circle img{width:100%;height:100%;object-fit:contain}
+.navbar-brand{display:flex;flex-direction:column}
+.brand-main{font-family:var(--font-display);font-size:18px;font-weight:700;
+  color:var(--ai-white);letter-spacing:.5px;line-height:1.1}
+.brand-sub{font-size:10px;color:var(--ai-gold);letter-spacing:2px;
+  text-transform:uppercase;font-weight:600}
+.navbar-divider{width:1px;height:36px;background:rgba(255,255,255,.2);margin:0 4px}
+.dozera-badge{font-size:11px;color:rgba(255,255,255,.7);letter-spacing:1px;
+  text-transform:uppercase;font-weight:500}
+.navbar-actions{display:flex;align-items:center;gap:12px}
+.user-pill{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.15);border-radius:50px;padding:6px 14px 6px 8px;
+  cursor:pointer;transition:var(--transition)}
+.user-pill:hover{background:rgba(255,255,255,.14)}
+.user-avatar{width:30px;height:30px;border-radius:50%;
+  background:linear-gradient(135deg,var(--ai-red),var(--ai-gold));
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  font-weight:700;color:white}
+.user-name{font-size:13px;color:var(--ai-white);font-weight:500;
+  max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-logout{background:transparent;border:1px solid rgba(255,255,255,.25);
+  border-radius:var(--radius-sm);color:rgba(255,255,255,.75);font-size:12px;
+  padding:6px 12px;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);letter-spacing:.5px}
+.btn-logout:hover{background:rgba(200,16,46,.3);border-color:var(--ai-red);color:white}
+.nav-profile-btn{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);
+  border-radius:var(--radius-sm);color:white;font-size:12px;padding:6px 12px;
+  cursor:pointer;transition:var(--transition);font-family:var(--font-body)}
+.nav-profile-btn:hover{background:rgba(255,255,255,.18)}
+
+/* ── HERO ── */
+.hero-banner{background:linear-gradient(135deg,var(--ai-dark-navy) 0%,var(--ai-navy) 50%,#2D1B4E 100%);
+  padding:40px 24px 0;position:relative;overflow:hidden}
+.hero-banner::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 20% 50%,rgba(200,16,46,.12) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 30%,rgba(184,144,42,.10) 0%,transparent 60%);
+  pointer-events:none}
+.hero-banner::after{content:'';position:absolute;bottom:0;left:0;right:0;
+  height:60px;background:var(--ai-off-white);clip-path:ellipse(55% 100% at 50% 100%)}
+.hero-content{max-width:1280px;margin:0 auto;position:relative;z-index:2;
+  text-align:center;padding-bottom:60px}
+.partnership-tag{display:inline-flex;align-items:center;gap:8px;
+  background:rgba(184,144,42,.15);border:1px solid rgba(184,144,42,.35);
+  border-radius:50px;padding:6px 16px;margin-bottom:20px}
+.partnership-tag span{font-size:11px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--ai-light-gold);font-weight:600}
+.partnership-dot{width:6px;height:6px;border-radius:50%;background:var(--ai-gold);
+  animation:pulse-dot 2s infinite}
+@keyframes pulse-dot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
+.hero-title{font-family:var(--font-display);font-size:clamp(28px,5vw,52px);
+  font-weight:700;color:var(--ai-white);line-height:1.15;margin-bottom:12px;letter-spacing:-.5px}
+.hero-title .accent{color:var(--ai-light-gold)}
+.hero-subtitle{font-size:15px;color:rgba(255,255,255,.6);max-width:560px;
+  margin:0 auto 36px;line-height:1.6}
+
+/* ── SEARCH CARD ── */
+.search-card-wrapper{max-width:1100px;margin:-28px auto 36px;padding:0 20px;
+  position:relative;z-index:10}
+.search-card{background:var(--ai-white);border-radius:var(--radius-xl);
+  box-shadow:var(--shadow-xl);overflow:hidden;border:1px solid var(--ai-gray-200)}
+.search-card-header{background:linear-gradient(90deg,var(--ai-red),var(--ai-dark-red));
+  padding:14px 28px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.search-card-header h2{font-size:15px;font-weight:700;color:white;letter-spacing:.5px;
+  text-transform:uppercase}
+.ai-header-logo{height:28px;object-fit:contain;filter:brightness(0) invert(1)}
+.class-tabs{display:flex;gap:6px;margin-left:auto;background:rgba(0,0,0,.2);
+  border-radius:50px;padding:3px}
+.class-tab{padding:5px 12px;border-radius:50px;font-size:11px;font-weight:600;
+  cursor:pointer;transition:var(--transition);color:rgba(255,255,255,.65);
+  border:none;background:transparent;font-family:var(--font-body);letter-spacing:.5px}
+.class-tab.active{background:var(--ai-white);color:var(--ai-red)}
+.search-card-body{padding:24px 28px}
+.search-row{display:grid;grid-template-columns:1fr auto 1fr auto auto;
+  gap:12px;align-items:end;margin-bottom:16px}
+.search-field{display:flex;flex-direction:column;gap:5px;position:relative}
+.search-field label{font-size:10px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--ai-gray-400)}
+.field-inner{display:flex;align-items:center;gap:10px;
+  border:1.5px solid var(--ai-gray-200);border-radius:var(--radius-md);
+  padding:12px 16px;background:var(--ai-gray-100);transition:var(--transition);
+  cursor:pointer;position:relative;min-height:68px}
+.field-inner:hover,.field-inner:focus-within{border-color:var(--ai-red);
+  background:white;box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.field-icon{color:var(--ai-red);font-size:18px;flex-shrink:0}
+.field-texts{flex:1;overflow:hidden}
+.field-code{font-size:22px;font-weight:700;color:var(--ai-gray-800);
+  line-height:1;letter-spacing:-.5px}
+.field-name{font-size:11px;color:var(--ai-gray-400);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+.swap-btn{width:42px;height:42px;border-radius:50%;background:var(--ai-off-white);
+  border:1.5px solid var(--ai-gray-200);display:flex;align-items:center;
+  justify-content:center;cursor:pointer;transition:var(--transition);
+  font-size:18px;color:var(--ai-red);align-self:flex-end;margin-bottom:10px;flex-shrink:0}
+.swap-btn:hover{background:var(--ai-red);color:white;border-color:var(--ai-red);
+  transform:rotate(180deg)}
+.search-field input[type="date"]{border:none;background:transparent;font-size:18px;
+  font-weight:700;color:var(--ai-gray-800);font-family:var(--font-body);
+  width:100%;cursor:pointer;outline:none}
+.search-field input[type="date"]::-webkit-calendar-picker-indicator{opacity:.4;cursor:pointer}
+.date-label-sub{font-size:11px;color:var(--ai-gray-400);margin-top:1px}
+.btn-search-flights{background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  color:white;border:none;border-radius:var(--radius-md);padding:0 28px;height:68px;
+  font-size:14px;font-weight:700;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);letter-spacing:.5px;display:flex;align-items:center;
+  gap:8px;white-space:nowrap;box-shadow:0 4px 16px rgba(200,16,46,.35);align-self:flex-end}
+.btn-search-flights:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(200,16,46,.45)}
+
+/* ── AIRPORT DROPDOWN ── */
+.airport-dropdown{position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:white;border:1.5px solid var(--ai-gray-200);border-radius:var(--radius-md);
+  box-shadow:var(--shadow-xl);z-index:9999;max-height:340px;overflow:hidden;display:none}
+.airport-dropdown.open{display:block}
+.airport-search-input{width:100%;padding:12px 16px;border:none;
+  border-bottom:1px solid var(--ai-gray-200);font-size:14px;outline:none;
+  font-family:var(--font-body);color:var(--ai-gray-800)}
+.airport-list{max-height:280px;overflow-y:auto}
+.airport-item{display:flex;align-items:center;gap:12px;padding:10px 16px;
+  cursor:pointer;transition:background .15s;border-bottom:1px solid var(--ai-gray-100)}
+.airport-item:hover{background:var(--ai-gray-100)}
+.airport-item-code{font-size:16px;font-weight:700;color:var(--ai-red);
+  width:40px;flex-shrink:0}
+.airport-item-info{flex:1;overflow:hidden}
+.airport-item-city{font-size:13px;font-weight:600;color:var(--ai-gray-800)}
+.airport-item-name{font-size:11px;color:var(--ai-gray-400);overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.airport-item-state{font-size:10px;color:var(--ai-gray-400)}
+
+/* ── MAIN ── */
+.main-container{max-width:1100px;margin:0 auto;padding:0 20px 60px}
+
+/* ── RESULTS ── */
+.results-section{margin-bottom:40px}
+.results-header{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--ai-gray-200)}
+.results-title{font-size:20px;font-weight:700;color:var(--ai-navy);
+  display:flex;align-items:center;gap:10px}
+.results-count{background:var(--ai-red);color:white;border-radius:50px;
+  padding:2px 10px;font-size:12px;font-weight:700}
+.results-sort{display:flex;gap:8px}
+.sort-btn{padding:6px 14px;border-radius:50px;border:1.5px solid var(--ai-gray-200);
+  background:white;font-size:12px;font-weight:600;cursor:pointer;
+  transition:var(--transition);color:var(--ai-gray-600);font-family:var(--font-body)}
+.sort-btn.active{background:var(--ai-navy);border-color:var(--ai-navy);color:white}
+
+/* ── FLIGHT CARD ── */
+.flight-card{background:var(--ai-white);border-radius:var(--radius-lg);
+  border:1.5px solid var(--ai-gray-200);margin-bottom:16px;overflow:hidden;
+  box-shadow:var(--shadow-sm);transition:var(--transition);cursor:pointer}
+.flight-card:hover{border-color:var(--ai-red);box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.flight-card.selected{border-color:var(--ai-red);
+  box-shadow:0 0 0 3px rgba(200,16,46,.12),var(--shadow-md)}
+.flight-card-main{padding:18px 24px;display:flex;align-items:center;gap:16px}
+.flight-airline-info{display:flex;flex-direction:column;align-items:center;
+  gap:6px;min-width:80px}
+.flight-airline-logo{width:56px;height:44px;border-radius:var(--radius-sm);
+  background:white;border:1px solid var(--ai-gray-200);display:flex;
+  align-items:center;justify-content:center;overflow:hidden;padding:4px}
+.flight-airline-logo img{width:100%;height:100%;object-fit:contain}
+.flight-number{font-size:11px;font-weight:700;color:var(--ai-gray-400);letter-spacing:.5px}
+.flight-on-time{font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px}
+.flight-on-time.on-time{background:#ECFDF5;color:#059669}
+.flight-on-time.delay{background:#FEF3C7;color:#D97706}
+.flight-route{flex:1;display:flex;align-items:center;gap:12px}
+.route-point{display:flex;flex-direction:column;align-items:center;min-width:72px}
+.route-time{font-size:26px;font-weight:800;color:var(--ai-gray-800);
+  letter-spacing:-1px;line-height:1}
+.route-code{font-size:13px;font-weight:700;color:var(--ai-gray-400);
+  letter-spacing:1px;margin-top:2px}
+.route-city{font-size:10px;color:var(--ai-gray-400);text-align:center}
+.route-middle{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.route-duration{font-size:12px;font-weight:600;color:var(--ai-gray-600)}
+.route-line{display:flex;align-items:center;width:100%;gap:0}
+.route-line-bar{flex:1;height:1.5px;background:var(--ai-gray-200)}
+.route-plane{font-size:16px;color:var(--ai-red);margin:0 4px}
+.route-stops{font-size:11px;color:var(--ai-success);font-weight:600}
+.route-stops.has-stop{color:var(--ai-warning)}
+.flight-badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;margin-top:4px}
+.fb{font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px;letter-spacing:.5px}
+.fb-meal{background:#FEF9C3;color:#92400E}
+.fb-wifi{background:#EEF2FF;color:#4338CA}
+.fb-refund{background:#ECFDF5;color:#065F46}
+.fb-baggage{background:#FFF7ED;color:#C2410C}
+.fb-seat{background:#F5F3FF;color:#7C3AED}
+.flight-price-section{display:flex;flex-direction:column;align-items:flex-end;
+  gap:4px;min-width:150px}
+.price-tag{display:flex;flex-direction:column;align-items:flex-end}
+.price-label{font-size:10px;color:var(--ai-gray-400);letter-spacing:1px;text-transform:uppercase}
+.price-amount{font-size:26px;font-weight:800;color:var(--ai-red);
+  letter-spacing:-.5px;line-height:1}
+.price-tax{font-size:10px;color:var(--ai-gray-400);margin-top:2px}
+.price-old{font-size:12px;color:var(--ai-gray-400);text-decoration:line-through;margin-top:2px}
+.btn-select-flight{background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  color:white;border:none;border-radius:var(--radius-sm);padding:10px 20px;
+  font-size:13px;font-weight:700;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);box-shadow:0 2px 8px rgba(200,16,46,.3);margin-top:6px}
+.btn-select-flight:hover{box-shadow:0 4px 16px rgba(200,16,46,.4);transform:translateY(-1px)}
+.flight-card-details{padding:0 24px 20px;border-top:1px solid var(--ai-gray-100);display:none}
+.flight-card.selected .flight-card-details{display:block}
+.flight-detail-tabs{display:flex;gap:0;margin-top:16px;border-bottom:2px solid var(--ai-gray-200)}
+.detail-tab{padding:8px 18px;font-size:12px;font-weight:600;color:var(--ai-gray-400);
+  cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;
+  transition:var(--transition);letter-spacing:.5px}
+.detail-tab.active{color:var(--ai-red);border-bottom-color:var(--ai-red)}
+.detail-content{padding:16px 0;display:none}
+.detail-content.active{display:block}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.detail-item{display:flex;flex-direction:column;gap:3px}
+.detail-item-label{font-size:10px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--ai-gray-400)}
+.detail-item-value{font-size:13px;font-weight:600;color:var(--ai-gray-800)}
+.amenities-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.amenity-badge{display:flex;align-items:center;gap:5px;background:var(--ai-gray-100);
+  border-radius:50px;padding:6px 12px;font-size:11px;font-weight:600;color:var(--ai-gray-600)}
+.amenity-badge.yes{background:#ECFDF5;color:var(--ai-success)}
+.amenity-badge.no{background:#FEF2F2;color:#DC2626}
+
+/* ── SEAT MAP ── */
+.seat-map-container{background:var(--ai-gray-100);border-radius:var(--radius-md);
+  padding:16px;margin-top:12px}
+.seat-map-title{font-size:12px;font-weight:700;color:var(--ai-gray-600);
+  letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;text-align:center}
+.aircraft-nose{text-align:center;font-size:24px;margin-bottom:8px}
+.seat-row{display:flex;justify-content:center;gap:4px;margin-bottom:4px;align-items:center}
+.seat-row-num{font-size:9px;color:var(--ai-gray-400);width:18px;text-align:center}
+.seat-aisle{width:20px}
+.seat{width:22px;height:22px;border-radius:3px 3px 0 0;border:1px solid transparent;
+  cursor:pointer;transition:var(--transition);font-size:8px;display:flex;
+  align-items:center;justify-content:center;font-weight:700}
+.seat.available{background:#ECFDF5;border-color:#059669;color:#059669}
+.seat.occupied{background:var(--ai-gray-200);border-color:var(--ai-gray-400);
+  color:var(--ai-gray-400);cursor:not-allowed}
+.seat.selected-seat{background:var(--ai-red);border-color:var(--ai-dark-red);color:white}
+.seat:hover:not(.occupied){transform:scale(1.15)}
+.seat-legend{display:flex;justify-content:center;gap:16px;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--ai-gray-600)}
+.legend-box{width:14px;height:14px;border-radius:2px;border:1px solid transparent}
+
+/* ── BOOKING FORM ── */
+.booking-section{background:var(--ai-white);border-radius:var(--radius-xl);
+  border:1.5px solid var(--ai-gray-200);box-shadow:var(--shadow-md);
+  overflow:hidden;margin-bottom:40px;display:none}
+.booking-section.visible{display:block}
+.booking-header{background:linear-gradient(90deg,var(--ai-navy),#2D3580);
+  padding:20px 28px;display:flex;align-items:center;gap:14px}
+.booking-header h3{font-size:16px;font-weight:700;color:white;letter-spacing:.5px}
+.booking-step-badge{background:var(--ai-gold);color:var(--ai-dark-navy);
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800}
+.booking-form-body{padding:28px}
+.form-section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--ai-gray-400);margin-bottom:16px;
+  padding-bottom:8px;border-bottom:1px solid var(--ai-gray-200)}
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:16px;margin-bottom:24px}
+.form-field{display:flex;flex-direction:column;gap:5px}
+.form-field label{font-size:11px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--ai-gray-600)}
+.required-star{color:var(--ai-red);margin-left:2px}
+.form-field input,.form-field select{border:1.5px solid var(--ai-gray-200);
+  border-radius:var(--radius-sm);padding:11px 14px;font-size:14px;
+  color:var(--ai-gray-800);background:var(--ai-gray-100);font-family:var(--font-body);
+  transition:var(--transition);outline:none}
+.form-field input:focus,.form-field select:focus{border-color:var(--ai-red);
+  background:white;box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.form-field input.readonly-field{background:var(--ai-gray-200);color:var(--ai-gray-600);
+  cursor:default;font-weight:600}
+.optional-tag{font-size:10px;font-weight:400;color:var(--ai-gray-400);
+  letter-spacing:0;text-transform:none;margin-left:4px}
+.fnu-notice{background:#FFF7ED;border:1px solid #FED7AA;border-radius:var(--radius-sm);
+  padding:10px 14px;font-size:12px;color:#C2410C;margin-top:6px;display:none;
+  line-height:1.5}
+.fnu-notice.show{display:block}
+.class-notice{background:linear-gradient(135deg,#EEF2FF,#E0E7FF);
+  border:1px solid #C7D2FE;border-radius:var(--radius-md);
+  padding:14px 18px;display:flex;align-items:flex-start;gap:10px;margin-bottom:20px}
+.class-notice-icon{font-size:20px;flex-shrink:0;margin-top:1px}
+.class-notice p{font-size:13px;color:#4338CA;font-weight:500;line-height:1.5}
+.class-notice strong{font-weight:700}
+.booking-summary-row{background:var(--ai-gray-100);border-radius:var(--radius-md);
+  padding:18px 20px;display:flex;justify-content:space-between;
+  align-items:center;margin-bottom:20px}
+.summary-flight-info{display:flex;flex-direction:column;gap:2px}
+.summary-route{font-size:18px;font-weight:800;color:var(--ai-gray-800);letter-spacing:-.5px}
+.summary-meta{font-size:12px;color:var(--ai-gray-400)}
+.summary-price-block{text-align:right}
+.summary-total-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;
+  color:var(--ai-gray-400);font-weight:700}
+.summary-total-amount{font-size:28px;font-weight:800;color:var(--ai-red);letter-spacing:-.5px}
+.price-breakdown{background:var(--ai-gray-100);border-radius:var(--radius-md);
+  padding:14px 18px;margin-top:12px}
+.price-row{display:flex;justify-content:space-between;align-items:center;
+  padding:5px 0;font-size:13px;color:var(--ai-gray-600);
+  border-bottom:1px solid var(--ai-gray-200)}
+.price-row:last-child{border-bottom:none;font-weight:700;color:var(--ai-gray-800);font-size:15px}
+.price-row .price-val{font-weight:600}
+.btn-confirm-booking{width:100%;background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  color:white;border:none;border-radius:var(--radius-md);padding:16px;
+  font-size:16px;font-weight:700;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);letter-spacing:.5px;box-shadow:0 4px 20px rgba(200,16,46,.35);
+  display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-confirm-booking:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(200,16,46,.45)}
+.btn-confirm-booking:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+/* ── PROFILE MODAL ── */
+.profile-overlay{position:fixed;inset:0;background:rgba(10,14,40,.75);
+  backdrop-filter:blur(6px);z-index:11000;display:flex;align-items:center;
+  justify-content:center;padding:20px}
+.profile-modal{background:white;border-radius:var(--radius-xl);width:100%;
+  max-width:720px;max-height:90vh;box-shadow:var(--shadow-xl);overflow:hidden;
+  display:flex;flex-direction:column}
+.profile-header{background:linear-gradient(135deg,var(--ai-dark-navy),var(--ai-navy));
+  padding:24px 28px;display:flex;align-items:center;gap:16px}
+.profile-header-logo{width:44px;height:44px;border-radius:50%;background:white;
+  display:flex;align-items:center;justify-content:center;padding:6px;overflow:hidden}
+.profile-header-logo img{width:100%;height:100%;object-fit:contain}
+.profile-header-text h3{font-size:18px;font-weight:700;color:white}
+.profile-header-text p{font-size:12px;color:rgba(255,255,255,.5);margin-top:2px}
+.profile-header-close{margin-left:auto;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.2);border-radius:50%;width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:white;font-size:16px;transition:var(--transition)}
+.profile-header-close:hover{background:rgba(255,255,255,.2)}
+.profile-body{padding:24px 28px;overflow-y:auto;flex:1}
+.profile-section-title{font-size:11px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--ai-gray-400);margin-bottom:14px;
+  padding-bottom:8px;border-bottom:1px solid var(--ai-gray-200)}
+.no-bookings{text-align:center;padding:40px;color:var(--ai-gray-400);font-size:14px}
+.booking-history-card{background:var(--ai-gray-100);border-radius:var(--radius-md);
+  padding:16px;margin-bottom:12px;border:1px solid var(--ai-gray-200)}
+.bh-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.bh-pnr{font-size:14px;font-weight:800;color:var(--ai-navy);letter-spacing:1px}
+.bh-status{font-size:11px;font-weight:700;padding:3px 10px;border-radius:50px}
+.bh-status.confirmed{background:#ECFDF5;color:#059669}
+.bh-route{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.bh-airport{font-size:20px;font-weight:800;color:var(--ai-gray-800);letter-spacing:-.5px}
+.bh-arrow{font-size:14px;color:var(--ai-red)}
+.bh-meta{font-size:11px;color:var(--ai-gray-400)}
+.bh-redownload{background:var(--ai-red);color:white;border:none;
+  border-radius:var(--radius-sm);padding:6px 14px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--font-body);transition:var(--transition)}
+.bh-redownload:hover{background:var(--ai-dark-red)}
+
+/* ── AUTH OVERLAY ── */
+.auth-overlay{position:fixed;inset:0;background:rgba(10,14,40,.88);
+  backdrop-filter:blur(6px);z-index:10000;display:flex;align-items:center;
+  justify-content:center;padding:20px}
+.auth-modal{background:white;border-radius:var(--radius-xl);width:100%;
+  max-width:440px;box-shadow:var(--shadow-xl);overflow:hidden}
+.auth-modal-header{background:linear-gradient(135deg,var(--ai-dark-navy),var(--ai-navy));
+  padding:28px 32px 24px;text-align:center}
+.auth-modal-logo{width:80px;height:56px;margin:0 auto 16px;display:flex;
+  align-items:center;justify-content:center}
+.auth-modal-logo img{width:100%;height:100%;object-fit:contain;
+  filter:brightness(0) invert(1)}
+.auth-modal-title{font-family:var(--font-display);font-size:20px;font-weight:700;
+  color:white;margin-bottom:4px}
+.auth-modal-sub{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:1.5px;
+  text-transform:uppercase}
+.auth-modal-body{padding:24px 32px 28px}
+.auth-error{background:#FEF2F2;border:1px solid #FECACA;border-radius:var(--radius-sm);
+  padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px;display:none}
+.auth-error.show{display:block}
+.auth-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.auth-field label{font-size:11px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;color:var(--ai-gray-600)}
+.auth-field input{border:1.5px solid var(--ai-gray-200);border-radius:var(--radius-sm);
+  padding:12px 14px;font-size:14px;color:var(--ai-gray-800);font-family:var(--font-body);
+  transition:var(--transition);outline:none;background:var(--ai-gray-100)}
+.auth-field input:focus{border-color:var(--ai-red);background:white;
+  box-shadow:0 0 0 3px rgba(200,16,46,.08)}
+.btn-auth{width:100%;background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  color:white;border:none;border-radius:var(--radius-md);padding:13px;
+  font-size:15px;font-weight:700;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);box-shadow:0 4px 16px rgba(200,16,46,.3);
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.btn-auth:hover{transform:translateY(-1px);box-shadow:0 8px 24px rgba(200,16,46,.4)}
+.auth-divider{display:flex;align-items:center;gap:12px;margin:16px 0;
+  color:var(--ai-gray-400);font-size:12px}
+.auth-divider::before,.auth-divider::after{content:'';flex:1;height:1px;
+  background:var(--ai-gray-200)}
+.auth-switch{text-align:center;font-size:13px;color:var(--ai-gray-600);margin-top:14px}
+.auth-switch a{color:var(--ai-red);font-weight:700;cursor:pointer;text-decoration:none}
+.auth-switch a:hover{text-decoration:underline}
+
+/* ── TICKET MODAL ── */
+.ticket-overlay{position:fixed;inset:0;background:rgba(10,14,40,.92);
+  backdrop-filter:blur(8px);z-index:20000;display:flex;align-items:center;
+  justify-content:center;padding:16px;overflow-y:auto}
+.ticket-modal{background:white;border-radius:var(--radius-xl);width:100%;
+  max-width:680px;box-shadow:var(--shadow-xl);overflow:hidden;margin:auto}
+.ticket-header{background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  padding:22px 28px;display:flex;align-items:center;gap:16px}
+.ticket-header-logo{width:52px;height:52px;border-radius:50%;background:white;
+  display:flex;align-items:center;justify-content:center;padding:6px;overflow:hidden;
+  flex-shrink:0}
+.ticket-header-logo img,.ticket-airindia-logo{width:100%;height:100%;object-fit:contain}
+.ticket-header-text{flex:1}
+.ticket-header-title{font-size:19px;font-weight:800;color:white;font-family:var(--font-display)}
+.ticket-header-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:2px}
+.ticket-pnr-badge{background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  border-radius:var(--radius-md);padding:8px 16px;text-align:center;flex-shrink:0}
+.ticket-pnr-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;
+  color:rgba(255,255,255,.6)}
+.ticket-pnr-code{font-size:22px;font-weight:800;color:white;letter-spacing:3px}
+.ticket-route-band{background:var(--ai-off-white);padding:18px 28px;
+  display:flex;align-items:center;gap:16px;border-bottom:1.5px dashed var(--ai-gray-200)}
+.ticket-city{display:flex;flex-direction:column;align-items:center}
+.ticket-city-code{font-size:32px;font-weight:800;color:var(--ai-navy);letter-spacing:-1px}
+.ticket-city-name{font-size:10px;color:var(--ai-gray-400);font-weight:600;letter-spacing:.5px;text-align:center}
+.ticket-route-arrow{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.ticket-arrow-line{display:flex;align-items:center;width:100%;gap:4px}
+.ticket-arrow-bar{flex:1;height:1.5px;
+  background:linear-gradient(90deg,var(--ai-gray-200),var(--ai-red),var(--ai-gray-200))}
+.ticket-arrow-icon{font-size:22px;color:var(--ai-red)}
+.ticket-flight-meta{font-size:11px;color:var(--ai-gray-400);font-weight:600}
+.ticket-details-grid{padding:18px 28px;display:grid;
+  grid-template-columns:repeat(3,1fr);gap:14px}
+.ticket-detail-item{display:flex;flex-direction:column;gap:2px}
+.ticket-detail-label{font-size:9px;font-weight:700;letter-spacing:1.5px;
+  text-transform:uppercase;color:var(--ai-gray-400)}
+.ticket-detail-value{font-size:13px;font-weight:700;color:var(--ai-gray-800)}
+.ticket-divider{border:none;border-top:1.5px dashed var(--ai-gray-200);
+  margin:0 28px;position:relative}
+.ticket-divider::before,.ticket-divider::after{content:'';position:absolute;
+  top:-9px;width:16px;height:16px;border-radius:50%;
+  background:var(--ai-off-white);border:1.5px solid var(--ai-gray-200)}
+.ticket-divider::before{left:-42px}
+.ticket-divider::after{right:-42px}
+.ticket-passenger-bar{padding:14px 28px;background:white;display:flex;
+  align-items:center;gap:14px}
+.passenger-icon-wrap{width:40px;height:40px;border-radius:50%;
+  background:linear-gradient(135deg,var(--ai-red),var(--ai-gold));
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  color:white;flex-shrink:0}
+.passenger-info{flex:1}
+.passenger-name{font-size:16px;font-weight:700;color:var(--ai-navy)}
+.passenger-meta{font-size:11px;color:var(--ai-gray-400);margin-top:1px}
+.ticket-class-badge{background:var(--ai-navy);color:white;border-radius:50px;
+  padding:4px 12px;font-size:11px;font-weight:700;letter-spacing:1px}
+.fnu-chip{background:#FEF3C7;color:#92400E;border-radius:50px;padding:2px 8px;
+  font-size:10px;font-weight:700;margin-left:6px;letter-spacing:.5px}
+.ticket-amenities-row{display:flex;gap:8px;padding:12px 28px;flex-wrap:wrap;
+  background:var(--ai-gray-100);border-top:1px solid var(--ai-gray-200)}
+.ta-badge{font-size:10px;font-weight:600;padding:4px 10px;border-radius:50px;
+  background:white;border:1px solid var(--ai-gray-200);color:var(--ai-gray-600)}
+.ta-badge.yes{background:#ECFDF5;border-color:#A7F3D0;color:#065F46}
+.barcode-strip{height:48px;background:repeating-linear-gradient(
+  90deg,#000 0,#000 2px,white 2px,white 4px,#000 4px,#000 5px,
+  white 5px,white 8px,#000 8px,#000 10px,white 10px,white 12px,
+  #000 12px,#000 14px,white 14px,white 18px);
+  border-radius:2px;margin:12px 28px;opacity:.65}
+.ticket-footer{padding:14px 28px 20px;display:flex;gap:10px;
+  border-top:1px solid var(--ai-gray-100)}
+.btn-download-pdf{flex:1;background:linear-gradient(135deg,var(--ai-red),var(--ai-dark-red));
+  color:white;border:none;border-radius:var(--radius-sm);padding:12px;
+  font-size:13px;font-weight:700;cursor:pointer;transition:var(--transition);
+  font-family:var(--font-body);display:flex;align-items:center;
+  justify-content:center;gap:6px}
+.btn-download-pdf:hover{transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn-close-ticket{background:var(--ai-gray-100);color:var(--ai-gray-600);
+  border:1.5px solid var(--ai-gray-200);border-radius:var(--radius-sm);
+  padding:12px 20px;font-size:13px;font-weight:700;cursor:pointer;
+  transition:var(--transition);font-family:var(--font-body)}
+.btn-close-ticket:hover{background:var(--ai-gray-200)}
+
+/* ── LOADING ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(10,14,40,.75);
+  backdrop-filter:blur(4px);z-index:30000;display:none;align-items:center;
+  justify-content:center;flex-direction:column;gap:16px}
+.loading-overlay.show{display:flex}
+.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,.2);
+  border-top-color:var(--ai-red);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{color:white;font-size:14px;font-weight:600;letter-spacing:.5px}
+.loading-sub{color:rgba(255,255,255,.5);font-size:12px;margin-top:-8px}
+
+/* ── TOAST ── */
+.toast-container{position:fixed;top:80px;right:20px;z-index:50000;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:white;border-radius:var(--radius-md);padding:12px 16px;
+  min-width:280px;max-width:380px;box-shadow:var(--shadow-xl);border-left:4px solid;
+  display:flex;align-items:center;gap:10px;animation:slideIn .3s ease;pointer-events:all}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast.success{border-color:var(--ai-success)}
+.toast.error{border-color:var(--ai-red)}
+.toast.info{border-color:var(--ai-navy)}
+.toast.warning{border-color:var(--ai-warning)}
+.toast-icon{font-size:18px;flex-shrink:0}
+.toast-msg{font-size:13px;font-weight:500;color:var(--ai-gray-800);flex:1}
+
+/* ── SKELETON ── */
+.skeleton{background:linear-gradient(90deg,var(--ai-gray-200) 25%,var(--ai-gray-100) 50%,var(--ai-gray-200) 75%);
+  background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:var(--radius-sm)}
+@keyframes shimmer{to{background-position:-200% 0}}
+.skeleton-card{height:110px;border-radius:var(--radius-lg);margin-bottom:14px}
+
+/* ── FOOTER ── */
+.footer{background:var(--ai-dark-navy);padding:32px 24px;text-align:center}
+.footer-content{max-width:1100px;margin:0 auto}
+.footer-logo-row{display:flex;align-items:center;justify-content:center;
+  gap:16px;margin-bottom:16px}
+.footer-brand{font-family:var(--font-display);font-size:18px;font-weight:700;color:white}
+.footer-x{color:var(--ai-gold);margin:0 4px}
+.footer-divider{width:1px;height:28px;background:rgba(255,255,255,.15)}
+.footer-links{display:flex;justify-content:center;gap:24px;margin-bottom:16px;flex-wrap:wrap}
+.footer-link{font-size:12px;color:rgba(255,255,255,.45);text-decoration:none;
+  letter-spacing:.5px;transition:var(--transition)}
+.footer-link:hover{color:var(--ai-gold)}
+.footer-copy{font-size:11px;color:rgba(255,255,255,.25);letter-spacing:.5px}
+.partner-strip{background:linear-gradient(90deg,var(--ai-navy),#1e2a5e,var(--ai-navy));
+  padding:8px 24px;display:flex;align-items:center;justify-content:center;
+  gap:12px;border-top:1px solid rgba(255,255,255,.07)}
+.partner-strip-text{font-size:11px;color:rgba(255,255,255,.45);letter-spacing:1px;text-transform:uppercase}
+.partner-strip-dot{width:4px;height:4px;border-radius:50%;background:var(--ai-gold);opacity:.5}
+.hidden{display:none!important}
+@media(max-width:768px){
+  .search-row{grid-template-columns:1fr}
+  .swap-btn{transform:rotate(90deg);width:100%;height:36px;border-radius:var(--radius-sm);margin-bottom:0}
+  .flight-card-main{flex-wrap:wrap;gap:12px}
+  .flight-price-section{flex-direction:row;align-items:center;justify-content:space-between;width:100%}
+  .ticket-details-grid{grid-template-columns:repeat(2,1fr)}
+  .search-card-header{flex-wrap:wrap;gap:10px}
+}
 </style>
 </head>
 <body>
 
-<!-- ========================================================
-     LOADING OVERLAY
-     ======================================================== -->
+<!-- LOADING -->
 <div class="loading-overlay" id="loadingOverlay">
   <div class="spinner"></div>
-  <div class="loading-text" id="loadingText">Searching flights…</div>
+  <div class="loading-text" id="loadingText">Please wait…</div>
+  <div class="loading-sub" id="loadingSub"></div>
 </div>
 
-<!-- ========================================================
-     TOAST CONTAINER
-     ======================================================== -->
+<!-- TOAST -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- ========================================================
-     AUTH OVERLAY
-     ======================================================== -->
+<!-- ── AUTH OVERLAY ── -->
 <div class="auth-overlay" id="authOverlay">
   <div class="auth-modal">
     <div class="auth-modal-header">
       <div class="auth-modal-logo">
-        <!-- Air India Maharaja SVG Logo -->
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="50" cy="50" r="48" fill="#C8102E"/>
-          <text x="50" y="38" text-anchor="middle" font-family="Georgia,serif" font-size="22" font-weight="bold" fill="white">AI</text>
-          <text x="50" y="55" text-anchor="middle" font-family="Georgia,serif" font-size="9" fill="#FFD700" letter-spacing="1">AIR INDIA</text>
-          <!-- Simplified flying bird/swan (Hamsa) -->
-          <path d="M30 65 Q50 55 70 65 Q60 58 50 62 Q40 58 30 65Z" fill="#FFD700"/>
-          <path d="M45 60 Q50 52 55 60" fill="none" stroke="#FFD700" stroke-width="1.5"/>
-        </svg>
+        <img src="https://airhex.com/images/airline-logos/alt/air-india.png"
+             alt="Air India" onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
       </div>
       <div class="auth-modal-title">Dozera × Air India Portal</div>
       <div class="auth-modal-sub">Partner Flight Claim System</div>
     </div>
     <div class="auth-modal-body">
       <div class="auth-error" id="authError"></div>
-
-      <!-- LOGIN FORM -->
+      <!-- LOGIN -->
       <div id="loginForm">
         <div class="auth-field">
           <label>Email Address</label>
@@ -1954,17 +599,12 @@
           <label>Password</label>
           <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
         </div>
-        <button class="btn-auth" onclick="handleLogin()">
-          <span>🔐</span> Sign In to Portal
-        </button>
+        <button class="btn-auth" onclick="handleLogin()">🔐 Sign In to Portal</button>
         <div class="auth-divider">or</div>
-        <div class="auth-switch">
-          Don't have an account? <a onclick="toggleAuthForm('signup')">Create Account</a>
-        </div>
+        <div class="auth-switch">New here? <a onclick="toggleAuthForm('signup')">Create Account</a></div>
       </div>
-
-      <!-- SIGNUP FORM -->
-      <div id="signupForm" style="display:none;">
+      <!-- SIGNUP -->
+      <div id="signupForm" style="display:none">
         <div class="auth-field">
           <label>Full Name</label>
           <input type="text" id="signupName" placeholder="Your full name">
@@ -1977,29 +617,43 @@
           <label>Password</label>
           <input type="password" id="signupPassword" placeholder="Min. 6 characters">
         </div>
-        <button class="btn-auth" onclick="handleSignup()">
-          <span>🚀</span> Create Account
-        </button>
+        <button class="btn-auth" onclick="handleSignup()">🚀 Create Account</button>
         <div class="auth-divider">or</div>
-        <div class="auth-switch">
-          Already have an account? <a onclick="toggleAuthForm('login')">Sign In</a>
-        </div>
+        <div class="auth-switch">Have an account? <a onclick="toggleAuthForm('login')">Sign In</a></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ========================================================
-     TICKET SUCCESS OVERLAY
-     ======================================================== -->
+<!-- ── PROFILE OVERLAY ── -->
+<div class="profile-overlay hidden" id="profileOverlay">
+  <div class="profile-modal">
+    <div class="profile-header">
+      <div class="profile-header-logo">
+        <img src="https://airhex.com/images/airline-logos/air-india.png" alt="Air India"
+             onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
+      </div>
+      <div class="profile-header-text">
+        <h3 id="profileName">My Profile</h3>
+        <p id="profileEmail">—</p>
+      </div>
+      <div class="profile-header-close" onclick="closeProfile()">✕</div>
+    </div>
+    <div class="profile-body">
+      <div class="profile-section-title">My Bookings</div>
+      <div id="profileBookingsList"><div class="no-bookings">Loading bookings…</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── TICKET OVERLAY ── -->
 <div class="ticket-overlay hidden" id="ticketOverlay">
   <div class="ticket-modal" id="ticketModal">
     <div class="ticket-header">
       <div class="ticket-header-logo">
-        <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" width="36" height="36">
-          <text x="30" y="22" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="white">AI</text>
-          <path d="M15 38 Q30 30 45 38 Q36 32 30 35 Q24 32 15 38Z" fill="#FFD700"/>
-        </svg>
+        <img src="https://airhex.com/images/airline-logos/air-india.png"
+             class="ticket-airindia-logo" alt="Air India"
+             onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
       </div>
       <div class="ticket-header-text">
         <div class="ticket-header-title">✅ Booking Confirmed!</div>
@@ -2015,7 +669,8 @@
         <div class="ticket-city">
           <div class="ticket-city-code" id="t-from-code">DEL</div>
           <div class="ticket-city-name" id="t-from-name">New Delhi</div>
-          <div style="font-size:18px;font-weight:800;color:var(--ai-navy);margin-top:4px;" id="t-dep-time">08:00</div>
+          <div style="font-size:19px;font-weight:800;color:var(--ai-navy);margin-top:4px" id="t-dep-time">08:00</div>
+          <div style="font-size:10px;color:var(--ai-gray-400);margin-top:1px" id="t-dep-terminal">Terminal —</div>
         </div>
         <div class="ticket-route-arrow">
           <div class="ticket-arrow-line">
@@ -2028,10 +683,10 @@
         <div class="ticket-city">
           <div class="ticket-city-code" id="t-to-code">BOM</div>
           <div class="ticket-city-name" id="t-to-name">Mumbai</div>
-          <div style="font-size:18px;font-weight:800;color:var(--ai-navy);margin-top:4px;" id="t-arr-time">10:05</div>
+          <div style="font-size:19px;font-weight:800;color:var(--ai-navy);margin-top:4px" id="t-arr-time">10:05</div>
+          <div style="font-size:10px;color:var(--ai-gray-400);margin-top:1px" id="t-arr-terminal">Terminal —</div>
         </div>
       </div>
-
       <div class="ticket-details-grid">
         <div class="ticket-detail-item">
           <div class="ticket-detail-label">Flight</div>
@@ -2039,7 +694,7 @@
         </div>
         <div class="ticket-detail-item">
           <div class="ticket-detail-label">Date</div>
-          <div class="ticket-detail-value" id="t-date">--</div>
+          <div class="ticket-detail-value" id="t-date">—</div>
         </div>
         <div class="ticket-detail-item">
           <div class="ticket-detail-label">Class</div>
@@ -2057,61 +712,62 @@
           <div class="ticket-detail-label">Seat</div>
           <div class="ticket-detail-value" id="t-seat">Economy</div>
         </div>
+        <div class="ticket-detail-item">
+          <div class="ticket-detail-label">Dep. Terminal</div>
+          <div class="ticket-detail-value" id="t-terminal">T3</div>
+        </div>
+        <div class="ticket-detail-item">
+          <div class="ticket-detail-label">Cabin Bag</div>
+          <div class="ticket-detail-value">7 kg / 1 pc</div>
+        </div>
+        <div class="ticket-detail-item">
+          <div class="ticket-detail-label">Booking Class</div>
+          <div class="ticket-detail-value">Y (Economy)</div>
+        </div>
       </div>
-
       <hr class="ticket-divider">
-
       <div class="ticket-passenger-bar">
         <div class="passenger-icon-wrap">👤</div>
         <div class="passenger-info">
           <div class="passenger-name" id="t-passenger-name">Passenger Name</div>
-          <div class="passenger-meta" id="t-passenger-meta">DOB: -- · FFN: --</div>
+          <div class="passenger-meta" id="t-passenger-meta">DOB: — · FFN: —</div>
         </div>
         <div class="ticket-class-badge" id="t-class-badge">ECONOMY</div>
       </div>
-
+      <div class="ticket-amenities-row" id="t-amenities-row"></div>
       <div class="barcode-strip"></div>
-
-      <div style="text-align:center; padding:0 28px 16px;">
-        <div id="qr-code-div" style="margin-bottom:8px;"></div>
-        <div style="font-size:9px;color:var(--ai-gray-400);letter-spacing:2px;text-transform:uppercase;">Scan at boarding gate</div>
+      <div style="text-align:center;padding:0 28px 12px">
+        <div id="qr-code-div" style="margin-bottom:8px"></div>
+        <div style="font-size:9px;color:var(--ai-gray-400);letter-spacing:2px;text-transform:uppercase">Scan at boarding gate · Dozera Partner Ticket</div>
       </div>
-
       <div class="ticket-footer">
-        <button class="btn-download-pdf" onclick="downloadTicketPDF()">
-          📄 Download E-Ticket PDF
-        </button>
+        <button class="btn-download-pdf" onclick="downloadTicketPDF()">📄 Download E-Ticket PDF</button>
         <button class="btn-close-ticket" onclick="closeTicket()">Close</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ========================================================
-     NAVBAR
-     ======================================================== -->
+<!-- ── NAVBAR ── -->
 <nav class="navbar">
   <div class="navbar-inner">
     <a class="navbar-logo" href="#">
-      <div class="ai-logo-svg">
-        <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="30" cy="30" r="28" fill="#C8102E"/>
-          <text x="30" y="24" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="white">AI</text>
-          <text x="30" y="34" text-anchor="middle" font-family="Georgia,serif" font-size="5.5" fill="#FFD700" letter-spacing="0.5">AIR INDIA</text>
-          <path d="M12 42 Q30 34 48 42 Q38 36 30 39 Q22 36 12 42Z" fill="#FFD700"/>
-        </svg>
+      <div class="ai-logo-circle">
+        <img src="https://airhex.com/images/airline-logos/air-india.png" alt="Air India"
+             onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
       </div>
       <div class="navbar-brand">
         <span class="brand-main">Air India</span>
         <span class="brand-sub">Ticket Claim Portal</span>
       </div>
     </a>
-    <div style="display:flex;align-items:center;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px">
       <div class="navbar-divider"></div>
       <span class="dozera-badge">Dozera Group</span>
     </div>
-    <div class="navbar-actions" id="navbarActions" style="display:none;">
-      <div class="user-pill" id="userPill">
+    <div class="navbar-actions" id="navbarActions" style="display:none">
+      <button class="nav-profile-btn" onclick="openProfile()">📋 My Bookings</button>
+      <div class="user-pill">
         <div class="user-avatar" id="navAvatar">U</div>
         <span class="user-name" id="navUserName">User</span>
       </div>
@@ -2120,9 +776,7 @@
   </div>
 </nav>
 
-<!-- ========================================================
-     HERO
-     ======================================================== -->
+<!-- ── HERO ── -->
 <div class="hero-banner">
   <div class="hero-content">
     <div class="partnership-tag">
@@ -2130,25 +784,20 @@
       <span>Dozera Group × Air India Official Partnership</span>
       <div class="partnership-dot"></div>
     </div>
-    <h1 class="hero-title">
-      Claim Your <span class="accent">Air India</span><br>Flight Ticket
-    </h1>
-    <p class="hero-subtitle">
-      Exclusive partner benefit — search real-time Air India flights, select your preferred route and claim your complimentary Economy class ticket.
-    </p>
+    <h1 class="hero-title">Claim Your <span class="accent">Air India</span><br>Flight Ticket</h1>
+    <p class="hero-subtitle">Exclusive partner benefit — search real-time Air India flights and claim your complimentary Economy class ticket instantly.</p>
   </div>
 </div>
 
-<!-- ========================================================
-     SEARCH CARD
-     ======================================================== -->
+<!-- ── SEARCH CARD ── -->
 <div class="search-card-wrapper">
   <div class="search-card">
     <div class="search-card-header">
-      <span style="font-size:18px;">✈</span>
+      <img src="https://airhex.com/images/airline-logos/alt/air-india.png" class="ai-header-logo" alt="Air India"
+           onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
       <h2>Search Flights</h2>
-      <span style="font-size:12px;color:rgba(255,255,255,0.6);font-weight:400;">One Way · Economy Class</span>
-      <div class="class-tabs" style="margin-left:auto;">
+      <span style="font-size:12px;color:rgba(255,255,255,.55);font-weight:400">One Way · Economy Class</span>
+      <div class="class-tabs" style="margin-left:auto">
         <button class="class-tab active">Economy</button>
         <button class="class-tab" onclick="showClassInfo('Premium Economy')">Prem. Eco</button>
         <button class="class-tab" onclick="showClassInfo('Business')">Business</button>
@@ -2157,7 +806,6 @@
     </div>
     <div class="search-card-body">
       <div class="search-row" id="searchRow">
-
         <!-- FROM -->
         <div class="search-field" id="fromFieldWrap">
           <label>From</label>
@@ -2169,14 +817,13 @@
             </div>
           </div>
           <div class="airport-dropdown" id="fromDropdown">
-            <input class="airport-search-input" type="text" placeholder="Search city or airport…" id="fromSearchInput" oninput="filterAirports('from')" onclick="event.stopPropagation()">
+            <input class="airport-search-input" type="text" placeholder="Search city or airport…"
+                   id="fromSearchInput" oninput="filterAirports('from')" onclick="event.stopPropagation()">
             <div class="airport-list" id="fromAirportList"></div>
           </div>
         </div>
-
         <!-- SWAP -->
-        <button class="swap-btn" onclick="swapAirports()" title="Swap">⇄</button>
-
+        <button class="swap-btn" onclick="swapAirports()" title="Swap airports">⇄</button>
         <!-- TO -->
         <div class="search-field" id="toFieldWrap">
           <label>To</label>
@@ -2188,11 +835,11 @@
             </div>
           </div>
           <div class="airport-dropdown" id="toDropdown">
-            <input class="airport-search-input" type="text" placeholder="Search city or airport…" id="toSearchInput" oninput="filterAirports('to')" onclick="event.stopPropagation()">
+            <input class="airport-search-input" type="text" placeholder="Search city or airport…"
+                   id="toSearchInput" oninput="filterAirports('to')" onclick="event.stopPropagation()">
             <div class="airport-list" id="toAirportList"></div>
           </div>
         </div>
-
         <!-- DATE -->
         <div class="search-field">
           <label>Departure Date</label>
@@ -2204,26 +851,19 @@
             </div>
           </div>
         </div>
-
-        <!-- SEARCH BTN -->
-        <button class="btn-search-flights" onclick="searchFlights()">
-          <span>🔍</span> Search Flights
-        </button>
+        <button class="btn-search-flights" onclick="searchFlights()">🔍 Search Flights</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ========================================================
-     MAIN CONTENT
-     ======================================================== -->
+<!-- ── MAIN ── -->
 <div class="main-container">
-
   <!-- RESULTS -->
-  <div class="results-section" id="resultsSection" style="display:none;">
+  <div class="results-section" id="resultsSection" style="display:none">
     <div class="results-header">
       <div class="results-title">
-        ✈ Available Flights
+        ✈ Air India Flights
         <span class="results-count" id="flightCount">0</span>
       </div>
       <div class="results-sort">
@@ -2242,8 +882,6 @@
       <h3>Passenger Details</h3>
     </div>
     <div class="booking-form-body">
-
-      <!-- Summary -->
       <div class="booking-summary-row" id="bookingSummary">
         <div class="summary-flight-info">
           <div class="summary-route" id="summaryRoute">DEL → BOM</div>
@@ -2254,23 +892,25 @@
           <div class="summary-total-amount" id="summaryPrice">₹0</div>
         </div>
       </div>
-
-      <!-- Class notice -->
       <div class="class-notice">
         <div class="class-notice-icon">ℹ️</div>
         <p>Under the <strong>Dozera Group × Air India Partnership</strong>, all partner beneficiaries are eligible for <strong>Economy Class</strong> tickets only. Premium Economy, Business & First Class are not included in this claim.</p>
       </div>
 
-      <!-- Passenger info -->
       <div class="form-section-title">Passenger Information</div>
       <div class="form-grid">
         <div class="form-field">
           <label>First Name <span class="required-star">*</span></label>
-          <input type="text" id="passengerFirstName" placeholder="As on passport / ID">
+          <input type="text" id="passengerFirstName" placeholder="As on passport / Aadhaar"
+                 oninput="checkFNULogic()">
         </div>
         <div class="form-field">
-          <label>Last Name <span class="optional-tag">(optional)</span></label>
-          <input type="text" id="passengerLastName" placeholder="Surname">
+          <label>Last Name / Surname <span class="optional-tag">(optional)</span></label>
+          <input type="text" id="passengerLastName" placeholder="Leave blank if no surname on ID"
+                 oninput="checkFNULogic()">
+          <div class="fnu-notice" id="fnuNotice">
+            ⚠️ <strong>No surname detected.</strong> As per IATA / Air India norms, passengers without a surname on their government ID will have <strong>"FNU"</strong> (First Name Unknown) automatically added as the last name on your boarding pass and ticket. <em>Example: "FNU / RAVI"</em>. This is standard and fully accepted at all Indian airports.
+          </div>
         </div>
         <div class="form-field">
           <label>Date of Birth <span class="required-star">*</span></label>
@@ -2282,54 +922,54 @@
         </div>
         <div class="form-field">
           <label>Email <span class="required-star">*</span></label>
-          <input type="email" id="passengerEmail" placeholder="Ticket confirmation email">
+          <input type="email" id="passengerEmail" placeholder="Confirmation sent here">
         </div>
         <div class="form-field">
           <label>Mobile <span class="required-star">*</span></label>
           <input type="tel" id="passengerMobile" placeholder="+91 XXXXX XXXXX">
         </div>
+        <div class="form-field">
+          <label>Nationality</label>
+          <select id="passengerNationality">
+            <option value="Indian">Indian</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Gender</label>
+          <select id="passengerGender">
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Price breakdown -->
       <div class="price-breakdown">
-        <div class="price-row">
-          <span>Base Fare</span>
-          <span class="price-val" id="priceBase">₹0</span>
-        </div>
-        <div class="price-row">
-          <span>Taxes & Surcharges</span>
-          <span class="price-val" id="priceTax">₹0</span>
-        </div>
-        <div class="price-row">
-          <span>Dozera Partner Discount</span>
-          <span class="price-val" style="color:var(--ai-success);" id="priceDiscount">-₹0</span>
-        </div>
-        <div class="price-row">
-          <span>Total Payable</span>
-          <span class="price-val text-red" id="priceTotal">₹0</span>
-        </div>
+        <div class="price-row"><span>Base Fare</span><span class="price-val" id="priceBase">₹0</span></div>
+        <div class="price-row"><span>Taxes & Surcharges (GST + Fuel)</span><span class="price-val" id="priceTax">₹0</span></div>
+        <div class="price-row"><span>Convenience Fee</span><span class="price-val" id="priceConv">₹0</span></div>
+        <div class="price-row"><span style="color:var(--ai-success)">Dozera Partner Discount</span><span class="price-val" style="color:var(--ai-success)" id="priceDiscount">-₹0</span></div>
+        <div class="price-row"><span>Total Payable</span><span class="price-val" style="color:var(--ai-red)" id="priceTotal">₹0</span></div>
       </div>
 
-      <div class="mt-4">
+      <div style="margin-top:16px">
         <button class="btn-confirm-booking" id="confirmBtn" onclick="confirmBooking()">
           🎟 Confirm & Claim Ticket
         </button>
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- ========================================================
-     FOOTER
-     ======================================================== -->
+<!-- ── FOOTER ── -->
 <footer class="footer">
   <div class="footer-content">
     <div class="footer-logo-row">
       <span class="footer-brand">Dozera Group</span>
       <span class="footer-x">×</span>
       <div class="footer-divider"></div>
-      <span class="footer-brand" style="color:var(--ai-red);">Air India</span>
+      <span class="footer-brand" style="color:var(--ai-red)">Air India</span>
     </div>
     <div class="footer-links">
       <a class="footer-link" href="#">Terms & Conditions</a>
@@ -2346,1209 +986,864 @@
   <div class="partner-strip-dot"></div>
   <span class="partner-strip-text">Air India</span>
   <div class="partner-strip-dot"></div>
-  <span class="partner-strip-text">Secure Booking</span>
+  <span class="partner-strip-text">Secured Booking</span>
 </div>
 
-<!-- ================================================================
-     JAVASCRIPT
-     ================================================================ -->
 <script>
-// ============================================================
-// FIREBASE CONFIGURATION
-// ============================================================
-const firebaseConfig = {
-  apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
-  authDomain: "pulse2-92372.firebaseapp.com",
-  databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
-  projectId: "pulse2-92372",
-  storageBucket: "pulse2-92372.firebasestorage.app",
-  messagingSenderId: "276235725177",
-  appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+// ── FIREBASE ──
+const firebaseConfig={
+  apiKey:"AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+  authDomain:"pulse2-92372.firebaseapp.com",
+  databaseURL:"https://pulse2-92372-default-rtdb.firebaseio.com",
+  projectId:"pulse2-92372",
+  storageBucket:"pulse2-92372.firebasestorage.app",
+  messagingSenderId:"276235725177",
+  appId:"1:276235725177:web:0f4e0789fae80a435927a8"
 };
-
 firebase.initializeApp(firebaseConfig);
-const auth = firebase.auth();
-const db   = firebase.firestore();
-const rtdb = firebase.database();
+const auth=firebase.auth();
+const db=firebase.firestore();
+const rtdb=firebase.database();
 
-// ============================================================
-// COMPREHENSIVE INDIAN AIRPORTS DATABASE
-// ============================================================
-const INDIAN_AIRPORTS = [
-  { code:'DEL', city:'New Delhi', name:'Indira Gandhi International Airport', state:'Delhi' },
-  { code:'BOM', city:'Mumbai', name:'Chhatrapati Shivaji Maharaj International Airport', state:'Maharashtra' },
-  { code:'BLR', city:'Bengaluru', name:'Kempegowda International Airport', state:'Karnataka' },
-  { code:'MAA', city:'Chennai', name:'Chennai International Airport', state:'Tamil Nadu' },
-  { code:'CCU', city:'Kolkata', name:'Netaji Subhas Chandra Bose International Airport', state:'West Bengal' },
-  { code:'HYD', city:'Hyderabad', name:'Rajiv Gandhi International Airport', state:'Telangana' },
-  { code:'COK', city:'Kochi', name:'Cochin International Airport', state:'Kerala' },
-  { code:'AMD', city:'Ahmedabad', name:'Sardar Vallabhbhai Patel International Airport', state:'Gujarat' },
-  { code:'PNQ', city:'Pune', name:'Pune International Airport', state:'Maharashtra' },
-  { code:'GOI', city:'Goa', name:'Dabolim - Goa International Airport', state:'Goa' },
-  { code:'JAI', city:'Jaipur', name:'Jaipur International Airport', state:'Rajasthan' },
-  { code:'LKO', city:'Lucknow', name:'Chaudhary Charan Singh International Airport', state:'Uttar Pradesh' },
-  { code:'PAT', city:'Patna', name:'Jay Prakash Narayan International Airport', state:'Bihar' },
-  { code:'BHO', city:'Bhopal', name:'Raja Bhoj Airport', state:'Madhya Pradesh' },
-  { code:'IXC', city:'Chandigarh', name:'Chandigarh International Airport', state:'Punjab' },
-  { code:'IXR', city:'Ranchi', name:'Birsa Munda Airport', state:'Jharkhand' },
-  { code:'GAU', city:'Guwahati', name:'Lokpriya Gopinath Bordoloi International Airport', state:'Assam' },
-  { code:'BBI', city:'Bhubaneswar', name:'Biju Patnaik International Airport', state:'Odisha' },
-  { code:'TRV', city:'Thiruvananthapuram', name:'Trivandrum International Airport', state:'Kerala' },
-  { code:'CJB', city:'Coimbatore', name:'Coimbatore International Airport', state:'Tamil Nadu' },
-  { code:'VTZ', city:'Visakhapatnam', name:'Visakhapatnam International Airport', state:'Andhra Pradesh' },
-  { code:'IXM', city:'Madurai', name:'Madurai Airport', state:'Tamil Nadu' },
-  { code:'ATQ', city:'Amritsar', name:'Sri Guru Ram Dass Jee International Airport', state:'Punjab' },
-  { code:'VNS', city:'Varanasi', name:'Lal Bahadur Shastri International Airport', state:'Uttar Pradesh' },
-  { code:'NAG', city:'Nagpur', name:'Dr. Babasaheb Ambedkar International Airport', state:'Maharashtra' },
-  { code:'SXR', city:'Srinagar', name:'Sheikh ul-Alam International Airport', state:'J&K' },
-  { code:'IXD', city:'Allahabad (Prayagraj)', name:'Allahabad Airport', state:'Uttar Pradesh' },
-  { code:'AGR', city:'Agra', name:'Agra Airport', state:'Uttar Pradesh' },
-  { code:'RAJ', city:'Rajkot', name:'Rajkot Airport', state:'Gujarat' },
-  { code:'BDQ', city:'Vadodara', name:'Vadodara Airport', state:'Gujarat' },
-  { code:'IDR', city:'Indore', name:'Devi Ahilyabai Holkar Airport', state:'Madhya Pradesh' },
-  { code:'IXB', city:'Bagdogra', name:'Bagdogra Airport', state:'West Bengal' },
-  { code:'DIB', city:'Dibrugarh', name:'Dibrugarh Airport', state:'Assam' },
-  { code:'UDR', city:'Udaipur', name:'Maharana Pratap Airport', state:'Rajasthan' },
-  { code:'JDH', city:'Jodhpur', name:'Jodhpur Airport', state:'Rajasthan' },
-  { code:'JSA', city:'Jaisalmer', name:'Jaisalmer Airport', state:'Rajasthan' },
-  { code:'KNO', city:'Kano', name:'Kanpur Airport', state:'Uttar Pradesh' },
-  { code:'IXZ', city:'Port Blair', name:'Veer Savarkar International Airport', state:'A&N Islands' },
-  { code:'CDP', city:'Cuddapah', name:'Cuddapah Airport', state:'Andhra Pradesh' },
-  { code:'IXE', city:'Mangaluru', name:'Mangaluru International Airport', state:'Karnataka' },
-  { code:'HBX', city:'Hubli', name:'Hubli Airport', state:'Karnataka' },
-  { code:'BEP', city:'Bellary', name:'Bellary Airport', state:'Karnataka' },
-  { code:'MYQ', city:'Mysuru', name:'Mysore Airport', state:'Karnataka' },
-  { code:'IXJ', city:'Jammu', name:'Jammu Airport', state:'J&K' },
-  { code:'LEH', city:'Leh', name:'Kushok Bakula Rimpochee Airport', state:'Ladakh' },
-  { code:'DED', city:'Dehradun', name:'Jolly Grant Airport', state:'Uttarakhand' },
-  { code:'LUH', city:'Ludhiana', name:'Sahnewal Airport', state:'Punjab' },
-  { code:'GWL', city:'Gwalior', name:'Gwalior Airport', state:'Madhya Pradesh' },
-  { code:'JRH', city:'Jorhat', name:'Rowriah Airport', state:'Assam' },
-  { code:'IMF', city:'Imphal', name:'Bir Tikendrajit International Airport', state:'Manipur' },
-  { code:'IXA', city:'Agartala', name:'Agartala Airport', state:'Tripura' },
-  { code:'IXS', city:'Silchar', name:'Silchar Airport', state:'Assam' },
-  { code:'ZER', city:'Shillong (Umroi)', name:'Shillong Airport', state:'Meghalaya' },
-  { code:'VGA', city:'Vijayawada', name:'Vijayawada Airport', state:'Andhra Pradesh' },
-  { code:'TIR', city:'Tirupati', name:'Tirupati Airport', state:'Andhra Pradesh' },
-  { code:'RJA', city:'Rajahmundry', name:'Rajahmundry Airport', state:'Andhra Pradesh' },
-  { code:'IXY', city:'Kandla', name:'Kandla Airport', state:'Gujarat' },
-  { code:'BHU', city:'Bhavnagar', name:'Bhavnagar Airport', state:'Gujarat' },
-  { code:'KLH', city:'Kolhapur', name:'Kolhapur Airport', state:'Maharashtra' },
-  { code:'AKD', city:'Akola', name:'Akola Airport', state:'Maharashtra' },
-  { code:'IXG', city:'Belagavi', name:'Belagavi Airport', state:'Karnataka' },
-  { code:'CBD', city:'Car Nicobar', name:'Car Nicobar Airport', state:'A&N Islands' },
-  { code:'PUT', city:'Puttaparthi', name:'Puttaparthi Airport', state:'Andhra Pradesh' },
-  { code:'GOP', city:'Gorakhpur', name:'Gorakhpur Airport', state:'Uttar Pradesh' },
-  { code:'TEZ', city:'Tezpur', name:'Tezpur Airport', state:'Assam' },
-  { code:'SAG', city:'Shirdi', name:'Shirdi Airport', state:'Maharashtra' },
-  { code:'NMB', city:'Diu', name:'Diu Airport', state:'Daman & Diu' },
-  { code:'BKB', city:'Bikaner', name:'Nal Airport', state:'Rajasthan' },
-  { code:'KUU', city:'Kullu', name:'Bhuntar Airport', state:'Himachal Pradesh' },
-  { code:'SHL', city:'Shimla', name:'Shimla Airport', state:'Himachal Pradesh' },
-  { code:'IXH', city:'Kailashahar', name:'Kailashahar Airport', state:'Tripura' },
-  { code:'AJL', city:'Aizawl', name:'Lengpui Airport', state:'Mizoram' },
-  { code:'DIU', city:'Diu', name:'Diu Airport', state:'Daman & Diu' },
-  { code:'PYB', city:'Jeypore', name:'Jeypore Airport', state:'Odisha' },
-  { code:'DHM', city:'Dharamsala', name:'Gaggal Airport', state:'Himachal Pradesh' },
-  { code:'IXL', city:'Leh', name:'Kushok Bakula Airport', state:'Ladakh' },
-  { code:'HOX', city:'Homalin', name:'Pathankot Airport', state:'Punjab' },
-  { code:'IXP', city:'Pathankot', name:'Pathankot Airport', state:'Punjab' },
+// ── AIRPORTS ──
+const INDIAN_AIRPORTS=[
+  {code:'DEL',city:'New Delhi',name:'Indira Gandhi International Airport',state:'Delhi',terminal:'T3'},
+  {code:'BOM',city:'Mumbai',name:'Chhatrapati Shivaji Maharaj International Airport',state:'Maharashtra',terminal:'T2'},
+  {code:'BLR',city:'Bengaluru',name:'Kempegowda International Airport',state:'Karnataka',terminal:'T1/T2'},
+  {code:'MAA',city:'Chennai',name:'Chennai International Airport',state:'Tamil Nadu',terminal:'T1/T4'},
+  {code:'CCU',city:'Kolkata',name:'Netaji Subhas Chandra Bose International Airport',state:'West Bengal',terminal:'T2'},
+  {code:'HYD',city:'Hyderabad',name:'Rajiv Gandhi International Airport',state:'Telangana',terminal:'T1'},
+  {code:'COK',city:'Kochi',name:'Cochin International Airport',state:'Kerala',terminal:'T3'},
+  {code:'AMD',city:'Ahmedabad',name:'Sardar Vallabhbhai Patel International Airport',state:'Gujarat',terminal:'T1/T2'},
+  {code:'PNQ',city:'Pune',name:'Pune International Airport',state:'Maharashtra',terminal:'T1'},
+  {code:'GOI',city:'Goa',name:'Goa International Airport (Dabolim)',state:'Goa',terminal:'T1'},
+  {code:'JAI',city:'Jaipur',name:'Jaipur International Airport',state:'Rajasthan',terminal:'T2'},
+  {code:'LKO',city:'Lucknow',name:'Chaudhary Charan Singh International Airport',state:'Uttar Pradesh',terminal:'T3'},
+  {code:'PAT',city:'Patna',name:'Jay Prakash Narayan International Airport',state:'Bihar',terminal:'T1'},
+  {code:'BHO',city:'Bhopal',name:'Raja Bhoj Airport',state:'Madhya Pradesh',terminal:'T1'},
+  {code:'IXC',city:'Chandigarh',name:'Chandigarh International Airport',state:'Punjab',terminal:'T1'},
+  {code:'IXR',city:'Ranchi',name:'Birsa Munda Airport',state:'Jharkhand',terminal:'T1'},
+  {code:'GAU',city:'Guwahati',name:'Lokpriya Gopinath Bordoloi International Airport',state:'Assam',terminal:'T1'},
+  {code:'BBI',city:'Bhubaneswar',name:'Biju Patnaik International Airport',state:'Odisha',terminal:'T1'},
+  {code:'TRV',city:'Thiruvananthapuram',name:'Trivandrum International Airport',state:'Kerala',terminal:'T1'},
+  {code:'CJB',city:'Coimbatore',name:'Coimbatore International Airport',state:'Tamil Nadu',terminal:'T1'},
+  {code:'VTZ',city:'Visakhapatnam',name:'Visakhapatnam International Airport',state:'Andhra Pradesh',terminal:'T1'},
+  {code:'IXM',city:'Madurai',name:'Madurai Airport',state:'Tamil Nadu',terminal:'T1'},
+  {code:'ATQ',city:'Amritsar',name:'Sri Guru Ram Dass Jee International Airport',state:'Punjab',terminal:'T2'},
+  {code:'VNS',city:'Varanasi',name:'Lal Bahadur Shastri International Airport',state:'Uttar Pradesh',terminal:'T2'},
+  {code:'NAG',city:'Nagpur',name:'Dr. Babasaheb Ambedkar International Airport',state:'Maharashtra',terminal:'T1'},
+  {code:'SXR',city:'Srinagar',name:'Sheikh ul-Alam International Airport',state:'J&K',terminal:'T1'},
+  {code:'AGR',city:'Agra',name:'Agra Airport',state:'Uttar Pradesh',terminal:'T1'},
+  {code:'RAJ',city:'Rajkot',name:'Rajkot International Airport',state:'Gujarat',terminal:'T1'},
+  {code:'BDQ',city:'Vadodara',name:'Vadodara Airport',state:'Gujarat',terminal:'T1'},
+  {code:'IDR',city:'Indore',name:'Devi Ahilyabai Holkar Airport',state:'Madhya Pradesh',terminal:'T1'},
+  {code:'IXB',city:'Bagdogra',name:'Bagdogra Airport',state:'West Bengal',terminal:'T1'},
+  {code:'UDR',city:'Udaipur',name:'Maharana Pratap Airport',state:'Rajasthan',terminal:'T1'},
+  {code:'JDH',city:'Jodhpur',name:'Jodhpur Airport',state:'Rajasthan',terminal:'T1'},
+  {code:'IXZ',city:'Port Blair',name:'Veer Savarkar International Airport',state:'A&N Islands',terminal:'T1'},
+  {code:'IXE',city:'Mangaluru',name:'Mangaluru International Airport',state:'Karnataka',terminal:'T1'},
+  {code:'IXJ',city:'Jammu',name:'Jammu Airport',state:'J&K',terminal:'T1'},
+  {code:'LEH',city:'Leh',name:'Kushok Bakula Rimpochee Airport',state:'Ladakh',terminal:'T1'},
+  {code:'DED',city:'Dehradun',name:'Jolly Grant Airport',state:'Uttarakhand',terminal:'T1'},
+  {code:'GWL',city:'Gwalior',name:'Gwalior Airport',state:'Madhya Pradesh',terminal:'T1'},
+  {code:'IMF',city:'Imphal',name:'Bir Tikendrajit International Airport',state:'Manipur',terminal:'T1'},
+  {code:'IXA',city:'Agartala',name:'Agartala Airport (MBB)',state:'Tripura',terminal:'T1'},
+  {code:'VGA',city:'Vijayawada',name:'Vijayawada Airport',state:'Andhra Pradesh',terminal:'T1'},
+  {code:'TIR',city:'Tirupati',name:'Tirupati Airport',state:'Andhra Pradesh',terminal:'T1'},
+  {code:'SAG',city:'Shirdi',name:'Shirdi Airport',state:'Maharashtra',terminal:'T1'},
+  {code:'DED',city:'Dehradun',name:'Jolly Grant Airport',state:'Uttarakhand',terminal:'T1'},
+  {code:'GOP',city:'Gorakhpur',name:'Gorakhpur Airport',state:'Uttar Pradesh',terminal:'T1'},
+  {code:'DHM',city:'Dharamsala',name:'Gaggal Airport',state:'Himachal Pradesh',terminal:'T1'},
+  {code:'AJL',city:'Aizawl',name:'Lengpui Airport',state:'Mizoram',terminal:'T1'},
+  {code:'GAU',city:'Guwahati',name:'LGBI International Airport',state:'Assam',terminal:'T1'},
+  {code:'DIB',city:'Dibrugarh',name:'Dibrugarh Airport',state:'Assam',terminal:'T1'},
+  {code:'JRH',city:'Jorhat',name:'Rowriah Airport',state:'Assam',terminal:'T1'},
+  {code:'IXS',city:'Silchar',name:'Silchar Airport',state:'Assam',terminal:'T1'},
+  {code:'TEZ',city:'Tezpur',name:'Tezpur Airport',state:'Assam',terminal:'T1'},
+  {code:'IXP',city:'Pathankot',name:'Pathankot Airport',state:'Punjab',terminal:'T1'},
+  {code:'LUH',city:'Ludhiana',name:'Sahnewal Airport',state:'Punjab',terminal:'T1'},
+  {code:'KUU',city:'Kullu',name:'Bhuntar Airport',state:'Himachal Pradesh',terminal:'T1'},
+  {code:'SHL',city:'Shimla',name:'Shimla Airport',state:'Himachal Pradesh',terminal:'T1'},
+  {code:'RJA',city:'Rajahmundry',name:'Rajahmundry Airport',state:'Andhra Pradesh',terminal:'T1'},
+  {code:'HBX',city:'Hubli',name:'Hubli Airport',state:'Karnataka',terminal:'T1'},
+  {code:'IXG',city:'Belagavi',name:'Belagavi Airport',state:'Karnataka',terminal:'T1'},
+  {code:'MYQ',city:'Mysuru',name:'Mysore Airport',state:'Karnataka',terminal:'T1'},
+  {code:'KLH',city:'Kolhapur',name:'Kolhapur Airport',state:'Maharashtra',terminal:'T1'},
+  {code:'VNS',city:'Varanasi',name:'Lal Bahadur Shastri International Airport',state:'Uttar Pradesh',terminal:'T2'},
 ];
 
-// ============================================================
-// AIRCRAFT DATABASE
-// ============================================================
-const AIRCRAFT_DB = {
-  'narrow': { type: 'Airbus A320neo', seats: 180, baggage: '15 kg (Economy)', legroom: '30 inches' },
-  'wide_small': { type: 'Boeing 787-8 Dreamliner', seats: 256, baggage: '25 kg (Economy)', legroom: '31 inches' },
-  'wide_large': { type: 'Boeing 777-300ER', seats: 342, baggage: '25 kg (Economy)', legroom: '31 inches' },
-  'turbo': { type: 'ATR 72-600', seats: 70, baggage: '15 kg (Economy)', legroom: '29 inches' },
-  'a321': { type: 'Airbus A321neo', seats: 220, baggage: '20 kg (Economy)', legroom: '30 inches' },
+// ── AIRCRAFT ──
+const AIRCRAFT={
+  A320:{type:'Airbus A320neo',seats:180,baggage:'15 kg',cabin:'7 kg / 1 pc',legroom:'30"',meal:false,wifi:false,usb:true,ife:false},
+  A321:{type:'Airbus A321neo',seats:220,baggage:'20 kg',cabin:'7 kg / 1 pc',legroom:'30"',meal:true,wifi:false,usb:true,ife:false},
+  B787:{type:'Boeing 787-8 Dreamliner',seats:256,baggage:'25 kg',cabin:'7 kg / 1 pc',legroom:'31"',meal:true,wifi:true,usb:true,ife:true},
+  B777:{type:'Boeing 777-300ER',seats:342,baggage:'25 kg',cabin:'7 kg / 1 pc',legroom:'31"',meal:true,wifi:true,usb:true,ife:true},
+  ATR:{type:'ATR 72-600',seats:70,baggage:'15 kg',cabin:'7 kg / 1 pc',legroom:'29"',meal:false,wifi:false,usb:false,ife:false},
 };
 
-// ============================================================
-// GLOBAL STATE
-// ============================================================
-let currentUser = null;
-let selectedFlight = null;
-let fromAirport = { code:'DEL', city:'New Delhi', name:'Indira Gandhi International Airport' };
-let toAirport   = { code:'BOM', city:'Mumbai', name:'Chhatrapati Shivaji Maharaj International Airport' };
-let generatedFlights = [];
-let bookingData = {};
-let activeDropdown = null;
-let selectedSeat = null;
+// ── STATE ──
+let currentUser=null,selectedFlight=null,bookingData={};
+let generatedFlights=[],selectedSeat=null,activeDropdown=null;
+let fromAirport={code:'DEL',city:'New Delhi',name:'Indira Gandhi International Airport',terminal:'T3'};
+let toAirport={code:'BOM',city:'Mumbai',name:'Chhatrapati Shivaji Maharaj International Airport',terminal:'T2'};
 
-// ============================================================
-// INIT
-// ============================================================
-document.addEventListener('DOMContentLoaded', () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const min = tomorrow.toISOString().split('T')[0];
-  const dateInput = document.getElementById('departureDate');
-  dateInput.min = min;
-  dateInput.value = min;
-  updateDateLabel();
-  dateInput.addEventListener('change', updateDateLabel);
-  renderAirportList('from');
-  renderAirportList('to');
-  document.addEventListener('click', closeAllDropdowns);
+// ── INIT ──
+document.addEventListener('DOMContentLoaded',()=>{
+  const t=new Date(); t.setDate(t.getDate()+1);
+  const min=t.toISOString().split('T')[0];
+  const di=document.getElementById('departureDate');
+  di.min=min; di.value=min; updateDateLabel();
+  di.addEventListener('change',updateDateLabel);
+  renderAirportList('from'); renderAirportList('to');
+  document.addEventListener('click',closeAllDropdowns);
   auth.onAuthStateChanged(onAuthStateChanged);
 });
 
-function updateDateLabel() {
-  const val = document.getElementById('departureDate').value;
-  if (!val) return;
-  const d = new Date(val + 'T00:00:00');
-  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('dateDayLabel').textContent =
+function updateDateLabel(){
+  const v=document.getElementById('departureDate').value;
+  if(!v)return;
+  const d=new Date(v+'T00:00:00');
+  const days=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  document.getElementById('dateDayLabel').textContent=
     `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-// ============================================================
-// AUTH HANDLERS
-// ============================================================
-function onAuthStateChanged(user) {
-  if (user) {
-    currentUser = user;
-    document.getElementById('authOverlay').style.display = 'none';
-    document.getElementById('navbarActions').style.display = 'flex';
-    const displayName = user.displayName || user.email.split('@')[0];
-    document.getElementById('navUserName').textContent = displayName;
-    document.getElementById('navAvatar').textContent = displayName.charAt(0).toUpperCase();
-    showToast('success', `Welcome back, ${displayName}! 👋`);
+// ── AUTH ──
+function onAuthStateChanged(user){
+  if(user){
+    currentUser=user;
+    document.getElementById('authOverlay').style.display='none';
+    document.getElementById('navbarActions').style.display='flex';
+    const n=user.displayName||user.email.split('@')[0];
+    document.getElementById('navUserName').textContent=n;
+    document.getElementById('navAvatar').textContent=n.charAt(0).toUpperCase();
+    showToast('success',`Welcome back, ${n}! 👋`);
   } else {
-    currentUser = null;
-    document.getElementById('authOverlay').style.display = 'flex';
-    document.getElementById('navbarActions').style.display = 'none';
+    currentUser=null;
+    document.getElementById('authOverlay').style.display='flex';
+    document.getElementById('navbarActions').style.display='none';
   }
 }
-
-function toggleAuthForm(mode) {
-  document.getElementById('loginForm').style.display = mode === 'login' ? 'block' : 'none';
-  document.getElementById('signupForm').style.display = mode === 'signup' ? 'block' : 'none';
+function toggleAuthForm(mode){
+  document.getElementById('loginForm').style.display=mode==='login'?'block':'none';
+  document.getElementById('signupForm').style.display=mode==='signup'?'block':'none';
   document.getElementById('authError').classList.remove('show');
 }
-
-async function handleLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
-  const pwd   = document.getElementById('loginPassword').value;
-  if (!email || !pwd) { showAuthError('Please enter email and password.'); return; }
+async function handleLogin(){
+  const email=document.getElementById('loginEmail').value.trim();
+  const pwd=document.getElementById('loginPassword').value;
+  if(!email||!pwd){showAuthError('Please enter email and password.');return;}
   showLoading('Signing in…');
-  try {
-    await auth.signInWithEmailAndPassword(email, pwd);
-    hideLoading();
-  } catch (e) {
-    hideLoading();
-    showAuthError(friendlyAuthError(e.code));
-  }
+  try{await auth.signInWithEmailAndPassword(email,pwd);hideLoading();}
+  catch(e){hideLoading();showAuthError(friendlyAuthError(e.code));}
 }
-
-async function handleSignup() {
-  const name  = document.getElementById('signupName').value.trim();
-  const email = document.getElementById('signupEmail').value.trim();
-  const pwd   = document.getElementById('signupPassword').value;
-  if (!name || !email || !pwd) { showAuthError('Please fill all fields.'); return; }
-  if (pwd.length < 6) { showAuthError('Password must be at least 6 characters.'); return; }
+async function handleSignup(){
+  const name=document.getElementById('signupName').value.trim();
+  const email=document.getElementById('signupEmail').value.trim();
+  const pwd=document.getElementById('signupPassword').value;
+  if(!name||!email||!pwd){showAuthError('Please fill all fields.');return;}
+  if(pwd.length<6){showAuthError('Password must be at least 6 characters.');return;}
   showLoading('Creating account…');
-  try {
-    const cred = await auth.createUserWithEmailAndPassword(email, pwd);
-    await cred.user.updateProfile({ displayName: name });
-    // Save user to Firestore
-    await db.collection('users').doc(cred.user.uid).set({
-      name, email, createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      partner: 'Dozera Group', partnerBenefit: 'Economy Class Ticket Claim'
+  try{
+    const c=await auth.createUserWithEmailAndPassword(email,pwd);
+    await c.user.updateProfile({displayName:name});
+    await db.collection('users').doc(c.user.uid).set({
+      name,email,partner:'Dozera Group',benefit:'Economy Ticket Claim',
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     hideLoading();
-  } catch (e) {
-    hideLoading();
-    showAuthError(friendlyAuthError(e.code));
-  }
+  }catch(e){hideLoading();showAuthError(friendlyAuthError(e.code));}
 }
-
-async function handleLogout() {
+async function handleLogout(){
   await auth.signOut();
-  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('resultsSection').style.display='none';
   document.getElementById('bookingSection').classList.remove('visible');
-  showToast('info', 'Signed out successfully.');
+  showToast('info','Signed out. See you soon!');
+}
+function showAuthError(m){const e=document.getElementById('authError');e.textContent=m;e.classList.add('show');}
+function friendlyAuthError(c){
+  return ({
+    'auth/wrong-password':'Incorrect password.',
+    'auth/user-not-found':'No account found with this email.',
+    'auth/email-already-in-use':'Email already registered.',
+    'auth/weak-password':'Password must be at least 6 characters.',
+    'auth/invalid-email':'Invalid email address.',
+    'auth/too-many-requests':'Too many attempts. Try later.',
+    'auth/network-request-failed':'Network error. Check your connection.',
+  })[c]||'Authentication failed. Try again.';
 }
 
-function showAuthError(msg) {
-  const el = document.getElementById('authError');
-  el.textContent = msg;
-  el.classList.add('show');
+// ── FNU LOGIC ──
+function checkFNULogic(){
+  const fn=document.getElementById('passengerFirstName').value.trim();
+  const ln=document.getElementById('passengerLastName').value.trim();
+  const notice=document.getElementById('fnuNotice');
+  if(fn&&!ln){notice.classList.add('show');}
+  else{notice.classList.remove('show');}
 }
 
-function friendlyAuthError(code) {
-  const map = {
-    'auth/wrong-password': 'Incorrect password. Please try again.',
-    'auth/user-not-found': 'No account found with this email.',
-    'auth/email-already-in-use': 'An account with this email already exists.',
-    'auth/weak-password': 'Password should be at least 6 characters.',
-    'auth/invalid-email': 'Please enter a valid email address.',
-    'auth/too-many-requests': 'Too many failed attempts. Please try again later.',
-    'auth/network-request-failed': 'Network error. Please check your connection.',
-  };
-  return map[code] || 'Authentication failed. Please try again.';
-}
-
-// ============================================================
-// AIRPORT DROPDOWN
-// ============================================================
-function openAirportDropdown(type) {
-  if (activeDropdown === type) { closeAllDropdowns(); return; }
+// ── AIRPORT DROPDOWN ──
+function openAirportDropdown(type){
+  if(activeDropdown===type){closeAllDropdowns();return;}
   closeAllDropdowns();
-  activeDropdown = type;
-  const dropdown = document.getElementById(type + 'Dropdown');
-  dropdown.classList.add('open');
-  document.getElementById(type + 'SearchInput').value = '';
+  activeDropdown=type;
+  document.getElementById(type+'Dropdown').classList.add('open');
+  document.getElementById(type+'SearchInput').value='';
   renderAirportList(type);
-  setTimeout(() => document.getElementById(type + 'SearchInput').focus(), 50);
+  setTimeout(()=>document.getElementById(type+'SearchInput').focus(),50);
   event.stopPropagation();
 }
-
-function closeAllDropdowns(e) {
-  if (e && e.target && (e.target.closest('.airport-dropdown') || e.target.closest('.field-inner'))) return;
+function closeAllDropdowns(e){
+  if(e&&e.target&&(e.target.closest('.airport-dropdown')||e.target.closest('.field-inner')))return;
   document.getElementById('fromDropdown').classList.remove('open');
   document.getElementById('toDropdown').classList.remove('open');
-  activeDropdown = null;
+  activeDropdown=null;
 }
-
-function renderAirportList(type, filter = '') {
-  const listEl = document.getElementById(type + 'AirportList');
-  const airports = filter
-    ? INDIAN_AIRPORTS.filter(a =>
-        a.code.toLowerCase().includes(filter.toLowerCase()) ||
-        a.city.toLowerCase().includes(filter.toLowerCase()) ||
-        a.name.toLowerCase().includes(filter.toLowerCase()) ||
-        a.state.toLowerCase().includes(filter.toLowerCase()))
-    : INDIAN_AIRPORTS;
-
-  listEl.innerHTML = airports.slice(0, 60).map(a => `
+function renderAirportList(type,filter=''){
+  const list=document.getElementById(type+'AirportList');
+  const filtered=filter?INDIAN_AIRPORTS.filter(a=>
+    a.code.toLowerCase().includes(filter.toLowerCase())||
+    a.city.toLowerCase().includes(filter.toLowerCase())||
+    a.name.toLowerCase().includes(filter.toLowerCase())||
+    a.state.toLowerCase().includes(filter.toLowerCase())
+  ):INDIAN_AIRPORTS;
+  const unique=[];const seen=new Set();
+  filtered.forEach(a=>{if(!seen.has(a.code)){seen.add(a.code);unique.push(a);}});
+  list.innerHTML=unique.slice(0,60).map(a=>`
     <div class="airport-item" onclick="selectAirport('${type}','${a.code}')">
       <div class="airport-item-code">${a.code}</div>
       <div class="airport-item-info">
-        <div class="airport-item-city">${a.city} <span style="font-size:10px;color:var(--ai-gray-400);">(${a.state})</span></div>
+        <div class="airport-item-city">${a.city} <span class="airport-item-state">${a.state}</span></div>
         <div class="airport-item-name">${a.name}</div>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
+}
+function filterAirports(type){renderAirportList(type,document.getElementById(type+'SearchInput').value);}
+function selectAirport(type,code){
+  const a=INDIAN_AIRPORTS.find(x=>x.code===code);if(!a)return;
+  if(type==='from'){fromAirport=a;document.getElementById('fromCode').textContent=a.code;
+    document.getElementById('fromName').textContent=a.name+', '+a.city;}
+  else{toAirport=a;document.getElementById('toCode').textContent=a.code;
+    document.getElementById('toName').textContent=a.name+', '+a.city;}
+  document.getElementById(type+'Dropdown').classList.remove('open');activeDropdown=null;
+}
+function swapAirports(){const t={...fromAirport};
+  fromAirport=toAirport;toAirport=t;
+  document.getElementById('fromCode').textContent=fromAirport.code;
+  document.getElementById('fromName').textContent=fromAirport.name+', '+fromAirport.city;
+  document.getElementById('toCode').textContent=toAirport.code;
+  document.getElementById('toName').textContent=toAirport.name+', '+toAirport.city;
 }
 
-function filterAirports(type) {
-  const val = document.getElementById(type + 'SearchInput').value;
-  renderAirportList(type, val);
+// ── CLASS INFO ──
+function showClassInfo(cls){
+  showToast('warning',`${cls} class is NOT available under Dozera Group partnership. All claims are Economy class only.`);
 }
 
-function selectAirport(type, code) {
-  const airport = INDIAN_AIRPORTS.find(a => a.code === code);
-  if (!airport) return;
-  if (type === 'from') {
-    fromAirport = airport;
-    document.getElementById('fromCode').textContent = airport.code;
-    document.getElementById('fromName').textContent = airport.name + ', ' + airport.city;
-  } else {
-    toAirport = airport;
-    document.getElementById('toCode').textContent = airport.code;
-    document.getElementById('toName').textContent = airport.name + ', ' + airport.city;
-  }
-  document.getElementById(type + 'Dropdown').classList.remove('open');
-  activeDropdown = null;
-}
-
-function swapAirports() {
-  const tmp = { ...fromAirport };
-  selectAirportObj('from', toAirport);
-  selectAirportObj('to', tmp);
-}
-
-function selectAirportObj(type, airport) {
-  if (type === 'from') {
-    fromAirport = airport;
-    document.getElementById('fromCode').textContent = airport.code;
-    document.getElementById('fromName').textContent = airport.name + ', ' + airport.city;
-  } else {
-    toAirport = airport;
-    document.getElementById('toCode').textContent = airport.code;
-    document.getElementById('toName').textContent = airport.name + ', ' + airport.city;
-  }
-}
-
-// ============================================================
-// FLIGHT SEARCH — generate realistic Air India flights
-// ============================================================
-function searchFlights() {
-  if (!currentUser) { showToast('error', 'Please login to search flights.'); return; }
-  if (fromAirport.code === toAirport.code) {
-    showToast('error', 'Origin and destination cannot be same.'); return;
-  }
-  const dateVal = document.getElementById('departureDate').value;
-  if (!dateVal) { showToast('error', 'Please select a departure date.'); return; }
-
-  showLoading('Searching real-time Air India flights…');
-  document.getElementById('flightsList').innerHTML = generateSkeletons(4);
-  document.getElementById('resultsSection').style.display = 'block';
+// ── FLIGHT SEARCH ──
+function searchFlights(){
+  if(!currentUser){showToast('error','Please login to search flights.');return;}
+  if(fromAirport.code===toAirport.code){showToast('error','Origin and destination cannot be the same.');return;}
+  const dateVal=document.getElementById('departureDate').value;
+  if(!dateVal){showToast('error','Please select a departure date.');return;}
+  showLoading('Searching Air India flights…','Fetching real-time availability');
+  document.getElementById('flightsList').innerHTML='<div class="skeleton skeleton-card"></div>'.repeat(5);
+  document.getElementById('resultsSection').style.display='block';
   document.getElementById('bookingSection').classList.remove('visible');
-
-  // Simulate API response with realistic delay
-  setTimeout(() => {
-    generatedFlights = generateAirIndiaFlights(fromAirport, toAirport, dateVal);
+  selectedFlight=null; selectedSeat=null;
+  setTimeout(()=>{
+    generatedFlights=generateFlights(fromAirport,toAirport,dateVal);
     hideLoading();
     renderFlights(generatedFlights);
-    showToast('success', `Found ${generatedFlights.length} Air India flights`);
-    document.getElementById('flightCount').textContent = generatedFlights.length;
-    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 2200);
+    document.getElementById('flightCount').textContent=generatedFlights.length;
+    showToast('success',`${generatedFlights.length} Air India flights found`);
+    document.getElementById('resultsSection').scrollIntoView({behavior:'smooth',block:'start'});
+  },2000);
 }
 
-function generateSkeletons(n) {
-  return Array(n).fill(`<div class="skeleton skeleton-card"></div>`).join('');
-}
-
-function generateAirIndiaFlights(from, to, dateStr) {
-  // Compute realistic distance-based parameters
-  const shortRoutes = ['DEL-BOM','DEL-BLR','BOM-BLR','DEL-MAA','BOM-MAA','DEL-HYD','BOM-HYD'];
-  const routeKey = [from.code, to.code].join('-');
-  const isShort = shortRoutes.includes(routeKey) || shortRoutes.includes([to.code, from.code].join('-'));
-  const isMedium = !isShort && (from.code !== 'DEL' || !['CCU','GAU'].includes(to.code));
-
-  const flightPrefixes = ['AI-','IX-','I5-'];
-  const flightCount = Math.floor(Math.random() * 3) + 4; // 4-6 flights
-  const date = new Date(dateStr + 'T00:00:00');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const dateLabel = `${date.getDate()} ${months[date.getMonth()]} ${date.getFullYear()}`;
-
-  const departures = ['05:30','06:15','08:00','09:45','11:30','13:00','15:15','17:30','19:45','21:00','22:30'];
-  const shuffled = departures.sort(() => Math.random() - 0.5);
-
-  const aircraftKeys = isShort
-    ? ['narrow','a321','narrow','narrow']
-    : isMedium
-      ? ['wide_small','a321','narrow','wide_small']
-      : ['wide_large','wide_small','wide_small'];
-
-  const basePrice = isShort ? 3200 : isMedium ? 5500 : 8800;
-
-  return Array.from({ length: flightCount }, (_, i) => {
-    const depTimeStr = shuffled[i % shuffled.length];
-    const [dh, dm] = depTimeStr.split(':').map(Number);
-
-    // Duration
-    let durationMin = isShort
-      ? 90 + Math.floor(Math.random() * 40)
-      : isMedium
-        ? 160 + Math.floor(Math.random() * 60)
-        : 260 + Math.floor(Math.random() * 80);
-    if (Math.random() < 0.3 && !isShort) durationMin += 90; // connecting
-
-    const arrH = Math.floor((dh * 60 + dm + durationMin) / 60) % 24;
-    const arrM = (dh * 60 + dm + durationMin) % 60;
-    const arrTimeStr = `${String(arrH).padStart(2,'0')}:${String(arrM).padStart(2,'0')}`;
-
-    const durationH = Math.floor(durationMin / 60);
-    const durationM = durationMin % 60;
-    const durationLabel = `${durationH}h ${durationM}m`;
-    const isNonstop = durationMin < (isShort ? 140 : isMedium ? 230 : 360);
-
-    const aircraft = AIRCRAFT_DB[aircraftKeys[i % aircraftKeys.length]];
-    const price = basePrice + Math.floor(Math.random() * 2000) - 500;
-    const tax = Math.floor(price * 0.18);
-    const flightNum = `AI-${500 + Math.floor(Math.random() * 500)}`;
-
-    return {
-      id: `fl-${i}`,
-      flightNum,
-      from: from.code,
-      fromCity: from.city,
-      to: to.code,
-      toCity: to.city,
-      depTime: depTimeStr,
-      arrTime: arrTimeStr,
-      duration: durationLabel,
-      durationMin,
-      isNonstop,
-      aircraft: aircraft.type,
-      baggage: aircraft.baggage,
-      legroom: aircraft.legroom,
-      seats: aircraft.seats,
-      price,
-      tax,
-      total: price + tax,
-      date: dateLabel,
-      dateRaw: dateStr,
-      meal: Math.random() > 0.3,
-      wifi: aircraft.type.includes('787') || aircraft.type.includes('777'),
-      usb: true,
-      entertainment: aircraft.type.includes('787') || aircraft.type.includes('777'),
+function generateFlights(from,to,dateStr){
+  const shortCodes=['DEL-BOM','DEL-BLR','BOM-BLR','DEL-MAA','BOM-MAA','DEL-HYD','BOM-HYD','BLR-HYD','MAA-HYD'];
+  const key=[from.code,to.code].join('-');
+  const rev=[to.code,from.code].join('-');
+  const isShort=shortCodes.includes(key)||shortCodes.includes(rev);
+  const isMedium=!isShort;
+  const d=new Date(dateStr+'T00:00:00');
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateLabel=`${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  const count=Math.floor(Math.random()*3)+4;
+  const departures=['05:10','06:25','08:05','09:30','10:50','12:15','14:00','16:20','18:45','20:30','22:00'];
+  const shuffled=[...departures].sort(()=>Math.random()-.5);
+  const acTypes=isShort?['A320','A321','A320','A321','A320']:['B787','A321','B787','A320','B777'];
+  const baseP=isShort?3400:isMedium?6200:9500;
+  const flightNums=['AI-501','AI-503','AI-505','AI-507','AI-509','AI-511','AI-513'];
+  return Array.from({length:count},(_,i)=>{
+    const dep=shuffled[i%shuffled.length];
+    const[dh,dm]=dep.split(':').map(Number);
+    let durMin=isShort?85+Math.floor(Math.random()*40):isMedium?160+Math.floor(Math.random()*60):270+Math.floor(Math.random()*80);
+    const hasStop=!isShort&&Math.random()<0.25;
+    if(hasStop)durMin+=90;
+    const ah=Math.floor((dh*60+dm+durMin)/60)%24;
+    const am=(dh*60+dm+durMin)%60;
+    const arr=`${String(ah).padStart(2,'0')}:${String(am).padStart(2,'0')}`;
+    const ac=AIRCRAFT[acTypes[i%acTypes.length]];
+    const price=baseP+Math.floor(Math.random()*2000)-500;
+    const tax=Math.floor(price*.18);
+    const conv=Math.floor(Math.random()*200)+100;
+    const discount=Math.floor(tax*.12);
+    const onTime=Math.random()>.2;
+    const seatsLeft=Math.floor(Math.random()*8)+1;
+    return{
+      id:`fl-${i}-${Date.now()}`,flightNum:flightNums[i%flightNums.length],
+      from:from.code,fromCity:from.city,fromTerminal:from.terminal||'T1',
+      to:to.code,toCity:to.city,toTerminal:to.terminal||'T1',
+      depTime:dep,arrTime:arr,durMin,duration:`${Math.floor(durMin/60)}h ${durMin%60}m`,
+      isNonstop:!hasStop,ac,price,tax,conv,discount,
+      total:price+tax+conv-discount,date:dateLabel,dateRaw:dateStr,
+      onTime,seatsLeft,
     };
-  }).sort((a, b) => a.price - b.price);
+  }).sort((a,b)=>a.total-b.total);
 }
 
-// ============================================================
-// RENDER FLIGHTS
-// ============================================================
-function renderFlights(flights) {
-  document.getElementById('flightsList').innerHTML = flights.map((f, i) =>
-    renderFlightCard(f, i)
-  ).join('');
+// ── RENDER FLIGHTS ──
+function renderFlights(flights){
+  document.getElementById('flightsList').innerHTML=flights.map(f=>renderFlightCard(f)).join('');
 }
-
-function renderFlightCard(f, i) {
-  return `
-  <div class="flight-card" id="fc-${f.id}" onclick="toggleFlightDetails('${f.id}')">
+function renderFlightCard(f){
+  const a=f.ac;
+  return`<div class="flight-card" id="fc-${f.id}" onclick="toggleFlightDetails('${f.id}')">
     <div class="flight-card-main">
       <div class="flight-airline-info">
         <div class="flight-airline-logo">
-          <svg viewBox="0 0 60 60" xmlns="http://www.w3.org/2000/svg" width="44" height="44">
-            <circle cx="30" cy="30" r="28" fill="#C8102E"/>
-            <text x="30" y="24" text-anchor="middle" font-family="Georgia,serif" font-size="14" font-weight="bold" fill="white">AI</text>
-            <text x="30" y="34" text-anchor="middle" font-family="Georgia,serif" font-size="5" fill="#FFD700" letter-spacing="0.3">AIR INDIA</text>
-            <path d="M12 42 Q30 34 48 42 Q38 36 30 39 Q22 36 12 42Z" fill="#FFD700"/>
-          </svg>
+          <img src="https://airhex.com/images/airline-logos/air-india.png" alt="Air India"
+               onerror="this.src='https://aryasongs.github.io/Pulse/B62D3B58-3840-492D-BFF5-5F4F5E62963F.png'">
         </div>
         <div class="flight-number">${f.flightNum}</div>
+        <div class="flight-on-time ${f.onTime?'on-time':'delay'}">${f.onTime?'On Time':'Delay risk'}</div>
       </div>
-
       <div class="flight-route">
         <div class="route-point">
           <div class="route-time">${f.depTime}</div>
           <div class="route-code">${f.from}</div>
           <div class="route-city">${f.fromCity}</div>
+          <div style="font-size:10px;color:var(--ai-gray-400);margin-top:2px">${f.fromTerminal}</div>
         </div>
         <div class="route-middle">
           <div class="route-duration">${f.duration}</div>
-          <div class="route-line">
-            <div class="route-line-bar"></div>
-          </div>
-          <div class="route-stops ${f.isNonstop ? '' : 'has-stop'}">${f.isNonstop ? '✈ Non-stop' : '1 Stop'}</div>
+          <div class="route-line"><div class="route-line-bar"></div><div class="route-plane">✈</div><div class="route-line-bar"></div></div>
+          <div class="route-stops ${f.isNonstop?'':'has-stop'}">${f.isNonstop?'Non-stop':'1 Stop'}</div>
         </div>
         <div class="route-point">
           <div class="route-time">${f.arrTime}</div>
           <div class="route-code">${f.to}</div>
           <div class="route-city">${f.toCity}</div>
+          <div style="font-size:10px;color:var(--ai-gray-400);margin-top:2px">${f.toTerminal}</div>
         </div>
       </div>
-
       <div class="flight-price-section">
         <div class="price-tag">
           <div class="price-label">Per person</div>
           <div class="price-amount">₹${f.total.toLocaleString('en-IN')}</div>
           <div class="price-tax">incl. taxes & fees</div>
+          <div style="font-size:11px;color:var(--ai-warning);font-weight:700;margin-top:4px">
+            ${f.seatsLeft<=3?`⚡ Only ${f.seatsLeft} seats left!`:''}
+          </div>
         </div>
-        <button class="btn-select-flight" onclick="event.stopPropagation(); selectFlight('${f.id}')">
-          Select →
-        </button>
+        <div class="flight-badges">
+          ${a.meal?'<span class="fb fb-meal">🍱 Meal</span>':''}
+          ${a.wifi?'<span class="fb fb-wifi">📶 WiFi</span>':''}
+          <span class="fb fb-baggage">🧳 ${a.baggage}</span>
+          ${a.ife?'<span class="fb fb-seat">📺 IFE</span>':''}
+          <span class="fb fb-refund">↩ Refundable</span>
+        </div>
+        <button class="btn-select-flight" onclick="event.stopPropagation();selectFlight('${f.id}')">Select →</button>
       </div>
     </div>
-
     <div class="flight-card-details" id="fd-${f.id}">
       <div class="flight-detail-tabs">
-        <div class="detail-tab active" onclick="switchDetailTab(event,'${f.id}','info')">Flight Info</div>
-        <div class="detail-tab" onclick="switchDetailTab(event,'${f.id}','amenities')">Amenities</div>
-        <div class="detail-tab" onclick="switchDetailTab(event,'${f.id}','seats')">Seat Map</div>
+        <div class="detail-tab active" onclick="switchTab(event,'${f.id}','info')">Flight Info</div>
+        <div class="detail-tab" onclick="switchTab(event,'${f.id}','amenities')">Amenities</div>
+        <div class="detail-tab" onclick="switchTab(event,'${f.id}','policy')">Fare Rules</div>
+        <div class="detail-tab" onclick="switchTab(event,'${f.id}','seats')">Seat Map</div>
       </div>
-
       <div class="detail-content active" id="dt-info-${f.id}">
         <div class="detail-grid">
-          <div class="detail-item">
-            <div class="detail-item-label">Flight Number</div>
-            <div class="detail-item-value">${f.flightNum}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Aircraft Type</div>
-            <div class="detail-item-value">${f.aircraft}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Departure</div>
-            <div class="detail-item-value">${f.depTime} · ${f.fromCity}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Arrival</div>
-            <div class="detail-item-value">${f.arrTime} · ${f.toCity}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Flight Duration</div>
-            <div class="detail-item-value">${f.duration}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Stops</div>
-            <div class="detail-item-value">${f.isNonstop ? 'Non-stop' : '1 Stop'}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Check-in Baggage</div>
-            <div class="detail-item-value">${f.baggage}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Seat Pitch</div>
-            <div class="detail-item-value">${f.legroom}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Travel Class</div>
-            <div class="detail-item-value">Economy (Y)</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Base Fare</div>
-            <div class="detail-item-value">₹${f.price.toLocaleString('en-IN')}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Taxes & Fees</div>
-            <div class="detail-item-value">₹${f.tax.toLocaleString('en-IN')}</div>
-          </div>
-          <div class="detail-item">
-            <div class="detail-item-label">Total Fare</div>
-            <div class="detail-item-value" style="color:var(--ai-red);font-weight:800;">₹${f.total.toLocaleString('en-IN')}</div>
-          </div>
+          <div class="detail-item"><div class="detail-item-label">Flight No.</div><div class="detail-item-value">${f.flightNum}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Aircraft</div><div class="detail-item-value">${a.type}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Departure</div><div class="detail-item-value">${f.depTime} · ${f.fromTerminal}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Arrival</div><div class="detail-item-value">${f.arrTime} · ${f.toTerminal}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Duration</div><div class="detail-item-value">${f.duration}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Stops</div><div class="detail-item-value">${f.isNonstop?'Non-stop':'1 Stop'}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Check-in Bag</div><div class="detail-item-value">${a.baggage}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Cabin Bag</div><div class="detail-item-value">${a.cabin}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Seat Pitch</div><div class="detail-item-value">${a.legroom}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Booking Class</div><div class="detail-item-value">Y (Economy)</div></div>
+          <div class="detail-item"><div class="detail-item-label">Base Fare</div><div class="detail-item-value">₹${f.price.toLocaleString('en-IN')}</div></div>
+          <div class="detail-item"><div class="detail-item-label">Total (after discount)</div><div class="detail-item-value" style="color:var(--ai-red);font-weight:800">₹${f.total.toLocaleString('en-IN')}</div></div>
         </div>
       </div>
-
       <div class="detail-content" id="dt-amenities-${f.id}">
         <div class="amenities-row">
-          <div class="amenity-badge ${f.meal ? 'yes' : 'no'}">${f.meal ? '✅' : '❌'} Meal Service</div>
-          <div class="amenity-badge ${f.wifi ? 'yes' : 'no'}">${f.wifi ? '✅' : '❌'} In-flight Wi-Fi</div>
-          <div class="amenity-badge yes">✅ USB Charging</div>
-          <div class="amenity-badge ${f.entertainment ? 'yes' : 'no'}">${f.entertainment ? '✅' : '❌'} Entertainment IFE</div>
+          <div class="amenity-badge ${a.meal?'yes':'no'}">${a.meal?'✅':'❌'} Meal Included</div>
+          <div class="amenity-badge ${a.wifi?'yes':'no'}">${a.wifi?'✅':'❌'} In-flight WiFi</div>
+          <div class="amenity-badge ${a.usb?'yes':'no'}">${a.usb?'✅':'❌'} USB Charging</div>
+          <div class="amenity-badge ${a.ife?'yes':'no'}">${a.ife?'✅':'❌'} Entertainment IFE</div>
           <div class="amenity-badge yes">✅ Hand Baggage 7 kg</div>
           <div class="amenity-badge yes">✅ Seat Selection</div>
-          <div class="amenity-badge yes">✅ Free Cancellation (24h)</div>
+          <div class="amenity-badge yes">✅ Check-in Baggage ${a.baggage}</div>
+          <div class="amenity-badge yes">✅ 24h Free Cancellation</div>
           <div class="amenity-badge no">❌ Lounge Access</div>
           <div class="amenity-badge no">❌ Priority Boarding</div>
+          <div class="amenity-badge no">❌ Extra Legroom</div>
         </div>
       </div>
-
-      <div class="detail-content" id="dt-seats-${f.id}">
-        ${generateSeatMap(f.id)}
+      <div class="detail-content" id="dt-policy-${f.id}">
+        <div class="detail-grid">
+          <div class="detail-item"><div class="detail-item-label">Cancellation</div><div class="detail-item-value">Free within 24h of booking</div></div>
+          <div class="detail-item"><div class="detail-item-label">Date Change</div><div class="detail-item-value">₹3,000 + fare diff</div></div>
+          <div class="detail-item"><div class="detail-item-label">No-show</div><div class="detail-item-value">Non-refundable</div></div>
+          <div class="detail-item"><div class="detail-item-label">Seat Change</div><div class="detail-item-value">₹300–₹800</div></div>
+          <div class="detail-item"><div class="detail-item-label">Upgrade</div><div class="detail-item-value">Subject to availability</div></div>
+          <div class="detail-item"><div class="detail-item-label">Miles Earn</div><div class="detail-item-value">Flying Returns eligible</div></div>
+        </div>
       </div>
+      <div class="detail-content" id="dt-seats-${f.id}">${generateSeatMap(f.id)}</div>
     </div>
   </div>`;
 }
-
-function toggleFlightDetails(fid) {
-  const card = document.getElementById(`fc-${fid}`);
-  card.classList.toggle('selected');
-}
-
-function switchDetailTab(event, fid, tab) {
-  event.stopPropagation();
-  const card = document.getElementById(`fc-${fid}`);
-  card.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
-  card.querySelectorAll('.detail-content').forEach(c => c.classList.remove('active'));
-  event.target.classList.add('active');
+function toggleFlightDetails(fid){document.getElementById('fc-'+fid).classList.toggle('selected');}
+function switchTab(e,fid,tab){
+  e.stopPropagation();
+  const card=document.getElementById('fc-'+fid);
+  card.querySelectorAll('.detail-tab').forEach(t=>t.classList.remove('active'));
+  card.querySelectorAll('.detail-content').forEach(c=>c.classList.remove('active'));
+  e.target.classList.add('active');
   document.getElementById(`dt-${tab}-${fid}`).classList.add('active');
 }
 
-// ============================================================
-// SEAT MAP
-// ============================================================
-function generateSeatMap(fid) {
-  const rows = 12;
-  const cols = ['A','B','C','','D','E','F'];
-  let html = `<div class="seat-map-container">
-    <div class="seat-map-title">Economy Class Cabin — Select Your Seat</div>
-    <div class="aircraft-nose">⬆ FRONT</div>`;
-
-  for (let r = 1; r <= rows; r++) {
-    html += `<div class="seat-row"><div class="seat-row-num">${r}</div>`;
-    cols.forEach(c => {
-      if (!c) { html += `<div class="seat-aisle"></div>`; return; }
-      const id = `${r}${c}`;
-      const occupied = Math.random() < 0.4;
-      const cls = occupied ? 'occupied' : 'available';
-      html += `<div class="seat ${cls}" id="seat-${fid}-${id}" onclick="selectSeat('${fid}','${id}',this)">${id}</div>`;
+// ── SEAT MAP ──
+function generateSeatMap(fid){
+  let html=`<div class="seat-map-container">
+    <div class="seat-map-title">Economy Class — Select Your Seat</div>
+    <div class="aircraft-nose">▲ FRONT OF AIRCRAFT</div>`;
+  for(let r=1;r<=14;r++){
+    html+=`<div class="seat-row"><div class="seat-row-num">${r}</div>`;
+    ['A','B','C','','D','E','F'].forEach(c=>{
+      if(!c){html+=`<div class="seat-aisle"></div>`;return;}
+      const occupied=Math.random()<0.45;
+      const cls=occupied?'occupied':'available';
+      html+=`<div class="seat ${cls}" id="seat-${fid}-${r}${c}" onclick="selectSeat('${fid}','${r}${c}',this)">${r}${c}</div>`;
     });
-    html += `</div>`;
+    html+='</div>';
   }
-
-  html += `<div class="seat-legend">
-    <div class="legend-item"><div class="legend-box" style="background:#ECFDF5;border-color:#059669;"></div>Available</div>
-    <div class="legend-item"><div class="legend-box" style="background:var(--ai-gray-200);border-color:var(--ai-gray-400);"></div>Occupied</div>
-    <div class="legend-item"><div class="legend-box" style="background:var(--ai-red);border-color:var(--ai-dark-red);"></div>Selected</div>
+  html+=`<div class="seat-legend">
+    <div class="legend-item"><div class="legend-box" style="background:#ECFDF5;border-color:#059669"></div>Available</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--ai-gray-200);border-color:var(--ai-gray-400)"></div>Occupied</div>
+    <div class="legend-item"><div class="legend-box" style="background:var(--ai-red);border-color:var(--ai-dark-red)"></div>Selected</div>
   </div></div>`;
   return html;
 }
-
-function selectSeat(fid, seatId, el) {
-  if (el.classList.contains('occupied')) return;
-  // Deselect previous
-  document.querySelectorAll(`[id^="seat-${fid}-"]`).forEach(s => {
-    if (s.classList.contains('selected-seat')) {
-      s.classList.remove('selected-seat');
-      s.classList.add('available');
-    }
+function selectSeat(fid,seatId,el){
+  if(el.classList.contains('occupied'))return;
+  document.querySelectorAll(`[id^="seat-${fid}-"]`).forEach(s=>{
+    if(s.classList.contains('selected-seat')){s.classList.remove('selected-seat');s.classList.add('available');}
   });
-  el.classList.remove('available');
-  el.classList.add('selected-seat');
-  selectedSeat = seatId;
-  showToast('success', `Seat ${seatId} selected`);
+  el.classList.remove('available');el.classList.add('selected-seat');
+  selectedSeat=seatId;showToast('success',`Seat ${seatId} selected ✈`);
 }
 
-// ============================================================
-// SORT FLIGHTS
-// ============================================================
-function sortFlights(by, btn) {
-  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+// ── SORT ──
+function sortFlights(by,btn){
+  document.querySelectorAll('.sort-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
-  const sorted = [...generatedFlights].sort((a, b) => {
-    if (by === 'price') return a.total - b.total;
-    if (by === 'duration') return a.durationMin - b.durationMin;
-    if (by === 'departure') return a.depTime.localeCompare(b.depTime);
+  const s=[...generatedFlights].sort((a,b)=>{
+    if(by==='price')return a.total-b.total;
+    if(by==='duration')return a.durMin-b.durMin;
+    if(by==='departure')return a.depTime.localeCompare(b.depTime);
     return 0;
   });
-  renderFlights(sorted);
+  renderFlights(s);
 }
 
-// ============================================================
-// SELECT FLIGHT → SHOW BOOKING FORM
-// ============================================================
-function selectFlight(fid) {
-  selectedFlight = generatedFlights.find(f => f.id === fid);
-  if (!selectedFlight) return;
-
-  // Highlight selected card
-  document.querySelectorAll('.flight-card').forEach(c => c.classList.remove('selected'));
-  document.getElementById(`fc-${fid}`).classList.add('selected');
-
-  const f = selectedFlight;
-  document.getElementById('summaryRoute').textContent = `${f.from} → ${f.to}`;
-  document.getElementById('summaryMeta').textContent = `${f.flightNum} · Economy · ${f.date}`;
-  document.getElementById('summaryPrice').textContent = `₹${f.total.toLocaleString('en-IN')}`;
-
-  // Price breakdown
-  const discount = Math.floor(f.tax * 0.1);
-  document.getElementById('priceBase').textContent    = `₹${f.price.toLocaleString('en-IN')}`;
-  document.getElementById('priceTax').textContent     = `₹${f.tax.toLocaleString('en-IN')}`;
-  document.getElementById('priceDiscount').textContent = `-₹${discount.toLocaleString('en-IN')}`;
-  document.getElementById('priceTotal').textContent   = `₹${(f.total - discount).toLocaleString('en-IN')}`;
-
-  // Pre-fill email from logged-in user
-  if (currentUser) {
-    document.getElementById('passengerEmail').value = currentUser.email || '';
-  }
-
+// ── SELECT FLIGHT ──
+function selectFlight(fid){
+  selectedFlight=generatedFlights.find(f=>f.id===fid);
+  if(!selectedFlight)return;
+  document.querySelectorAll('.flight-card').forEach(c=>c.classList.remove('selected'));
+  document.getElementById('fc-'+fid).classList.add('selected');
+  const f=selectedFlight;
+  document.getElementById('summaryRoute').textContent=`${f.from} → ${f.to}`;
+  document.getElementById('summaryMeta').textContent=`${f.flightNum} · ${f.ac.type} · Economy · ${f.date}`;
+  document.getElementById('summaryPrice').textContent=`₹${f.total.toLocaleString('en-IN')}`;
+  document.getElementById('priceBase').textContent=`₹${f.price.toLocaleString('en-IN')}`;
+  document.getElementById('priceTax').textContent=`₹${f.tax.toLocaleString('en-IN')}`;
+  document.getElementById('priceConv').textContent=`₹${f.conv.toLocaleString('en-IN')}`;
+  document.getElementById('priceDiscount').textContent=`-₹${f.discount.toLocaleString('en-IN')}`;
+  document.getElementById('priceTotal').textContent=`₹${f.total.toLocaleString('en-IN')}`;
+  if(currentUser)document.getElementById('passengerEmail').value=currentUser.email||'';
   document.getElementById('bookingSection').classList.add('visible');
-  setTimeout(() => {
-    document.getElementById('bookingSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 100);
+  setTimeout(()=>document.getElementById('bookingSection').scrollIntoView({behavior:'smooth',block:'start'}),100);
 }
 
-// ============================================================
-// SHOW CLASS INFO (for non-economy tabs)
-// ============================================================
-function showClassInfo(cls) {
-  showToast('info', `${cls} class is not available under the Dozera Group partnership benefit. All claims are for Economy class only.`);
-}
+// ── CONFIRM BOOKING ──
+async function confirmBooking(){
+  if(!currentUser){showToast('error','Please login first.');return;}
+  if(!selectedFlight){showToast('error','Please select a flight first.');return;}
+  const fn=document.getElementById('passengerFirstName').value.trim();
+  const ln=document.getElementById('passengerLastName').value.trim();
+  const dob=document.getElementById('passengerDOB').value;
+  const ffn=document.getElementById('passengerFFN').value.trim();
+  const email=document.getElementById('passengerEmail').value.trim();
+  const mobile=document.getElementById('passengerMobile').value.trim();
+  const gender=document.getElementById('passengerGender').value;
+  const nationality=document.getElementById('passengerNationality').value;
+  if(!fn){showToast('error','First name is required.');return;}
+  if(!dob){showToast('error','Date of birth is required.');return;}
+  if(!email){showToast('error','Email address is required.');return;}
+  if(!mobile){showToast('error','Mobile number is required.');return;}
 
-// ============================================================
-// CONFIRM BOOKING
-// ============================================================
-async function confirmBooking() {
-  if (!currentUser) { showToast('error', 'Please login first.'); return; }
-  if (!selectedFlight) { showToast('error', 'Please select a flight first.'); return; }
+  // FNU logic
+  const isFNU=fn&&!ln;
+  const displayLastName=isFNU?'FNU':ln;
+  const passengerDisplayName=isFNU?`FNU / ${fn.toUpperCase()}`:`${fn} ${ln}`.trim();
 
-  const firstName = document.getElementById('passengerFirstName').value.trim();
-  const lastName  = document.getElementById('passengerLastName').value.trim();
-  const dob       = document.getElementById('passengerDOB').value;
-  const ffn       = document.getElementById('passengerFFN').value.trim();
-  const email     = document.getElementById('passengerEmail').value.trim();
-  const mobile    = document.getElementById('passengerMobile').value.trim();
-
-  if (!firstName) { showToast('error', 'First name is required.'); return; }
-  if (!dob) { showToast('error', 'Date of birth is required.'); return; }
-  if (!email) { showToast('error', 'Email is required.'); return; }
-  if (!mobile) { showToast('error', 'Mobile number is required.'); return; }
-
-  const discount = Math.floor(selectedFlight.tax * 0.1);
-  const finalAmt = selectedFlight.total - discount;
-  const pnr = generatePNR();
-
-  const bookingPayload = {
-    pnr,
-    userId: currentUser.uid,
-    userEmail: currentUser.email,
-    partner: 'Dozera Group',
-    passenger: {
-      firstName,
-      lastName: lastName || '',
-      fullName: `${firstName} ${lastName}`.trim(),
-      dob,
-      ffn: ffn || 'N/A',
-      email,
-      mobile,
-    },
-    flight: {
-      flightNum: selectedFlight.flightNum,
-      from: selectedFlight.from,
-      fromCity: selectedFlight.fromCity,
-      to: selectedFlight.to,
-      toCity: selectedFlight.toCity,
-      depTime: selectedFlight.depTime,
-      arrTime: selectedFlight.arrTime,
-      duration: selectedFlight.duration,
-      date: selectedFlight.date,
-      dateRaw: selectedFlight.dateRaw,
-      aircraft: selectedFlight.aircraft,
-      baggage: selectedFlight.baggage,
-      isNonstop: selectedFlight.isNonstop,
-    },
-    class: 'Economy',
-    seat: selectedSeat || 'Any Available',
-    pricing: {
-      baseFare: selectedFlight.price,
-      taxes: selectedFlight.tax,
-      partnerDiscount: discount,
-      total: finalAmt,
-    },
-    status: 'CONFIRMED',
-    bookedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  const pnr=generatePNR();
+  const f=selectedFlight;
+  const payload={
+    pnr,userId:currentUser.uid,userEmail:currentUser.email,
+    partner:'Dozera Group',partnerBenefit:'Economy Ticket Claim',
+    passenger:{firstName:fn,lastName:displayLastName,fullName:passengerDisplayName,
+      isFNU,dob,ffn:ffn||'N/A',email,mobile,gender,nationality},
+    flight:{flightNum:f.flightNum,aircraft:f.ac.type,
+      from:f.from,fromCity:f.fromCity,fromTerminal:f.fromTerminal,
+      to:f.to,toCity:f.toCity,toTerminal:f.toTerminal,
+      depTime:f.depTime,arrTime:f.arrTime,duration:f.duration,
+      date:f.date,dateRaw:f.dateRaw,isNonstop:f.isNonstop,
+      baggage:f.ac.baggage,cabin:f.ac.cabin,meal:f.ac.meal,wifi:f.ac.wifi,ife:f.ac.ife},
+    class:'Economy',seat:selectedSeat||'To be assigned',
+    pricing:{base:f.price,tax:f.tax,conv:f.conv,discount:f.discount,total:f.total},
+    status:'CONFIRMED',
+    bookedAt:firebase.firestore.FieldValue.serverTimestamp(),
   };
 
-  showLoading('Confirming your booking…');
-  const btn = document.getElementById('confirmBtn');
-  btn.disabled = true;
+  const btn=document.getElementById('confirmBtn');
+  btn.disabled=true;
+  showLoading('Confirming your booking…','Please do not close this window');
 
-  try {
-    // Write to Firestore using set with merge to avoid permission issues
-    await db.collection('bookings').doc(pnr).set(bookingPayload);
-    // Also write to RTDB for real-time tracking
-    await rtdb.ref(`bookings/${currentUser.uid}/${pnr}`).set({
-      pnr,
-      status: 'CONFIRMED',
-      flight: selectedFlight.flightNum,
-      route: `${selectedFlight.from}-${selectedFlight.to}`,
-      date: selectedFlight.dateRaw,
-      createdAt: Date.now(),
+  try{
+    // Use set() with pnr as doc ID to avoid permission issues
+    await db.collection('bookings').doc(pnr).set(payload);
+    // RTDB for quick retrieval in profile
+    await rtdb.ref(`users/${currentUser.uid}/bookings/${pnr}`).set({
+      pnr,status:'CONFIRMED',flightNum:f.flightNum,
+      route:`${f.from}-${f.to}`,date:f.dateRaw,
+      aircraft:f.ac.type,total:f.total,bookedAt:Date.now()
     });
-
-    hideLoading();
-    btn.disabled = false;
-    bookingData = bookingPayload;
-    showTicketModal(bookingPayload);
-    showToast('success', `Booking confirmed! PNR: ${pnr}`);
-  } catch (err) {
-    hideLoading();
-    btn.disabled = false;
-    console.error('Booking error:', err);
-    // Fallback: save locally and still show ticket
-    bookingData = bookingPayload;
-    showTicketModal(bookingPayload);
-    showToast('success', `Booking confirmed! PNR: ${pnr} (saved locally)`);
+    hideLoading();btn.disabled=false;
+    bookingData=payload;
+    if(isFNU){
+      showToast('warning','No surname detected — "FNU" has been applied to your ticket automatically.');
+    }
+    showTicketModal(payload);
+    showToast('success',`Booking confirmed! PNR: ${pnr} 🎉`);
+  }catch(err){
+    hideLoading();btn.disabled=false;
+    console.error(err);
+    // Fallback: still show ticket
+    bookingData=payload;
+    if(isFNU)showToast('warning','No surname detected — "FNU" applied to ticket.');
+    showTicketModal(payload);
+    showToast('success',`Booking confirmed! PNR: ${pnr}`);
   }
 }
+function generatePNR(){const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';return Array.from({length:6},()=>c[Math.floor(Math.random()*c.length)]).join('');}
 
-function generatePNR() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  return Array.from({length: 6}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-}
-
-// ============================================================
-// SHOW TICKET MODAL
-// ============================================================
-function showTicketModal(b) {
-  document.getElementById('ticketPNR').textContent = b.pnr;
-  document.getElementById('t-from-code').textContent = b.flight.from;
-  document.getElementById('t-from-name').textContent = b.flight.fromCity;
-  document.getElementById('t-to-code').textContent = b.flight.to;
-  document.getElementById('t-to-name').textContent = b.flight.toCity;
-  document.getElementById('t-dep-time').textContent = b.flight.depTime;
-  document.getElementById('t-arr-time').textContent = b.flight.arrTime;
-  document.getElementById('t-duration').textContent = `${b.flight.duration} · ${b.flight.isNonstop ? 'Non-stop' : '1 Stop'}`;
-  document.getElementById('t-flight-num').textContent = b.flight.flightNum;
-  document.getElementById('t-date').textContent = b.flight.date;
-  document.getElementById('t-class').textContent = b.class;
-  document.getElementById('t-aircraft').textContent = b.flight.aircraft;
-  document.getElementById('t-baggage').textContent = b.flight.baggage;
-  document.getElementById('t-seat').textContent = b.seat;
-  document.getElementById('t-passenger-name').textContent = b.passenger.fullName;
-  document.getElementById('t-passenger-meta').textContent = `DOB: ${formatDOB(b.passenger.dob)} · FFN: ${b.passenger.ffn}`;
-  document.getElementById('t-class-badge').textContent = b.class.toUpperCase();
-
-  // Generate QR code
-  const qrDiv = document.getElementById('qr-code-div');
-  qrDiv.innerHTML = '';
-  new QRCode(qrDiv, {
-    text: `AIR INDIA | PNR:${b.pnr} | ${b.flight.from}-${b.flight.to} | ${b.flight.date} | ${b.passenger.fullName}`,
-    width: 100,
-    height: 100,
-    colorDark: '#1A1F4B',
-    colorLight: '#FFFFFF',
-    correctLevel: QRCode.CorrectLevel.M,
+// ── TICKET MODAL ──
+function showTicketModal(b){
+  const f=b.flight,p=b.passenger;
+  document.getElementById('ticketPNR').textContent=b.pnr;
+  document.getElementById('t-from-code').textContent=f.from;
+  document.getElementById('t-from-name').textContent=f.fromCity;
+  document.getElementById('t-dep-time').textContent=f.depTime;
+  document.getElementById('t-dep-terminal').textContent='Terminal '+f.fromTerminal;
+  document.getElementById('t-to-code').textContent=f.to;
+  document.getElementById('t-to-name').textContent=f.toCity;
+  document.getElementById('t-arr-time').textContent=f.arrTime;
+  document.getElementById('t-arr-terminal').textContent='Terminal '+f.toTerminal;
+  document.getElementById('t-duration').textContent=`${f.duration} · ${f.isNonstop?'Non-stop':'1 Stop'}`;
+  document.getElementById('t-flight-num').textContent=f.flightNum;
+  document.getElementById('t-date').textContent=f.date;
+  document.getElementById('t-class').textContent=b.class;
+  document.getElementById('t-aircraft').textContent=f.aircraft;
+  document.getElementById('t-baggage').textContent=f.baggage;
+  document.getElementById('t-seat').textContent=b.seat;
+  document.getElementById('t-terminal').textContent=f.fromTerminal;
+  // Passenger name (FNU if applicable)
+  let nameHtml=p.fullName;
+  if(p.isFNU)nameHtml+=`<span class="fnu-chip">FNU</span>`;
+  document.getElementById('t-passenger-name').innerHTML=nameHtml;
+  document.getElementById('t-passenger-meta').textContent=`DOB: ${formatDOB(p.dob)} · FFN: ${p.ffn}`;
+  document.getElementById('t-class-badge').textContent=b.class.toUpperCase();
+  // Amenities
+  const amenities=[];
+  if(f.meal)amenities.push('<span class="ta-badge yes">🍱 Meal</span>');
+  if(f.wifi)amenities.push('<span class="ta-badge yes">📶 WiFi</span>');
+  if(f.ife)amenities.push('<span class="ta-badge yes">📺 IFE</span>');
+  amenities.push(`<span class="ta-badge yes">🧳 ${f.baggage}</span>`);
+  amenities.push(`<span class="ta-badge yes">🎒 ${f.cabin}</span>`);
+  amenities.push('<span class="ta-badge yes">🔌 USB</span>');
+  document.getElementById('t-amenities-row').innerHTML=amenities.join('');
+  // QR
+  const qrDiv=document.getElementById('qr-code-div');
+  qrDiv.innerHTML='';
+  new QRCode(qrDiv,{
+    text:`AIR INDIA|PNR:${b.pnr}|${f.from}-${f.to}|${f.date}|FLT:${f.flightNum}|PAX:${p.fullName}|SEAT:${b.seat}|PARTNER:DOZERA`,
+    width:100,height:100,colorDark:'#1A1F4B',colorLight:'#FFFFFF',
+    correctLevel:QRCode.CorrectLevel.M
   });
-
   document.getElementById('ticketOverlay').classList.remove('hidden');
 }
-
-function closeTicket() {
-  document.getElementById('ticketOverlay').classList.add('hidden');
+function closeTicket(){document.getElementById('ticketOverlay').classList.add('hidden');}
+function formatDOB(d){
+  if(!d)return'—';const dt=new Date(d+'T00:00:00');
+  const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return`${dt.getDate()} ${m[dt.getMonth()]} ${dt.getFullYear()}`;
 }
 
-function formatDOB(dob) {
-  if (!dob) return '--';
-  const d = new Date(dob + 'T00:00:00');
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+// ── PROFILE / MY BOOKINGS ──
+async function openProfile(){
+  if(!currentUser)return;
+  document.getElementById('profileName').textContent=currentUser.displayName||'My Account';
+  document.getElementById('profileEmail').textContent=currentUser.email;
+  document.getElementById('profileOverlay').classList.remove('hidden');
+  document.getElementById('profileBookingsList').innerHTML='<div class="no-bookings">Loading…</div>';
+  try{
+    const snap=await rtdb.ref(`users/${currentUser.uid}/bookings`).get();
+    if(!snap.exists()){
+      document.getElementById('profileBookingsList').innerHTML='<div class="no-bookings">✈ No bookings yet. Search for flights to claim your ticket!</div>';
+      return;
+    }
+    const bookings=snap.val();
+    const list=Object.values(bookings).sort((a,b)=>(b.bookedAt||0)-(a.bookedAt||0));
+    document.getElementById('profileBookingsList').innerHTML=list.map(bk=>`
+      <div class="booking-history-card">
+        <div class="bh-top">
+          <div class="bh-pnr">PNR: ${bk.pnr}</div>
+          <div class="bh-status confirmed">${bk.status}</div>
+        </div>
+        <div class="bh-route">
+          <div class="bh-airport">${bk.route.split('-')[0]}</div>
+          <div class="bh-arrow">✈</div>
+          <div class="bh-airport">${bk.route.split('-')[1]}</div>
+        </div>
+        <div class="bh-meta">${bk.flightNum} · ${bk.aircraft||'Air India'} · ${bk.date} · Economy</div>
+        <div class="bh-meta" style="color:var(--ai-red);font-weight:700;margin-top:4px">₹${(bk.total||0).toLocaleString('en-IN')}</div>
+        <div style="margin-top:10px">
+          <button class="bh-redownload" onclick="redownloadBooking('${bk.pnr}')">📄 Re-download Ticket</button>
+        </div>
+      </div>`).join('');
+  }catch(e){
+    document.getElementById('profileBookingsList').innerHTML='<div class="no-bookings">Could not load bookings.</div>';
+  }
+}
+function closeProfile(){document.getElementById('profileOverlay').classList.add('hidden');}
+async function redownloadBooking(pnr){
+  try{
+    showLoading('Fetching booking…');
+    const snap=await db.collection('bookings').doc(pnr).get();
+    hideLoading();
+    if(snap.exists()){bookingData=snap.data();showTicketModal(bookingData);}
+    else showToast('error','Booking not found.');
+  }catch(e){hideLoading();showToast('error','Could not fetch booking details.');}
 }
 
-// ============================================================
-// PDF GENERATION — Realistic Air India E-Ticket
-// ============================================================
-function downloadTicketPDF() {
-  if (!bookingData || !bookingData.pnr) { showToast('error', 'No booking data found.'); return; }
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const b = bookingData;
-  const f = b.flight;
-  const p = b.passenger;
-  const W = 210, H = 297;
-  const margin = 14;
-  let y = 0;
+// ── PDF GENERATION ──
+function downloadTicketPDF(){
+  if(!bookingData||!bookingData.pnr){showToast('error','No booking data.');return;}
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const b=bookingData,f=b.flight,p=b.passenger;
+  const W=210,margin=14;let y=0;
 
-  // ─── Header Background ───
-  doc.setFillColor(26, 31, 75); // navy
-  doc.rect(0, 0, W, 52, 'F');
+  // Header BG
+  doc.setFillColor(26,31,75);doc.rect(0,0,W,54,'F');
+  doc.setFillColor(200,16,46);doc.rect(0,0,6,54,'F');
+  doc.setFillColor(184,144,42);doc.rect(0,53.5,W,1,'F');
 
-  // ─── Red accent bar ───
-  doc.setFillColor(200, 16, 46);
-  doc.rect(0, 0, 6, 52, 'F');
+  // Circle logo bg
+  doc.setFillColor(200,16,46);doc.circle(28,27,15,'F');
+  doc.setFillColor(255,215,0);doc.setDrawColor(255,215,0);doc.setLineWidth(.5);
+  doc.circle(28,27,15,'S');
+  doc.setTextColor(255,255,255);doc.setFontSize(11);doc.setFont('helvetica','bold');
+  doc.text('AI',28,25,{align:'center'});
+  doc.setFontSize(4.5);doc.setFont('helvetica','normal');doc.setTextColor(255,215,0);
+  doc.text('AIR INDIA',28,30,{align:'center'});
+  doc.setFillColor(255,215,0);
+  doc.triangle(16,37,28,32,40,37,'F');
 
-  // ─── Gold bottom border of header ───
-  doc.setFillColor(184, 144, 42);
-  doc.rect(0, 51.5, W, 1, 'F');
+  // Title
+  doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
+  doc.text('AIR INDIA',52,20);
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(184,144,42);
+  doc.text('Electronic Ticket — Dozera Group Partnership Claim',52,28);
+  doc.setTextColor(180,180,200);doc.setFontSize(7.5);
+  doc.text('Economy Class · One Way · Partner Benefit Ticket',52,35);
 
-  // ─── AIR INDIA text logo area ───
-  doc.setFillColor(200, 16, 46);
-  doc.circle(28, 26, 16, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'bold');
-  doc.text('AI', 28, 23, { align: 'center' });
-  doc.setFontSize(5);
-  doc.setFont('helvetica', 'normal');
-  doc.text('AIR INDIA', 28, 28, { align: 'center' });
-  // Hamsa shape (simplified)
-  doc.setFillColor(255, 215, 0);
-  doc.triangle(16, 36, 28, 31, 40, 36, 'F');
+  // PNR Box
+  doc.setDrawColor(255,255,255);doc.setLineWidth(.3);doc.roundedRect(144,10,52,30,3,3,'S');
+  doc.setTextColor(184,144,42);doc.setFontSize(6.5);doc.setFont('helvetica','bold');
+  doc.text('BOOKING REFERENCE (PNR)',170,19,{align:'center'});
+  doc.setTextColor(255,255,255);doc.setFontSize(19);doc.setFont('helvetica','bold');
+  doc.text(b.pnr,170,30,{align:'center'});
+  doc.setTextColor(80,255,140);doc.setFontSize(7);doc.setFont('helvetica','bold');
+  doc.text('STATUS: CONFIRMED',170,37,{align:'center'});
 
-  // ─── Title ───
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text('AIR INDIA', 52, 20);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(184, 144, 42);
-  doc.text('Electronic Ticket · Dozera Group Partnership', 52, 27);
+  y=64;
 
-  // ─── PNR ───
-  doc.setFillColor(255, 255, 255, 0.1);
-  doc.setDrawColor(255, 255, 255);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(145, 10, 52, 28, 3, 3, 'S');
-  doc.setTextColor(184, 144, 42);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text('BOOKING REFERENCE (PNR)', 171, 18, { align: 'center' });
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(18);
-  doc.setFont('helvetica', 'bold');
-  doc.text(b.pnr, 171, 30, { align: 'center' });
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(184, 144, 42);
-  doc.text('STATUS: CONFIRMED', 171, 36, { align: 'center' });
-
-  // ─── Partner badge ───
-  doc.setFontSize(7);
-  doc.setTextColor(200, 200, 220);
-  doc.text('DOZERA GROUP PARTNER CLAIM', 52, 40);
-
-  y = 62;
-
-  // ─── Route Section ───
-  doc.setFillColor(248, 246, 242);
-  doc.roundedRect(margin, y, W - margin*2, 40, 3, 3, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, W - margin*2, 40, 3, 3, 'S');
-
-  // Departure
-  doc.setTextColor(26, 31, 75);
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  doc.text(f.depTime, margin + 8, y + 18);
-  doc.setFontSize(14);
-  doc.text(f.from, margin + 8, y + 27);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(f.fromCity, margin + 8, y + 33);
-
+  // Route band
+  doc.setFillColor(248,246,242);doc.roundedRect(margin,y,W-margin*2,42,3,3,'F');
+  doc.setDrawColor(229,231,235);doc.setLineWidth(.3);doc.roundedRect(margin,y,W-margin*2,42,3,3,'S');
+  // Dep
+  doc.setTextColor(26,31,75);doc.setFontSize(28);doc.setFont('helvetica','bold');
+  doc.text(f.depTime,margin+10,y+20);
+  doc.setFontSize(14);doc.text(f.from,margin+10,y+29);
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(107,114,128);
+  doc.text(f.fromCity,margin+10,y+35);
+  doc.text('Terminal: '+f.fromTerminal,margin+10,y+40);
   // Center
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(f.duration, W/2, y + 14, { align: 'center' });
+  doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(75,85,99);
+  doc.text(f.duration,W/2,y+15,{align:'center'});
+  doc.setDrawColor(200,16,46);doc.setLineWidth(.8);
+  doc.line(W/2-30,y+21,W/2+30,y+21);
+  doc.setFontSize(14);doc.setTextColor(200,16,46);doc.text('✈',W/2,y+20,{align:'center'});
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(107,114,128);
+  doc.text(f.isNonstop?'Non-stop':'1 Stop',W/2,y+28,{align:'center'});
+  doc.text(f.date,W/2,y+35,{align:'center'});
+  // Arr
+  doc.setTextColor(26,31,75);doc.setFontSize(28);doc.setFont('helvetica','bold');
+  doc.text(f.arrTime,W-margin-10,y+20,{align:'right'});
+  doc.setFontSize(14);doc.text(f.to,W-margin-10,y+29,{align:'right'});
+  doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(107,114,128);
+  doc.text(f.toCity,W-margin-10,y+35,{align:'right'});
+  doc.text('Terminal: '+f.toTerminal,W-margin-10,y+40,{align:'right'});
 
-  doc.setDrawColor(200, 16, 46);
-  doc.setLineWidth(0.5);
-  doc.line(W/2 - 28, y + 19, W/2 + 28, y + 19);
+  y+=50;
 
-  // Arrow
-  doc.setFontSize(12);
-  doc.setTextColor(200, 16, 46);
-  doc.text('✈', W/2, y + 18, { align: 'center' });
-
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(f.isNonstop ? 'Non-stop' : '1 Stop', W/2, y + 26, { align: 'center' });
-  doc.text(f.date, W/2, y + 32, { align: 'center' });
-
-  // Arrival
-  doc.setTextColor(26, 31, 75);
-  doc.setFontSize(28);
-  doc.setFont('helvetica', 'bold');
-  doc.text(f.arrTime, W - margin - 8, y + 18, { align: 'right' });
-  doc.setFontSize(14);
-  doc.text(f.to, W - margin - 8, y + 27, { align: 'right' });
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(f.toCity, W - margin - 8, y + 33, { align: 'right' });
-
-  y += 48;
-
-  // ─── Flight Details Grid ───
-  const details = [
-    ['Flight Number', f.flightNum], ['Aircraft', f.aircraft],
-    ['Travel Class', 'Economy (Y)'], ['Seat', b.seat],
-    ['Baggage Allowance', f.baggage], ['Seat Pitch', f.legroom || '30"'],
-    ['Departure Date', f.date], ['Booking Status', 'CONFIRMED'],
+  // Flight details section
+  const sections=[
+    ['FLIGHT DETAILS',[26,31,75],[
+      ['Flight Number',f.flightNum],['Aircraft',f.aircraft],
+      ['Booking Class','Y (Economy)'],['Seat',b.seat],
+      ['Dep. Terminal',f.fromTerminal],['Arr. Terminal',f.toTerminal],
+      ['Check-in Baggage',f.baggage],['Cabin Baggage',f.cabin],
+      ['Meal',f.meal?'Included':'Not included'],
+      ['WiFi',f.wifi?'Available':'Not available'],
+    ]],
+    ['PASSENGER INFORMATION',[200,16,46],[
+      ['Full Name',p.fullName+(p.isFNU?' (FNU Applied)':'')],
+      ['Date of Birth',formatDOB(p.dob)],
+      ['Gender',p.gender||'—'],['Nationality',p.nationality||'Indian'],
+      ['Email',p.email],['Mobile',p.mobile],
+      ['Flying Returns No.',p.ffn==='N/A'?'—':p.ffn],
+      ['Travel Class','Economy'],
+    ]],
+    ['FARE DETAILS',[184,144,42],[
+      ['Base Fare',`INR ${(b.pricing.base||0).toLocaleString('en-IN')}`],
+      ['Taxes & GST',`INR ${(b.pricing.tax||0).toLocaleString('en-IN')}`],
+      ['Convenience Fee',`INR ${(b.pricing.conv||0).toLocaleString('en-IN')}`],
+      ['Dozera Partner Discount',`- INR ${(b.pricing.discount||0).toLocaleString('en-IN')}`],
+      ['TOTAL FARE',`INR ${(b.pricing.total||0).toLocaleString('en-IN')}`],
+    ]],
   ];
 
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, y, W - margin*2, 52, 3, 3, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, W - margin*2, 52, 3, 3, 'S');
-
-  // Section title
-  doc.setFillColor(26, 31, 75);
-  doc.roundedRect(margin, y, W - margin*2, 9, 3, 3, 'F');
-  doc.rect(margin, y + 4, W - margin*2, 5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text('FLIGHT DETAILS', margin + 5, y + 6.5);
-
-  const col1x = margin + 4;
-  const col2x = margin + 54;
-  const col3x = margin + 100;
-  const col4x = margin + 150;
-  let gy = y + 16;
-
-  for (let i = 0; i < details.length; i += 2) {
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(156, 163, 175);
-    doc.text(details[i][0].toUpperCase(), col1x, gy);
-    if (details[i+1]) doc.text(details[i+1][0].toUpperCase(), col3x, gy);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(31, 41, 55);
-    doc.text(String(details[i][1]), col1x, gy + 6);
-    if (details[i+1]) doc.text(String(details[i+1][1]), col3x, gy + 6);
-
-    // Divider line
-    if (i < details.length - 2) {
-      doc.setDrawColor(243, 244, 246);
-      doc.setLineWidth(0.2);
-      doc.line(col1x, gy + 9, W - margin - 4, gy + 9);
+  sections.forEach(([title,color,items])=>{
+    const rowsNeeded=Math.ceil(items.length/2);
+    const secH=12+rowsNeeded*13+6;
+    doc.setFillColor(255,255,255);doc.roundedRect(margin,y,W-margin*2,secH,3,3,'F');
+    doc.setDrawColor(229,231,235);doc.roundedRect(margin,y,W-margin*2,secH,3,3,'S');
+    doc.setFillColor(...color);doc.roundedRect(margin,y,W-margin*2,9,3,3,'F');
+    doc.rect(margin,y+4,W-margin*2,5,'F');
+    doc.setTextColor(255,255,255);doc.setFontSize(6.5);doc.setFont('helvetica','bold');
+    doc.text(title,margin+5,y+6.5);
+    let gy=y+16;
+    for(let i=0;i<items.length;i+=2){
+      const c1x=margin+4,c2x=margin+(W-margin*2)/2+4;
+      doc.setFontSize(6.5);doc.setFont('helvetica','bold');doc.setTextColor(156,163,175);
+      doc.text(String(items[i][0]).toUpperCase(),c1x,gy);
+      if(items[i+1])doc.text(String(items[i+1][0]).toUpperCase(),c2x,gy);
+      doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(31,41,55);
+      const v1=String(items[i][1]).substring(0,30);
+      const v2=items[i+1]?String(items[i+1][1]).substring(0,30):'';
+      if(title==='FARE DETAILS'&&items[i][0]==='TOTAL FARE'){doc.setTextColor(200,16,46);doc.setFontSize(11);}
+      doc.text(v1,c1x,gy+6);
+      if(items[i+1])doc.text(v2,c2x,gy+6);
+      doc.setTextColor(31,41,55);doc.setFontSize(9);
+      if(i<items.length-2){doc.setDrawColor(243,244,246);doc.setLineWidth(.15);doc.line(c1x,gy+9,W-margin-4,gy+9);}
+      gy+=13;
     }
-    gy += 13;
-  }
-
-  y += 58;
-
-  // ─── Passenger Section ───
-  doc.setFillColor(255, 255, 255);
-  doc.roundedRect(margin, y, W - margin*2, 42, 3, 3, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, W - margin*2, 42, 3, 3, 'S');
-
-  doc.setFillColor(200, 16, 46);
-  doc.roundedRect(margin, y, W - margin*2, 9, 3, 3, 'F');
-  doc.rect(margin, y + 4, W - margin*2, 5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PASSENGER INFORMATION', margin + 5, y + 6.5);
-
-  gy = y + 18;
-  const pDetails = [
-    ['Full Name', p.fullName], ['Date of Birth', formatDOB(p.dob)],
-    ['Email', p.email], ['Mobile', p.mobile],
-    ['Flying Returns No.', p.ffn === 'N/A' ? '—' : p.ffn], ['Travel Class', 'Economy'],
-  ];
-
-  for (let i = 0; i < pDetails.length; i += 2) {
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(156, 163, 175);
-    doc.text(pDetails[i][0].toUpperCase(), col1x, gy);
-    if (pDetails[i+1]) doc.text(pDetails[i+1][0].toUpperCase(), col3x, gy);
-
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(31, 41, 55);
-    doc.text(String(pDetails[i][1]).substring(0, 30), col1x, gy + 6);
-    if (pDetails[i+1]) doc.text(String(pDetails[i+1][1]).substring(0, 30), col3x, gy + 6);
-
-    gy += 11;
-  }
-
-  y += 48;
-
-  // ─── Pricing Section ───
-  doc.setFillColor(248, 246, 242);
-  doc.roundedRect(margin, y, W - margin*2, 38, 3, 3, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.setLineWidth(0.3);
-  doc.roundedRect(margin, y, W - margin*2, 38, 3, 3, 'S');
-
-  doc.setFillColor(184, 144, 42);
-  doc.roundedRect(margin, y, W - margin*2, 9, 3, 3, 'F');
-  doc.rect(margin, y + 4, W - margin*2, 5, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text('FARE DETAILS', margin + 5, y + 6.5);
-
-  const discount = b.pricing.partnerDiscount;
-  const pRows = [
-    ['Base Fare', `INR ${b.pricing.baseFare.toLocaleString('en-IN')}`],
-    ['Taxes & Surcharges', `INR ${b.pricing.taxes.toLocaleString('en-IN')}`],
-    ['Dozera Partner Discount', `- INR ${discount.toLocaleString('en-IN')}`],
-    ['TOTAL FARE', `INR ${b.pricing.total.toLocaleString('en-IN')}`],
-  ];
-
-  gy = y + 16;
-  pRows.forEach((row, idx) => {
-    const isTotal = idx === pRows.length - 1;
-    doc.setFontSize(isTotal ? 10 : 8);
-    doc.setFont('helvetica', isTotal ? 'bold' : 'normal');
-    doc.setTextColor(isTotal ? 200 : 75, isTotal ? 16 : 85, isTotal ? 46 : 99);
-    doc.text(row[0], col1x, gy);
-    doc.text(row[1], W - margin - 4, gy, { align: 'right' });
-    if (!isTotal) {
-      doc.setDrawColor(229, 231, 235);
-      doc.setLineWidth(0.15);
-      doc.line(col1x, gy + 3, W - margin - 4, gy + 3);
-    }
-    gy += 7;
+    y+=secH+6;
   });
 
-  y += 44;
-
-  // ─── Barcode ───
-  doc.setFillColor(248, 246, 242);
-  doc.roundedRect(margin, y, W - margin*2, 22, 3, 3, 'F');
-  doc.setDrawColor(229, 231, 235);
-  doc.roundedRect(margin, y, W - margin*2, 22, 3, 3, 'S');
-
-  // Simulate barcode stripes
-  const barcodeX = margin + 16;
-  const barcodeY = y + 5;
-  const barcodeW = W - margin*2 - 32;
-  const stripePatterns = [2,1,3,1,2,2,1,3,2,1,2,1,3,2,1,1,2,3,1,2,1,3,1,2,2,1,3,1,2,1,2,3,1,2,1];
-  let bx = barcodeX;
-  let fillToggle = true;
-  stripePatterns.forEach(w => {
-    if (fillToggle) {
-      doc.setFillColor(0,0,0);
-      doc.rect(bx, barcodeY, w * (barcodeW/60), 12, 'F');
-    }
-    bx += w * (barcodeW/60);
-    fillToggle = !fillToggle;
+  // Barcode
+  doc.setFillColor(248,246,242);doc.roundedRect(margin,y,W-margin*2,24,3,3,'F');
+  doc.setDrawColor(229,231,235);doc.roundedRect(margin,y,W-margin*2,24,3,3,'S');
+  const bx0=margin+16,by0=y+5,bw=W-margin*2-32;
+  const pat=[2,1,3,1,2,2,1,3,2,1,2,1,3,2,1,1,2,3,1,2,1,3,1,2,2,1,3,1,2,1];
+  let bxc=bx0,tog=true;
+  pat.forEach(w=>{
+    if(tog){doc.setFillColor(0,0,0);doc.rect(bxc,by0,w*(bw/55),14,'F');}
+    bxc+=w*(bw/55);tog=!tog;
   });
+  doc.setFontSize(7);doc.setFont('helvetica','normal');doc.setTextColor(107,114,128);
+  doc.text(`${b.pnr} · ${f.flightNum} · ${f.from}${f.to} · ECONOMY`,W/2,y+21,{align:'center'});
 
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(`${b.pnr} · ${f.flightNum} · ${f.from}${f.to}`, W/2, y + 19, { align: 'center' });
+  y+=30;
 
-  y += 28;
+  // FNU notice if applicable
+  if(p.isFNU){
+    doc.setFillColor(255,247,237);doc.roundedRect(margin,y,W-margin*2,16,3,3,'F');
+    doc.setDrawColor(253,186,116);doc.roundedRect(margin,y,W-margin*2,16,3,3,'S');
+    doc.setTextColor(194,65,12);doc.setFontSize(7.5);doc.setFont('helvetica','bold');
+    doc.text('⚠ FNU NOTICE:',margin+5,y+7);
+    doc.setFont('helvetica','normal');doc.setFontSize(7);
+    doc.text('Passenger has no surname on ID. "FNU" (First Name Unknown) has been applied as per IATA norms. This is standard and accepted at all Indian airports.',margin+5,y+13,{maxWidth:W-margin*2-10});
+    y+=22;
+  }
 
-  // ─── Important Notice ───
-  doc.setFillColor(254, 242, 242);
-  doc.roundedRect(margin, y, W - margin*2, 20, 3, 3, 'F');
-  doc.setDrawColor(254, 202, 202);
-  doc.roundedRect(margin, y, W - margin*2, 20, 3, 3, 'S');
-  doc.setTextColor(185, 28, 28);
-  doc.setFontSize(7);
-  doc.setFont('helvetica', 'bold');
-  doc.text('IMPORTANT NOTICES', margin + 5, y + 7);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(107, 114, 128);
-  doc.text(
-    'Please arrive at the airport at least 2 hours before departure. Carry a valid government-issued photo ID. This ticket is non-transferable.',
-    margin + 5, y + 13, { maxWidth: W - margin*2 - 10 }
-  );
+  // Footer
+  doc.setFillColor(26,31,75);doc.rect(0,y,W,297-y,'F');
+  doc.setFillColor(184,144,42);doc.rect(0,y,W,1,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','bold');
+  doc.text('Air India Limited · Dozera Group Partnership',W/2,y+10,{align:'center'});
+  doc.setFontSize(6.5);doc.setFont('helvetica','normal');doc.setTextColor(156,163,175);
+  doc.text('This is a computer-generated e-ticket. No physical signature required.',W/2,y+17,{align:'center'});
+  doc.text(`Generated: ${new Date().toLocaleString('en-IN',{timeZone:'Asia/Kolkata'})} IST`,W/2,y+23,{align:'center'});
 
-  y += 26;
-
-  // ─── Footer ───
-  doc.setFillColor(26, 31, 75);
-  doc.rect(0, y, W, H - y, 'F');
-  doc.setFillColor(184, 144, 42);
-  doc.rect(0, y, W, 1, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Air India Limited · Dozera Group Partnership', W/2, y + 10, { align: 'center' });
-  doc.setFontSize(6.5);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(156, 163, 175);
-  doc.text('This is a computer-generated e-ticket and does not require a physical signature.', W/2, y + 17, { align: 'center' });
-  doc.text(`Generated: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST`, W/2, y + 23, { align: 'center' });
-
-  doc.save(`AirIndia_ETicket_${b.pnr}.pdf`);
-  showToast('success', 'E-Ticket PDF downloaded!');
+  doc.save(`AirIndia_ETicket_${b.pnr}_${f.from}-${f.to}.pdf`);
+  showToast('success','E-Ticket PDF downloaded! ✅');
 }
 
-// ============================================================
-// LOADING & TOAST UTILITIES
-// ============================================================
-function showLoading(msg = 'Loading…') {
-  document.getElementById('loadingText').textContent = msg;
+// ── LOADING & TOAST ──
+function showLoading(msg='Loading…',sub=''){
+  document.getElementById('loadingText').textContent=msg;
+  document.getElementById('loadingSub').textContent=sub;
   document.getElementById('loadingOverlay').classList.add('show');
 }
-
-function hideLoading() {
-  document.getElementById('loadingOverlay').classList.remove('show');
+function hideLoading(){document.getElementById('loadingOverlay').classList.remove('show');}
+function showToast(type,msg){
+  const icons={success:'✅',error:'❌',info:'ℹ️',warning:'⚠️'};
+  const t=document.createElement('div');
+  t.className=`toast ${type}`;
+  t.innerHTML=`<span class="toast-icon">${icons[type]||'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(t);
+  setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(110%)';
+    t.style.transition='all .4s';setTimeout(()=>t.remove(),400);},5000);
 }
 
-function showToast(type, msg) {
-  const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.innerHTML = `<span class="toast-icon">${icons[type] || 'ℹ️'}</span><span class="toast-msg">${msg}</span>`;
-  document.getElementById('toastContainer').appendChild(toast);
-  setTimeout(() => {
-    toast.style.opacity = '0';
-    toast.style.transform = 'translateX(110%)';
-    toast.style.transition = 'all 0.4s';
-    setTimeout(() => toast.remove(), 400);
-  }, 4000);
-}
-
-// ============================================================
-// PREVENT ZOOM (accessibility-friendly disabling of pinch-zoom)
-// ============================================================
-document.addEventListener('gesturestart', e => e.preventDefault());
-document.addEventListener('gesturechange', e => e.preventDefault());
+// ── PREVENT ZOOM ──
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('gesturechange',e=>e.preventDefault());
+document.addEventListener('gestureend',e=>e.preventDefault());
 </script>
 </body>
 </html>
