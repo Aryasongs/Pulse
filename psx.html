@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, minimum-scale=0.5, user-scalable=yes" />
+<title>Dozera — Your Profile, Your Data</title>
+<meta name="description" content="Dozera is a personal dashboard where you can log in and view all your realtime data, activities, and profile in one place." />
+<meta name="keywords" content="Dozera, profile, dashboard, firebase, login, activities, user data" />
+<meta name="author" content="Dozera" />
+<meta name="theme-color" content="#2f6f5e" />
+<meta property="og:title" content="Dozera — Your Profile, Your Data" />
+<meta property="og:description" content="Log in to see all your activity data in one place." />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>D</text></svg>" />
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+  :root{
+    --bg: #f4f6f5;
+    --card: #ffffff;
+    --text: #222b27;
+    --muted: #6b7670;
+    --primary: #2f6f5e;
+    --primary-dark: #234f43;
+    --border: #e1e6e3;
+    --danger: #b94a48;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+  *{ box-sizing: border-box; }
+  html, body{
+    margin:0; padding:0;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  a{ color: var(--primary); text-decoration: none; }
+
+  header{
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    position: sticky;
+    top:0;
+    z-index: 10;
+  }
+  .brand{
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .brand-badge{
+    width:30px;height:30px;
+    border-radius:8px;
+    background: var(--primary);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:800;
+  }
+  .header-actions{ display:flex; gap:10px; align-items:center; }
+
+  .btn{
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .btn:hover{ background: #f0f2f1; }
+  .btn-primary{
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+  .btn-primary:hover{ background: var(--primary-dark); }
+  .btn-danger{
+    background: #fff;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover{ background: #fbecec; }
+  .btn:disabled{ opacity:0.6; cursor:not-allowed; }
+
+  main{
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 24px 16px 60px;
+  }
+
+  /* ---------- Auth Screen ---------- */
+  #authScreen{
+    max-width: 420px;
+    margin: 40px auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px;
+    box-shadow: var(--shadow);
+  }
+  #authScreen h1{
+    font-size: 22px;
+    margin: 0 0 4px;
+    color: var(--primary-dark);
+  }
+  #authScreen p.sub{
+    margin: 0 0 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .field{ margin-bottom: 14px; }
+  .field label{
+    display:block;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 5px;
+  }
+  .field input{
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+  }
+  .field input:focus{
+    outline: none;
+    border-color: var(--primary);
+  }
+  .tabs{
+    display:flex;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow:hidden;
+    margin-bottom: 20px;
+  }
+  .tabs button{
+    flex:1;
+    padding: 10px;
+    border:none;
+    background: #fff;
+    cursor:pointer;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .tabs button.active{
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+  }
+  #authMsg{
+    margin-top: 12px;
+    font-size: 13px;
+    min-height: 18px;
+  }
+  #authMsg.error{ color: var(--danger); }
+  #authMsg.ok{ color: var(--primary-dark); }
+  .full-btn{ width:100%; padding: 11px; font-size:15px; }
+
+  /* ---------- Dashboard ---------- */
+  #dashboard{ display:none; }
+
+  .profile-card{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .profile-top{
+    display:flex;
+    gap:16px;
+    align-items:center;
+    flex-wrap: wrap;
+  }
+  .avatar{
+    width: 64px; height:64px;
+    border-radius: 50%;
+    background: var(--primary);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-size: 26px;
+    font-weight: 700;
+    flex-shrink:0;
+    overflow: hidden;
+  }
+  .avatar img{ width:100%; height:100%; object-fit:cover; }
+  .profile-info h2{ margin:0 0 4px; font-size:18px; }
+  .profile-info .email{ color: var(--muted); font-size: 13px; }
+  .profile-info .uid{ color: var(--muted); font-size: 11px; margin-top:4px; word-break: break-all; }
+
+  .codes-row{
+    display:flex;
+    gap: 12px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .code-box{
+    flex:1;
+    min-width: 220px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #fafbfa;
+  }
+  .code-box .code-label{
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display:flex;
+    justify-content: space-between;
+    align-items:center;
+  }
+  .code-box .code-value{
+    font-family: "Courier New", monospace;
+    font-size: 16px;
+    letter-spacing: 1px;
+    font-weight: 700;
+    color: var(--primary-dark);
+    word-break: break-all;
+  }
+  .mini-btn{
+    border:none;
+    background:none;
+    color: var(--primary);
+    cursor:pointer;
+    font-size: 12px;
+    padding: 0;
+  }
+
+  .section-title{
+    font-size: 16px;
+    font-weight: 700;
+    margin: 28px 0 12px;
+    color: var(--primary-dark);
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+  }
+  .refresh-btn{
+    font-size: 12px;
+    color: var(--primary);
+    background:none;
+    border:none;
+    cursor:pointer;
+  }
+
+  .data-card{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: var(--shadow);
+  }
+  .kv-row{
+    display:flex;
+    padding: 8px 0;
+    border-bottom: 1px solid #f0f2f1;
+    font-size: 14px;
+    gap: 12px;
+  }
+  .kv-row:last-child{ border-bottom: none; }
+  .kv-key{
+    flex: 0 0 38%;
+    color: var(--muted);
+    word-break: break-word;
+  }
+  .kv-val{
+    flex: 1;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+  .kv-val img{
+    max-width: 100%;
+    border-radius: 6px;
+    margin-top: 4px;
+    display:block;
+  }
+
+  .activity-item{
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #fafbfa;
+  }
+  .activity-item .act-key{
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+
+  .empty-state{
+    text-align:center;
+    padding: 30px 10px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .about-box{
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    margin-top: 30px;
+    box-shadow: var(--shadow);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text);
+  }
+  .about-box h3{
+    margin-top:0;
+    color: var(--primary-dark);
+  }
+
+  .zoom-controls{
+    position: fixed;
+    bottom: 18px;
+    right: 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display:flex;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    z-index: 20;
+  }
+  .zoom-controls button{
+    border:none;
+    background: #fff;
+    width: 38px;
+    height: 38px;
+    font-size: 18px;
+    cursor:pointer;
+    color: var(--primary-dark);
+    border-left: 1px solid var(--border);
+  }
+  .zoom-controls button:first-child{ border-left:none; }
+  .zoom-controls button:hover{ background:#f0f2f1; }
+
+  .loader{
+    text-align:center;
+    padding: 40px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  footer{
+    text-align:center;
+    color: var(--muted);
+    font-size: 12px;
+    padding: 20px;
+  }
+
+  @media (max-width: 480px){
+    .kv-row{ flex-direction: column; }
+    .kv-key{ flex: none; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand"><span class="brand-badge">D</span> Dozera</div>
+  <div class="header-actions">
+    <button id="logoutBtn" class="btn btn-danger" style="display:none;">Logout</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ AUTH SCREEN ============ -->
+  <div id="authScreen">
+    <h1>Welcome to Dozera</h1>
+    <p class="sub">Log in to view all your data, activities, and profile.</p>
+
+    <div class="tabs">
+      <button id="tabLogin" class="active">Login</button>
+      <button id="tabSignup">New Account</button>
+    </div>
+
+    <div class="field">
+      <label for="emailInput">Email</label>
+      <input type="email" id="emailInput" placeholder="you@example.com" autocomplete="email" />
+    </div>
+    <div class="field">
+      <label for="passInput">Password</label>
+      <input type="password" id="passInput" placeholder="At least 6 characters" autocomplete="current-password" />
+    </div>
+    <div class="field" id="nameField" style="display:none;">
+      <label for="nameInput">Your Name (optional)</label>
+      <input type="text" id="nameInput" placeholder="e.g. John Smith" />
+    </div>
+
+    <button id="submitAuthBtn" class="btn btn-primary full-btn">Log In</button>
+    <div id="authMsg"></div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <div id="dashboard">
+
+    <div class="profile-card">
+      <div class="profile-top">
+        <div class="avatar" id="avatarBox">U</div>
+        <div class="profile-info">
+          <h2 id="displayNameText">Your Name</h2>
+          <div class="email" id="emailText">email@example.com</div>
+          <div class="uid" id="uidText">UID: ----</div>
+        </div>
+      </div>
+
+      <div class="codes-row">
+        <div class="code-box">
+          <div class="code-label">
+            <span>PS Code</span>
+          </div>
+          <div class="code-value" id="psCodeText">—</div>
+        </div>
+        <div class="code-box">
+          <div class="code-label">
+            <span>PX Code</span>
+            <button class="mini-btn" id="togglePxBtn">Show</button>
+          </div>
+          <div class="code-value" id="pxCodeText">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">
+      Your Full Data
+      <button class="refresh-btn" id="refreshBtn">Refresh</button>
+    </div>
+    <div id="dataContainer">
+      <div class="loader">Loading data...</div>
+    </div>
+
+    <div class="about-box">
+      <h3>What is Dozera?</h3>
+      <p>
+        Dozera is a personal dashboard platform where every user can view their realtime activity data in one secure place. After logging in, the website connects directly to Firebase Realtime Database, and all data related to that account — whatever has been saved, such as photos, notes, activity logs, or any other field — is automatically displayed here.
+      </p>
+      <p>
+        Every user is given two special identifiers at login — a <strong>PS Code</strong> that is shown in full, and a <strong>PX Code</strong> that stays partially hidden for privacy. Both are 15-character alphanumeric codes that work like a unique API-key-style identity, and are stored only inside that user's own profile.
+      </p>
+      <p>
+        Dozera's design is kept simple and clean — without any unnecessary visual complexity — so the user can focus only on their data. The website supports both zoom-in and zoom-out, so it's comfortable to read on any screen size.
+      </p>
+    </div>
+
+  </div>
+
+</main>
+
+<div class="zoom-controls">
+  <button id="zoomOutBtn" title="Zoom Out">−</button>
+  <button id="zoomResetBtn" title="Reset" style="font-size:13px;">100%</button>
+  <button id="zoomInBtn" title="Zoom In">+</button>
+</div>
+
+<footer>© 2026 Dozera — Your Data, Your Identity.</footer>
+
+<script>
+  // ---------------- Firebase Config ----------------
+  const firebaseConfig = {
+    apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+    authDomain: "pulse2-92372.firebaseapp.com",
+    databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+    projectId: "pulse2-92372",
+    storageBucket: "pulse2-92372.firebasestorage.app",
+    messagingSenderId: "276235725177",
+    appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+
+  // ---------------- Auth Screen Tabs ----------------
+  let mode = "login"; // or "signup"
+  const tabLogin = document.getElementById("tabLogin");
+  const tabSignup = document.getElementById("tabSignup");
+  const nameField = document.getElementById("nameField");
+  const submitAuthBtn = document.getElementById("submitAuthBtn");
+  const authMsg = document.getElementById("authMsg");
+
+  tabLogin.addEventListener("click", () => {
+    mode = "login";
+    tabLogin.classList.add("active");
+    tabSignup.classList.remove("active");
+    nameField.style.display = "none";
+    submitAuthBtn.textContent = "Log In";
+    authMsg.textContent = "";
+  });
+
+  tabSignup.addEventListener("click", () => {
+    mode = "signup";
+    tabSignup.classList.add("active");
+    tabLogin.classList.remove("active");
+    nameField.style.display = "block";
+    submitAuthBtn.textContent = "Create Account";
+    authMsg.textContent = "";
+  });
+
+  function setAuthMsg(text, type){
+    authMsg.textContent = text;
+    authMsg.className = type || "";
+  }
+
+  // ---------------- Random Code Generator ----------------
+  function generateCode(length){
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let out = "";
+    for(let i=0;i<length;i++){
+      out += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return out;
+  }
+
+  function maskCode(code){
+    // Show first 3 and last 3 characters, mask the middle 9 with *
+    if(code.length !== 15) return code;
+    return code.slice(0,3) + "*********" + code.slice(12);
+  }
+
+  // ---------------- Signup / Login Handlers ----------------
+  submitAuthBtn.addEventListener("click", async () => {
+    const email = document.getElementById("emailInput").value.trim();
+    const password = document.getElementById("passInput").value;
+    const name = document.getElementById("nameInput").value.trim();
+
+    if(!email || !password){
+      setAuthMsg("Please enter both email and password.", "error");
+      return;
+    }
+    if(password.length < 6){
+      setAuthMsg("Password must be at least 6 characters long.", "error");
+      return;
+    }
+
+    submitAuthBtn.disabled = true;
+    setAuthMsg("Please wait...", "");
+
+    try{
+      if(mode === "signup"){
+        const cred = await auth.createUserWithEmailAndPassword(email, password);
+        const uid = cred.user.uid;
+
+        if(name){
+          await cred.user.updateProfile({ displayName: name });
+        }
+
+        // Generate PS and PX codes for new user
+        const psCode = generateCode(15);
+        const pxCode = generateCode(15);
+
+        await db.ref("users/" + uid + "/profile").set({
+          name: name || "",
+          email: email,
+          psCode: psCode,
+          pxCode: pxCode,
+          createdAt: new Date().toISOString()
+        });
+
+        setAuthMsg("Account created! You are now logged in.", "ok");
+      } else {
+        await auth.signInWithEmailAndPassword(email, password);
+        setAuthMsg("Login successful!", "ok");
+      }
+    } catch(err){
+      setAuthMsg(friendlyError(err), "error");
+    } finally {
+      submitAuthBtn.disabled = false;
+    }
+  });
+
+  function friendlyError(err){
+    const code = err.code || "";
+    if(code.includes("email-already-in-use")) return "This email is already registered. Please log in instead.";
+    if(code.includes("invalid-email")) return "Email is not in a valid format.";
+    if(code.includes("user-not-found")) return "No account found. Please create a new account first.";
+    if(code.includes("wrong-password")) return "Incorrect password.";
+    if(code.includes("invalid-credential")) return "Email or password is incorrect.";
+    if(code.includes("weak-password")) return "Password is too weak, please use a stronger one.";
+    if(code.includes("network-request-failed")) return "Please check your internet connection.";
+    return "Something went wrong: " + err.message;
+  }
+
+  // ---------------- Logout ----------------
+  document.getElementById("logoutBtn").addEventListener("click", () => {
+    auth.signOut();
+  });
+
+  // ---------------- Auth State Listener ----------------
+  let dbListenerRef = null;
+
+  auth.onAuthStateChanged(async (user) => {
+    const authScreen = document.getElementById("authScreen");
+    const dashboard = document.getElementById("dashboard");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    if(user){
+      authScreen.style.display = "none";
+      dashboard.style.display = "block";
+      logoutBtn.style.display = "inline-block";
+
+      document.getElementById("emailText").textContent = user.email || "";
+      document.getElementById("uidText").textContent = "UID: " + user.uid;
+
+      const nameOrEmail = user.displayName || (user.email ? user.email.split("@")[0] : "User");
+      document.getElementById("displayNameText").textContent = nameOrEmail;
+      document.getElementById("avatarBox").textContent = nameOrEmail.charAt(0).toUpperCase();
+
+      loadUserData(user.uid);
+    } else {
+      authScreen.style.display = "block";
+      dashboard.style.display = "none";
+      logoutBtn.style.display = "none";
+
+      if(dbListenerRef){
+        dbListenerRef.off();
+        dbListenerRef = null;
+      }
+      document.getElementById("emailInput").value = "";
+      document.getElementById("passInput").value = "";
+    }
+  });
+
+  // ---------------- Load User Data from Realtime DB ----------------
+  function loadUserData(uid){
+    const dataContainer = document.getElementById("dataContainer");
+    dataContainer.innerHTML = '<div class="loader">Loading data...</div>';
+
+    if(dbListenerRef){
+      dbListenerRef.off();
+    }
+
+    dbListenerRef = db.ref("users/" + uid);
+
+    dbListenerRef.on("value", (snapshot) => {
+      const data = snapshot.val();
+
+      if(!data){
+        dataContainer.innerHTML = '<div class="empty-state">No data has been saved yet.</div>';
+        document.getElementById("psCodeText").textContent = "—";
+        document.getElementById("pxCodeText").textContent = "—";
+        return;
+      }
+
+      // Show PS / PX codes if present under profile
+      const profile = data.profile || {};
+      document.getElementById("psCodeText").textContent = profile.psCode || "—";
+      const pxRaw = profile.pxCode || "";
+      document.getElementById("pxCodeText").textContent = pxRaw ? maskCode(pxRaw) : "—";
+      document.getElementById("pxCodeText").dataset.full = pxRaw;
+      document.getElementById("pxCodeText").dataset.masked = "true";
+
+      renderAllData(data);
+    }, (error) => {
+      dataContainer.innerHTML = '<div class="empty-state">Error loading data: ' + error.message + '</div>';
+    });
+  }
+
+  document.getElementById("togglePxBtn").addEventListener("click", () => {
+    const el = document.getElementById("pxCodeText");
+    const btn = document.getElementById("togglePxBtn");
+    if(el.dataset.masked === "true"){
+      el.textContent = el.dataset.full || "—";
+      el.dataset.masked = "false";
+      btn.textContent = "Hide";
+    } else {
+      el.textContent = el.dataset.full ? maskCode(el.dataset.full) : "—";
+      el.dataset.masked = "true";
+      btn.textContent = "Show";
+    }
+  });
+
+  document.getElementById("refreshBtn").addEventListener("click", () => {
+    const user = auth.currentUser;
+    if(user) loadUserData(user.uid);
+  });
+
+  // ---------------- Render Full Data (generic, recursive) ----------------
+  function renderAllData(data){
+    const container = document.getElementById("dataContainer");
+    container.innerHTML = "";
+
+    const keys = Object.keys(data).filter(k => k !== "profile");
+
+    if(keys.length === 0){
+      container.innerHTML = '<div class="empty-state">No activity data has been saved yet, other than your profile.</div>';
+      return;
+    }
+
+    keys.forEach(sectionKey => {
+      const sectionData = data[sectionKey];
+      const card = document.createElement("div");
+      card.className = "data-card";
+
+      const title = document.createElement("div");
+      title.style.fontWeight = "700";
+      title.style.marginBottom = "10px";
+      title.style.color = "#2f6f5e";
+      title.textContent = prettifyKey(sectionKey);
+      card.appendChild(title);
+
+      card.appendChild(renderValue(sectionData));
+      container.appendChild(card);
+    });
+  }
+
+  function prettifyKey(key){
+    return key
+      .replace(/[_-]/g, " ")
+      .replace(/([a-z])([A-Z])/g, "$1 $2")
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function isImageUrl(str){
+    return typeof str === "string" && (
+      /\.(jpe?g|png|gif|webp|svg)(\?.*)?$/i.test(str) ||
+      str.startsWith("data:image") ||
+      str.includes("firebasestorage")
+    );
+  }
+
+  function renderValue(value){
+    const wrap = document.createElement("div");
+
+    if(value === null || value === undefined){
+      wrap.textContent = "—";
+      return wrap;
+    }
+
+    if(typeof value === "string" || typeof value === "number" || typeof value === "boolean"){
+      if(isImageUrl(String(value))){
+        const img = document.createElement("img");
+        img.src = String(value);
+        img.alt = "Uploaded image";
+        wrap.appendChild(img);
+      } else {
+        wrap.textContent = String(value);
+      }
+      return wrap;
+    }
+
+    if(typeof value === "object"){
+      const isArrayLike = Object.keys(value).every(k => !isNaN(k)) || Array.isArray(value);
+
+      Object.keys(value).forEach(k => {
+        const v = value[k];
+        const row = document.createElement("div");
+        row.className = "kv-row";
+
+        const keyEl = document.createElement("div");
+        keyEl.className = "kv-key";
+        keyEl.textContent = isArrayLike ? "" : prettifyKey(k);
+
+        const valEl = document.createElement("div");
+        valEl.className = "kv-val";
+
+        if(typeof v === "object" && v !== null){
+          valEl.appendChild(renderValue(v));
+        } else if(isImageUrl(String(v))){
+          const img = document.createElement("img");
+          img.src = String(v);
+          img.alt = "Image";
+          valEl.appendChild(img);
+        } else {
+          valEl.textContent = String(v);
+        }
+
+        row.appendChild(keyEl);
+        row.appendChild(valEl);
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
+    wrap.textContent = String(value);
+    return wrap;
+  }
+
+  // ---------------- Zoom Controls ----------------
+  let currentZoom = 100;
+  function applyZoom(){
+    document.body.style.zoom = currentZoom + "%";
+    document.getElementById("zoomResetBtn").textContent = currentZoom + "%";
+  }
+  document.getElementById("zoomInBtn").addEventListener("click", () => {
+    if(currentZoom < 180){ currentZoom += 10; applyZoom(); }
+  });
+  document.getElementById("zoomOutBtn").addEventListener("click", () => {
+    if(currentZoom > 50){ currentZoom -= 10; applyZoom(); }
+  });
+  document.getElementById("zoomResetBtn").addEventListener("click", () => {
+    currentZoom = 100; applyZoom();
+  });
+</script>
+
+</body>
+</html>
