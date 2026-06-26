@@ -581,6 +581,7 @@
         setAuthMsg("Login successful!", "ok");
       }
     } catch(err){
+      console.error("Auth error:", err);
       setAuthMsg(friendlyError(err), "error");
     } finally {
       submitAuthBtn.disabled = false;
@@ -624,6 +625,7 @@
       document.getElementById("displayNameText").textContent = nameOrEmail;
       document.getElementById("avatarBox").textContent = nameOrEmail.charAt(0).toUpperCase();
 
+      await ensureCodesExist(user);
       loadUserData(user.uid);
     } else {
       authScreen.style.display = "block";
@@ -638,6 +640,31 @@
       document.getElementById("passInput").value = "";
     }
   });
+
+  // ---------------- Make sure PS/PX codes exist for this user ----------------
+  // Covers: accounts created before this feature existed, or signups where
+  // the database write failed/was interrupted.
+  async function ensureCodesExist(user){
+    try{
+      const profileRef = db.ref("users/" + user.uid + "/profile");
+      const snap = await profileRef.get();
+      const existing = snap.val() || {};
+
+      if(!existing.psCode || !existing.pxCode){
+        const updates = {
+          name: existing.name || user.displayName || "",
+          email: existing.email || user.email || "",
+          psCode: existing.psCode || generateCode(15),
+          pxCode: existing.pxCode || generateCode(15),
+          createdAt: existing.createdAt || new Date().toISOString()
+        };
+        await profileRef.update(updates);
+      }
+    } catch(err){
+      console.error("Could not create PS/PX codes:", err);
+      setAuthMsg("Could not generate codes: " + err.message + " (check your Firebase database rules)", "error");
+    }
+  }
 
   // ---------------- Load User Data from Realtime DB ----------------
   function loadUserData(uid){
