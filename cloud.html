@@ -226,6 +226,11 @@
         </div>
     </div>
 
+    <div id="vault-loading" class="hidden" style="position:fixed; inset:0; background:var(--bg-color); z-index:3000; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;">
+        <i class="ph-fill ph-cloud-check" style="font-size:48px; color:var(--primary);"></i>
+        <div style="font-weight:600; color:var(--text-muted);">Unlocking your vault...</div>
+    </div>
+
     <div id="dashboard" class="hidden">
         <aside class="sidebar" id="sidebar">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -405,7 +410,7 @@
                         <button class="btn-outline" style="border-color: var(--danger); color: var(--danger);" onclick="emptyTrash()"><i class="ph ph-trash"></i> Empty Trash</button>
                     </div>
                     <div class="trash-banner">
-                        <span><i class="ph ph-info"></i> Items in Trash are permanently deleted after 30 days.</span>
+                        <span><i class="ph ph-info"></i> <span id="trash-retention-text">Items in Trash are permanently deleted after 30 days.</span></span>
                     </div>
                     <div class="table-responsive">
                         <table class="data-table">
@@ -423,6 +428,14 @@
 
                 <div id="settings-view" style="display: none;">
                     <div class="section-title">Settings</div>
+
+                    <div class="card" id="plan-card" style="max-width: 500px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 16px; font-size: 18px; display:flex; align-items:center; gap:8px;">
+                            <i class="ph-fill ph-crown" style="color: var(--primary);"></i> <span id="plan-card-title">Your Plan</span>
+                        </h3>
+                        <div id="plan-card-body" style="font-size: 14px; color: var(--text-muted); line-height: 1.7;">Loading plan details...</div>
+                    </div>
+
                     <div class="card" style="max-width: 500px;">
                         <h3 style="margin-bottom: 20px; font-size: 18px;">Display Preferences</h3>
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -539,9 +552,17 @@
         let globalTrash = [];        // soft-deleted files
         let globalFolders = [];      // {id, name}
         let activeFolderId = 'all';  // 'all' | 'unfiled' | folderId
-        let currentMaxStorage = 5 * 1024 * 1024 * 1024; // Default 5GB
-        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per-file cap, safe for RTDB node + base64 overhead
-        const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+        let isPremium = false;
+        let currentMaxStorage = 5 * 1024 * 1024 * 1024;     // Default 5GB (Free)
+        const FREE_MAX_FILE_SIZE = 5 * 1024 * 1024;         // 5MB per file (Free)
+        const PREMIUM_MAX_FILE_SIZE = 20 * 1024 * 1024;     // 20MB per file (Premium)
+        const FREE_STORAGE_DEFAULT = 5 * 1024 * 1024 * 1024;   // 5GB (Free)
+        const PREMIUM_STORAGE_DEFAULT = 50 * 1024 * 1024 * 1024; // 50GB (Premium)
+        const FREE_TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;  // 30 days (Free)
+        const PREMIUM_TRASH_RETENTION_MS = 90 * 24 * 60 * 60 * 1000; // 90 days (Premium)
+
+        function maxFileSize() { return isPremium ? PREMIUM_MAX_FILE_SIZE : FREE_MAX_FILE_SIZE; }
+        function trashRetentionMs() { return isPremium ? PREMIUM_TRASH_RETENTION_MS : FREE_TRASH_RETENTION_MS; }
 
         // --- SECURITY SANITIZER ---
         const escapeHTML = (str) => {
@@ -590,11 +611,16 @@
                 if (user) {
                     currentUser = user;
                     document.getElementById('landing-page').classList.add('hidden');
-                    document.getElementById('dashboard').classList.remove('hidden');
+                    document.getElementById('vault-loading').classList.remove('hidden');
+                    document.getElementById('dashboard').classList.add('hidden'); // stay hidden until plan resolves
                     loadDashboardData();
                     fetchExternalFeeds();
                 } else {
                     currentUser = null;
+                    isPremium = false;
+                    document.body.classList.remove('premium-user');
+                    sessionStorage.removeItem('premiumShown');
+                    document.getElementById('vault-loading').classList.add('hidden');
                     document.getElementById('landing-page').classList.remove('hidden');
                     document.getElementById('dashboard').classList.add('hidden');
                 }
@@ -882,15 +908,39 @@
                 document.getElementById('user-name-display').innerText = name;
                 document.getElementById('user-avatar-display').innerText = name.charAt(0).toUpperCase();
 
+                isPremium = data?.plan === "premium";
+
+                // Storage limit: explicit per-user override wins, else plan default
                 if (data?.storageLimit) {
                     currentMaxStorage = data.storageLimit;
+                } else {
+                    currentMaxStorage = isPremium ? PREMIUM_STORAGE_DEFAULT : FREE_STORAGE_DEFAULT;
                 }
 
-                if (data?.plan === "premium") {
+                document.getElementById('dropzone-hint').textContent =
+                    `Limit: Max ${formatBytes(maxFileSize())} per file (Realtime Database encrypted storage).`;
+                document.getElementById('trash-retention-text').textContent =
+                    `Items in Trash are permanently deleted after ${isPremium ? 90 : 30} days.`;
+
+                if (isPremium) {
                     document.body.classList.add("premium-user");
 
                     document.getElementById("user-name-display").innerHTML =
                         `${escapeHTML(name)} <span style="color:#d4af37;font-weight:700;">PRO</span>`;
+
+                    document.getElementById('plan-card-title').textContent = 'Nexor Premium';
+                    document.getElementById('plan-card-body').innerHTML = `
+                        <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                            <span style="background:#d4af37; color:#1d1d1f; font-weight:700; font-size:12px; padding:3px 10px; border-radius:99px;">PRO</span>
+                            <span>You're on the Premium plan.</span>
+                        </div>
+                        <ul style="padding-left: 18px; margin: 0;">
+                            <li>${formatBytes(currentMaxStorage)} vault storage</li>
+                            <li>${formatBytes(PREMIUM_MAX_FILE_SIZE)} max file size (vs ${formatBytes(FREE_MAX_FILE_SIZE)} on Free)</li>
+                            <li>90-day Trash retention (vs 30 days on Free)</li>
+                            <li>Unlimited folders & tags</li>
+                            <li>Priority badge across the app</li>
+                        </ul>`;
 
                     if (!sessionStorage.getItem("premiumShown")) {
                         sessionStorage.setItem("premiumShown", "true");
@@ -903,7 +953,29 @@
                             showConfirmButton: false
                         });
                     }
+                } else {
+                    document.body.classList.remove("premium-user");
+                    document.getElementById('plan-card-title').textContent = 'Free Plan';
+                    document.getElementById('plan-card-body').innerHTML = `
+                        <div style="margin-bottom:10px;">You're on the Free plan.</div>
+                        <ul style="padding-left: 18px; margin: 0 0 14px;">
+                            <li>${formatBytes(currentMaxStorage)} vault storage</li>
+                            <li>${formatBytes(FREE_MAX_FILE_SIZE)} max file size</li>
+                            <li>30-day Trash retention</li>
+                        </ul>
+                        <div style="font-size:13px;">Contact support to upgrade to <strong style="color:#d4af37;">Nexor Premium</strong> for 50GB storage, 20MB files, and 90-day Trash retention.</div>`;
                 }
+
+                applyFileFilter(); // re-render so PRO badges on file rows pick up isPremium state
+
+                // Plan is fully resolved and UI updated — now safe to reveal the dashboard
+                document.getElementById('vault-loading').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+            }).catch(err => {
+                // Even on error, don't leave the user stuck on the loading screen
+                document.getElementById('vault-loading').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                Swal.fire('Error', 'Could not load profile: ' + err.message, 'error');
             });
 
             // --- Files: now on Realtime Database ---
@@ -1096,10 +1168,10 @@
                 });
             }
 
-            if (file.size > MAX_FILE_SIZE) {
+            if (file.size > maxFileSize()) {
                 return Swal.fire(
                     'Limit Exceeded',
-                    `Maximum allowed file size is ${formatBytes(MAX_FILE_SIZE)}. Your file is ${formatBytes(file.size)}.`,
+                    `Maximum allowed file size is ${formatBytes(maxFileSize())}. Your file is ${formatBytes(file.size)}.${!isPremium ? ' Upgrade to Premium for a 20MB limit.' : ''}`,
                     'error'
                 );
             }
@@ -1278,7 +1350,7 @@
         function autoPurgeExpiredTrash() {
             const now = Date.now();
             globalTrash.forEach(item => {
-                if (item.deletedAt && (now - item.deletedAt) > TRASH_RETENTION_MS) {
+                if (item.deletedAt && (now - item.deletedAt) > trashRetentionMs()) {
                     rtdb.ref('vaults/' + currentUser.uid + '/trash/' + item.id).remove();
                 }
             });
