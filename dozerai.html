@@ -205,6 +205,10 @@
     font-size:11px; color:var(--text-dim); text-transform:capitalize;
     margin-top:4px; display:block; word-break:break-word;
   }
+  .linked-item .match-tag{
+    font-size:9px; color:var(--text-dim); text-transform:uppercase;
+    letter-spacing:.04em; display:block; margin-top:3px; opacity:0.7;
+  }
   .linked-summary{
     display:flex; justify-content:space-between; align-items:center;
     margin-bottom:16px; flex-wrap:wrap; gap:8px;
@@ -834,10 +838,11 @@
   }
 
   // ---------- Linked data scan across all nodes ----------
-  // All top-level nodes in this Firebase project that may hold a record keyed
-  // directly by uid (i.e. node/{uid}/...). We fetch ONLY this user's own path
-  // under each node — never the whole node — so this stays fast and doesn't
-  // expose other users' data.
+  // Pass 1 (fast): direct lookup at node/{uid} — one targeted read per node.
+  // Pass 2 (fallback, only for nodes that came back empty in pass 1): fetch the
+  // whole node and scan its records for any field matching this user's email,
+  // since some legacy data may be keyed by something other than uid.
+  // Pass 2 is slower and reads more data, so it only runs where pass 1 found nothing.
   const ALL_NODES = [
     "likes","location_data","luxury_suite","mails","matchedRooms","messages",
     "migrationComplete","nai_sessions","nexes","notifications","offers","orders",
@@ -848,7 +853,20 @@
     "usernames","users","verificationRequests"
   ];
 
-  let lastScanResults = {}; // nodeName -> { data, count }
+  const EMAIL_LIKE_FIELDS = ["email", "userEmail", "emailAddress", "ownerEmail", "buyerEmail", "senderEmail", "recipientEmail"];
+
+  let lastScanResults = {}; // nodeName -> { data, count, matchedBy }
+
+  function recordMatchesEmail(record, email){
+    if (!record || typeof record !== "object" || !email) return false;
+    const lowerEmail = email.toLowerCase();
+    for (const field of EMAIL_LIKE_FIELDS){
+      if (typeof record[field] === "string" && record[field].toLowerCase() === lowerEmail){
+        return true;
+      }
+    }
+    return false;
+  }
 
   async function scanLinkedData(uid){
     const grid = document.getElementById("linked-grid");
@@ -859,17 +877,19 @@
     grid.innerHTML = "";
     lastScanResults = {};
 
+    const email = (currentUser && currentUser.email) ? currentUser.email : "";
     let foundNodes = 0;
+    const itemEls = {};
 
+    // ---- Pass 1: direct uid lookup (fast) ----
     for (let i = 0; i < ALL_NODES.length; i++){
       const node = ALL_NODES[i];
-      progressText.textContent = `Checking ${node}… (${i+1}/${ALL_NODES.length})`;
+      progressText.textContent = `Checking ${node} by account ID… (${i+1}/${ALL_NODES.length})`;
       let data = null;
       try{
         const snap = await get(ref(db, `${node}/${uid}`));
         if (snap.exists()) data = snap.val();
       } catch(e){
-        // Locked by security rules or path doesn't apply this way — skip silently
         data = null;
       }
 
@@ -881,13 +901,47 @@
         foundNodes++;
         count = (typeof data === "object" && !Array.isArray(data)) ? Object.keys(data).length
               : Array.isArray(data) ? data.length : 1;
-        lastScanResults[node] = { data, count };
+        lastScanResults[node] = { data, count, matchedBy: "uid" };
       }
 
       const item = document.createElement("div");
       item.className = "linked-item" + (hasData ? " has-data" : "");
-      item.innerHTML = `<span class="count">${hasData ? count : "—"}</span><span class="label">${node}</span>`;
+      item.innerHTML = `<span class="count">${hasData ? count : "—"}</span><span class="label">${node}</span>${hasData ? '<span class="match-tag">via account ID</span>' : ''}`;
       grid.appendChild(item);
+      itemEls[node] = item;
+    }
+
+    // ---- Pass 2: email fallback, only for nodes still empty (slower) ----
+    if (email){
+      const emptyNodes = ALL_NODES.filter(n => !lastScanResults[n]);
+      for (let i = 0; i < emptyNodes.length; i++){
+        const node = emptyNodes[i];
+        progressText.textContent = `Checking ${node} by email… (${i+1}/${emptyNodes.length})`;
+        let wholeNode = null;
+        try{
+          const snap = await get(ref(db, node));
+          if (snap.exists()) wholeNode = snap.val();
+        } catch(e){
+          wholeNode = null; // likely blocked by security rules — skip silently
+        }
+
+        if (wholeNode && typeof wholeNode === "object"){
+          const matches = {};
+          for (const [key, record] of Object.entries(wholeNode)){
+            if (recordMatchesEmail(record, email)){
+              matches[key] = record;
+            }
+          }
+          const matchCount = Object.keys(matches).length;
+          if (matchCount > 0){
+            foundNodes++;
+            lastScanResults[node] = { data: matches, count: matchCount, matchedBy: "email" };
+            const item = itemEls[node];
+            item.className = "linked-item has-data";
+            item.innerHTML = `<span class="count">${matchCount}</span><span class="label">${node}</span><span class="match-tag">via email</span>`;
+          }
+        }
+      }
     }
 
     progressWrap.style.display = "none";
@@ -1069,7 +1123,8 @@
         bodyLine("No additional linked data was found for this account.");
       } else {
         for (const node of nodeNames){
-          subheading(`${node}  (${lastScanResults[node].count} record${lastScanResults[node].count===1?"":"s"})`);
+          const matchLabel = lastScanResults[node].matchedBy === "email" ? "matched via email" : "matched via account ID";
+          subheading(`${node}  (${lastScanResults[node].count} record${lastScanResults[node].count===1?"":"s"}, ${matchLabel})`);
           jsonBlock(lastScanResults[node].data);
         }
       }
