@@ -440,6 +440,48 @@
       <pre id="inspect-output" class="mono" style="display:none; background:var(--bg-elev); border:1px solid var(--line); border-radius:10px; padding:14px; font-size:11px; line-height:1.5; overflow-x:auto; max-height:360px; white-space:pre-wrap; word-break:break-word;"></pre>
     </div>
 
+    <!-- Admin panel: only visible to admin emails -->
+    <div class="card" id="admin-panel-card" style="display:none; border:1px solid #000000;">
+      <div class="row-eyebrow">Admin only</div>
+      <h3>Mark a community violation</h3>
+      <p class="hint" style="margin-bottom:16px;">Look up a user by UID or email, then set or clear their violation status. This updates their account in real time.</p>
+
+      <div class="grid2" style="margin-bottom:10px;">
+        <input type="text" id="admin-lookup-input" placeholder="User UID or email" />
+        <button class="btn btn-ghost" onclick="adminLookupUser()">Find user</button>
+      </div>
+
+      <div id="admin-user-found" style="display:none;">
+        <div class="divider"></div>
+        <p class="hint">Found</p>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <img id="admin-found-avatar" class="avatar" style="width:48px;height:48px; display:none;" alt="" />
+          <div id="admin-found-placeholder" class="avatar" style="width:48px;height:48px; font-size:18px;">?</div>
+          <div>
+            <div id="admin-found-name" style="font-weight:600;"></div>
+            <div id="admin-found-email" class="hint mono" style="font-size:12px;"></div>
+            <div id="admin-found-uid" class="uid-tag mono" style="margin-top:4px;"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="admin-status-select">Violation status</label>
+          <select id="admin-status-select" style="width:100%; padding:12px 14px; border-radius:10px; background:var(--bg-elev); border:1px solid var(--line); color:var(--text); font-size:15px;">
+            <option value="good">Good standing (no violation)</option>
+            <option value="warning">Warning</option>
+            <option value="restricted">Restricted</option>
+            <option value="banned">Banned</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="admin-reason-input">Reason (optional, logged with the action)</label>
+          <input type="text" id="admin-reason-input" placeholder="e.g. Spam, harassment, fake profile" />
+        </div>
+        <div id="admin-msg" class="msg success"></div>
+        <button class="btn btn-primary" id="admin-apply-btn" onclick="adminApplyViolation()">Apply status</button>
+      </div>
+    </div>
+
   </div>
 
   <footer class="site-footer">
@@ -477,6 +519,7 @@
   const db = getDatabase(app);
 
   const VIOLATION_THRESHOLD = 5; // reports needed to trigger auto-violation
+  const ADMIN_EMAILS = ["sgursharn076@gmail.com"]; // only these emails see the admin panel
   let currentUser = null;
   let pendingAvatarBase64 = null;
 
@@ -505,6 +548,9 @@
       await loadProfile(user.uid);
       listenToHealth(user.uid);
       scanLinkedData(user.uid);
+
+      const isAdmin = ADMIN_EMAILS.map(e => e.toLowerCase()).includes((user.email || "").toLowerCase());
+      document.getElementById("admin-panel-card").style.display = isAdmin ? "block" : "none";
     } else {
       currentUser = null;
       showScreen("login");
@@ -1009,6 +1055,143 @@
       output.textContent = report;
     } catch(err){
       output.textContent = `Couldn't read "${node}" directly — this is most likely blocked by Firebase Security Rules for listing/querying without a specific key.\n\nError: ${err.message}\n\nTo check it manually: open Firebase Console → Realtime Database → look under "${node}" → expand a couple of entries and see which field holds your UID (${currentUser.uid}) or email (${currentUser.email || "—"}).`;
+    }
+  };
+
+  // ---------- Admin: find user + apply violation status ----------
+  let adminFoundUid = null;
+
+  window.adminLookupUser = async function(){
+    const raw = document.getElementById("admin-lookup-input").value.trim();
+    const foundWrap = document.getElementById("admin-user-found");
+    if (!raw){
+      alert("Enter a UID or email first.");
+      return;
+    }
+
+    let targetUid = null;
+    let usersRecord = null;
+    let profileRecord = null;
+
+    if (raw.includes("@")){
+      // Email lookup: scan the users node for a matching email field
+      try{
+        const usersSnap = await get(ref(db, "users"));
+        if (usersSnap.exists()){
+          const all = usersSnap.val();
+          for (const [uid, rec] of Object.entries(all)){
+            if (rec && typeof rec === "object" && (rec.email || "").toLowerCase() === raw.toLowerCase()){
+              targetUid = uid;
+              usersRecord = rec;
+              break;
+            }
+          }
+        }
+      } catch(e){ /* rules may block listing — ignore */ }
+
+      // Fall back to scanning profiles if not found in users
+      if (!targetUid){
+        try{
+          const profilesSnap = await get(ref(db, "profiles"));
+          if (profilesSnap.exists()){
+            const all = profilesSnap.val();
+            for (const [uid, rec] of Object.entries(all)){
+              if (rec && typeof rec === "object" && (rec.email || "").toLowerCase() === raw.toLowerCase()){
+                targetUid = uid;
+                profileRecord = rec;
+                break;
+              }
+            }
+          }
+        } catch(e){ /* ignore */ }
+      }
+    } else {
+      // Treat input as a UID directly
+      targetUid = raw;
+    }
+
+    if (!targetUid){
+      alert("Couldn't find a user with that email. Double-check it, or use their UID instead.");
+      foundWrap.style.display = "none";
+      return;
+    }
+
+    // Load whatever we don't already have
+    if (!usersRecord){
+      try{
+        const s = await get(ref(db, "users/" + targetUid));
+        if (s.exists()) usersRecord = s.val();
+      } catch(e){ /* ignore */ }
+    }
+    if (!profileRecord){
+      try{
+        const s = await get(ref(db, "profiles/" + targetUid));
+        if (s.exists()) profileRecord = s.val();
+      } catch(e){ /* ignore */ }
+    }
+
+    if (!usersRecord && !profileRecord){
+      alert("No user record found for that UID. It may not exist, or your account doesn't have permission to read it.");
+      foundWrap.style.display = "none";
+      return;
+    }
+
+    adminFoundUid = targetUid;
+    const name = (profileRecord && profileRecord.name) || (usersRecord && usersRecord.name) || "Unnamed user";
+    const email = (usersRecord && usersRecord.email) || (profileRecord && profileRecord.email) || "—";
+    const avatar = (profileRecord && profileRecord.avatarBase64) || "";
+
+    document.getElementById("admin-found-name").textContent = name;
+    document.getElementById("admin-found-email").textContent = email;
+    document.getElementById("admin-found-uid").textContent = targetUid;
+
+    const img = document.getElementById("admin-found-avatar");
+    const placeholder = document.getElementById("admin-found-placeholder");
+    if (avatar){
+      img.src = avatar; img.style.display = "block"; placeholder.style.display = "none";
+    } else {
+      img.style.display = "none"; placeholder.style.display = "flex";
+      placeholder.textContent = name.trim().charAt(0).toUpperCase() || "?";
+    }
+
+    // Pre-fill the status dropdown with their current status
+    const currentManual = usersRecord && usersRecord.manualViolation;
+    const currentStatus = (usersRecord && usersRecord.accountStatus) || "good";
+    document.getElementById("admin-status-select").value = currentManual ? currentStatus : "good";
+    document.getElementById("admin-reason-input").value = "";
+    clearMsg("admin-msg");
+    foundWrap.style.display = "block";
+  };
+
+  window.adminApplyViolation = async function(){
+    if (!adminFoundUid || !currentUser) return;
+    const status = document.getElementById("admin-status-select").value;
+    const reason = document.getElementById("admin-reason-input").value.trim();
+    const btn = document.getElementById("admin-apply-btn");
+    clearMsg("admin-msg");
+
+    btn.disabled = true; btn.textContent = "Applying…";
+    try{
+      const isViolation = status !== "good";
+      await update(ref(db, "users/" + adminFoundUid), {
+        manualViolation: isViolation,
+        accountStatus: isViolation ? status : "good"
+      });
+
+      // Audit trail of every admin action, for accountability
+      await push(ref(db, "violationLogs"), {
+        targetUid: adminFoundUid,
+        status: status,
+        reason: reason || null,
+        actedBy: currentUser.email || currentUser.uid,
+        timestamp: serverTimestamp()
+      });
+
+      showMsg("admin-msg", `Status updated to "${status}" for this user.`, false);
+    } catch(err){
+      showMsg("admin-msg", "Couldn't apply this change. Check your permissions/rules and try again.", true);
+    } finally{
+      btn.disabled = false; btn.textContent = "Apply status";
     }
   };
 
