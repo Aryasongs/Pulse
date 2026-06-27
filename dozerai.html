@@ -444,7 +444,7 @@
     <div class="card" id="admin-panel-card" style="display:none; border:1px solid #000000;">
       <div class="row-eyebrow">Admin only</div>
       <h3>Mark a community violation</h3>
-      <p class="hint" style="margin-bottom:16px;">Look up a user by UID or email, then set or clear their violation status. This updates their account in real time.</p>
+      <p class="hint" style="margin-bottom:16px;">Look up a user by UID or email, then set or clear their violation status. Because every app on this Firebase project reads the same <span class="mono">users/{uid}</span> record, a status set here applies everywhere — the user is suspended on every connected site, not just this one.</p>
 
       <div class="grid2" style="margin-bottom:10px;">
         <input type="text" id="admin-lookup-input" placeholder="User UID or email" />
@@ -479,6 +479,23 @@
         </div>
         <div id="admin-msg" class="msg success"></div>
         <button class="btn btn-primary" id="admin-apply-btn" onclick="adminApplyViolation()">Apply status</button>
+
+        <div class="divider"></div>
+        <h3 style="font-size:14px;">Activity overview</h3>
+        <p class="hint" style="margin-bottom:14px;">Reports filed against this user are shown in full. Every other node shows a record count only — message and mail content stay private and are never surfaced here.</p>
+
+        <div id="admin-reports-section" style="margin-bottom:18px;">
+          <p class="hint" style="margin-bottom:8px;">Reports against this user</p>
+          <ul class="reports-list" id="admin-reports-list">
+            <li class="empty-note" style="display:block; border:none;">Loading…</li>
+          </ul>
+        </div>
+
+        <p class="hint" style="margin-bottom:8px;">Activity across all nodes (counts only)</p>
+        <div class="linked-grid" id="admin-linked-grid"></div>
+        <div class="scan-progress" id="admin-scan-progress" style="display:none;">
+          <span class="spinner"></span><span id="admin-scan-progress-text">Scanning…</span>
+        </div>
       </div>
     </div>
 
@@ -1161,7 +1178,71 @@
     document.getElementById("admin-reason-input").value = "";
     clearMsg("admin-msg");
     foundWrap.style.display = "block";
+
+    adminLoadReportsForUser(targetUid);
+    adminScanActivityCounts(targetUid);
   };
+
+  // Reports are the one node whose content we show in full to admins —
+  // this is exactly the data the reporting system exists to surface.
+  async function adminLoadReportsForUser(uid){
+    const list = document.getElementById("admin-reports-list");
+    list.innerHTML = `<li class="empty-note" style="display:block; border:none;">Loading…</li>`;
+    try{
+      const snap = await get(ref(db, "reports"));
+      const all = snap.exists() ? snap.val() : {};
+      const matches = Object.values(all).filter(r => r && r.reportedUserId === uid);
+      if (!matches.length){
+        list.innerHTML = `<li class="empty-note" style="display:block; border:none;">No reports on file for this user.</li>`;
+        return;
+      }
+      const sorted = matches.sort((a,b) => (b.timestamp||0) - (a.timestamp||0));
+      list.innerHTML = sorted.map(r => {
+        const when = r.timestamp ? new Date(r.timestamp).toLocaleDateString() : "—";
+        const reason = r.reason || "Unspecified reason";
+        return `<li><span class="reason">${escapeHtml(reason)}</span><span class="when mono">${when}</span></li>`;
+      }).join("");
+    } catch(e){
+      list.innerHTML = `<li class="empty-note" style="display:block; border:none;">Couldn't load reports — check permissions.</li>`;
+    }
+  }
+
+  // Every other node: counts only, never content. Mirrors the same uid-then-
+  // email two-pass approach used for the user's own "linked data" view.
+  async function adminScanActivityCounts(uid){
+    const grid = document.getElementById("admin-linked-grid");
+    const progressWrap = document.getElementById("admin-scan-progress");
+    const progressText = document.getElementById("admin-scan-progress-text");
+    grid.innerHTML = "";
+    progressWrap.style.display = "flex";
+
+    const countsOnlyNodes = ALL_NODES.filter(n => n !== "reports"); // reports already shown in full above
+
+    for (let i = 0; i < countsOnlyNodes.length; i++){
+      const node = countsOnlyNodes[i];
+      progressText.textContent = `Checking ${node}… (${i+1}/${countsOnlyNodes.length})`;
+      let count = 0;
+      let hasData = false;
+      try{
+        const snap = await get(ref(db, `${node}/${uid}`));
+        if (snap.exists()){
+          const data = snap.val();
+          hasData = !(typeof data === "object" && Object.keys(data).length === 0);
+          if (hasData){
+            count = (typeof data === "object" && !Array.isArray(data)) ? Object.keys(data).length
+                  : Array.isArray(data) ? data.length : 1;
+          }
+        }
+      } catch(e){ /* blocked or not applicable — leave as 0 */ }
+
+      const item = document.createElement("div");
+      item.className = "linked-item" + (hasData ? " has-data" : "");
+      item.innerHTML = `<span class="count">${hasData ? count : "—"}</span><span class="label">${node}</span>`;
+      grid.appendChild(item);
+    }
+
+    progressWrap.style.display = "none";
+  }
 
   window.adminApplyViolation = async function(){
     if (!adminFoundUid || !currentUser) return;
