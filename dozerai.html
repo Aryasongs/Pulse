@@ -425,6 +425,15 @@
       <div class="backup-note">
         This generates a PDF with every record tied to your account ID across all linked nodes, including your profile, activity, and account status. Keep this file private — it may contain sensitive information.
       </div>
+
+      <div class="divider"></div>
+      <h3 style="font-size:14px;">Inspect a node's real structure</h3>
+      <p class="hint" style="margin-bottom:12px;">If a node shows 0 but you know it has your data, use this to see a few sample records and find out how your account is actually referenced inside it.</p>
+      <div class="grid2" style="margin-bottom:12px;">
+        <select id="inspect-node-select" class="mono" style="width:100%; padding:12px 14px; border-radius:10px; background:var(--bg-elev); border:1px solid var(--line); color:var(--text); font-size:13px;"></select>
+        <button class="btn btn-ghost" onclick="inspectNode()">Fetch sample records</button>
+      </div>
+      <pre id="inspect-output" class="mono" style="display:none; background:var(--bg-elev); border:1px solid var(--line); border-radius:10px; padding:14px; font-size:11px; line-height:1.5; overflow-x:auto; max-height:360px; white-space:pre-wrap; word-break:break-word;"></pre>
     </div>
 
   </div>
@@ -445,7 +454,8 @@
     EmailAuthProvider, updateProfile
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
   import {
-    getDatabase, ref, set, get, update, onValue, push, serverTimestamp
+    getDatabase, ref, set, get, update, onValue, push, serverTimestamp,
+    query, limitToFirst
   } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
   const firebaseConfig = {
@@ -883,6 +893,70 @@
     progressWrap.style.display = "none";
     badge.innerHTML = `<b>${foundNodes}</b> of ${ALL_NODES.length} nodes have data linked to your account`;
   }
+
+  // ---------- Populate the inspector dropdown ----------
+  function populateInspectDropdown(){
+    const select = document.getElementById("inspect-node-select");
+    select.innerHTML = ALL_NODES.map(n => `<option value="${n}">${n}</option>`).join("");
+  }
+  populateInspectDropdown();
+
+  // ---------- Debug: inspect a node's real structure ----------
+  // Fetches a handful of raw sample records from the chosen node (not filtered
+  // by uid) so you can see how records are actually keyed/shaped, and tries to
+  // guess which field(s) might reference this user (uid, email, or username).
+  window.inspectNode = async function(){
+    if (!currentUser) return;
+    const node = document.getElementById("inspect-node-select").value;
+    const output = document.getElementById("inspect-output");
+    output.style.display = "block";
+    output.textContent = `Fetching a few sample records from "${node}"…`;
+
+    try{
+      const sampleQuery = query(ref(db, node), limitToFirst(3));
+      const snap = await get(sampleQuery);
+
+      if (!snap.exists()){
+        output.textContent = `"${node}" appears to be empty, or these rules don't allow listing it directly.\n\nIf you know this node has your data, it may require an authenticated index/query that this simple tool can't run — check Firebase Console → Realtime Database → ${node} directly.`;
+        return;
+      }
+
+      const raw = snap.val();
+      const sampleEntries = Object.entries(raw).slice(0, 3);
+
+      const uid = currentUser.uid;
+      const email = currentUser.email || "";
+      let matchNotes = [];
+
+      sampleEntries.forEach(([key, val]) => {
+        if (key === uid){
+          matchNotes.push(`Key "${key}" matches your UID directly — this node IS keyed by uid, your data should already show up. (If it still shows 0, check spelling/case of the node name.)`);
+        }
+        if (val && typeof val === "object"){
+          for (const [field, fieldVal] of Object.entries(val)){
+            if (fieldVal === uid){
+              matchNotes.push(`Record "${key}" has a field "${field}" containing your UID — your data is linked via this field, not the top-level key.`);
+            }
+            if (email && fieldVal === email){
+              matchNotes.push(`Record "${key}" has a field "${field}" containing your email — your data is linked via email, not uid.`);
+            }
+          }
+        }
+      });
+
+      let report = `Node: ${node}\nSample size: ${sampleEntries.length} record(s) shown out of however many exist.\n\n`;
+      if (matchNotes.length){
+        report += `LIKELY MATCH FOUND:\n${matchNotes.map(n => "• " + n).join("\n")}\n\n`;
+      } else {
+        report += `No direct uid/email match found in these ${sampleEntries.length} sample record(s). Your data may be further down (this only checks the first few), or under a different field name. Look at the raw shape below to spot the right field.\n\n`;
+      }
+      report += `RAW SAMPLE:\n${JSON.stringify(Object.fromEntries(sampleEntries), null, 2)}`;
+
+      output.textContent = report;
+    } catch(err){
+      output.textContent = `Couldn't read "${node}" directly — this is most likely blocked by Firebase Security Rules for listing/querying without a specific key.\n\nError: ${err.message}\n\nTo check it manually: open Firebase Console → Realtime Database → look under "${node}" → expand a couple of entries and see which field holds your UID (${currentUser.uid}) or email (${currentUser.email || "—"}).`;
+    }
+  };
 
   // ---------- PDF backup ----------
   window.downloadBackup = async function(){
