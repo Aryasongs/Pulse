@@ -668,7 +668,9 @@
 
         // --- GLOBAL STATE ---
         let currentUser = null;
-        let globalFiles = [];        // active files
+        let globalFiles = [];        // merged view: RTDB files + legacy Firestore files
+        let rtdbFilesCache = [];     // files currently in Realtime Database (new uploads land here)
+        let firestoreFilesCache = []; // legacy files still sitting in Firestore from before the RTDB migration
         let globalTrash = [];        // soft-deleted files
         let globalFolders = [];      // {id, name}
         let activeFolderId = 'all';  // 'all' | 'unfiled' | folderId
@@ -1046,8 +1048,12 @@
 
         // Decrypts the file's data on demand and returns an object-URL valid for this tab only.
         // Caller is responsible for revoking it (URL.revokeObjectURL) once no longer displayed.
+        // Legacy Firestore files were saved before encryption existed and carry a plain
+        // `base64Data` data URL. New/RTDB files carry `encryptedData` ciphertext. This reads
+        // either shape transparently and always hands back a usable blob URL.
         async function decryptToBlobUrl(data) {
-            const dataUrl = await decryptDataUrl(data.encryptedData);
+            const dataUrl = data.encryptedData ? await decryptDataUrl(data.encryptedData) : data.base64Data;
+            if (!dataUrl) throw new Error('No file data found.');
             const [, meta, b64] = dataUrl.match(/^data:(.*?);base64,(.*)$/) || [];
             if (!b64) return dataUrl; // fallback, shouldn't happen
             const bin = atob(b64);
@@ -1156,16 +1162,24 @@
                 ? '<i class="ph ph-speaker-x"></i>' : '<i class="ph ph-speaker-high"></i>';
         }
 
+        function fileCreatedAtMillis(data) {
+            if (!data.createdAt) return null;
+            return typeof data.createdAt.toMillis === 'function' ? data.createdAt.toMillis() : data.createdAt;
+        }
+
         function buildFileRow(data, isTrash) {
             const tagsHTML = (data.tags && data.tags.length)
                 ? data.tags.map(t => `<span class="tag-pill">${escapeHTML(t)}</span>`).join('')
+                : '';
+            const legacyBadge = data._source === 'firestore'
+                ? `<span class="tag-pill" style="background:rgba(255,159,10,0.15); color:var(--warning);" title="Saved before encryption — will upgrade automatically when edited">Legacy</span>`
                 : '';
             const nameCell = `
                 <div style="display:flex; align-items:center; gap:12px; cursor:${isTrash ? 'default' : 'pointer'};" ${isTrash ? '' : `onclick="openFileDetail('${data.id}')"`}>
                     ${buildThumbHTML(data, 40)}
                     <div style="max-width: 180px; overflow:hidden;">
                         <div style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;" title="${escapeHTML(data.name)}">${escapeHTML(data.name)}</div>
-                        <div style="white-space:nowrap;">${tagsHTML}</div>
+                        <div style="white-space:nowrap;">${legacyBadge}${tagsHTML}</div>
                     </div>
                 </div>`;
 
@@ -1182,10 +1196,11 @@
                 </tr>`;
             }
 
+            const createdMillis = fileCreatedAtMillis(data);
             return `<tr>
                 <td>${nameCell}</td>
                 <td style="color:var(--text-muted);">${formatBytes(data.size)}</td>
-                <td style="color:var(--text-muted);">${data.createdAt ? new Date(data.createdAt).toLocaleDateString() : 'Now'}</td>
+                <td style="color:var(--text-muted);">${createdMillis ? new Date(createdMillis).toLocaleDateString() : 'Now'}</td>
                 <td style="text-align:right; white-space: nowrap;">
                     <button class="action-btn" title="Download" onclick="downloadFile('${data.id}')"><i class="ph ph-download"></i></button>
                     <button class="action-btn" title="Share Securely" onclick="shareFile('${data.id}')"><i class="ph ph-share-network"></i></button>
@@ -1238,6 +1253,35 @@
             activeFolderId = folderId;
             renderFolderBar();
             applyFileFilter();
+        }
+
+        // Combines RTDB (current) and Firestore (legacy, pre-migration) files into one list,
+        // newest first, then refreshes storage stats and the visible file list.
+        function mergeAndRenderFiles() {
+            globalFiles = [...rtdbFilesCache, ...firestoreFilesCache]
+                .sort((a, b) => {
+                    const at = (a.createdAt && a.createdAt.toMillis) ? a.createdAt.toMillis() : (a.createdAt || 0);
+                    const bt = (b.createdAt && b.createdAt.toMillis) ? b.createdAt.toMillis() : (b.createdAt || 0);
+                    return bt - at;
+                });
+
+            let totalBytes = 0;
+            globalFiles.forEach(f => totalBytes += (f.size || 0));
+
+            applyFileFilter();
+            document.getElementById('file-count-text').innerText = `${globalFiles.length} Files Secured`;
+
+            document.getElementById('storage-text').innerText = `${formatBytes(totalBytes)} / ${formatBytes(currentMaxStorage)}`;
+            let pct = (totalBytes / currentMaxStorage) * 100;
+            let fillBar = document.getElementById('storage-fill');
+            fillBar.style.width = Math.min(pct, 100) + '%';
+            fillBar.style.background = pct > 90 ? 'var(--danger)' : 'var(--primary)';
+            if (pct >= 100) {
+                fillBar.style.background = 'var(--danger)';
+                document.getElementById('storage-text').innerHTML =
+                    `${formatBytes(totalBytes)} / ${formatBytes(currentMaxStorage)}<br>
+                    <span style="color:red;font-weight:bold;">Storage Full</span>`;
+            }
         }
 
         function applyFileFilter() {
@@ -1350,33 +1394,26 @@
                 }
             });
 
-            // --- Files: now on Realtime Database ---
+            // --- Files: new uploads live on Realtime Database ---
             const filesRef = rtdb.ref('vaults/' + currentUser.uid + '/files');
             activeListenerRefs.push(filesRef);
             filesRef.on('value', snap => {
                 const val = snap.val() || {};
-                globalFiles = Object.keys(val)
-                    .map(id => ({ id, ...val[id] }))
-                    .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-
-                let totalBytes = 0;
-                globalFiles.forEach(f => totalBytes += (f.size || 0));
-
-                applyFileFilter();
-                document.getElementById('file-count-text').innerText = `${globalFiles.length} Files Secured`;
-
-                document.getElementById('storage-text').innerText = `${formatBytes(totalBytes)} / ${formatBytes(currentMaxStorage)}`;
-                let pct = (totalBytes / currentMaxStorage) * 100;
-                let fillBar = document.getElementById('storage-fill');
-                fillBar.style.width = Math.min(pct, 100) + '%';
-                fillBar.style.background = pct > 90 ? 'var(--danger)' : 'var(--primary)';
-                if (pct >= 100) {
-                    fillBar.style.background = 'var(--danger)';
-                    document.getElementById('storage-text').innerHTML =
-                        `${formatBytes(totalBytes)} / ${formatBytes(currentMaxStorage)}<br>
-                        <span style="color:red;font-weight:bold;">Storage Full</span>`;
-                }
+                rtdbFilesCache = Object.keys(val)
+                    .map(id => ({ id, ...val[id], _source: 'rtdb' }));
+                mergeAndRenderFiles();
             });
+
+            // --- Legacy files: anything saved before the RTDB migration still lives in Firestore.
+            // We keep reading it here so nothing old "disappears" — but nothing new is ever written
+            // back to this collection; new uploads and any edits to legacy files move to RTDB.
+            activeListenerUnsubs.push(
+                db.collection('users').doc(currentUser.uid).collection('files').onSnapshot(snap => {
+                    firestoreFilesCache = [];
+                    snap.forEach(doc => firestoreFilesCache.push({ id: doc.id, ...doc.data(), _source: 'firestore' }));
+                    mergeAndRenderFiles();
+                })
+            );
 
             // --- Trash: also on Realtime Database ---
             const trashRef = rtdb.ref('vaults/' + currentUser.uid + '/trash');
@@ -1633,8 +1670,8 @@
 
         async function downloadFile(docId) {
             const fileObj = globalFiles.find(f => f.id === docId);
-            if (!fileObj || !fileObj.encryptedData) return Swal.fire('Error', 'Data missing or corrupted.', 'error');
-            if (!vaultKey) return Swal.fire('Vault Locked', 'Unlock your vault to download files.', 'warning');
+            if (!fileObj || (!fileObj.encryptedData && !fileObj.base64Data)) return Swal.fire('Error', 'Data missing or corrupted.', 'error');
+            if (fileObj.encryptedData && !vaultKey) return Swal.fire('Vault Locked', 'Unlock your vault to download files.', 'warning');
 
             try {
                 const blobUrl = await decryptToBlobUrl(fileObj);
@@ -1650,14 +1687,29 @@
             }
         }
 
+        // Legacy files keep living in Firestore until touched; these helpers write metadata
+        // updates (rename, folder, tags, share-flag) to whichever store the file actually lives in.
+        function fileDocRef(fileObj) {
+            return fileObj._source === 'firestore'
+                ? db.collection('users').doc(currentUser.uid).collection('files').doc(fileObj.id)
+                : rtdb.ref('vaults/' + currentUser.uid + '/files/' + fileObj.id);
+        }
+        async function updateFileDoc(fileObj, patch) {
+            const ref = fileDocRef(fileObj);
+            return fileObj._source === 'firestore' ? ref.update(patch) : ref.update(patch);
+        }
+
         async function renameFile(docId, currentName) {
+            const fileObj = globalFiles.find(f => f.id === docId);
+            if (!fileObj) return;
+
             const { value: newName } = await Swal.fire({
                 title: 'Rename Record', input: 'text', inputValue: currentName, showCancelButton: true,
                 inputValidator: (value) => { if (!value) return 'Name cannot be empty!' }
             });
 
             if (newName && newName !== currentName) {
-                try { await rtdb.ref('vaults/' + currentUser.uid + '/files/' + docId).update({ name: newName }); }
+                try { await updateFileDoc(fileObj, { name: newName }); }
                 catch (error) { Swal.fire('Error', error.message, 'error'); }
             }
         }
@@ -1665,15 +1717,19 @@
         // Sharing: because encryption is zero-knowledge, a link alone cannot open the file —
         // whoever opens it must also know your vault's encryption password. This keeps the
         // "share a link" convenience without weakening the no-one-but-you guarantee.
+        // Legacy (pre-encryption) files are shared as-is, with no password required to view.
         async function shareFile(docId) {
+            const fileObj = globalFiles.find(f => f.id === docId);
+            if (!fileObj) return;
+
             try {
-                await rtdb.ref('vaults/' + currentUser.uid + '/files/' + docId).update({ shared: true });
+                await updateFileDoc(fileObj, { shared: true });
                 const shareUrl = `${window.location.origin}${window.location.pathname}?share=${currentUser.uid}_${docId}`;
 
                 Swal.fire({
                     title: 'Secure Cloud Link Generated',
                     html: `<input type="text" value="${shareUrl}" id="share-link-input" class="swal2-input" readonly>
-                           <p style="font-size:12px; color:var(--text-muted); margin-top:8px; text-align:left;">Whoever opens this link will need your vault's encryption password to view the file — share that separately and securely.</p>`,
+                           <p style="font-size:12px; color:var(--text-muted); margin-top:8px; text-align:left;">${fileObj._source === 'firestore' ? 'This is a legacy file and opens without a password.' : "Whoever opens this link will need your vault's encryption password to view the file — share that separately and securely."}</p>`,
                     showCancelButton: true, confirmButtonText: 'Copy Link', cancelButtonText: 'Close'
                 }).then((result) => {
                     if (result.isConfirmed) {
@@ -1697,41 +1753,53 @@
                 const targetUid = parts[0];
                 const docId = parts.slice(1).join('_');
 
-                const [fileSnap, userSnap] = await Promise.all([
+                const [rtdbSnap, firestoreSnap, userSnap] = await Promise.all([
                     rtdb.ref('vaults/' + targetUid + '/files/' + docId).once('value'),
+                    db.collection('users').doc(targetUid).collection('files').doc(docId).get(),
                     db.collection('users').doc(targetUid).get()
                 ]);
-                const data = fileSnap.val();
+
+                const rtdbData = rtdbSnap.val();
+                const firestoreData = firestoreSnap.exists ? firestoreSnap.data() : null;
+                const data = rtdbData || firestoreData;
+                const isLegacy = !rtdbData && !!firestoreData;
                 const ownerData = userSnap.data();
 
                 if (!data) throw new Error("Vault record does not exist.");
                 if (data.shared !== true) throw new Error("This file access has been revoked by the owner.");
-                if (!ownerData || !ownerData.vaultSalt) throw new Error("This vault has no encryption configured.");
 
                 document.getElementById('shared-filename').innerText = escapeHTML(data.name);
                 document.getElementById('shared-filesize').innerText = formatBytes(data.size);
-                const uploadDate = data.createdAt ? new Date(data.createdAt).toLocaleDateString() : 'Recently';
+                const uploadDate = data.createdAt ? new Date((data.createdAt.toMillis ? data.createdAt.toMillis() : data.createdAt)).toLocaleDateString() : 'Recently';
                 document.getElementById('shared-meta').innerText = `Secure Cloud Link • Encrypted: ${uploadDate}`;
 
-                // Ask the visitor for the owner's vault password before any content is shown.
-                const { value: sharePass } = await Swal.fire({
-                    title: 'Encryption Password Required',
-                    input: 'password',
-                    inputPlaceholder: "Enter the vault owner's encryption password",
-                    showCancelButton: true,
-                    confirmButtonText: 'Decrypt'
-                });
-
-                if (!sharePass) throw new Error("A password is required to view this file.");
-
-                const tempKey = await deriveVaultKey(sharePass, ownerData.vaultSalt);
-                const savedKey = vaultKey;
-                vaultKey = tempKey; // temporarily use the visitor-supplied key for this decrypt only
                 let blobUrl;
-                try {
+
+                if (isLegacy) {
+                    // Legacy file: never encrypted, so no password needed to decrypt it.
                     blobUrl = await decryptToBlobUrl(data);
-                } finally {
-                    vaultKey = savedKey; // restore immediately, success or fail
+                } else {
+                    if (!ownerData || !ownerData.vaultSalt) throw new Error("This vault has no encryption configured.");
+
+                    // Ask the visitor for the owner's vault password before any content is shown.
+                    const { value: sharePass } = await Swal.fire({
+                        title: 'Encryption Password Required',
+                        input: 'password',
+                        inputPlaceholder: "Enter the vault owner's encryption password",
+                        showCancelButton: true,
+                        confirmButtonText: 'Decrypt'
+                    });
+
+                    if (!sharePass) throw new Error("A password is required to view this file.");
+
+                    const tempKey = await deriveVaultKey(sharePass, ownerData.vaultSalt);
+                    const savedKey = vaultKey;
+                    vaultKey = tempKey; // temporarily use the visitor-supplied key for this decrypt only
+                    try {
+                        blobUrl = await decryptToBlobUrl(data);
+                    } finally {
+                        vaultKey = savedKey; // restore immediately, success or fail
+                    }
                 }
 
                 document.getElementById('shared-preview-container').innerHTML = buildLargePreviewHTML(blobUrl, data.type, data.name);
@@ -1752,15 +1820,27 @@
         }
 
         // --- 9. TRASH (Realtime Database) ---
+        // Trash always lives in Realtime Database, even for a legacy Firestore file — moving to
+        // Trash naturally migrates it. Restoring a never-migrated file puts it back in RTDB too
+        // (consistent with "anything new/touched goes to RTDB").
         async function trashFile(docId) {
-            const fileRef = rtdb.ref('vaults/' + currentUser.uid + '/files/' + docId);
-            const snap = await fileRef.once('value');
-            const data = snap.val();
-            if (!data) return;
+            const fileObj = globalFiles.find(f => f.id === docId);
+            if (!fileObj) return;
+
+            const { _source, id, ...data } = fileObj;
+            // Firestore Timestamps don't serialize into RTDB directly — normalize to millis first.
+            if (data.createdAt && typeof data.createdAt.toMillis === 'function') {
+                data.createdAt = data.createdAt.toMillis();
+            }
 
             const trashRef = rtdb.ref('vaults/' + currentUser.uid + '/trash/' + docId);
             await trashRef.set({ ...data, deletedAt: Date.now() });
-            await fileRef.remove();
+
+            if (_source === 'firestore') {
+                await db.collection('users').doc(currentUser.uid).collection('files').doc(docId).delete();
+            } else {
+                await rtdb.ref('vaults/' + currentUser.uid + '/files/' + docId).remove();
+            }
 
             Swal.fire({ title: 'Moved to Trash', icon: 'success', timer: 1200, showConfirmButton: false });
         }
@@ -1771,6 +1851,7 @@
             const data = snap.val();
             if (!data) return;
             delete data.deletedAt;
+            delete data._source;
 
             await rtdb.ref('vaults/' + currentUser.uid + '/files/' + docId).set(data);
             await trashRef.remove();
@@ -1835,7 +1916,7 @@
         async function openFileDetail(docId) {
             const data = globalFiles.find(f => f.id === docId);
             if (!data) return;
-            if (!vaultKey) return Swal.fire('Vault Locked', 'Unlock your vault to view files.', 'warning');
+            if (data.encryptedData && !vaultKey) return Swal.fire('Vault Locked', 'Unlock your vault to view files.', 'warning');
 
             activeDetailFileId = docId;
             activeDetailFileData = data;
@@ -1866,16 +1947,16 @@
         }
 
         async function updateFileFolder() {
-            if (!activeDetailFileId) return;
+            if (!activeDetailFileId || !activeDetailFileData) return;
             const val = document.getElementById('file-detail-folder').value || null;
-            await rtdb.ref('vaults/' + currentUser.uid + '/files/' + activeDetailFileId).update({ folderId: val });
+            await updateFileDoc(activeDetailFileData, { folderId: val });
         }
 
         async function updateFileTags() {
-            if (!activeDetailFileId) return;
+            if (!activeDetailFileId || !activeDetailFileData) return;
             const raw = document.getElementById('file-detail-tags').value;
             const tags = raw.split(',').map(t => t.trim()).filter(Boolean);
-            await rtdb.ref('vaults/' + currentUser.uid + '/files/' + activeDetailFileId).update({ tags });
+            await updateFileDoc(activeDetailFileData, { tags });
         }
 
         // --- IMAGE EDITOR (canvas-based: crop, rotate, brightness/contrast/saturation, presets) ---
@@ -2156,17 +2237,40 @@
                 }
 
                 const encryptedPayload = await encryptDataUrl(dataUrl);
-                await rtdb.ref('vaults/' + currentUser.uid + '/files/' + activeDetailFileId).update({
-                    encryptedData: encryptedPayload,
-                    size: approxBytes,
-                    type: 'image/jpeg'
-                });
+                const wasLegacy = activeDetailFileData._source === 'firestore';
+
+                if (wasLegacy) {
+                    // Editing a legacy file migrates it: write the full record (encrypted, with all
+                    // its existing metadata) into RTDB, then remove the old Firestore copy so it
+                    // doesn't show up twice. Any future edit to this id stays in RTDB.
+                    let createdAt = activeDetailFileData.createdAt;
+                    if (createdAt && typeof createdAt.toMillis === 'function') createdAt = createdAt.toMillis();
+
+                    await rtdb.ref('vaults/' + currentUser.uid + '/files/' + activeDetailFileId).set({
+                        name: activeDetailFileData.name,
+                        folderId: activeDetailFileData.folderId || null,
+                        tags: activeDetailFileData.tags || [],
+                        shared: activeDetailFileData.shared || false,
+                        createdAt: createdAt || Date.now(),
+                        encryptedData: encryptedPayload,
+                        size: approxBytes,
+                        type: 'image/jpeg'
+                    });
+                    await db.collection('users').doc(currentUser.uid).collection('files').doc(activeDetailFileId).delete();
+                } else {
+                    await rtdb.ref('vaults/' + currentUser.uid + '/files/' + activeDetailFileId).update({
+                        encryptedData: encryptedPayload,
+                        size: approxBytes,
+                        type: 'image/jpeg'
+                    });
+                }
 
                 closeImageEditor();
                 Swal.fire({ title: 'Saved', text: 'Your edited image replaced the original in the Vault.', icon: 'success', timer: 1500, showConfirmButton: false });
 
-                // Refresh the detail view preview so it reflects the just-saved edit
-                openFileDetail(activeDetailFileId);
+                // Give the RTDB/Firestore listeners a moment to update globalFiles before re-opening
+                // the detail view — otherwise it could briefly look up the now-stale legacy record.
+                setTimeout(() => openFileDetail(activeDetailFileId), 600);
             } catch (err) {
                 Swal.fire('Save Failed', err.message, 'error');
             }
