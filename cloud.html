@@ -1003,8 +1003,8 @@
         function buildPlayerHTML(blobUrl, kind) {
             const isAudio = kind === 'audio';
             const mediaTag = isAudio
-                ? `<audio id="nx-media-el" src="${blobUrl}" style="display:none;"></audio>`
-                : `<video id="nx-media-el" src="${blobUrl}" playsinline></video>`;
+                ? `<audio id="nx-media-el" src="${blobUrl}" preload="metadata" style="display:none;"></audio>`
+                : `<video id="nx-media-el" src="${blobUrl}" preload="metadata" playsinline webkit-playsinline></video>`;
 
             return `
                 <div class="nx-player ${isAudio ? 'audio-mode' : ''}">
@@ -1052,11 +1052,45 @@
             playerEl.addEventListener('ended', () => {
                 document.getElementById('nx-play-btn').innerHTML = '<i class="ph-fill ph-play"></i>';
             });
+            playerEl.addEventListener('error', () => {
+                const code = playerEl.error ? playerEl.error.code : 'unknown';
+                console.error('Media element error, code:', code, playerEl.error);
+                const wrap = playerEl.closest('.nx-player');
+                if (wrap) {
+                    wrap.insertAdjacentHTML('beforeend',
+                        `<div style="padding:10px 14px; background:rgba(255,59,48,0.12); color:var(--danger); font-size:12px;">
+                            This file could not be decoded for playback (error code ${code}). Try downloading it instead.
+                        </div>`);
+                }
+            });
+
+            // Some browsers don't reliably auto-load a <video>/<audio> src that arrived via
+            // innerHTML rather than direct DOM construction — force it explicitly.
+            playerEl.load();
+
+            // Blob URLs can finish loading metadata before this function even runs (it depends
+            // on how long innerHTML/decryption took) — if so, the 'loadedmetadata' event above
+            // already fired and was missed. Catch up immediately if duration is already known.
+            if (playerEl.readyState >= 1 && isFinite(playerEl.duration)) {
+                document.getElementById('nx-time-total').textContent = formatPlayerTime(playerEl.duration);
+            }
         }
 
         function nxPlayerToggle() {
             if (!playerEl) return;
-            if (playerEl.paused) playerEl.play(); else playerEl.pause();
+            if (playerEl.paused) {
+                const playPromise = playerEl.play();
+                // play() returns a Promise that can reject (autoplay policy, decode error, etc).
+                // Without catching it, the rejection is silent and the button just looks "stuck".
+                if (playPromise && typeof playPromise.catch === 'function') {
+                    playPromise.catch(err => {
+                        console.error('Playback failed:', err);
+                        Swal.fire('Playback Error', 'This file could not be played: ' + err.message, 'error');
+                    });
+                }
+            } else {
+                playerEl.pause();
+            }
         }
 
         function nxPlayerSeekClick(evt) {
