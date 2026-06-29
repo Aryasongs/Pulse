@@ -1208,12 +1208,16 @@ async function publishPulse(source){
       creatorPhoto:myData.photoBase64||null,
       text, likes:0, replies:0, reposts:0, views:0,
       imageBase64:img?img.data:null,
-      createdAt:firebase.database.ServerValue.TIMESTAMP
+quoteId: ta.dataset.quoteId || null,
+repostOf: ta.dataset.quoteId || null,
+createdAt:firebase.database.ServerValue.TIMESTAMP
     };
     const ref=await db.ref('pulses').push(pulseData);
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
-    ta.value=''; removeImage(source);
+    ta.value='';
+delete ta.dataset.quoteId;
+removeImage(source);
     onComposeInput(ta,source+'-counter',source+'-post-btn');
     closeModal('compose-modal');
     showToast('Pulse posted! ⚡');
@@ -1292,8 +1296,18 @@ async function doSimpleRepost(){
     if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}); }
   } catch(e){ showToast('Could not repost'); repostSet.delete(pulseId); }
 }
-function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast('Type your quote — repost will be linked'); }
+function openQuotePulse(){
+  closeModal('repost-modal');
+  openModal('compose-modal');
 
+  const ta=document.getElementById('modal-text');
+  ta.value='';
+  ta.placeholder='Add your thoughts...';
+  ta.dataset.quoteId=repostTargetId;
+
+  onComposeInput(ta,'modal-counter','modal-post-btn');
+}
+  
 // ============================================================
 // FOLLOW
 // ============================================================
