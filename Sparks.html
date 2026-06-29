@@ -1067,16 +1067,24 @@ function listenFeed(){
   el.innerHTML='';
   document.getElementById('feed-loader').classList.remove('hidden');
   document.getElementById('feed-empty').classList.add('hidden');
-  const ref = db.ref('pulses').orderByChild('createdAt').limitToLast(40);
+  const ref = db.ref('pulses').orderByChild('createdAt').limitToLast(100);
   const handler = ref.on('value', snap => {
     document.getElementById('feed-loader').classList.add('hidden');
     const pulses = [];
-    snap.forEach(child => pulses.unshift({id:child.key,...child.val()}));
+    const seenIds = new Set();
+    snap.forEach(child => {
+      if(!seenIds.has(child.key)){
+        seenIds.add(child.key);
+        pulses.unshift({id:child.key,...child.val()});
+      }
+    });
     let visible = pulses.filter(p => !blockedSet.has(p.uid) && !mutedSet.has(p.uid));
     if(feedTab==='following') visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
     if(!visible.length){ document.getElementById('feed-empty').classList.remove('hidden'); el.innerHTML=''; return; }
     document.getElementById('feed-empty').classList.add('hidden');
-    el.innerHTML = visible.map(p=>buildPulseCard(p)).join('');
+    // Only re-render if content actually changed (avoid flicker)
+    const newHtml = visible.map(p=>buildPulseCard(p)).join('');
+    if(el.innerHTML !== newHtml) el.innerHTML = newHtml;
   });
   feedUnsub = () => ref.off('value', handler);
 }
@@ -1412,12 +1420,20 @@ async function postReply(){
 // ============================================================
 // PULSE DETAIL
 // ============================================================
+const viewedPulses = new Set(); // track which pulses we've counted this session
 async function openDetail(pulseId){
   if(!pulseId)return;
   showScreen('detail-screen');
   const el=document.getElementById('detail-content');
   el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
   if(detailUnsub){detailUnsub();detailUnsub=null;}
+
+  // Increment view count ONCE per session per pulse (real views only)
+  if(!viewedPulses.has(pulseId)){
+    viewedPulses.add(pulseId);
+    db.ref('pulses/'+pulseId+'/views').transaction(c=>(c||0)+1);
+  }
+
   const ref=db.ref('pulses/'+pulseId);
   const handler=ref.on('value', async snap=>{
     const p=snap.val();
@@ -1471,7 +1487,6 @@ async function openDetail(pulseId){
         <div style="flex:1;font-size:15px;color:var(--text3);cursor:pointer;" onclick="openReply('${ESC(pulseId)}','${ESC(p.creatorHandle||'user')}')">Reply…</div>
       </div>
       ${repliesHtml}`;
-    db.ref('pulses/'+pulseId+'/views').transaction(c=>(c||0)+1);
   });
   detailUnsub=()=>ref.off('value',handler);
 }
