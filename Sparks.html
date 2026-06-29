@@ -757,6 +757,13 @@ img{display:block;}
     <div class="sheet-label">Display Name</div>
     <input class="sheet-field" id="ep-name" placeholder="Display name" maxlength="50">
 
+    <div class="sheet-label">Username <span style="color:var(--text3);font-weight:400;font-size:11px;">(unique, letters/numbers/_)</span></div>
+    <div style="position:relative;margin-bottom:12px;">
+      <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none;">@</span>
+      <input class="sheet-field" id="ep-handle" placeholder="username" maxlength="30" style="padding-left:30px;margin-bottom:0;" oninput="this.value=this.value.replace(/[^a-zA-Z0-9_]/g,'').toLowerCase();checkHandleAvailability(this.value)">
+    </div>
+    <div id="ep-handle-status" style="font-size:12px;margin-top:-8px;margin-bottom:12px;min-height:16px;"></div>
+
     <div class="sheet-label">Bio <span style="color:var(--text3);font-weight:400;" id="ep-bio-counter">(500)</span></div>
     <textarea class="sheet-field" id="ep-bio" placeholder="Tell the world about yourself…" rows="3" maxlength="500" oninput="document.getElementById('ep-bio-counter').textContent='('+(500-this.value.length)+')'"></textarea>
 
@@ -951,22 +958,32 @@ async function doLogin(){
 }
 async function doRegister(){
   const name=document.getElementById('r-name').value.trim(),
-        handle=(document.getElementById('r-handle').value.trim()||'').replace(/^@/,'').replace(/[^a-zA-Z0-9_]/g,''),
+        handle=(document.getElementById('r-handle').value.trim()||'').replace(/^@/,'').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase(),
         e=document.getElementById('r-email').value.trim(),
         p=document.getElementById('r-pass').value;
   document.getElementById('auth-err').textContent='';
   if(!name||!handle||!e||!p){document.getElementById('auth-err').textContent='Fill in all fields';return;}
+  if(handle.length<3){document.getElementById('auth-err').textContent='Username must be at least 3 characters';return;}
   if(p.length<6){document.getElementById('auth-err').textContent='Password must be at least 6 characters';return;}
-  setBusy('btn-reg',true);
+  setBusy('btn-reg',true,'<i class="ph ph-spinner-gap spin"></i> Please wait…');
   try{
+    // Check handle uniqueness before creating account
+    const handleSnap = await db.ref('handleIndex/'+handle).once('value');
+    if(handleSnap.exists()){
+      document.getElementById('auth-err').textContent='Username @'+handle+' is already taken. Please choose another.';
+      setBusy('btn-reg',false,'<i class="ph ph-user-plus"></i> Create Account');
+      return;
+    }
     const cred = await auth.createUserWithEmailAndPassword(e,p);
     await db.ref('users/'+cred.user.uid).set({
-      name, handle:handle.toLowerCase(), bio:'', email:cred.user.email,
+      name, handle, bio:'', email:cred.user.email,
       followersCount:0, followingCount:0, pulsesCount:0, totalLikes:0,
       verified:false, isAI:false, website:'', location:'', pronouns:'', languages:'',
       photoBase64:null, bannerBase64:null,
       createdAt: firebase.database.ServerValue.TIMESTAMP
     });
+    // Reserve the handle in index
+    await db.ref('handleIndex/'+handle).set({uid:cred.user.uid});
     const ek = btoa(e.trim().toLowerCase()).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     await db.ref('emailIndex/'+ek).set({uid:cred.user.uid,name}).catch(()=>{});
   } catch(err){
@@ -1208,16 +1225,12 @@ async function publishPulse(source){
       creatorPhoto:myData.photoBase64||null,
       text, likes:0, replies:0, reposts:0, views:0,
       imageBase64:img?img.data:null,
-quoteId: ta.dataset.quoteId || null,
-repostOf: ta.dataset.quoteId || null,
-createdAt:firebase.database.ServerValue.TIMESTAMP
+      createdAt:firebase.database.ServerValue.TIMESTAMP
     };
     const ref=await db.ref('pulses').push(pulseData);
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
-    ta.value='';
-delete ta.dataset.quoteId;
-removeImage(source);
+    ta.value=''; removeImage(source);
     onComposeInput(ta,source+'-counter',source+'-post-btn');
     closeModal('compose-modal');
     showToast('Pulse posted! ⚡');
@@ -1296,18 +1309,8 @@ async function doSimpleRepost(){
     if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}); }
   } catch(e){ showToast('Could not repost'); repostSet.delete(pulseId); }
 }
-function openQuotePulse(){
-  closeModal('repost-modal');
-  openModal('compose-modal');
+function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast('Type your quote — repost will be linked'); }
 
-  const ta=document.getElementById('modal-text');
-  ta.value='';
-  ta.placeholder='Add your thoughts...';
-  ta.dataset.quoteId=repostTargetId;
-
-  onComposeInput(ta,'modal-counter','modal-post-btn');
-}
-  
 // ============================================================
 // FOLLOW
 // ============================================================
@@ -1477,7 +1480,6 @@ async function openDetail(pulseId){
 // PROFILE SCREEN
 // ============================================================
 async function openProfile(uid){
-  if(!uid || !me) return;
   profileUid=uid;
   showScreen('profile-screen');
   const el=document.getElementById('profile-pulses-list');
@@ -1545,11 +1547,7 @@ async function openProfile(uid){
   el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
 }
 
-function gotoOwnProfile(){
-  if(!me) return;
-  profileUid=me.uid;
-  openProfile(me.uid);
-}
+function gotoOwnProfile(){openProfile(me.uid);}
 
 function switchProfileTab(tab,el){
   document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
@@ -1629,6 +1627,8 @@ function onProfileBannerPick(e){
 function openEditProfile(){
   epPhotoData=null; epBannerData=null;
   document.getElementById('ep-name').value=myData.name||'';
+  document.getElementById('ep-handle').value=myData.handle||'';
+  document.getElementById('ep-handle-status').textContent='';
   document.getElementById('ep-bio').value=myData.bio||'';
   document.getElementById('ep-website').value=myData.website||'';
   document.getElementById('ep-location').value=myData.location||'';
@@ -1664,24 +1664,68 @@ function onEpBannerPick(e){
 }
 async function saveProfile(){
   const name=document.getElementById('ep-name').value.trim();
+  const newHandle=(document.getElementById('ep-handle').value.trim()||'').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase();
   const bio=document.getElementById('ep-bio').value.trim();
   const website=document.getElementById('ep-website').value.trim();
   const location=document.getElementById('ep-location').value.trim();
   const pronouns=document.getElementById('ep-pronouns').value;
   const languages=document.getElementById('ep-languages').value.trim();
   const isAI=document.getElementById('ep-is-ai').checked;
-  if(!name)return;
+  const statusEl=document.getElementById('ep-handle-status');
+
+  if(!name){showToast('Name cannot be empty');return;}
+  if(!newHandle||newHandle.length<3){statusEl.style.color='var(--like)';statusEl.textContent='Username must be at least 3 characters';return;}
+
+  const oldHandle=myData.handle||'';
+  const handleChanged = newHandle !== oldHandle;
+
   try{
-    const updates={name,bio,website,location,pronouns,languages,isAI};
+    // If handle changed, check uniqueness
+    if(handleChanged){
+      statusEl.style.color='var(--text3)';statusEl.textContent='Checking username…';
+      const snap=await db.ref('handleIndex/'+newHandle).once('value');
+      if(snap.exists()&&snap.val().uid!==me.uid){
+        statusEl.style.color='var(--like)';statusEl.textContent='@'+newHandle+' is already taken. Choose another.';
+        return;
+      }
+    }
+
+    const updates={name,handle:newHandle,bio,website,location,pronouns,languages,isAI};
     if(epPhotoData) updates.photoBase64=epPhotoData;
     if(epBannerData) updates.bannerBase64=epBannerData;
     await db.ref('users/'+me.uid).update(updates);
+
+    // Update handleIndex — remove old, add new
+    if(handleChanged){
+      if(oldHandle) await db.ref('handleIndex/'+oldHandle).remove().catch(()=>{});
+      await db.ref('handleIndex/'+newHandle).set({uid:me.uid});
+    }
+
     Object.assign(myData,updates);
     updateSidebarUser();
+    statusEl.textContent='';
     closeModal('edit-profile-modal');
     showToast('Profile updated ✓');
     if(profileUid===me.uid) openProfile(me.uid);
-  } catch(e){ showToast('Could not save'); }
+  } catch(e){ showToast('Could not save profile'); }
+}
+
+// Real-time username availability check
+let handleCheckTimer = null;
+function checkHandleAvailability(val){
+  const statusEl = document.getElementById('ep-handle-status');
+  if(!val||val.length<3){ statusEl.textContent=''; return; }
+  if(val === (myData.handle||'')){ statusEl.style.color='var(--green)'; statusEl.textContent='✓ Your current username'; return; }
+  statusEl.style.color='var(--text3)'; statusEl.textContent='Checking…';
+  clearTimeout(handleCheckTimer);
+  handleCheckTimer = setTimeout(async ()=>{
+    const snap = await db.ref('handleIndex/'+val).once('value');
+    if(snap.exists()&&snap.val().uid!==me.uid){
+      statusEl.style.color='var(--like)'; statusEl.textContent='✗ @'+val+' is taken';
+    } else {
+      statusEl.style.color='var(--green)'; statusEl.textContent='✓ @'+val+' is available';
+    }
+  }, 500);
 }
 
 // ============================================================
