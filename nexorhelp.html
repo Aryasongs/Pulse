@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>Help Center | Nexor Cloud</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        /* ============================================================
+           Same design tokens as Nexor Cloud's main app — this page is
+           meant to feel like a section of Nexor, not a separate site.
+           ============================================================ */
+        :root {
+            --bg-color: #f5f5f7;
+            --text-main: #1d1d1f;
+            --text-muted: #86868b;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --card-bg: #ffffff;
+            --primary: #0071e3;
+            --primary-hover: #005cbf;
+            --danger: #ff3b30;
+            --success: #34c759;
+            --warning: #ff9f0a;
+            --radius: 16px;
+            --shadow: 0 8px 30px rgba(0,0,0,0.08);
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        body.dark-mode {
+            --bg-color: #000000;
+            --text-main: #f5f5f7;
+            --text-muted: #a1a1a6;
+            --glass-bg: rgba(28, 28, 30, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --card-bg: #1c1c1e;
+            --primary: #0a84ff;
+            --shadow: 0 8px 30px rgba(0,0,0,0.6);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+
+        html, body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            transition: var(--transition);
+            overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        a { text-decoration: none; color: inherit; }
+        button { border: none; background: none; cursor: pointer; outline: none; transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease; color: var(--text-main); font-family: inherit; touch-action: manipulation; }
+        input, textarea, select { outline: none; border: 1px solid var(--glass-border); font-family: inherit; background: var(--bg-color); color: var(--text-main); padding: 12px; border-radius: 10px; width: 100%; font-size: 16px; }
+
+        .hidden { display: none !important; }
+
+        .glass { background: var(--glass-bg); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border: 1px solid var(--glass-border); border-radius: var(--radius); }
+        .card { background: var(--card-bg); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border: 1px solid var(--glass-border); }
+
+        .btn-primary { background: var(--primary); color: white; padding: 12px 24px; border-radius: 99px; font-weight: 600; font-size: 14px; display: inline-flex; align-items: center; gap: 8px; justify-content: center;}
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .btn-outline { border: 1px solid var(--primary); color: var(--primary); padding: 12px 24px; border-radius: 99px; font-weight: 600; font-size: 14px; background: transparent; display: inline-flex; align-items: center; gap: 8px; justify-content: center;}
+        .btn-outline:hover { background: var(--primary); color: white; }
+
+        .action-btn { padding: 8px; border-radius: 8px; background: var(--bg-color); color: var(--text-muted); font-size: 18px; }
+        .action-btn:hover { background: var(--primary); color: white; }
+
+        /* --- Header --- */
+        header.glass { position: sticky; top: 0; z-index: 100; padding: 16px 5%; display: flex; justify-content: space-between; align-items: center; border-radius: 0; border-top: none; border-left: none; border-right: none; }
+        .logo { font-size: 22px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .logo i { color: var(--primary); font-size: 28px; }
+        .logo .sep { color: var(--text-muted); font-weight: 400; font-size: 16px; margin-left: 2px; }
+
+        .user-pill { display: flex; align-items: center; gap: 10px; background: var(--card-bg); padding: 5px 15px; border-radius: 99px; box-shadow: var(--shadow); }
+        .user-pill .avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+        .user-pill span { font-weight: 600; font-size: 13px; white-space: nowrap; }
+
+        /* --- Hero / search --- */
+        .help-hero { text-align: center; padding: 70px 5% 40px; }
+        .help-hero h1 { font-size: clamp(28px, 5vw, 46px); font-weight: 800; letter-spacing: -1px; margin-bottom: 10px; }
+        .help-hero p { color: var(--text-muted); font-size: clamp(14px, 3vw, 17px); margin-bottom: 30px; }
+
+        .help-search { max-width: 560px; margin: 0 auto; background: var(--card-bg); border-radius: 99px; padding: 14px 22px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); border: 1px solid var(--glass-border); }
+        .help-search i { color: var(--text-muted); font-size: 20px; flex-shrink: 0; }
+        .help-search input { background: transparent; border: none; padding: 0; font-size: 15px; }
+
+        /* --- Container --- */
+        .help-container { max-width: 1000px; margin: 0 auto; padding: 0 5% 80px; }
+
+        /* --- Quick links / categories --- */
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; margin-bottom: 40px; }
+        .category-chip { background: var(--card-bg); border: 2px solid transparent; border-radius: 16px; padding: 20px 16px; text-align: center; cursor: pointer; box-shadow: var(--shadow); transition: var(--transition); }
+        .category-chip:hover { transform: translateY(-3px); }
+        .category-chip.active { border-color: var(--primary); }
+        .category-chip i { font-size: 30px; color: var(--primary); margin-bottom: 10px; display: block; }
+        .category-chip .cat-name { font-weight: 600; font-size: 13px; }
+        .category-chip .cat-count { color: var(--text-muted); font-size: 11px; margin-top: 2px; }
+
+        /* --- FAQ section --- */
+        .section-label { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+        .faq-item { background: var(--card-bg); border-radius: 14px; margin-bottom: 10px; box-shadow: var(--shadow); border: 1px solid var(--glass-border); overflow: hidden; }
+        .faq-question { padding: 18px 20px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; gap: 14px; }
+        .faq-question span.q-text { font-weight: 600; font-size: 14.5px; }
+        .faq-question i.chev { color: var(--text-muted); font-size: 18px; transition: transform 0.25s ease; flex-shrink: 0; }
+        .faq-item.open .chev { transform: rotate(180deg); color: var(--primary); }
+        .faq-answer { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+        .faq-item.open .faq-answer { max-height: 600px; }
+        .faq-answer-inner { padding: 0 20px 20px; color: var(--text-muted); font-size: 13.5px; line-height: 1.7; }
+        .faq-answer-inner ul { padding-left: 18px; margin-top: 6px; }
+        .faq-tag { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--primary); background: rgba(0,113,227,0.1); padding: 2px 8px; border-radius: 99px; margin-bottom: 8px; }
+        .dark-mode .faq-tag { background: rgba(10,132,255,0.18); }
+
+        .no-results { text-align: center; padding: 50px 20px; color: var(--text-muted); }
+        .no-results i { font-size: 44px; opacity: 0.5; display: block; margin-bottom: 10px; }
+
+        /* --- Contact + chat split --- */
+        .support-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 60px; }
+        @media (max-width: 800px) { .support-grid { grid-template-columns: 1fr; } }
+
+        .support-card h3 { font-size: 18px; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .support-card h3 i { color: var(--primary); font-size: 22px; }
+        .support-card .desc { color: var(--text-muted); font-size: 13px; margin-bottom: 18px; line-height: 1.6; }
+
+        .form-group { margin-bottom: 14px; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+        .ticket-success { display: none; text-align: center; padding: 30px 10px; }
+        .ticket-success.active { display: block; }
+        .ticket-success i { font-size: 50px; color: var(--success); margin-bottom: 12px; display: block; }
+        .ticket-success h4 { margin-bottom: 6px; }
+        .ticket-success p { color: var(--text-muted); font-size: 13px; }
+
+        /* --- Live chat (support) --- */
+        .support-chat-box { display: flex; flex-direction: column; height: 420px; }
+        .support-chat-messages { flex-grow: 1; overflow-y: auto; padding: 4px 4px 10px; display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch; }
+        .support-chat-empty { flex-grow: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); gap: 8px; text-align: center; padding: 0 20px; }
+        .support-chat-empty i { font-size: 40px; opacity: 0.4; }
+
+        .support-bubble-row { display: flex; flex-direction: column; max-width: 82%; }
+        .support-bubble-row.mine { align-self: flex-end; align-items: flex-end; }
+        .support-bubble-row.theirs { align-self: flex-start; align-items: flex-start; }
+        .support-bubble { padding: 10px 14px; border-radius: 16px; font-size: 13.5px; line-height: 1.4; word-break: break-word; }
+        .support-bubble-row.mine .support-bubble { background: var(--primary); color: #fff; border-bottom-right-radius: 5px; }
+        .support-bubble-row.theirs .support-bubble { background: var(--bg-color); color: var(--text-main); border-bottom-left-radius: 5px; }
+        .support-bubble-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; padding: 0 4px; }
+        .support-sender-label { font-size: 10px; font-weight: 700; color: var(--primary); margin-bottom: 2px; padding: 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        .support-chat-input-row { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid var(--glass-border); margin-top: 10px; }
+        .support-chat-input-row input { border-radius: 99px; padding: 11px 16px; }
+        .support-chat-input-row button { color: var(--primary); font-size: 22px; flex-shrink: 0; }
+
+        .guest-lock { text-align: center; padding: 30px 10px; color: var(--text-muted); font-size: 13px; }
+        .guest-lock i { font-size: 36px; display: block; margin-bottom: 10px; opacity: 0.6; }
+
+        /* --- Footer --- */
+        .help-footer { text-align: center; padding: 30px 5% 50px; color: var(--text-muted); font-size: 12px; }
+        .help-footer a { color: var(--primary); font-weight: 600; }
+
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <header class="glass">
+        <div class="logo"><i class="ph-fill ph-cloud-check"></i> Nexor <span class="sep">/ Help Center</span></div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <button class="action-btn" onclick="toggleDarkMode()" title="Toggle theme"><i class="ph ph-moon"></i></button>
+            <div class="user-pill hidden" id="user-pill">
+                <div class="avatar" id="user-avatar">?</div>
+                <span id="user-name">User</span>
+            </div>
+            <a href="./" class="btn-outline hidden" id="back-to-vault-btn" style="padding:8px 18px; font-size:13px;">
+                <i class="ph ph-arrow-left"></i> Back to Vault
+            </a>
+            <a href="./" class="btn-primary hidden" id="signin-prompt-btn" style="padding:8px 18px; font-size:13px;">
+                Sign In
+            </a>
+        </div>
+    </header>
+
+    <section class="help-hero">
+        <h1>How can we help?</h1>
+        <p>Search the help center, or reach the Nexor support team directly.</p>
+        <div class="help-search">
+            <i class="ph ph-magnifying-glass"></i>
+            <input type="text" id="faq-search-input" placeholder="Search for files, passwords, sharing, billing..." oninput="renderFAQList()">
+        </div>
+    </section>
+
+    <main class="help-container">
+
+        <div class="category-grid" id="category-grid"></div>
+
+        <div class="section-label"><i class="ph ph-notebook"></i> Frequently Asked Questions</div>
+        <div id="faq-list"></div>
+        <div class="no-results hidden" id="faq-no-results">
+            <i class="ph ph-magnifying-glass"></i>
+            No articles match your search. Try different words, or message support below.
+        </div>
+
+        <div class="support-grid">
+            <div class="card support-card">
+                <h3><i class="ph ph-envelope-simple"></i> Send us a message</h3>
+                <p class="desc">Describe your issue and we'll get back to you by email. Typical response time is under 24 hours.</p>
+
+                <div id="ticket-form-wrap">
+                    <div class="form-group">
+                        <label>Your name</label>
+                        <input type="text" id="ticket-name" placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Email address</label>
+                        <input type="email" id="ticket-email" placeholder="you@example.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Topic</label>
+                        <select id="ticket-topic">
+                            <option value="account">Account & Sign In</option>
+                            <option value="files">Files & Storage</option>
+                            <option value="billing">Billing & Plans</option>
+                            <option value="sharing">Sharing & Connections</option>
+                            <option value="security">Security & Privacy</option>
+                            <option value="other">Something else</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Message</label>
+                        <textarea id="ticket-message" rows="4" placeholder="What's going on?"></textarea>
+                    </div>
+                    <button class="btn-primary" style="width:100%;" id="ticket-submit-btn" onclick="submitSupportTicket()">
+                        <i class="ph ph-paper-plane-tilt"></i> Send Message
+                    </button>
+                </div>
+
+                <div class="ticket-success" id="ticket-success">
+                    <i class="ph-fill ph-check-circle"></i>
+                    <h4>Message sent</h4>
+                    <p>We've received your message and will reply by email soon.</p>
+                    <button class="btn-outline" style="margin-top:16px;" onclick="resetTicketForm()">Send another message</button>
+                </div>
+            </div>
+
+            <div class="card support-card">
+                <h3><i class="ph ph-chat-circle-dots"></i> Live support chat</h3>
+                <p class="desc">Chat with the Nexor support team in real time.</p>
+
+                <div id="support-chat-area">
+                    <div class="guest-lock" id="guest-lock">
+                        <i class="ph ph-lock-key"></i>
+                        Sign in to your Nexor account to start a live chat with support.
+                        <div style="margin-top:14px;"><a href="./" class="btn-primary" style="padding:10px 20px; font-size:13px;">Sign In</a></div>
+                    </div>
+
+                    <div class="support-chat-box hidden" id="support-chat-box">
+                        <div class="support-chat-messages" id="support-chat-messages">
+                            <div class="support-chat-empty" id="support-chat-empty">
+                                <i class="ph ph-chat-circle-dots"></i>
+                                <span>Say hello — a support agent will reply here.</span>
+                            </div>
+                        </div>
+                        <div class="support-chat-input-row">
+                            <input type="text" id="support-chat-input" placeholder="Type a message..." onkeyup="if(event.key==='Enter') sendSupportChatMessage()">
+                            <button onclick="sendSupportChatMessage()"><i class="ph-fill ph-paper-plane-tilt"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div class="help-footer">
+        Can't find what you need? <a href="#" onclick="document.getElementById('ticket-message').focus(); document.querySelector('.support-grid').scrollIntoView({behavior:'smooth'}); return false;">Message support</a> directly.
+        <br><br>
+        &copy; <span id="footer-year"></span> Nexor Cloud. <a href="./">Back to Vault</a>
+    </div>
+
+    <script>
+        // ============================================================
+        // SAME Firebase project as the main Nexor app — this page is a
+        // linked section of Nexor, not a separate product. If the user
+        // is already signed into Nexor in this browser, their session
+        // carries over here automatically (Firebase Auth persistence).
+        // ============================================================
+        const firebaseConfig = {
+            apiKey: "AIzaSyC30TcmMVhP_8HdFYS1WufRiZwSDYNMTF0",
+            authDomain: "pulse2-92372.firebaseapp.com",
+            databaseURL: "https://pulse2-92372-default-rtdb.firebaseio.com",
+            projectId: "pulse2-92372",
+            storageBucket: "pulse2-92372.firebasestorage.app",
+            messagingSenderId: "276235725177",
+            appId: "1:276235725177:web:0f4e0789fae80a435927a8"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const rtdb = firebase.database();
+
+        let currentUser = null;
+        let currentUserName = null;
+        let supportChatRef = null;
+
+        const escapeHTML = (str) => {
+            if (!str) return '';
+            return str.toString().replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag]));
+        };
+
+        document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+        if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark-mode');
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+        }
+
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('user-pill').classList.remove('hidden');
+                document.getElementById('back-to-vault-btn').classList.remove('hidden');
+                document.getElementById('signin-prompt-btn').classList.add('hidden');
+
+                let name = user.email;
+                try {
+                    const doc = await db.collection('users').doc(user.uid).get();
+                    if (doc.exists && doc.data().name) name = doc.data().name;
+                } catch (e) { /* fall back to email if profile read fails */ }
+
+                currentUserName = name;
+                document.getElementById('user-name').textContent = name;
+                document.getElementById('user-avatar').textContent = name.charAt(0).toUpperCase();
+
+                // Pre-fill the contact form with known identity
+                document.getElementById('ticket-name').value = name;
+                document.getElementById('ticket-email').value = user.email;
+
+                unlockSupportChat();
+            } else {
+                currentUser = null;
+                document.getElementById('user-pill').classList.add('hidden');
+                document.getElementById('back-to-vault-btn').classList.add('hidden');
+                document.getElementById('signin-prompt-btn').classList.remove('hidden');
+                lockSupportChat();
+            }
+        });
+
+        // ============================================================
+        // FAQ DATA
+        // ============================================================
+        const FAQ_DATA = [
+            { id: 'f1', cat: 'account', icon: 'ph-user-circle', q: 'How do I reset my password?', a: 'Go to Settings → Account Security. Enter your current password and a new password (minimum 6 characters), then select Change Password. If you\'ve forgotten your current password entirely, use the password reset link on the sign-in screen instead.' },
+            { id: 'f2', cat: 'account', icon: 'ph-user-circle', q: 'How does Biometric Unlock work?', a: 'Biometric Unlock uses your device\'s built-in security (Face ID, Touch ID, or Windows Hello) to verify it\'s really you before revealing saved passwords in your Password Vault. Set it up from Settings → Account Security → Setup. It only works on devices that support platform authenticators.' },
+            { id: 'f3', cat: 'account', icon: 'ph-user-circle', q: 'Can I change the name on my account?', a: 'Yes — go to Settings → Profile, update your Display Name, and select Save Name. This name is also what your connections see when you message or share folders with them.' },
+
+            { id: 'f4', cat: 'files', icon: 'ph-folder', q: 'What\'s the maximum file size I can upload?', a: 'Free accounts can upload files up to 5MB each. Premium accounts can upload files up to 20MB each. If a file is larger than your limit, you\'ll see a Limit Exceeded message when you try to upload it.' },
+            { id: 'f5', cat: 'files', icon: 'ph-folder', q: 'How much storage do I get?', a: 'Free accounts include 5GB of total vault storage. Premium accounts include 50GB. You can see your current usage anytime on the sidebar storage bar, or under Settings → Storage Management for a full breakdown by files, notes, contacts, and passwords.' },
+            { id: 'f6', cat: 'files', icon: 'ph-folder', q: 'How do I organize files into folders?', a: 'Open Encrypted Files, select New Folder, and give it a name. You can then move any file into that folder by opening the file and choosing a folder from the dropdown in its detail view. Use the folder chips at the top of the file list to filter by folder.' },
+            { id: 'f7', cat: 'files', icon: 'ph-folder', q: 'What happens when I delete a file?', a: 'Deleted files move to Trash first — they aren\'t removed immediately. Free accounts keep deleted files in Trash for 30 days; Premium accounts keep them for 90 days. You can restore a file from Trash at any point before it\'s permanently purged, or empty Trash manually at any time.' },
+            { id: 'f8', cat: 'files', icon: 'ph-folder', q: 'Can I edit images directly in Nexor?', a: 'Yes. Open any image file and select Edit on the preview. You can crop, rotate, adjust brightness/contrast/saturation, and apply filters like Black & White, Sepia, or Vintage, then save the result back to your vault.' },
+
+            { id: 'f9', cat: 'sharing', icon: 'ph-share-network', q: 'How do I share a file with someone who isn\'t on Nexor?', a: 'Open the file and select the Share icon to generate a secure link. Anyone with that link can view and download the file without needing a Nexor account, until you revoke sharing.' },
+            { id: 'f10', cat: 'sharing', icon: 'ph-share-network', q: 'How do Connections and shared folders work?', a: 'Go to Connections and select Connect by Email to send a request to another Nexor user. Once they accept, you both get a shared folder where either of you can upload files the other can see, plus the ability to message and call each other.' },
+            { id: 'f11', cat: 'sharing', icon: 'ph-share-network', q: 'Can I block someone I\'m connected with?', a: 'Yes. Open your conversation with them in Messages, select the options icon in the chat header, then choose Block User. Blocking stops new messages and calls between you, without removing the connection itself.' },
+
+            { id: 'f12', cat: 'billing', icon: 'ph-credit-card', q: 'What\'s included in Nexor Premium?', a: 'Premium includes 50GB of storage (vs 5GB on Free), a 20MB per-file upload limit (vs 5MB on Free), 90-day Trash retention (vs 30 days), unlimited folders and tags, and a priority badge across the app.' },
+            { id: 'f13', cat: 'billing', icon: 'ph-credit-card', q: 'How do I upgrade to Premium?', a: 'Reach out to support using the contact form or live chat below with "Premium upgrade" as the topic, and our team will help you get set up.' },
+
+            { id: 'f14', cat: 'security', icon: 'ph-shield-check', q: 'Who can see the files in my vault?', a: 'Only you, by default. Files become visible to others only if you generate a share link for them, or place them in a shared folder with an accepted connection. Nothing else in your account is ever visible to anyone else.' },
+            { id: 'f15', cat: 'security', icon: 'ph-shield-check', q: 'Does Nexor sell or share my data?', a: 'No. We store your account data only to operate the product — to identify your account and let other users find you for connection requests. We don\'t sell data or share it with advertisers. See the full Privacy Policy from the main app for details.' },
+        ];
+
+        const CATEGORIES = [
+            { id: 'all', name: 'All Topics', icon: 'ph-squares-four' },
+            { id: 'account', name: 'Account', icon: 'ph-user-circle' },
+            { id: 'files', name: 'Files & Storage', icon: 'ph-folder' },
+            { id: 'sharing', name: 'Sharing', icon: 'ph-share-network' },
+            { id: 'billing', name: 'Billing', icon: 'ph-credit-card' },
+            { id: 'security', name: 'Security', icon: 'ph-shield-check' },
+        ];
+
+        let activeCategory = 'all';
+        let openFaqId = null;
+
+        function renderCategoryGrid() {
+            const grid = document.getElementById('category-grid');
+            grid.innerHTML = CATEGORIES.map(c => {
+                const count = c.id === 'all' ? FAQ_DATA.length : FAQ_DATA.filter(f => f.cat === c.id).length;
+                return `<div class="category-chip ${activeCategory === c.id ? 'active' : ''}" onclick="setActiveCategory('${c.id}')">
+                    <i class="ph ${c.icon}"></i>
+                    <div class="cat-name">${c.name}</div>
+                    <div class="cat-count">${count} article${count === 1 ? '' : 's'}</div>
+                </div>`;
+            }).join('');
+        }
+
+        function setActiveCategory(catId) {
+            activeCategory = catId;
+            renderCategoryGrid();
+            renderFAQList();
+        }
+
+        function renderFAQList() {
+            const query = (document.getElementById('faq-search-input').value || '').toLowerCase().trim();
+            let list = FAQ_DATA;
+
+            if (activeCategory !== 'all') list = list.filter(f => f.cat === activeCategory);
+            if (query) list = list.filter(f => f.q.toLowerCase().includes(query) || f.a.toLowerCase().includes(query));
+
+            const container = document.getElementById('faq-list');
+            const noResults = document.getElementById('faq-no-results');
+
+            if (!list.length) {
+                container.innerHTML = '';
+                noResults.classList.remove('hidden');
+                return;
+            }
+            noResults.classList.add('hidden');
+
+            const catNames = Object.fromEntries(CATEGORIES.map(c => [c.id, c.name]));
+
+            container.innerHTML = list.map(f => `
+                <div class="faq-item ${openFaqId === f.id ? 'open' : ''}" id="faq-${f.id}">
+                    <div class="faq-question" onclick="toggleFaq('${f.id}')">
+                        <span class="q-text">${escapeHTML(f.q)}</span>
+                        <i class="ph ph-caret-down chev"></i>
+                    </div>
+                    <div class="faq-answer">
+                        <div class="faq-answer-inner">
+                            <span class="faq-tag">${catNames[f.cat] || f.cat}</span><br>
+                            ${escapeHTML(f.a)}
+                        </div>
+                    </div>
+                </div>`).join('');
+        }
+
+        function toggleFaq(id) {
+            openFaqId = (openFaqId === id) ? null : id;
+            renderFAQList();
+            if (openFaqId) {
+                setTimeout(() => {
+                    const el = document.getElementById('faq-' + id);
+                    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            }
+        }
+
+        renderCategoryGrid();
+        renderFAQList();
+
+        // ============================================================
+        // CONTACT FORM — writes to Firestore `supportTickets`, readable
+        // by Nexor admins. Works for guests too (no login required).
+        // ============================================================
+        async function submitSupportTicket() {
+            const name = document.getElementById('ticket-name').value.trim();
+            const email = document.getElementById('ticket-email').value.trim();
+            const topic = document.getElementById('ticket-topic').value;
+            const message = document.getElementById('ticket-message').value.trim();
+
+            if (!name || !email || !message) {
+                return Swal.fire('Missing Info', 'Please fill in your name, email, and message.', 'warning');
+            }
+
+            const btn = document.getElementById('ticket-submit-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="ph ph-spinner-gap" style="animation:spin 1s linear infinite;"></i> Sending...';
+
+            try {
+                await db.collection('supportTickets').add({
+                    name, email, topic, message,
+                    userId: currentUser ? currentUser.uid : null,
+                    status: 'open',
+                    createdAt: Date.now()
+                });
+
+                document.getElementById('ticket-form-wrap').classList.add('hidden');
+                document.getElementById('ticket-success').classList.add('active');
+            } catch (err) {
+                Swal.fire('Couldn\'t Send', err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="ph ph-paper-plane-tilt"></i> Send Message';
+            }
+        }
+
+        function resetTicketForm() {
+            document.getElementById('ticket-message').value = '';
+            document.getElementById('ticket-success').classList.remove('active');
+            document.getElementById('ticket-form-wrap').classList.remove('hidden');
+        }
+
+        // ============================================================
+        // LIVE SUPPORT CHAT — RTDB, one thread per signed-in user:
+        //   supportChats/{uid}/messages/{msgId} = {senderId, senderRole, content, timestamp}
+        // senderRole is 'user' or 'agent', so admin/support tooling on
+        // the Nexor side can reply into the same thread.
+        // ============================================================
+        function unlockSupportChat() {
+            document.getElementById('guest-lock').classList.add('hidden');
+            document.getElementById('support-chat-box').classList.remove('hidden');
+
+            if (supportChatRef) supportChatRef.off();
+            supportChatRef = rtdb.ref('supportChats/' + currentUser.uid + '/messages');
+            supportChatRef.on('value', snap => {
+                const val = snap.val() || {};
+                const messages = Object.keys(val).map(id => ({ id, ...val[id] })).sort((a, b) => a.timestamp - b.timestamp);
+                renderSupportChatMessages(messages);
+            });
+        }
+
+        function lockSupportChat() {
+            if (supportChatRef) { supportChatRef.off(); supportChatRef = null; }
+            document.getElementById('guest-lock').classList.remove('hidden');
+            document.getElementById('support-chat-box').classList.add('hidden');
+        }
+
+        function renderSupportChatMessages(messages) {
+            const container = document.getElementById('support-chat-messages');
+            if (!messages.length) {
+                container.innerHTML = `<div class="support-chat-empty" id="support-chat-empty">
+                    <i class="ph ph-chat-circle-dots"></i>
+                    <span>Say hello — a support agent will reply here.</span>
+                </div>`;
+                return;
+            }
+
+            container.innerHTML = messages.map(m => {
+                const mine = m.senderRole === 'user';
+                const timeLabel = new Date(m.timestamp).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                return `<div class="support-bubble-row ${mine ? 'mine' : 'theirs'}">
+                    ${!mine ? '<div class="support-sender-label">Nexor Support</div>' : ''}
+                    <div class="support-bubble">${escapeHTML(m.content)}</div>
+                    <div class="support-bubble-time">${timeLabel}</div>
+                </div>`;
+            }).join('');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendSupportChatMessage() {
+            const input = document.getElementById('support-chat-input');
+            const text = input.value.trim();
+            if (!text || !currentUser) return;
+            input.value = '';
+
+            try {
+                const msgRef = rtdb.ref('supportChats/' + currentUser.uid + '/messages').push();
+                await msgRef.set({
+                    senderId: currentUser.uid,
+                    senderRole: 'user',
+                    senderName: currentUserName || currentUser.email,
+                    content: text,
+                    timestamp: Date.now()
+                });
+                await rtdb.ref('supportChats/' + currentUser.uid + '/meta').set({
+                    lastMessage: text,
+                    lastSender: 'user',
+                    lastTimestamp: Date.now(),
+                    userEmail: currentUser.email,
+                    userName: currentUserName || currentUser.email
+                });
+            } catch (err) {
+                Swal.fire('Error', 'Could not send your message: ' + err.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
