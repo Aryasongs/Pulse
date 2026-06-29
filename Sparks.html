@@ -902,6 +902,8 @@ let blockedSet   = new Set();
 let mutedSet     = new Set();
 let unsubscribers = [];
 let profileUid = null;
+let profileLoadToken = 0;
+const RESERVED_HANDLES = ['nexor','sparks','nexorsparks','admin','administrator','support','official','moderator','staff','help','root','system'];
 let replyToId  = null;
 let repostTargetId = null;
 let imagePickTarget = null;
@@ -964,17 +966,27 @@ async function doRegister(){
   document.getElementById('auth-err').textContent='';
   if(!name||!handle||!e||!p){document.getElementById('auth-err').textContent='Fill in all fields';return;}
   if(handle.length<3){document.getElementById('auth-err').textContent='Username must be at least 3 characters';return;}
+  if(RESERVED_HANDLES.includes(handle)){document.getElementById('auth-err').textContent='Username @'+handle+' is reserved and cannot be used.';return;}
   if(p.length<6){document.getElementById('auth-err').textContent='Password must be at least 6 characters';return;}
   setBusy('btn-reg',true,'<i class="ph ph-spinner-gap spin"></i> Please wait…');
+  const handleRef = db.ref('handleIndex/'+handle);
   try{
-    // Check handle uniqueness before creating account
-    const handleSnap = await db.ref('handleIndex/'+handle).once('value');
-    if(handleSnap.exists()){
+    // Atomically claim the handle so two people registering the same
+    // username at the same time can't both succeed (race condition fix).
+    const tx = await handleRef.transaction(curr => curr===null ? {uid:'pending'} : curr);
+    if(!tx.committed || !tx.snapshot.val() || tx.snapshot.val().uid!=='pending'){
       document.getElementById('auth-err').textContent='Username @'+handle+' is already taken. Please choose another.';
       setBusy('btn-reg',false,'<i class="ph ph-user-plus"></i> Create Account');
       return;
     }
-    const cred = await auth.createUserWithEmailAndPassword(e,p);
+    let cred;
+    try{
+      cred = await auth.createUserWithEmailAndPassword(e,p);
+    } catch(err){
+      // Release the handle reservation if account creation failed
+      await handleRef.remove().catch(()=>{});
+      throw err;
+    }
     await db.ref('users/'+cred.user.uid).set({
       name, handle, bio:'', email:cred.user.email,
       followersCount:0, followingCount:0, pulsesCount:0, totalLikes:0,
@@ -982,8 +994,8 @@ async function doRegister(){
       photoBase64:null, bannerBase64:null,
       createdAt: firebase.database.ServerValue.TIMESTAMP
     });
-    // Reserve the handle in index
-    await db.ref('handleIndex/'+handle).set({uid:cred.user.uid});
+    // Finalize the handle reservation with the real uid
+    await handleRef.set({uid:cred.user.uid});
     const ek = btoa(e.trim().toLowerCase()).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     await db.ref('emailIndex/'+ek).set({uid:cred.user.uid,name}).catch(()=>{});
   } catch(err){
@@ -1495,11 +1507,13 @@ async function openDetail(pulseId){
 // PROFILE SCREEN
 // ============================================================
 async function openProfile(uid){
+  const token=++profileLoadToken;
   profileUid=uid;
   showScreen('profile-screen');
   const el=document.getElementById('profile-pulses-list');
   el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
   const snap=await db.ref('users/'+uid).once('value');
+  if(token!==profileLoadToken) return; // a newer openProfile() call superseded this one
   const u=snap.val()||{};
   const isOwn=uid===me.uid;
   const isFollowing=followingSet.has(uid);
@@ -1555,9 +1569,11 @@ async function openProfile(uid){
 
   // Load pulses
   const pSnap=await db.ref('userPulses/'+uid).once('value');
+  if(token!==profileLoadToken) return;
   const pulseIds=Object.keys(pSnap.val()||{});
   if(!pulseIds.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-lightning"></i><p>No Pulses yet</p></div>';return;}
   const pulses=await Promise.all(pulseIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+  if(token!==profileLoadToken) return;
   pulses.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
 }
@@ -1690,16 +1706,19 @@ async function saveProfile(){
 
   if(!name){showToast('Name cannot be empty');return;}
   if(!newHandle||newHandle.length<3){statusEl.style.color='var(--like)';statusEl.textContent='Username must be at least 3 characters';return;}
+  if(RESERVED_HANDLES.includes(newHandle)){statusEl.style.color='var(--like)';statusEl.textContent='@'+newHandle+' is reserved and cannot be used.';return;}
 
   const oldHandle=myData.handle||'';
   const handleChanged = newHandle !== oldHandle;
 
   try{
-    // If handle changed, check uniqueness
+    // If handle changed, atomically claim the new handle so two users
+    // can't grab the same username at the same time (race condition fix).
     if(handleChanged){
       statusEl.style.color='var(--text3)';statusEl.textContent='Checking username…';
-      const snap=await db.ref('handleIndex/'+newHandle).once('value');
-      if(snap.exists()&&snap.val().uid!==me.uid){
+      const newHandleRef = db.ref('handleIndex/'+newHandle);
+      const tx = await newHandleRef.transaction(curr => curr===null ? {uid:me.uid} : curr);
+      if(!tx.committed || !tx.snapshot.val() || tx.snapshot.val().uid!==me.uid){
         statusEl.style.color='var(--like)';statusEl.textContent='@'+newHandle+' is already taken. Choose another.';
         return;
       }
@@ -1710,11 +1729,8 @@ async function saveProfile(){
     if(epBannerData) updates.bannerBase64=epBannerData;
     await db.ref('users/'+me.uid).update(updates);
 
-    // Update handleIndex — remove old, add new
-    if(handleChanged){
-      if(oldHandle) await db.ref('handleIndex/'+oldHandle).remove().catch(()=>{});
-      await db.ref('handleIndex/'+newHandle).set({uid:me.uid});
-    }
+    // Release the old handle now that the new one is confirmed
+    if(handleChanged && oldHandle) await db.ref('handleIndex/'+oldHandle).remove().catch(()=>{});
 
     Object.assign(myData,updates);
     updateSidebarUser();
@@ -1731,6 +1747,7 @@ function checkHandleAvailability(val){
   const statusEl = document.getElementById('ep-handle-status');
   if(!val||val.length<3){ statusEl.textContent=''; return; }
   if(val === (myData.handle||'')){ statusEl.style.color='var(--green)'; statusEl.textContent='✓ Your current username'; return; }
+  if(RESERVED_HANDLES.includes(val)){ statusEl.style.color='var(--like)'; statusEl.textContent='✗ @'+val+' is reserved'; return; }
   statusEl.style.color='var(--text3)'; statusEl.textContent='Checking…';
   clearTimeout(handleCheckTimer);
   handleCheckTimer = setTimeout(async ()=>{
