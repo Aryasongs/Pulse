@@ -917,6 +917,127 @@
             },
         ];
 
+        // ============================================================
+        // SMALL TALK — handled separately from AI_KNOWLEDGE so casual
+        // conversation ("hi", "thanks", "who are you") gets a natural
+        // reply instead of falling through to "I couldn't find a match."
+        // Several entries have multiple response variants so repeated
+        // greetings in one session don't sound identical every time.
+        // No suggestion chips by default — small talk shouldn't always
+        // funnel back into a feature menu.
+        // ============================================================
+        const AI_SMALL_TALK = [
+            {
+                id: 'greeting',
+                keywords: ['hi', 'hello', 'hey', 'hii', 'helo', 'yo', 'good morning', 'good afternoon', 'good evening', 'namaste', 'namaskar'],
+                variants: [
+                    `Hey there 👋 What can I help you with on Nexor today?`,
+                    `Hi! Good to see you. What's on your mind?`,
+                    `Hello! Ask me anything about Nexor — or just say what's up.`
+                ]
+            },
+            {
+                id: 'how-are-you',
+                keywords: ['how are you', 'how r u', 'how you doing', 'kaise ho', 'kaisa hai', 'kya haal hai', 'whats up', "what's up"],
+                variants: [
+                    `I'm doing well, thanks for asking! How can I help you with Nexor today?`,
+                    `All good on my end 🙂 What about you — anything I can help with?`,
+                    `Doing great! What brings you to the Help Center today?`
+                ]
+            },
+            {
+                id: 'thanks',
+                keywords: ['thank you', 'thanks', 'thx', 'tysm', 'appreciate it', 'shukriya', 'dhanyawad'],
+                variants: [
+                    `You're welcome! Let me know if anything else comes up.`,
+                    `Anytime! Happy to help.`,
+                    `No problem at all 🙂`
+                ]
+            },
+            {
+                id: 'who-are-you',
+                keywords: ['who are you', 'what are you', 'are you a bot', 'are you human', 'are you real', 'are you ai', 'kaun ho tum', 'tum kya ho'],
+                variants: [
+                    `I'm Nexor AI — a built-in assistant trained on everything about how Nexor works. I can't see your files or account, but I know every feature inside out. Ask away!`
+                ]
+            },
+            {
+                id: 'whats-your-name',
+                keywords: ['your name', 'whats your name', "what's your name", 'naam kya hai'],
+                variants: [
+                    `I'm Nexor AI — your guide to everything in the app. What can I help with?`
+                ]
+            },
+            {
+                id: 'bye',
+                keywords: ['bye', 'goodbye', 'see you', 'cya', 'gtg', 'alvida'],
+                variants: [
+                    `Take care! Come back anytime you need help.`,
+                    `Bye! I'll be right here if you need anything else.`
+                ]
+            },
+            {
+                id: 'affirmation',
+                keywords: ['ok', 'okay', 'cool', 'nice', 'great', 'got it', 'alright', 'sounds good', 'theek hai', 'achha'],
+                variants: [
+                    `Glad that helps! Anything else?`,
+                    `👍 Let me know if you need anything else.`
+                ]
+            },
+            {
+                id: 'praise',
+                keywords: ['you are good', "you're good", 'you are smart', 'good bot', 'nice job', 'well done', 'helpful'],
+                variants: [
+                    `That's kind of you to say! Happy to keep helping.`,
+                    `Thank you! I try to know Nexor inside and out.`
+                ]
+            },
+            {
+                id: 'complaint-about-ai',
+                keywords: ['you are useless', 'you are dumb', 'not helpful', 'this is stupid', 'waste of time', 'you suck'],
+                variants: [
+                    `Sorry that wasn't useful — tell me a bit more about what you're trying to do, or I can point you straight to the contact form below to reach a person.`
+                ]
+            },
+            {
+                id: 'how-do-you-work',
+                keywords: ['how do you work', 'are you trained', 'are you gpt', 'are you chatgpt', 'what model are you'],
+                variants: [
+                    `I'm a Nexor-specific assistant built to answer questions about this app — storage, files, sharing, security, billing, all of it. I don't have access to your personal account data, only how Nexor's features work in general.`
+                ]
+            },
+        ];
+
+        function matchSmallTalk(rawMessage) {
+            const msg = normalizeForMatch(rawMessage);
+            if (!msg) return null;
+
+            // Small talk messages are typically short — if the message is long, it's much more
+            // likely to be a real question even if it happens to contain a word like "hi" or "ok"
+            // somewhere in it, so we only attempt a small-talk match below a word-count cutoff.
+            const wordCount = msg.split(' ').filter(Boolean).length;
+            if (wordCount > 6) return null;
+
+            let best = null;
+            let bestScore = 0;
+
+            AI_SMALL_TALK.forEach(entry => {
+                let score = 0;
+                entry.keywords.forEach(kw => {
+                    const kwNorm = normalizeForMatch(kw);
+                    if (msg === kwNorm) score += 10; // exact match, e.g. just "hi"
+                    else if (msg.includes(kwNorm)) score += kwNorm.split(' ').length;
+                });
+                if (score > bestScore) {
+                    bestScore = score;
+                    best = entry;
+                }
+            });
+
+            if (!best) return null;
+            const variant = best.variants[Math.floor(Math.random() * best.variants.length)];
+            return { answer: variant, chips: null };
+        }
 
         const AI_FALLBACK_CHIPS = [
             'How much storage do I get?',
@@ -925,7 +1046,7 @@
             'What does Premium include?'
         ];
 
-        const AI_GREETING = `Hi! I'm <strong>Nexor AI</strong>. Ask me anything about how Nexor works — files, sharing, passwords, billing, you name it.`;
+        const AI_GREETING = `Hi! I'm <strong>Nexor AI</strong>. Ask me anything about how Nexor works — or just say hello.`;
 
         let aiPanelOpened = false;
         let aiConversationStarted = false;
@@ -936,7 +1057,12 @@
 
         // Scores every knowledge entry by counting matched keyword phrases, including partial
         // word-level overlap for multi-word phrases so close phrasing still matches reasonably.
+        // Small talk is checked first (and wins outright if matched) so casual conversation
+        // never gets treated as a failed product-question lookup.
         function matchKnowledge(rawMessage) {
+            const smallTalk = matchSmallTalk(rawMessage);
+            if (smallTalk) return smallTalk;
+
             const msg = normalizeForMatch(rawMessage);
             if (!msg) return null;
 
