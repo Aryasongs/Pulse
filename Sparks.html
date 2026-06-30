@@ -468,6 +468,18 @@ img{display:block;}
 .follow-user-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer;}
 .follow-user-item:last-child{border-bottom:none;}
 
+/* ====== NSFW / SENSITIVE CONTENT BLUR ====== */
+.nsfw-wrap{position:relative;}
+.nsfw-wrap.nsfw-blur img{filter:blur(28px) saturate(0.4) brightness(0.65);transition:filter .25s;}
+.nsfw-wrap.nsfw-blur.nsfw-revealed img{filter:none;}
+.nsfw-overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:rgba(0,0,0,.25);border-radius:inherit;z-index:2;}
+.nsfw-wrap.nsfw-blur .nsfw-overlay{display:flex;}
+.nsfw-wrap.nsfw-blur.nsfw-revealed .nsfw-overlay{background:transparent;justify-content:flex-start;align-items:flex-end;padding:8px;}
+.nsfw-eye-btn{width:44px;height:44px;border-radius:50%;background:rgba(20,20,20,.7);border:1px solid rgba(255,255,255,.25);color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;cursor:pointer;}
+.nsfw-wrap.nsfw-blur.nsfw-revealed .nsfw-eye-btn{width:34px;height:34px;font-size:15px;}
+.nsfw-label{color:#fff;font-size:12px;font-weight:600;background:rgba(0,0,0,.4);padding:3px 10px;border-radius:12px;}
+.nsfw-wrap.nsfw-blur.nsfw-revealed .nsfw-label{display:none;}
+
 /* ====== LIGHTBOX (full-size image viewer) ====== */
 .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;}
 .lightbox-overlay.active{display:flex;}
@@ -580,6 +592,8 @@ img{display:block;}
       <input class="auth-field" id="r-handle" type="text" placeholder="@handle (letters, numbers, _)">
       <input class="auth-field" id="r-email" type="email" placeholder="Email address" autocomplete="email">
       <input class="auth-field" id="r-pass" type="password" placeholder="Password (min 6 chars)" autocomplete="new-password">
+      <label style="display:block;font-size:12px;color:var(--text3);margin:2px 2px 4px;">Date of birth (required — you must be 13+)</label>
+      <input class="auth-field" id="r-dob" type="date" autocomplete="bday">
       <button class="btn-primary" id="btn-reg" onclick="doRegister()"><i class="ph ph-user-plus"></i> Create Account</button>
     </div>
     <div class="auth-error" id="auth-err"></div>
@@ -859,6 +873,26 @@ img{display:block;}
       </div>
       <div class="toggle-switch" id="settings-private-toggle" onclick="event.stopPropagation();togglePrivateAccount()"></div>
     </div>
+    <div class="settings-row" onclick="openDobEditor()">
+      <i class="ph ph-cake"></i>
+      <div class="settings-row-text">
+        <div class="settings-row-title">Date of birth</div>
+        <div class="settings-row-sub" id="settings-dob-sub">Not set</div>
+      </div>
+      <i class="ph ph-caret-right" style="font-size:16px;"></i>
+    </div>
+  </div>
+
+  <div class="settings-section-title">Content</div>
+  <div class="settings-section">
+    <div class="settings-row" onclick="toggleSensitiveBlur()">
+      <i class="ph ph-eye-slash"></i>
+      <div class="settings-row-text">
+        <div class="settings-row-title">Blur sensitive content</div>
+        <div class="settings-row-sub" id="settings-blur-sub">Automatically blur detected adult images</div>
+      </div>
+      <div class="toggle-switch" id="settings-blur-toggle" onclick="event.stopPropagation();toggleSensitiveBlur()"></div>
+    </div>
   </div>
 
   <div class="settings-section-title">Privacy & Safety</div>
@@ -1113,6 +1147,19 @@ img{display:block;}
   </div>
 </div>
 
+<!-- Date of birth editor -->
+<div class="modal-overlay" id="dob-edit-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Date of birth</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px;">This helps us keep age-restricted content appropriately filtered. You must be at least 13.</p>
+    <input class="sheet-field" id="dob-edit-input" type="date">
+    <div class="auth-error" id="dob-edit-err" style="margin-bottom:10px;"></div>
+    <button class="btn-sheet primary" onclick="saveDob()"><i class="ph ph-check"></i> Save</button>
+    <button class="btn-sheet outline" style="margin-top:8px;" onclick="closeModal('dob-edit-modal')">Cancel</button>
+  </div>
+</div>
+
 <!-- Full-size image lightbox viewer -->
 <div class="lightbox-overlay" id="lightbox-overlay" onclick="if(event.target===this)closeLightbox()">
   <button class="lightbox-close" onclick="closeLightbox()"><i class="ph ph-x"></i></button>
@@ -1357,16 +1404,31 @@ async function doLogin(){
   }
   catch(err){ document.getElementById('auth-err').textContent=friendlyErr(err); setBusy('btn-login',false,'<i class="ph ph-sign-in"></i> Sign In'); }
 }
+function calcAge(dobStr){
+  if(!dobStr) return null;
+  const dob=new Date(dobStr+'T00:00:00');
+  if(isNaN(dob.getTime())) return null;
+  const now=new Date();
+  let age=now.getFullYear()-dob.getFullYear();
+  const m=now.getMonth()-dob.getMonth();
+  if(m<0||(m===0&&now.getDate()<dob.getDate())) age--;
+  return age;
+}
 async function doRegister(){
   const name=document.getElementById('r-name').value.trim(),
         handle=(document.getElementById('r-handle').value.trim()||'').replace(/^@/,'').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase(),
         e=document.getElementById('r-email').value.trim(),
-        p=document.getElementById('r-pass').value;
+        p=document.getElementById('r-pass').value,
+        dob=document.getElementById('r-dob').value;
   document.getElementById('auth-err').textContent='';
-  if(!name||!handle||!e||!p){document.getElementById('auth-err').textContent='Fill in all fields';return;}
+  if(!name||!handle||!e||!p||!dob){document.getElementById('auth-err').textContent='Fill in all fields, including date of birth';return;}
   if(handle.length<3){document.getElementById('auth-err').textContent='Username must be at least 3 characters';return;}
   if(RESERVED_HANDLES.includes(handle)){document.getElementById('auth-err').textContent='Username @'+handle+' is reserved and cannot be used.';return;}
   if(p.length<6){document.getElementById('auth-err').textContent='Password must be at least 6 characters';return;}
+  const age=calcAge(dob);
+  if(age===null||isNaN(age)){document.getElementById('auth-err').textContent='Enter a valid date of birth';return;}
+  if(age<13){document.getElementById('auth-err').textContent='You must be at least 13 years old to create an account';return;}
+  if(age>120){document.getElementById('auth-err').textContent='Enter a valid date of birth';return;}
   setBusy('btn-reg',true,'<i class="ph ph-spinner-gap spin"></i> Please wait…');
   const handleRef = db.ref('handleIndex/'+handle);
   try{
@@ -1391,6 +1453,7 @@ async function doRegister(){
       followersCount:0, followingCount:0, pulsesCount:0, totalLikes:0,
       verified:false, isAI:false, website:'', location:'', pronouns:'', languages:'',
       photoBase64:null, bannerBase64:null,
+      dob, age,
       createdAt: firebase.database.ServerValue.TIMESTAMP
     });
     // Finalize the handle reservation with the real uid
@@ -1520,6 +1583,7 @@ async function onSignedIn(){
   loadTrending();
   loadWhoToFollow();
   loadNotifs();
+  buildMyInterests().then(()=>{ if(feedTab==='foryou') listenFeed(); }).catch(e=>console.error('buildMyInterests failed:',e));
 }
 
 // ============================================================
@@ -1556,6 +1620,53 @@ async function loadMuted(){ const s=await db.ref('muted/'+me.uid).once('value');
 // ============================================================
 // FEED
 // ============================================================
+// ============================================================
+// "FOR YOU" FEED — lightweight interest-based ranking
+// Builds an on-device interest profile from the hashtags found in Pulses
+// you've liked, reposted, bookmarked, or written yourself, then blends that
+// with recency and engagement to rank the For You feed. No server-side
+// ML needed — everything is computed from data you already have locally.
+// ============================================================
+let myInterests={};
+function extractTags(text){
+  if(!text) return [];
+  const m=text.match(/#(\w{2,30})/g)||[];
+  return m.map(t=>t.slice(1).toLowerCase());
+}
+async function buildMyInterests(){
+  const weights={}; // tag -> accumulated weight
+  const addTagsFromText=(text,w)=>{ extractTags(text).forEach(t=>{ weights[t]=(weights[t]||0)+w; }); };
+  // What I've engaged with (strongest signal first)
+  async function fetchTexts(ids){
+    if(!ids.length) return [];
+    return Promise.all(ids.map(id=>db.ref('pulses/'+id+'/text').once('value').then(s=>s.val()).catch(()=>null)));
+  }
+  const [likedTexts, repostedTexts, bookmarkedTexts] = await Promise.all([
+    fetchTexts([...likedSet].slice(0,40)),
+    fetchTexts([...repostSet].slice(0,40)),
+    fetchTexts([...bookmarkSet].slice(0,40)),
+  ]);
+  likedTexts.forEach(t=>addTagsFromText(t,1));
+  repostedTexts.forEach(t=>addTagsFromText(t,2));
+  bookmarkedTexts.forEach(t=>addTagsFromText(t,1.5));
+  // What I tend to post about myself
+  try{
+    const mySnap=await db.ref('pulses').orderByChild('uid').equalTo(me.uid).limitToLast(30).once('value');
+    mySnap.forEach(c=>addTagsFromText((c.val()||{}).text,0.5));
+  }catch(e){ /* ignore — non-critical */ }
+  myInterests=weights;
+  return weights;
+}
+function pulseRankScore(p){
+  const ageHours=Math.max(0,(Date.now()-(p.createdAt||Date.now()))/3600000);
+  const recencyScore = Math.max(0, 1 - ageHours/72) * 10; // decays to 0 over ~3 days
+  const tags=extractTags(p.text);
+  let interestScore=0;
+  tags.forEach(t=>{ if(myInterests[t]) interestScore += Math.min(myInterests[t],8); });
+  const followBonus = followingSet.has(p.uid) ? 3 : 0;
+  const engagementScore = Math.log10((p.likes||0)+(p.reposts||0)*2+(p.replies||0)+1) * 2;
+  return recencyScore + interestScore + followBonus + engagementScore;
+}
 function listenFeed(){
   if(feedUnsub){ feedUnsub(); feedUnsub=null; }
   const el = document.getElementById('feed-list');
@@ -1574,7 +1685,16 @@ function listenFeed(){
       }
     });
     let visible = pulses.filter(p => !blockedSet.has(p.uid) && !mutedSet.has(p.uid) && isPulseVisible(p));
-    if(feedTab==='following') visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
+    if(feedTab==='following'){
+      visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
+    } else {
+      // For You: blend recency + on-device interest score + engagement,
+      // keeping a handful of the very newest Pulses pinned to the top so
+      // the feed never feels stale even before interests are personalized.
+      const freshest = visible.slice(0,3);
+      const rest = visible.slice(3).slice().sort((a,b)=>pulseRankScore(b)-pulseRankScore(a));
+      visible = freshest.concat(rest);
+    }
     if(!visible.length){ document.getElementById('feed-empty').classList.remove('hidden'); el.innerHTML=''; return; }
     document.getElementById('feed-empty').classList.add('hidden');
     // Only re-render if content actually changed (avoid flicker)
@@ -1598,6 +1718,12 @@ function switchFeedTab(tab){
 // their likes, still show to everyone as normal.
 // Renders 1-5 attached images. A single image keeps the original full-width
 // layout; multiple images render in a compact grid (Twitter-style).
+function nsfwOverlayHtml(){
+  return `<div class="nsfw-overlay" onclick="event.stopPropagation();this.closest('.nsfw-wrap').classList.toggle('nsfw-revealed')">
+    <span class="nsfw-label">Sensitive content</span>
+    <div class="nsfw-eye-btn"><i class="ph ph-eye"></i></div>
+  </div>`;
+}
 function pulseImageHtml(p){
   const imgs = (p.images && p.images.length) ? p.images : (p.imageBase64 ? [p.imageBase64] : []);
   if(!imgs.length) return '';
@@ -1605,12 +1731,76 @@ function pulseImageHtml(p){
   window.__pulseImgCache[p.id] = imgs;
   const pid = ESC(p.id);
   if(imgs.length===1){
-    return `<div class="pulse-image">${p.imageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img src="${imgs[0]}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',0)"></div>`;
+    return `<div class="pulse-image nsfw-wrap">${p.imageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img class="nsfw-scan-target" src="${imgs[0]}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',0)">${nsfwOverlayHtml()}</div>`;
   }
   return `<div class="pulse-image-grid pulse-image-grid-${imgs.length}">`+imgs.map((src,i)=>
-    `<div class="pulse-image-grid-cell"><img src="${src}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',${i})"></div>`
+    `<div class="pulse-image-grid-cell nsfw-wrap"><img class="nsfw-scan-target" src="${src}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',${i})">${nsfwOverlayHtml()}</div>`
   ).join('')+`</div>`;
 }
+// ============================================================
+// ADULT / NSFW IMAGE DETECTOR
+// Lazily loads TensorFlow.js + nsfwjs (client-side, on-device — no images
+// ever leave the browser) the first time an image needs scanning, then
+// classifies pulse images and blurs anything flagged as Porn/Hentai/Sexy.
+// Users can tap the eye icon to reveal, or turn blurring off in Settings.
+// ============================================================
+let nsfwModel=null, nsfwModelLoadPromise=null;
+const __nsfwCache=new Map(); // src -> boolean (true = flagged)
+function loadScriptOnce(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector(`script[data-src="${src}"]`)){ resolve(); return; }
+    const s=document.createElement('script');
+    s.src=src; s.dataset.src=src;
+    s.onload=()=>resolve(); s.onerror=()=>reject(new Error('Failed to load '+src));
+    document.head.appendChild(s);
+  });
+}
+async function ensureNsfwModel(){
+  if(nsfwModel) return nsfwModel;
+  if(nsfwModelLoadPromise) return nsfwModelLoadPromise;
+  nsfwModelLoadPromise=(async()=>{
+    await loadScriptOnce('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js');
+    await loadScriptOnce('https://cdn.jsdelivr.net/npm/nsfwjs@4.2.1/dist/nsfwjs.min.js');
+    nsfwModel = await nsfwjs.load(); // default MobileNetV2 model, ~4MB, cached by browser after first load
+    return nsfwModel;
+  })().catch(err=>{ console.error('NSFW model failed to load:',err); nsfwModelLoadPromise=null; throw err; });
+  return nsfwModelLoadPromise;
+}
+function nsfwBlurEnabled(){ return myData.blurSensitive!==false; } // on by default
+async function classifyOneNsfwImg(imgEl){
+  const wrap=imgEl.closest('.nsfw-wrap');
+  if(!wrap||imgEl.dataset.nsfwScanned==='1') return;
+  imgEl.dataset.nsfwScanned='1';
+  const src=imgEl.getAttribute('src');
+  if(__nsfwCache.has(src)){
+    if(__nsfwCache.get(src)&&nsfwBlurEnabled()) wrap.classList.add('nsfw-blur');
+    return;
+  }
+  try{
+    await ensureNsfwModel();
+    const run=()=>nsfwModel.classify(imgEl).then(preds=>{
+      const flagged = preds.some(pr => (pr.className==='Porn'||pr.className==='Hentai'||pr.className==='Sexy') && pr.probability>0.55);
+      __nsfwCache.set(src,flagged);
+      if(flagged&&nsfwBlurEnabled()) wrap.classList.add('nsfw-blur');
+    });
+    if(imgEl.complete) await run();
+    else imgEl.addEventListener('load',()=>run().catch(e=>console.error('NSFW classify failed:',e)),{once:true});
+  }catch(e){ console.error('NSFW classify failed:',e); }
+}
+function scanNsfwImages(){
+  document.querySelectorAll('.nsfw-scan-target:not([data-nsfw-scanned])').forEach(img=>{
+    classifyOneNsfwImg(img).catch(e=>console.error('NSFW classify failed:',e));
+  });
+}
+let __nsfwScanT=null;
+function scheduleNsfwScan(){ clearTimeout(__nsfwScanT); __nsfwScanT=setTimeout(scanNsfwImages,300); }
+// Watch the whole app for newly-rendered pulse images (feed scroll, profile
+// switches, opening a Pulse detail, search results, bookmarks, etc.) so we
+// never have to hand-wire a scan call into every render path.
+new MutationObserver(muts=>{
+  for(const m of muts){ if(m.addedNodes&&m.addedNodes.length){ scheduleNsfwScan(); return; } }
+}).observe(document.body, {childList:true, subtree:true});
+
 function isPulseVisible(p){
   if(!p) return false;
   if(p.uid===me.uid) return true;
@@ -2367,6 +2557,36 @@ async function loadSettingsScreen(){
   const locToggle=document.getElementById('settings-location-toggle');
   locToggle.classList.toggle('on',locShared);
   document.getElementById('settings-location-sub').textContent=locShared?'Account based in (country) is visible on your About info':'Hidden — others will see "Account based in: Not shared"';
+  document.getElementById('settings-dob-sub').textContent = myData.dob ? new Date(myData.dob+'T00:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'})+(myData.age?' · '+myData.age+' yrs':'') : 'Not set — tap to add';
+  const blurOn = myData.blurSensitive!==false; // on by default
+  document.getElementById('settings-blur-toggle').classList.toggle('on',blurOn);
+  document.getElementById('settings-blur-sub').textContent = blurOn?'Automatically blur detected adult images':'Adult images will show without blurring';
+}
+function openDobEditor(){
+  document.getElementById('dob-edit-input').value = myData.dob||'';
+  document.getElementById('dob-edit-err').textContent='';
+  openModal('dob-edit-modal');
+}
+async function saveDob(){
+  const dob=document.getElementById('dob-edit-input').value;
+  const errEl=document.getElementById('dob-edit-err');
+  if(!dob){ errEl.textContent='Please pick a date'; return; }
+  const age=calcAge(dob);
+  if(age===null||isNaN(age)){ errEl.textContent='Enter a valid date'; return; }
+  if(age<13){ errEl.textContent='You must be at least 13 years old'; return; }
+  if(age>120){ errEl.textContent='Enter a valid date'; return; }
+  await db.ref('users/'+me.uid).update({dob,age}).catch(err=>{ errEl.textContent='Could not save: '+err.message; throw err; });
+  myData.dob=dob; myData.age=age;
+  closeModal('dob-edit-modal');
+  loadSettingsScreen();
+  showToast('Date of birth updated');
+}
+async function toggleSensitiveBlur(){
+  const next = myData.blurSensitive===false ? true : false;
+  myData.blurSensitive=next;
+  await db.ref('users/'+me.uid+'/blurSensitive').set(next).catch(()=>{});
+  loadSettingsScreen();
+  showToast(next?'Sensitive content will be blurred':'Sensitive content blur turned off');
 }
 async function togglePrivateAccount(){
   const next=!myData.private;
