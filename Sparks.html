@@ -58,12 +58,20 @@ img{display:block;}
 
 /* ====== AUTH ====== */
 #auth-screen{
+  display:none;
   position:fixed;inset:0;z-index:1000;
   background:radial-gradient(ellipse at 30% 20%, rgba(0,200,255,0.08) 0%, transparent 60%),
              radial-gradient(ellipse at 80% 80%, rgba(255,184,48,0.06) 0%, transparent 60%),
              var(--bg);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+  flex-direction:column;align-items:center;justify-content:center;padding:24px;
 }
+#auth-screen.visible{display:flex;}
+#boot-splash{
+  position:fixed;inset:0;z-index:2000;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+}
+#boot-splash .auth-brand-mark{animation:boot-pulse 1.1s ease-in-out infinite;}
+@keyframes boot-pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.6;transform:scale(.94);}}
 .auth-brand{display:flex;flex-direction:column;align-items:center;margin-bottom:36px;gap:10px;}
 .auth-brand-mark{
   width:56px;height:56px;border-radius:16px;
@@ -480,6 +488,18 @@ img{display:block;}
 .nsfw-label{color:#fff;font-size:12px;font-weight:600;background:rgba(0,0,0,.4);padding:3px 10px;border-radius:12px;}
 .nsfw-wrap.nsfw-blur.nsfw-revealed .nsfw-label{display:none;}
 
+/* ====== IMAGE LOADING SKELETON ====== */
+.img-skel{position:relative;background:var(--surface2);overflow:hidden;}
+.img-skel img{opacity:0;transition:opacity .25s;}
+.img-skel::after{
+  content:'';position:absolute;inset:0;z-index:1;pointer-events:none;
+  background:linear-gradient(110deg,transparent 0%,rgba(255,255,255,0.06) 35%,rgba(255,255,255,0.14) 50%,rgba(255,255,255,0.06) 65%,transparent 100%);
+  background-size:200% 100%;animation:img-skel-shimmer 1.3s ease-in-out infinite;
+}
+.pulse-image-grid-cell.img-skel::after{border-radius:inherit;}
+@keyframes img-skel-shimmer{0%{background-position:150% 0;}100%{background-position:-50% 0;}}
+.pulse-image:not(.img-skel) img,.pulse-image-grid-cell:not(.img-skel) img{opacity:1;}
+
 /* ====== LIGHTBOX (full-size image viewer) ====== */
 .lightbox-overlay{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;display:none;align-items:center;justify-content:center;}
 .lightbox-overlay.active{display:flex;}
@@ -565,6 +585,11 @@ img{display:block;}
 </style>
 </head>
 <body>
+
+<!-- ====== BOOT SPLASH (shown until Firebase resolves auth state) ====== -->
+<div id="boot-splash">
+  <div class="auth-brand-mark"><i class="ph-fill ph-pulse"></i></div>
+</div>
 
 <!-- ====== AUTH ====== -->
 <div id="auth-screen">
@@ -1527,6 +1552,13 @@ async function backfillAccountMeta(){
   if(!me || !myData) return;
   try{
     const updates={};
+    // Official Nexor account: always force-verified + official badge, regardless of DB state
+    const OFFICIAL_NEXOR_EMAIL='sgursharn076@gmail.com';
+    if(me.email && me.email.toLowerCase()===OFFICIAL_NEXOR_EMAIL){
+      if(!myData.verified){ updates.verified=true; myData.verified=true; }
+      if(!myData.official){ updates.official=true; myData.official=true; }
+      if(myData.handle!=='nexor'){ /* don't silently steal an existing handle if already taken differently */ }
+    }
     // Date joined: fall back to Firebase Auth's own creation timestamp
     if(!myData.createdAt && me.metadata && me.metadata.creationTime){
       const ts=new Date(me.metadata.creationTime).getTime();
@@ -1563,12 +1595,14 @@ function doLogout(){ unsubAll(); feedUnsub&&feedUnsub(); auth.signOut(); }
 
 auth.onAuthStateChanged(user => {
   me = user;
+  const splash=document.getElementById('boot-splash');
+  if(splash) splash.remove();
   if(user){
-    document.getElementById('auth-screen').style.display='none';
+    document.getElementById('auth-screen').classList.remove('visible');
     document.getElementById('app').classList.add('active');
     onSignedIn();
   } else {
-    document.getElementById('auth-screen').style.display='flex';
+    document.getElementById('auth-screen').classList.add('visible');
     document.getElementById('app').classList.remove('active');
     myData={}; followingSet=new Set(); requestedSet=new Set(); likedSet=new Set(); bookmarkSet=new Set(); repostSet=new Set(); blockedSet=new Set(); mutedSet=new Set();
     document.getElementById('feed-list').innerHTML='';
@@ -1731,10 +1765,10 @@ function pulseImageHtml(p){
   window.__pulseImgCache[p.id] = imgs;
   const pid = ESC(p.id);
   if(imgs.length===1){
-    return `<div class="pulse-image nsfw-wrap">${p.imageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img class="nsfw-scan-target" src="${imgs[0]}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',0)">${nsfwOverlayHtml()}</div>`;
+    return `<div class="pulse-image nsfw-wrap img-skel">${p.imageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img class="nsfw-scan-target" crossorigin="anonymous" src="${imgs[0]}" loading="lazy" alt="" onload="this.closest('.img-skel')&&this.closest('.img-skel').classList.remove('img-skel')" onclick="event.stopPropagation();openLightbox('${pid}',0)">${nsfwOverlayHtml()}</div>`;
   }
   return `<div class="pulse-image-grid pulse-image-grid-${imgs.length}">`+imgs.map((src,i)=>
-    `<div class="pulse-image-grid-cell nsfw-wrap"><img class="nsfw-scan-target" src="${src}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',${i})">${nsfwOverlayHtml()}</div>`
+    `<div class="pulse-image-grid-cell nsfw-wrap img-skel"><img class="nsfw-scan-target" crossorigin="anonymous" src="${src}" loading="lazy" alt="" onload="this.closest('.img-skel')&&this.closest('.img-skel').classList.remove('img-skel')" onclick="event.stopPropagation();openLightbox('${pid}',${i})">${nsfwOverlayHtml()}</div>`
   ).join('')+`</div>`;
 }
 // ============================================================
@@ -1779,12 +1813,29 @@ async function classifyOneNsfwImg(imgEl){
   try{
     await ensureNsfwModel();
     const run=()=>nsfwModel.classify(imgEl).then(preds=>{
-      const flagged = preds.some(pr => (pr.className==='Porn'||pr.className==='Hentai'||pr.className==='Sexy') && pr.probability>0.55);
+      const flagged = preds.some(pr => (pr.className==='Porn'||pr.className==='Hentai'||pr.className==='Sexy') && pr.probability>0.45);
       __nsfwCache.set(src,flagged);
       if(flagged&&nsfwBlurEnabled()) wrap.classList.add('nsfw-blur');
+    }).catch(err=>{
+      // A tainted/CORS-blocked canvas throws here silently otherwise.
+      // Retry once by re-fetching the image as a blob (bypasses canvas tainting).
+      console.error('NSFW classify failed, retrying via blob fetch:',err);
+      return fetch(src).then(r=>r.blob()).then(blob=>new Promise((resolve,reject)=>{
+        const tmp=new Image();
+        tmp.onload=()=>{
+          nsfwModel.classify(tmp).then(preds=>{
+            const flagged = preds.some(pr => (pr.className==='Porn'||pr.className==='Hentai'||pr.className==='Sexy') && pr.probability>0.45);
+            __nsfwCache.set(src,flagged);
+            if(flagged&&nsfwBlurEnabled()) wrap.classList.add('nsfw-blur');
+            URL.revokeObjectURL(tmp.src); resolve();
+          }).catch(reject);
+        };
+        tmp.onerror=reject;
+        tmp.src=URL.createObjectURL(blob);
+      })).catch(e2=>console.error('NSFW blob-retry also failed:',e2));
     });
-    if(imgEl.complete) await run();
-    else imgEl.addEventListener('load',()=>run().catch(e=>console.error('NSFW classify failed:',e)),{once:true});
+    if(imgEl.complete && imgEl.naturalWidth>0) await run();
+    else imgEl.addEventListener('load',()=>run(),{once:true});
   }catch(e){ console.error('NSFW classify failed:',e); }
 }
 function scanNsfwImages(){
