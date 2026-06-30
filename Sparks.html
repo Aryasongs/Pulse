@@ -1008,6 +1008,7 @@ img{display:block;}
         <textarea class="compose-textarea" id="modal-text" placeholder="What's pulsing?" rows="4" oninput="onComposeInput(this,'modal-counter','modal-post-btn')" style="font-size:18px;min-height:100px;"></textarea>
         <div id="modal-img-preview" class="compose-img-preview hidden"></div>
         <div id="modal-vid-preview" class="compose-video-preview hidden"></div>
+        <div id="modal-quote-preview" class="hidden"></div>
       </div>
     </div>
     <div class="compose-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;">
@@ -1338,6 +1339,8 @@ let profileViewable = true;
 const RESERVED_HANDLES = ['nexor','sparks','nexorsparks','admin','administrator','support','official','moderator','staff','help','root','system'];
 let replyToId  = null;
 let repostTargetId = null;
+let quoteTargetId = null;
+let quoteOrigPulse = null;
 let imagePickTarget = null;
 let inlineImages = []; // up to MAX_IMAGES_PER_PULSE {data,type,isAI}
 let modalImages  = [];
@@ -2028,7 +2031,7 @@ function onComposeInput(ta, counterId, btnId){
   const len=ta.value.length, counter=document.getElementById(counterId), btn=document.getElementById(btnId), rem=max-len;
   counter.textContent=rem;
   counter.className='char-counter'+(rem<20?' warn':'')+(rem<0?' over':'');
-  if(btn) btn.disabled=len===0||rem<0;
+  if(btn) btn.disabled=(len===0&&!(btnId==='modal-post-btn'&&quoteTargetId))||rem<0;
   handleMentionTrigger(ta);
 }
 
@@ -2090,6 +2093,9 @@ function openCompose(){
   document.getElementById('modal-vid-preview').classList.add('hidden');
   document.getElementById('modal-vid-preview').innerHTML='';
   modalImages=[]; modalVideoFile=null;
+  quoteTargetId=null; quoteOrigPulse=null;
+  const qp=document.getElementById('modal-quote-preview');
+  qp.classList.add('hidden'); qp.innerHTML='';
   openModal('compose-modal');
 }
 const MAX_IMAGES_PER_PULSE = 5;
@@ -2839,7 +2845,8 @@ async function publishPulse(source){
   const text=ta.value.trim();
   const imgs=source==='inline'?inlineImages:modalImages;
   const vid=source==='inline'?inlineVideoFile:modalVideoFile;
-  if(!text&&!imgs.length&&!vid)return;
+  const isQuote=source==='modal'&&!!quoteTargetId&&!!quoteOrigPulse;
+  if(!text&&!imgs.length&&!vid&&!isQuote)return;
   const btn=document.getElementById(source+'-post-btn');
   btn.disabled=true;
   // Lightweight progress indicator so the user can see something is
@@ -2867,11 +2874,33 @@ async function publishPulse(source){
       videoDuration:vid?vid.duration:null,
       createdAt:firebase.database.ServerValue.TIMESTAMP
     };
+    if(isQuote){
+      const orig=quoteOrigPulse;
+      pulseData.repostOf=quoteTargetId;
+      pulseData.repostOfText=orig.text||'';
+      pulseData.repostOfName=orig.creatorName||'User';
+      pulseData.repostOfImages=orig.images||(orig.imageBase64?[orig.imageBase64]:null);
+      pulseData.repostOfImageIsAI=orig.imageIsAI||false;
+      pulseData.repostOfVideoBase64=orig.videoBase64||null;
+      pulseData.repostOfVideoPoster=orig.videoPoster||null;
+    }
     const ref=await db.ref('pulses').push(pulseData);
     clearInterval(progressTimer);
     btn.textContent='Uploading… 100%';
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
+    if(isQuote){
+      const qPulseId=quoteTargetId, qOrig=quoteOrigPulse;
+      repostSet.add(qPulseId);
+      await db.ref('userReposts/'+me.uid+'/'+qPulseId).set(true).catch(()=>{});
+      await db.ref('pulses/'+qPulseId+'/reposts').transaction(c=>(c||0)+1).catch(()=>{});
+      if(qOrig.uid&&qOrig.uid!==me.uid){
+        await db.ref('notifications/'+qOrig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId:qPulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(()=>{});
+      }
+      quoteTargetId=null; quoteOrigPulse=null;
+      const qp=document.getElementById('modal-quote-preview');
+      if(qp){qp.classList.add('hidden');qp.innerHTML='';}
+    }
     notifyMentions(text, ref.key);
     ta.value=''; removeImage(source); removeVideo(source);
     onComposeInput(ta,source+'-counter',source+'-post-btn');
@@ -2956,7 +2985,48 @@ async function doSimpleRepost(){
     if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(repost) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');}); }
   } catch(e){ showToast('Could not repost'); repostSet.delete(pulseId); }
 }
-function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast('Type your quote — repost will be linked'); }
+// Renders a small read-only preview of the Pulse being quoted, inside the
+// compose modal, so the user can see exactly what will be embedded with
+// their quote (text/image/video) before posting.
+function quotePreviewHtml(orig){
+  const imgs = orig.images || (orig.imageBase64?[orig.imageBase64]:[]);
+  const vid  = orig.videoBase64 || null;
+  let mediaHtml = '';
+  if(vid){
+    mediaHtml = `<div class="pulse-video"><video src="${vid}" poster="${orig.videoPoster||''}" muted style="border-radius:10px;max-height:220px;width:100%;object-fit:cover;"></video></div>`;
+  } else if(imgs.length===1){
+    mediaHtml = `<div class="pulse-image"><img src="${imgs[0]}" alt="" style="border-radius:10px;max-height:220px;width:100%;object-fit:cover;"></div>`;
+  } else if(imgs.length>1){
+    mediaHtml = `<div class="pulse-image-grid pulse-image-grid-${imgs.length}">`+imgs.map(src=>
+      `<div class="pulse-image-grid-cell"><img src="${src}" alt="" style="border-radius:8px;"></div>`
+    ).join('')+`</div>`;
+  }
+  return `<div class="pulse-repost-of" style="cursor:default;">
+    <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;">${ESC(orig.creatorName||'User')}</div>
+    <div class="pulse-text" style="margin-bottom:0;font-size:14px;">${ESC(orig.text||'').substring(0,140)}</div>
+    ${mediaHtml}
+  </div>`;
+}
+async function openQuotePulse(){
+  const pulseId=repostTargetId;
+  closeModal('repost-modal');
+  if(!pulseId) return;
+  openCompose();
+  quoteTargetId=pulseId;
+  document.getElementById('modal-text').focus();
+  showToast('Add your comment — original Pulse will be quoted');
+  try{
+    const snap=await db.ref('pulses/'+pulseId).once('value');
+    const orig=snap.val();
+    if(!orig || quoteTargetId!==pulseId) return; // modal may have been reset/closed meanwhile
+    quoteOrigPulse=orig;
+    const qp=document.getElementById('modal-quote-preview');
+    qp.innerHTML=quotePreviewHtml(orig);
+    qp.classList.remove('hidden');
+    const postBtn=document.getElementById('modal-post-btn');
+    if(postBtn) postBtn.disabled=false;
+  } catch(e){ console.error('Could not load quoted Pulse:',e); }
+}
 
 // ============================================================
 // FOLLOW
