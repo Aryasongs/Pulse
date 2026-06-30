@@ -1375,10 +1375,26 @@ async function openAboutAccount(uid){
       <span style="font-size:14px;font-weight:600;color:var(--text);text-align:right;">${value}</span>
     </div>`;
     const verifiedSinceTs = u.verifiedSinceTs || u.createdAt || null;
+    let affiliateHtml = '';
+    if(u.affiliatedWithHandle){
+      try{
+        let orgUid=null, orgData=null;
+        const oS=await db.ref('users').orderByChild('handle').equalTo(u.affiliatedWithHandle).limitToFirst(1).once('value');
+        oS.forEach(c=>{orgUid=c.key; orgData=c.val();});
+        if(orgData){
+          const orgBadge=orgData.badgeUrl||NEXOR_BADGE_URL;
+          affiliateHtml = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;cursor:pointer;" onclick="event.stopPropagation();closeModal('about-account-modal');openProfile('${ESC(orgUid)}')">
+            <img src="${ESC(orgBadge)}" alt="" style="width:28px;height:28px;border-radius:8px;object-fit:contain;flex-shrink:0;">
+            <span style="font-size:13px;color:var(--text2);">An affiliate of <strong style="color:var(--text);">@${ESC(u.affiliatedWithHandle)}</strong></span>
+          </div>`;
+        }
+      }catch(e){}
+    }
     let html = `<div style="text-align:center;margin-bottom:8px;">
         <div style="font-size:15px;font-weight:700;">${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('','',u.badgeUrl):''}</div>
         <div style="font-size:13px;color:var(--text3);">@${ESC(u.handle||'user')}</div>
       </div>`;
+    html += affiliateHtml;
     html += row('Profile name', ESC(u.name||'User'));
     html += row('Username', '@'+ESC(u.handle||'user'));
     html += row('Date joined', u.createdAt ? joinDate(u.createdAt) : 'Not available');
