@@ -2467,70 +2467,207 @@ async function ensureNexorAccount(){
 // Built-in knowledge base about how Sparks actually works (based on the
 // app's own code/features) — used to answer @nexor questions WITHOUT any
 // external API call. Each entry is matched against keywords found in the
-// question; the best match's answer is used. All answers are in English.
+// question (English AND common Hinglish/Hindi phrasing). The best match's
+// answer is used. Multi-word keyword phrases score higher than single
+// generic words so the matcher picks the most SPECIFIC topic, not just
+// the first thing that overlaps.
 const NEXOR_KNOWLEDGE = [
-  { keywords:['badge','verified','verify','tick','checkmark'],
+  { keywords:['badge','verified','verify','tick','checkmark','blue tick','nilа','verify kaise','tick kaise milta'],
     answer:"Verified accounts get a blue tick. Organization accounts (like @nexor) additionally show a separate org badge right next to the tick — both appear together, the org badge never replaces the verified tick." },
-  { keywords:['organization','org account','company account'],
+  { keywords:['organization','org account','company account','business account'],
     answer:"An organization badge is an extra mark shown alongside the verified tick for official accounts. It's set per-account, so each organization can have its own distinct badge." },
-  { keywords:['post','pulse','tweet','publish'],
-    answer:"To post, tap the compose button and write up to 200 characters (780 if you're verified) — you can attach images or a short video too. It's called a 'Pulse' here." },
-  { keywords:['reply','comment'],
+  { keywords:['character limit','780','200 character','word limit','kitne character','limit kitni'],
+    answer:"Regular accounts can write up to 200 characters per Pulse. Verified accounts get a higher limit — 780 characters — so they can share longer thoughts." },
+  { keywords:['post kaise','pulse kaise','tweet kaise','post','pulse','tweet','publish','kaise post karu'],
+    answer:"To post, tap the compose button and write your Pulse (200 characters, or 780 if you're verified) — you can attach images or a short video too." },
+  { keywords:['reply kaise','comment kaise','reply','comment'],
     answer:"Tap the reply icon under any Pulse to comment. Replies show up in a thread under the original Pulse and the author gets a notification." },
-  { keywords:['like','heart'],
+  { keywords:['like','heart','like kaise'],
     answer:"Tap the heart icon to like a Pulse. The author gets notified, and your liked Pulses are saved so you can find them again." },
-  { keywords:['repost','retweet','share'],
+  { keywords:['repost','retweet','share','quote'],
     answer:"Tap the repost icon to repost a Pulse to your followers, or choose 'quote' to add your own comment on top of it." },
-  { keywords:['bookmark','save'],
+  { keywords:['bookmark','save','save kaise'],
     answer:"Tap the bookmark icon to save a Pulse privately — only you can see your bookmarks, and they're easy to revisit anytime." },
-  { keywords:['follow','unfollow'],
+  { keywords:['follow','unfollow','follow kaise'],
     answer:"Tap Follow on any profile to see their Pulses in your feed. Private accounts need to approve your follow request first." },
-  { keywords:['mention','tag'],
+  { keywords:['mention','tag','@'],
     answer:"Typing @handle in a Pulse or reply tags that account and sends them a notification. Tagging @nexor specifically triggers an automatic reply like this one." },
-  { keywords:['hashtag','#'],
+  { keywords:['hashtag','#','trending'],
     answer:"Adding #hashtags to your Pulse makes it discoverable under that topic, and helps shape your personalized 'For You' feed." },
-  { keywords:['ai content','ai label','ai image','ai generated'],
+  { keywords:['ai content','ai label','ai image','ai generated','ai banaya'],
     answer:"Posts containing AI-generated images or AI accounts are marked with a small 'AI' label so it's always clear what's AI-made." },
   { keywords:['nsfw','sensitive','blur'],
     answer:"Sensitive images are automatically blurred with a warning overlay — you choose to tap through and reveal them." },
-  { keywords:['notification','alert'],
+  { keywords:['notification','alert','notify'],
     answer:"You get notifications for likes, replies, reposts, follows, and mentions — check the Alerts tab in the sidebar." },
-  { keywords:['private','privacy','data','password','email'],
+  { keywords:['private','privacy','data','password','email','phone number'],
     answer:"I can't share any private account information — emails, passwords, locations, or anyone's personal data. Happy to answer general questions about how Sparks works instead!" },
-  { keywords:['search','find'],
+  { keywords:['search kaise','search','find'],
     answer:"Use the search bar to look up people, hashtags, or Pulses across the app." },
-  { keywords:['feed','for you','timeline'],
+  { keywords:['for you feed','feed','timeline','for you'],
     answer:"The 'For You' feed is built from the hashtags in Pulses you've liked, reposted, bookmarked, or written — ranked alongside recency and engagement, all computed on your device." },
   { keywords:['profile','account','handle','username'],
     answer:"Your profile shows your name, handle, bio, and your Pulses. Tap 'About this account' from the verified badge for details like join date." },
   { keywords:['report','block','mute'],
     answer:"You can report, block, or mute any account from their profile menu if you don't want to see their content." },
+  { keywords:['who are you','who is nexor','what is nexor','tum kaun ho','aap kaun ho','kya ho tum'],
+    answer:"I'm @nexor — Sparks' official AI account. I answer questions about how this app works whenever someone tags me, all running right in your browser, no outside servers involved." },
+  { keywords:['how are you','kaise ho','kaisi ho','how r u'],
+    answer:"I'm doing great, thanks for asking! Running smoothly and ready to help — what would you like to know about Sparks?" },
+  { keywords:['thank you','thanks','thanku','shukriya','dhanyavad'],
+    answer:"You're welcome! Happy to help — tag me anytime you've got another question." },
+  { keywords:['bye','goodbye','alvida','tata'],
+    answer:"See you around! Tag @nexor whenever you need anything." },
+  { keywords:['joke','funny','hasao','chutkula'],
+    answer:"Here's one: why did the Pulse cross the feed? To get to the other 'For You' tab. 😄 Got a real question for me too?" },
+  { keywords:['name','tumhara naam','your name'],
+    answer:"My name's Nexor — you can always find me at @nexor." },
 ];
+
+// Lightweight greeting detector — checked separately from the topic-based
+// knowledge base above so a plain "hi" doesn't accidentally match some
+// unrelated keyword.
+const NEXOR_GREETINGS = ['hi','hii','hiii','hello','hey','heya','namaste','yo','salaam','sup'];
+
+// Scores every knowledge entry against the question. Longer, more specific
+// keyword phrases are worth more than short generic ones, and a keyword
+// only needs to appear as a substring (so plurals / Hinglish spelling
+// variants still match). The highest-scoring entry wins; ties keep the
+// earlier (more specific, since list is ordered specific→general) entry.
 function findNexorAnswer(question){
-  const q=question.toLowerCase();
+  const q=' '+question.toLowerCase().replace(/[?.,!]/g,' ')+' ';
+  const qWords=q.trim().split(/\s+/);
+  if(qWords.length<=2 && NEXOR_GREETINGS.some(g=>qWords.includes(g))){
+    return "Hey there! 👋 I'm @nexor, Sparks' AI account. Ask me anything about how the app works — posting, badges, follows, you name it.";
+  }
   let best=null, bestScore=0;
   for(const entry of NEXOR_KNOWLEDGE){
-    const score=entry.keywords.reduce((s,k)=>s+(q.includes(k)?1:0),0);
+    let score=0;
+    for(const k of entry.keywords){
+      if(q.includes(k.toLowerCase())) score += k.length; // longer/more specific phrase = stronger signal
+    }
     if(score>bestScore){ bestScore=score; best=entry; }
   }
   if(best) return best.answer;
   return "Hi! I'm the official @nexor account. I can answer questions about how Sparks works — posting, badges, follows, notifications, and more. Ask away!";
 }
 
+// Detects whether the question is actually asking Nexor to draw/generate
+// a picture, in English or Hinglish.
+const NEXOR_IMAGE_TRIGGERS = ['generate image','make image','create image','draw','image bana','pic bana','photo bana','image banado','picture banado','tasveer bana','banao image','image banao','ek image','image chahiye'];
+function wantsNexorImage(question){
+  const q=question.toLowerCase();
+  return NEXOR_IMAGE_TRIGGERS.some(t=>q.includes(t));
+}
+
+// Real AI image generation via a Cloudflare Worker (Workers AI,
+// @cf/black-forest-labs/flux-1-schnell model) — free tier, no API key
+// needed in this client since the Worker itself holds the AI binding.
+// Replace this URL with your own Worker's URL if it changes.
+const NEXOR_IMAGE_WORKER_URL = 'https://nexorai.sgursharn076.workers.dev/';
+
+async function generateNexorImage(prompt){
+  try{
+    const res=await fetch(NEXOR_IMAGE_WORKER_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ prompt: prompt || 'a simple abstract icon' })
+    });
+    if(!res.ok) throw new Error('Worker responded '+res.status);
+    const blob=await res.blob();
+    const dataUrl=await new Promise((resolve,reject)=>{
+      const reader=new FileReader();
+      reader.onload=()=>resolve(reader.result);
+      reader.onerror=reject;
+      reader.readAsDataURL(blob);
+    });
+    return dataUrl;
+  }catch(e){
+    console.error('Nexor image worker failed, using local fallback:', e);
+    return generateNexorImageFallback(prompt);
+  }
+}
+
+// Offline fallback ONLY used if the Worker call fails (e.g. no network,
+// Worker down, AI binding missing) — a simple abstract graphic on canvas,
+// not real AI art, just so the reply never comes back empty.
+function nexorSeedFromText(str){
+  let h=0;
+  for(let i=0;i<str.length;i++){ h=(h*31+str.charCodeAt(i))>>>0; }
+  return h;
+}
+function nexorMulberry32(seed){
+  return function(){
+    seed|=0; seed=seed+0x6D2B79F5|0;
+    let t=Math.imul(seed^seed>>>15,1|seed);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function generateNexorImageFallback(prompt){
+  const canvas=document.createElement('canvas');
+  canvas.width=600; canvas.height=600;
+  const ctx=canvas.getContext('2d');
+  const seed=nexorSeedFromText(prompt||'nexor');
+  const rnd=nexorMulberry32(seed);
+  const palettes=[
+    ['#00C8FF','#0D1B2E','#FFB830'],
+    ['#00D68F','#050A14','#00C8FF'],
+    ['#FF3B5C','#0D1B2E','#FFB830'],
+    ['#FFB830','#050A14','#00D68F'],
+  ];
+  const pal=palettes[Math.floor(rnd()*palettes.length)];
+  const grad=ctx.createLinearGradient(0,0,canvas.width,canvas.height);
+  grad.addColorStop(0,pal[1]); grad.addColorStop(1,pal[0]);
+  ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+  const shapeCount=6+Math.floor(rnd()*6);
+  for(let i=0;i<shapeCount;i++){
+    ctx.globalAlpha=0.12+rnd()*0.25;
+    ctx.fillStyle = rnd()>0.5 ? pal[0] : pal[2];
+    const x=rnd()*canvas.width, y=rnd()*canvas.height, r=30+rnd()*140;
+    ctx.beginPath();
+    if(rnd()>0.5){ ctx.arc(x,y,r,0,Math.PI*2); }
+    else { ctx.save(); ctx.translate(x,y); ctx.rotate(rnd()*Math.PI); ctx.fillRect(-r/2,-r/2,r,r); ctx.restore(); }
+    ctx.fill();
+  }
+  ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(5,10,20,0.55)';
+  ctx.fillRect(0,canvas.height-86,canvas.width,86);
+  ctx.fillStyle='#F0F4FF';
+  ctx.font='600 22px Inter, sans-serif';
+  ctx.textAlign='center';
+  const label=(prompt||'').slice(0,42)||'Nexor';
+  ctx.fillText(label, canvas.width/2, canvas.height-46);
+  ctx.font='400 13px Inter, sans-serif';
+  ctx.fillStyle='rgba(240,244,255,0.6)';
+  ctx.fillText('Image service unavailable — local fallback graphic', canvas.width/2, canvas.height-22);
+  return canvas.toDataURL('image/jpeg',0.85);
+}
+
 // Answers a question someone asked by tagging @nexor (in a post OR a
-// comment/reply), using ONLY the built-in knowledge base above — no
-// external API call is made. Posts the answer back as a reply from the
-// official @nexor account. Never reveals private user data.
+// comment/reply), using the built-in knowledge base for text questions,
+// and a real Cloudflare Workers AI image model (via generateNexorImage)
+// when the question is asking for a picture. Posts the answer back as a
+// reply from the official @nexor account. Never reveals private user data.
 async function triggerNexorAIReply(rawText, pulseId, nexorUid){
   const question=(rawText||'').replace(/@nexor\b/gi,'').trim();
   if(!question) return;
-  const answer=findNexorAnswer(question);
+  const wantsImage=wantsNexorImage(question);
+  const answer = wantsImage
+    ? "Here's what I generated for you:"
+    : findNexorAnswer(question);
   try{
     const uSnap=await db.ref('users/'+nexorUid).once('value');
     const nu=uSnap.val()||{};
     const replyData={uid:nexorUid,creatorName:nu.name||'Nexor',creatorHandle:nu.handle||NEXOR_HANDLE,
       creatorVerified:true,creatorIsAI:true,creatorBadgeUrl:nu.badgeUrl||NEXOR_BADGE_URL,creatorPhoto:nu.photoBase64||null,
       text:answer,parentId:pulseId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
+    if(wantsImage){
+      const img=await generateNexorImage(question);
+      replyData.images=[img];
+      replyData.imageBase64=img;
+      replyData.imageIsAI=true;
+    }
     const ref=await db.ref('pulses').push(replyData);
     await db.ref('replies/'+pulseId+'/'+ref.key).set(true);
     await db.ref('pulses/'+pulseId+'/replies').transaction(c=>(c||0)+1);
