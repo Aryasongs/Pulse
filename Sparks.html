@@ -835,6 +835,14 @@ img{display:block;}
       </div>
       <i class="ph ph-caret-right" style="font-size:16px;"></i>
     </div>
+    <div class="settings-row" onclick="toggleLocationSharing()">
+      <i class="ph ph-map-pin"></i>
+      <div class="settings-row-text">
+        <div class="settings-row-title">Share location guess</div>
+        <div class="settings-row-sub" id="settings-location-sub">Show "Account based in" (from IP) on your About info</div>
+      </div>
+      <div class="toggle-switch" id="settings-location-toggle" onclick="event.stopPropagation();toggleLocationSharing()"></div>
+    </div>
   </div>
 
   <div class="settings-section-title">Session</div>
@@ -1197,7 +1205,12 @@ async function openAboutAccount(uid){
     html += row('Profile name', ESC(u.name||'User'));
     html += row('Username', '@'+ESC(u.handle||'user'));
     html += row('Date joined', u.createdAt ? joinDate(u.createdAt) : 'Not available');
-    html += row('Account based in', u.signupLocation ? ESC(u.signupLocation)+' <span style="color:var(--text3);font-weight:400;">(guess from IP)</span>' : '<span style="color:var(--text3);font-weight:400;">Not available</span>');
+    const isSelf = uid===me.uid;
+    if(u.locationHidden===true && !isSelf){
+      html += row('Account based in', '<span style="color:var(--text3);font-weight:400;">Not shared</span>');
+    } else {
+      html += row('Account based in', u.signupLocation ? ESC(u.signupLocation)+' <span style="color:var(--text3);font-weight:400;">(guess from IP)</span>'+(u.locationHidden===true&&isSelf?' <span style="color:var(--text3);font-weight:400;">· hidden from others</span>':'') : '<span style="color:var(--text3);font-weight:400;">Not available</span>');
+    }
     if(u.verified){
       html += row('Verified since', verifiedSinceTs ? joinDate(verifiedSinceTs) : 'Not available');
     }
@@ -1360,6 +1373,33 @@ async function doForgotUsername(){
 }
 document.getElementById('forgot-modal').addEventListener('click',e=>{ if(e.target.id==='forgot-modal') closeForgotModal(); });
 
+// Self-heal: fills in missing "About this account" fields for accounts
+// that existed before this feature shipped. Runs once per sign-in, in the
+// background, and never blocks the UI.
+async function backfillAccountMeta(){
+  if(!me || !myData) return;
+  try{
+    const updates={};
+    // Date joined: fall back to Firebase Auth's own creation timestamp
+    if(!myData.createdAt && me.metadata && me.metadata.creationTime){
+      const ts=new Date(me.metadata.creationTime).getTime();
+      if(ts){ updates.createdAt=ts; myData.createdAt=ts; }
+    }
+    if(Object.keys(updates).length){ await db.ref('users/'+me.uid).update(updates).catch(()=>{}); }
+    // Account based in: best-effort IP geolocation guess, only if missing
+    if(!myData.signupLocation){
+      const loc=await guessLocationFromIP();
+      if(loc){ await db.ref('users/'+me.uid+'/signupLocation').set(loc).catch(()=>{}); myData.signupLocation=loc; }
+    }
+    // Verified since: if verified but no timestamp recorded yet, set one now
+    if(myData.verified && !myData.verifiedSinceTs){
+      const vts=myData.createdAt||Date.now();
+      await db.ref('users/'+me.uid+'/verifiedSinceTs').set(vts).catch(()=>{});
+      myData.verifiedSinceTs=vts;
+    }
+  } catch(e){ /* best-effort only, never block sign-in */ }
+}
+
 function friendlyErr(err){
   const m={
     'auth/invalid-email':'Invalid email address.',
@@ -1390,6 +1430,7 @@ auth.onAuthStateChanged(user => {
 
 async function onSignedIn(){
   await loadMyData();
+  backfillAccountMeta();
   await Promise.all([loadFollowing(),loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts(),loadBlocked(),loadMuted()]);
   listenFeed();
   loadTrending();
@@ -2189,6 +2230,10 @@ async function loadSettingsScreen(){
   toggle.classList.toggle('on',isPrivate);
   document.getElementById('settings-private-sub').textContent=isPrivate?'Only your followers can see your Pulses & profile':'Anyone can see your Pulses & profile';
   document.getElementById('settings-blocked-count').textContent=blockedSet.size?blockedSet.size+' account'+(blockedSet.size===1?'':'s')+' blocked':"Manage people you've blocked";
+  const locShared=myData.locationHidden!==true; // shared by default unless explicitly hidden
+  const locToggle=document.getElementById('settings-location-toggle');
+  locToggle.classList.toggle('on',locShared);
+  document.getElementById('settings-location-sub').textContent=locShared?'Account based in (from IP) is visible on your About info':'Hidden — others will see "Account based in: Not shared"';
 }
 async function togglePrivateAccount(){
   const next=!myData.private;
@@ -2196,6 +2241,14 @@ async function togglePrivateAccount(){
   await db.ref('users/'+me.uid+'/private').set(next);
   loadSettingsScreen();
   showToast(next?'Account is now private 🔒':'Account is now public 🌐');
+}
+async function toggleLocationSharing(){
+  const currentlyShared=myData.locationHidden!==true;
+  const next=currentlyShared; // if currently shared, hide it; if hidden, share it
+  myData.locationHidden=next;
+  await db.ref('users/'+me.uid+'/locationHidden').set(next);
+  loadSettingsScreen();
+  showToast(next?'Location guess hidden from others':'Location guess is now visible to others');
 }
 async function fetchUsersByIds(ids){
   return Promise.all(ids.map(id=>db.ref('users/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
