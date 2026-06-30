@@ -2552,19 +2552,144 @@ function findNexorAnswer(question){
   return "Hi! I'm the official @nexor account. I can answer questions about how Sparks works — posting, badges, follows, notifications, and more. Ask away!";
 }
 
-// Detects whether the question is actually asking Nexor to draw/generate
-// a picture, in English or Hinglish.
-const NEXOR_IMAGE_TRIGGERS = ['generate image','make image','create image','draw','image bana','pic bana','photo bana','image banado','picture banado','tasveer bana','banao image','image banao','ek image','image chahiye'];
-function wantsNexorImage(question){
-  const q=question.toLowerCase();
-  return NEXOR_IMAGE_TRIGGERS.some(t=>q.includes(t));
+// ------------------------------------------------------------------
+// EXPLICIT TWO-OPTION PARSER for @nexor replies.
+// Tagging @nexor always offers exactly two options: "image" or "text".
+// The user picks one by starting their message with that word (English
+// or common Hinglish equivalents), e.g.:
+//   @nexor image cat in the sky
+//   @nexor text how does follow work
+//   @nexor pic ek cute dog
+// If neither prefix is used, Nexor doesn't guess — it replies with the
+// instructions so the user can choose explicitly next time.
+// ------------------------------------------------------------------
+const NEXOR_IMAGE_PREFIXES = ['image','img','generate image','make image','create image','draw','pic','photo','picture','tasveer','tasveer bana','image bana','pic bana','photo bana'];
+const NEXOR_TEXT_PREFIXES  = ['text','txt','reply','answer','jawab'];
+
+// Strips a recognized prefix off the front of the question and returns
+// the remainder (the actual prompt/question text). Matches the LONGEST
+// prefix first so e.g. "image bana" wins over the shorter "image".
+function stripNexorPrefix(question, prefixList){
+  const q=question.trim();
+  const ql=q.toLowerCase();
+  const sorted=[...prefixList].sort((a,b)=>b.length-a.length);
+  for(const p of sorted){
+    if(ql===p || ql.startsWith(p+' ') || ql.startsWith(p+':')){
+      return q.slice(p.length).replace(/^[\s:]+/,'').trim();
+    }
+  }
+  return null; // prefix not found
 }
+
+// Returns one of: {mode:'image', prompt}, {mode:'text', prompt}, or
+// {mode:'choose'} when the user hasn't picked an option yet.
+function parseNexorRequest(question){
+  const imgPrompt=stripNexorPrefix(question, NEXOR_IMAGE_PREFIXES);
+  if(imgPrompt!==null) return {mode:'image', prompt:imgPrompt};
+  const txtPrompt=stripNexorPrefix(question, NEXOR_TEXT_PREFIXES);
+  if(txtPrompt!==null) return {mode:'text', prompt:txtPrompt};
+  return {mode:'choose'};
+}
+
+const NEXOR_OPTIONS_PROMPT = "Hi! Tag me with one of these two options:\n\n🖼️ Reply with: image <description>  (e.g. \"image cat in the sky\")\n💬 Reply with: text <your question>  (e.g. \"text how does follow work\")";
+
+// ------------------------------------------------------------------
+// SAFETY GATE for image generation requests.
+// Blocks nudity / sexual / porn / exploitative requests at the PROMPT
+// level, before any network call or canvas work happens. Matches
+// English and common Hinglish/Roman-Hindi phrasing. This is intentionally
+// broad/keyword-based (a simple substring scan) rather than trying to be
+// "clever" about it, since for safety gates a few false positives are a
+// much better trade-off than letting something slip through.
+// ------------------------------------------------------------------
+const NEXOR_UNSAFE_IMAGE_TERMS = [
+  'nude','naked','nudity','porn','pornographic','xxx','sex','sexy','sexual','erotic','nsfw',
+  'boobs','breast','breasts','nipple','vagina','penis','genital','genitals',
+  'undress','undressed','strip','stripped','topless','bottomless','lingerie nude',
+  'hentai','rape','molest','incest','bestiality',
+  'nangi','nanga','nange','nangapan','barhana','brahna','choot','lund','gand nangi',
+  'bhabhi nude','bhabhi sexy','bhabhi naked','aunty nude','aunty naked',
+  'child nude','child naked','child porn','kids nude','minor nude','teen nude','underage nude',
+  'loli','lolita'
+];
+function nexorImagePromptIsUnsafe(prompt){
+  const p=' '+(prompt||'').toLowerCase().replace(/[^a-z0-9\s]/g,' ')+' ';
+  return NEXOR_UNSAFE_IMAGE_TERMS.some(t=>p.includes(' '+t+' ')||p.includes(t));
+}
+const NEXOR_UNSAFE_IMAGE_REPLY = "I can't generate that. Creating nude, sexual, or exploitative images is a violation of community guidelines, so I'm not able to help with this request. I'm happy to generate other images for you — just describe what you'd like to see instead.";
 
 // Real AI image generation via a Cloudflare Worker (Workers AI,
 // @cf/black-forest-labs/flux-1-schnell model) — free tier, no API key
 // needed in this client since the Worker itself holds the AI binding.
 // Replace this URL with your own Worker's URL if it changes.
 const NEXOR_IMAGE_WORKER_URL = 'https://nexorai.sgursharn076.workers.dev/';
+
+// ------------------------------------------------------------------
+// WATERMARK — every image Nexor generates (Worker result OR offline
+// fallback) gets a small logo-style "Nexor AI" mark baked permanently
+// into the bottom-left corner of the actual pixels, so it travels with
+// the image file itself (download, screenshot, re-share — it stays).
+// This is separate from the in-app ".ai-content-badge" DOM overlay,
+// which only shows up while viewing the post inside Sparks.
+// ------------------------------------------------------------------
+function drawNexorWatermark(ctx, canvasW, canvasH){
+  const pad=14;
+  const dotR=9;
+  ctx.save();
+  ctx.font='800 13px Inter, sans-serif';
+  const label='Nexor AI';
+  const textW=ctx.measureText(label).width;
+  const badgeH=26;
+  const badgeW = pad*2 + dotR*2 + 6 + textW + 10;
+  const x=10, y=canvasH-badgeH-10;
+  // pill background
+  ctx.fillStyle='rgba(5,10,20,0.68)';
+  ctx.strokeStyle='rgba(0,200,255,0.45)';
+  ctx.lineWidth=1;
+  const r=badgeH/2;
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+badgeW,y,x+badgeW,y+badgeH,r);
+  ctx.arcTo(x+badgeW,y+badgeH,x,y+badgeH,r);
+  ctx.arcTo(x,y+badgeH,x,y,r);
+  ctx.arcTo(x,y,x+badgeW,y,r);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // small logo dot (simple mark so it reads as a logo, not just plain text)
+  const cx=x+14, cy=y+badgeH/2;
+  const dotGrad=ctx.createLinearGradient(cx-dotR,cy-dotR,cx+dotR,cy+dotR);
+  dotGrad.addColorStop(0,'#00C8FF'); dotGrad.addColorStop(1,'#00D68F');
+  ctx.fillStyle=dotGrad;
+  ctx.beginPath(); ctx.arc(cx,cy,dotR,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#050A14';
+  ctx.font='800 11px Inter, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('N', cx, cy+0.5);
+  // label text
+  ctx.fillStyle='#F0F4FF';
+  ctx.font='800 13px Inter, sans-serif';
+  ctx.textAlign='left'; ctx.textBaseline='middle';
+  ctx.fillText(label, cx+dotR+6, cy+0.5);
+  ctx.restore();
+}
+function nexorWatermarkDataUrl(dataUrl){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const canvas=document.createElement('canvas');
+        canvas.width=img.naturalWidth||600;
+        canvas.height=img.naturalHeight||600;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,canvas.width,canvas.height);
+        drawNexorWatermark(ctx, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg',0.9));
+      }catch(e){ console.error('Nexor watermark draw failed:',e); resolve(dataUrl); }
+    };
+    img.onerror=()=>resolve(dataUrl); // if it somehow fails to load, ship the unwatermarked image rather than nothing
+    img.src=dataUrl;
+  });
+}
 
 async function generateNexorImage(prompt){
   try{
@@ -2581,7 +2706,7 @@ async function generateNexorImage(prompt){
       reader.onerror=reject;
       reader.readAsDataURL(blob);
     });
-    return dataUrl;
+    return await nexorWatermarkDataUrl(dataUrl);
   }catch(e){
     console.error('Nexor image worker failed, using local fallback:', e);
     return generateNexorImageFallback(prompt);
@@ -2631,39 +2756,45 @@ function generateNexorImageFallback(prompt){
     ctx.fill();
   }
   ctx.globalAlpha=1;
-  ctx.fillStyle='rgba(5,10,20,0.55)';
-  ctx.fillRect(0,canvas.height-86,canvas.width,86);
-  ctx.fillStyle='#F0F4FF';
-  ctx.font='600 22px Inter, sans-serif';
-  ctx.textAlign='center';
-  const label=(prompt||'').slice(0,42)||'Nexor';
-  ctx.fillText(label, canvas.width/2, canvas.height-46);
-  ctx.font='400 13px Inter, sans-serif';
-  ctx.fillStyle='rgba(240,244,255,0.6)';
-  ctx.fillText('Image service unavailable — local fallback graphic', canvas.width/2, canvas.height-22);
+  drawNexorWatermark(ctx, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg',0.85);
 }
 
 // Answers a question someone asked by tagging @nexor (in a post OR a
-// comment/reply), using the built-in knowledge base for text questions,
-// and a real Cloudflare Workers AI image model (via generateNexorImage)
-// when the question is asking for a picture. Posts the answer back as a
-// reply from the official @nexor account. Never reveals private user data.
+// comment/reply). Tagging @nexor always presents two explicit options —
+// "image" or "text" — via parseNexorRequest(). If neither is chosen yet,
+// Nexor replies with instructions instead of guessing. Image requests are
+// checked by the safety gate BEFORE any generation happens; unsafe
+// requests get a plain-English refusal citing community guidelines and
+// nothing is generated. Posts the answer back as a reply from the
+// official @nexor account. Never reveals private user data.
 async function triggerNexorAIReply(rawText, pulseId, nexorUid){
   const question=(rawText||'').replace(/@nexor\b/gi,'').trim();
   if(!question) return;
-  const wantsImage=wantsNexorImage(question);
-  const answer = wantsImage
-    ? "Here's what I generated for you:"
-    : findNexorAnswer(question);
+  const req=parseNexorRequest(question);
+  let answer, imagePromptToGenerate=null;
+  if(req.mode==='choose'){
+    answer=NEXOR_OPTIONS_PROMPT;
+  }else if(req.mode==='text'){
+    answer=req.prompt ? findNexorAnswer(req.prompt) : NEXOR_OPTIONS_PROMPT;
+  }else{ // req.mode==='image'
+    if(!req.prompt){
+      answer="What would you like the image to be of? Reply: image <description>";
+    }else if(nexorImagePromptIsUnsafe(req.prompt)){
+      answer=NEXOR_UNSAFE_IMAGE_REPLY;
+    }else{
+      answer="Here's what I generated for you:";
+      imagePromptToGenerate=req.prompt;
+    }
+  }
   try{
     const uSnap=await db.ref('users/'+nexorUid).once('value');
     const nu=uSnap.val()||{};
     const replyData={uid:nexorUid,creatorName:nu.name||'Nexor',creatorHandle:nu.handle||NEXOR_HANDLE,
       creatorVerified:true,creatorIsAI:true,creatorBadgeUrl:nu.badgeUrl||NEXOR_BADGE_URL,creatorPhoto:nu.photoBase64||null,
       text:answer,parentId:pulseId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
-    if(wantsImage){
-      const img=await generateNexorImage(question);
+    if(imagePromptToGenerate){
+      const img=await generateNexorImage(imagePromptToGenerate);
       replyData.images=[img];
       replyData.imageBase64=img;
       replyData.imageIsAI=true;
