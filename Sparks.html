@@ -1640,12 +1640,12 @@ async function onSignedIn(){
   await loadMyData();
   backfillAccountMeta();
   await Promise.all([loadFollowing(),loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts(),loadBlocked(),loadMuted()]);
+  await buildMyInterests().catch(e=>console.error('buildMyInterests failed:',e));
   listenFeed();
   loadTrending();
   loadWhoToFollow();
   loadNotifs();
-  buildMyInterests().then(()=>{ if(feedTab==='foryou') listenFeed(); }).catch(e=>console.error('buildMyInterests failed:',e));
-  ensureNexorAccount().then(()=>maybeAutoTweetNexor()).catch(()=>{});
+  ensureNexorAccount().catch(()=>{}); // just keeps @nexor's badge in sync, never posts anything
 }
 
 // ============================================================
@@ -1750,12 +1750,14 @@ function listenFeed(){
     if(feedTab==='following'){
       visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
     } else {
-      // For You: blend recency + on-device interest score + engagement,
-      // keeping a handful of the very newest Pulses pinned to the top so
-      // the feed never feels stale even before interests are personalized.
-      const freshest = visible.slice(0,3);
-      const rest = visible.slice(3).slice().sort((a,b)=>pulseRankScore(b)-pulseRankScore(a));
-      visible = freshest.concat(rest);
+      // For You: ONLY show your own posts, posts from people you follow,
+      // or posts whose hashtags match your on-device interest profile —
+      // never a random stranger's post with no connection to you.
+      visible = visible.filter(p => {
+        if(p.uid===me.uid || followingSet.has(p.uid)) return true;
+        return extractTags(p.text).some(t=>myInterests[t]);
+      });
+      visible = visible.slice().sort((a,b)=>pulseRankScore(b)-pulseRankScore(a));
     }
     if(!visible.length){ document.getElementById('feed-empty').classList.remove('hidden'); el.innerHTML=''; return; }
     document.getElementById('feed-empty').classList.add('hidden');
@@ -2390,48 +2392,6 @@ async function ensureNexorAccount(){
   }catch(e){ /* best-effort */ }
 }
 
-// Queue of feature announcements @nexor posts about automatically. Add new
-// entries here whenever a new Sparks feature ships — each one is posted
-// once, the next time anyone opens the app (semi-automatic, no server
-// needed). Order matters: posted top-to-bottom.
-const NEXOR_ANNOUNCEMENTS = [
-  "⚡ New feature: organization badges! Verified accounts can now show a unique org badge right next to their verified tick — just like the big platforms. #Sparks",
-  "🤖 You can now tag @nexor anywhere — in a post or a comment — and get an instant reply about how Sparks works. No private data is ever shared. #Sparks",
-];
-
-// On every app open, post the next due announcement as @nexor (if any),
-// guarded by a transaction so concurrent app-opens never double-post.
-async function maybeAutoTweetNexor(){
-  try{
-    const uid=await getNexorUid();
-    if(!uid) return;
-    const idxRef=db.ref('nexorBot/lastPostedIndex');
-    const txn=await idxRef.transaction(cur=>{
-      const next=(typeof cur==='number'?cur:-1)+1;
-      if(next>=NEXOR_ANNOUNCEMENTS.length) return cur; // nothing left to post — abort
-      return next;
-    });
-    if(!txn.committed) return;
-    const idx=txn.snapshot.val();
-    const text=NEXOR_ANNOUNCEMENTS[idx];
-    if(typeof text!=='string') return;
-    const uSnap=await db.ref('users/'+uid).once('value');
-    const nu=uSnap.val()||{};
-    const pulseData={
-      uid, creatorName:nu.name||'Nexor', creatorHandle:nu.handle||NEXOR_HANDLE,
-      creatorVerified:true, creatorIsAI:false, creatorBadgeUrl:nu.badgeUrl||NEXOR_BADGE_URL,
-      creatorPhoto:nu.photoBase64||null, creatorPrivate:false,
-      text, likes:0, replies:0, reposts:0, views:0,
-      images:null, imageBase64:null, imageIsAI:false,
-      videoBase64:null, videoPoster:null, videoType:null, videoDuration:null,
-      createdAt:firebase.database.ServerValue.TIMESTAMP
-    };
-    const ref=await db.ref('pulses').push(pulseData);
-    await db.ref('userPulses/'+uid+'/'+ref.key).set(true);
-    await db.ref('users/'+uid+'/pulsesCount').transaction(c=>(c||0)+1);
-  }catch(e){ /* best-effort, never blocks app load */ }
-}
-
 // Built-in knowledge base about how Sparks actually works (based on the
 // app's own code/features) — used to answer @nexor questions WITHOUT any
 // external API call. Each entry is matched against keywords found in the
@@ -2881,10 +2841,15 @@ async function submitReport(reason){
 function openReply(pulseId, handle){
   replyToId=pulseId;
   document.getElementById('reply-to-handle').textContent='@'+handle;
-  document.getElementById('reply-text').value='';
-  document.getElementById('reply-counter').textContent='280';
-  document.getElementById('reply-post-btn').disabled=true;
+  const prefill='@'+handle+' ';
+  const ta=document.getElementById('reply-text');
+  ta.value=prefill;
+  document.getElementById('reply-counter').textContent=(280-prefill.length);
+  document.getElementById('reply-post-btn').disabled=false;
   openModal('reply-modal');
+  ta.focus();
+  // place cursor at the end, after the auto-tagged handle
+  ta.setSelectionRange(prefill.length,prefill.length);
 }
 async function postReply(){
   const text=document.getElementById('reply-text').value.trim();
@@ -2892,7 +2857,8 @@ async function postReply(){
   const btn=document.getElementById('reply-post-btn'); btn.disabled=true;
   try{
     const replyData={uid:me.uid,creatorName:myData.name||'User',creatorHandle:myData.handle||'user',
-      creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
+      creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,
+      text,parentId:replyToId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
     const ref=await db.ref('pulses').push(replyData);
     await db.ref('replies/'+replyToId+'/'+ref.key).set(true);
     await db.ref('pulses/'+replyToId+'/replies').transaction(c=>(c||0)+1);
