@@ -948,11 +948,19 @@ let epBannerData = null;
 const ESC = s => !s ? '' : String(s).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 // Turn #hashtags and @mentions inside (already-escaped-safe) text into colored, clickable spans
 function linkifyText(raw){
-  const esc = ESC(raw||'');
-  return esc.replace(/(^|[^\w@#])([@#])(\w+)/g, (m,pre,sym,word)=>{
-    if(sym==='#') return `${pre}<span class="pulse-hashtag" onclick="event.stopPropagation();openHashtag('${word.replace(/'/g,"")}')">#${word}</span>`;
-    return `${pre}<span class="pulse-mention" onclick="event.stopPropagation();openMentionProfile('${word.replace(/'/g,"")}')">@${word}</span>`;
-  });
+  raw = String(raw||'');
+  const re=/(^|[^\w@#])([@#])(\w+)/g;
+  let result='', last=0, m;
+  while((m=re.exec(raw))){
+    const pre=m[1], sym=m[2], word=m[3];
+    result += ESC(raw.slice(last, m.index)); // plain text before this token, escaped
+    result += ESC(pre);
+    if(sym==='#') result += `<span class="pulse-hashtag" onclick="event.stopPropagation();openHashtag('${word.toLowerCase().replace(/'/g,'')}')">#${ESC(word)}</span>`;
+    else result += `<span class="pulse-mention" onclick="event.stopPropagation();openMentionProfile('${word.replace(/'/g,'')}')">@${ESC(word)}</span>`;
+    last = m.index + m[0].length;
+  }
+  result += ESC(raw.slice(last));
+  return result;
 }
 const fmtN = n => { n=n||0; if(n<1000)return''+n; if(n<1e6)return(n/1000).toFixed(n%1000===0?0:1)+'K'; return(n/1e6).toFixed(1)+'M'; };
 const timeAgo = ts => {
@@ -1621,6 +1629,11 @@ async function openProfile(uid){
   document.getElementById('profile-title-name').textContent='Loading…';
   document.getElementById('profile-display-name').textContent='—';
   document.getElementById('profile-handle').textContent='@—';
+  document.getElementById('profile-following-count').textContent='—';
+  document.getElementById('profile-followers-count').textContent='—';
+  document.getElementById('profile-likes-count').textContent='—';
+  document.getElementById('profile-av').innerHTML='<span id="profile-av-letter">·</span>';
+  document.getElementById('profile-banner-el').innerHTML='';
   const el=document.getElementById('profile-pulses-list');
   el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
   let snap;
@@ -1645,7 +1658,6 @@ async function openProfile(uid){
 
   // Avatar
   const profAv=document.getElementById('profile-av');
-  document.getElementById('profile-av-letter').textContent=letter;
   if(u.photoBase64){ profAv.innerHTML=`<img src="${u.photoBase64}" alt=""><div class="profile-av-edit-overlay ${isOwn?'':'hidden'}" id="profile-av-edit-overlay"><i class="ph ph-camera"></i></div>`; }
   else { profAv.innerHTML=`<span id="profile-av-letter">${letter}</span><div class="profile-av-edit-overlay ${isOwn?'':'hidden'}" id="profile-av-edit-overlay"><i class="ph ph-camera"></i></div>`; }
 
