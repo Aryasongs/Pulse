@@ -1372,19 +1372,32 @@ const ESC = s => !s ? '' : String(s).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&
 // (e.g. the @nexor auto-reply), where the notification is not "from" the
 // currently logged-in user. Omit it for normal user-triggered notifications.
 // ============================================================
+// TEMP DEBUG SWITCH — shows a toast on every notification send attempt
+// (success / skipped / failed) so issues are visible without devtools.
+// Set this to false (or delete this line) once notifications are confirmed working.
+window.__notifDebug = true;
+
 function sendNotification(receiverUid, data, senderOverride){
   const fromUid = (senderOverride && senderOverride.uid) || (me && me.uid);
   const fromName = (senderOverride && senderOverride.name) || (myData && myData.name) || (me && me.displayName) || 'Someone';
-  if(!receiverUid || !fromUid || receiverUid === fromUid) return Promise.resolve();
+  if(!receiverUid || !fromUid || receiverUid === fromUid){
+    console.warn('[sendNotification] skipped — receiverUid:', receiverUid, 'fromUid:', fromUid, 'type:', data&&data.type);
+    if(window.__notifDebug) showToast(`⚠️ Notif SKIPPED (${data&&data.type}) recv:${String(receiverUid||'none').slice(0,6)} from:${String(fromUid||'none').slice(0,6)}`);
+    return Promise.resolve();
+  }
   return db.ref('notifications/' + receiverUid).push({
     ...data,
     fromUid,
     fromName,
     read: false,
     createdAt: firebase.database.ServerValue.TIMESTAMP
+  }).then(ref=>{
+    if(window.__notifDebug) showToast(`✓ Notif sent (${data.type}) → ${receiverUid.slice(0,8)}`);
+    return ref;
   }).catch(err=>{
     console.error('Notification push failed:', err);
     if(err.code==='PERMISSION_DENIED') showToast('Could not send notification — check Firebase rules');
+    else if(window.__notifDebug) showToast(`✗ Notif FAILED (${data.type}): ${err.message}`);
   });
 }
 // Turn #hashtags and @mentions inside (already-escaped-safe) text into colored, clickable spans
