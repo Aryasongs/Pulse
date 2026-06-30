@@ -2932,9 +2932,11 @@ async function openFollowList(kind){
 // ============================================================
 function loadNotifs(){
   if(notifUnsub)notifUnsub();
-  const ref=db.ref('notifications/'+me.uid).orderByChild('createdAt').limitToLast(50);
+  const ref=db.ref('notifications/'+me.uid);
   const handler=ref.on('value', snap=>{
-    const items=[]; snap.forEach(child=>items.unshift({id:child.key,...child.val()}));
+    const items=[]; snap.forEach(child=>items.push({id:child.key,...child.val()}));
+    items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    items.splice(50);
     const unread=items.filter(n=>!n.read).length;
     const badge=document.getElementById('notif-badge');
     if(badge){badge.textContent=unread;badge.classList.toggle('hidden',unread===0);}
@@ -2975,10 +2977,10 @@ function loadNotifs(){
 }
 async function markNotifRead(id){ await db.ref('notifications/'+me.uid+'/'+id+'/read').set(true).catch(()=>{}); }
 async function markAllNotifsRead(){
-  const snap=await db.ref('notifications/'+me.uid).orderByChild('read').equalTo(false).once('value');
+  const snap=await db.ref('notifications/'+me.uid).once('value');
   const updates={};
-  snap.forEach(c=>{updates['notifications/'+me.uid+'/'+c.key+'/read']=true;});
-  if(Object.keys(updates).length) await db.ref().update(updates).catch(()=>{});
+  snap.forEach(c=>{ if(c.val()&&c.val().read===false) updates['notifications/'+me.uid+'/'+c.key+'/read']=true; });
+  if(Object.keys(updates).length) await db.ref().update(updates).catch(err=>console.error('markAllNotifsRead failed:',err));
 }
 
 // ============================================================
@@ -3356,7 +3358,7 @@ function showScreen(id){
   document.querySelectorAll('.screen-overlay').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   setNavActive(id);
-  if(id==='notif-screen') markAllNotifsRead();
+  if(id==='notif-screen'){ loadNotifs(); markAllNotifsRead(); }
   if(id==='bookmarks-screen') loadBookmarksScreen();
   if(id==='lists-screen') loadListsScreen();
   if(id==='settings-screen') loadSettingsScreen();
