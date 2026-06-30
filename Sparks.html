@@ -1628,11 +1628,13 @@ async function openProfile(uid){
     snap=await db.ref('users/'+uid).once('value');
   }catch(e){
     if(token!==profileLoadToken) return;
-    showToast('Could not load profile');
-    el.innerHTML='<div class="empty-feed"><p>Could not load this profile.</p></div>';
+    console.error('openProfile: failed to read users/'+uid, e);
+    showToast('Could not load profile (permission/network issue)');
+    el.innerHTML='<div class="empty-feed"><p>Could not load this profile.</p><p style="font-size:12px;color:var(--text3);margin-top:6px;">'+ESC(e.message||'')+'</p></div>';
     return;
   }
   if(token!==profileLoadToken) return; // a newer openProfile() call superseded this one
+  try{
   const u=snap.val()||{};
   const isOwn=uid===me.uid;
   const isFollowing=followingSet.has(uid);
@@ -1695,6 +1697,12 @@ async function openProfile(uid){
   if(token!==profileLoadToken) return;
   pulses.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
+  }catch(e){
+    if(token!==profileLoadToken) return;
+    console.error('openProfile: failed while rendering profile for '+uid, e);
+    showToast('Could not fully load this profile');
+    el.innerHTML='<div class="empty-feed"><p>Something went wrong loading this profile\'s Pulses.</p></div>';
+  }
 }
 
 function gotoOwnProfile(){openProfile(me.uid);}
