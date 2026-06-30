@@ -322,6 +322,8 @@ img{display:block;}
 .btn-follow-sm:hover{background:var(--cyan);color:#050A14;}
 .btn-follow-sm.following{border-color:var(--border2);color:var(--text2);}
 .btn-follow-sm.following:hover{border-color:var(--like);color:var(--like);}
+.btn-follow-sm.requested{border-color:var(--border2);color:var(--text2);}
+.btn-follow-sm.requested:hover{border-color:var(--like);color:var(--like);}
 
 /* ====== MOBILE NAV ====== */
 .mobile-nav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:50;background:rgba(5,10,20,.92);backdrop-filter:blur(16px);border-top:1px solid var(--border);padding-bottom:var(--safe-bottom);}
@@ -1071,6 +1073,7 @@ let me = null;
 let myData = {};
 let feedTab = 'foryou';
 let followingSet = new Set();
+let requestedSet = new Set(); // uids I've sent a pending follow request to
 let likedSet     = new Set();
 let bookmarkSet  = new Set();
 let repostSet    = new Set();
@@ -1221,14 +1224,14 @@ auth.onAuthStateChanged(user => {
   } else {
     document.getElementById('auth-screen').style.display='flex';
     document.getElementById('app').classList.remove('active');
-    myData={}; followingSet=new Set(); likedSet=new Set(); bookmarkSet=new Set(); repostSet=new Set(); blockedSet=new Set(); mutedSet=new Set();
+    myData={}; followingSet=new Set(); requestedSet=new Set(); likedSet=new Set(); bookmarkSet=new Set(); repostSet=new Set(); blockedSet=new Set(); mutedSet=new Set();
     document.getElementById('feed-list').innerHTML='';
   }
 });
 
 async function onSignedIn(){
   await loadMyData();
-  await Promise.all([loadFollowing(),loadLikes(),loadBookmarks(),loadReposts(),loadBlocked(),loadMuted()]);
+  await Promise.all([loadFollowing(),loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts(),loadBlocked(),loadMuted()]);
   listenFeed();
   loadTrending();
   loadWhoToFollow();
@@ -1259,6 +1262,7 @@ function updateSidebarUser(){
   });
 }
 async function loadFollowing(){ const s=await db.ref('following/'+me.uid).once('value'); followingSet=new Set(Object.keys(s.val()||{})); }
+async function loadSentRequests(){ const s=await db.ref('sentRequests/'+me.uid).once('value'); requestedSet=new Set(Object.keys(s.val()||{})); }
 async function loadLikes(){ const s=await db.ref('userLikes/'+me.uid).once('value'); likedSet=new Set(Object.keys(s.val()||{})); }
 async function loadBookmarks(){ const s=await db.ref('bookmarks/'+me.uid).once('value'); bookmarkSet=new Set(Object.keys(s.val()||{})); }
 async function loadReposts(){ const s=await db.ref('userReposts/'+me.uid).once('value'); repostSet=new Set(Object.keys(s.val()||{})); }
@@ -1875,27 +1879,124 @@ function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast(
 // ============================================================
 // FOLLOW
 // ============================================================
+function followBtnHtml(uid){
+  const isF=followingSet.has(uid), isR=requestedSet.has(uid);
+  const cls=isF?'following':(isR?'requested':'');
+  const label=isF?'Following':(isR?'Requested':'Follow');
+  return `<button class="btn-follow-sm ${cls}" data-uid="${ESC(uid)}" onclick="event.stopPropagation();toggleFollow('${ESC(uid)}',this)">${label}</button>`;
+}
+function setFollowBtnState(targetUid, state){
+  // state: 'follow' | 'following' | 'requested'
+  const label = state==='following'?'Following':state==='requested'?'Requested':'Follow';
+  const apply=(b)=>{ b.classList.toggle('following', state==='following'); b.classList.toggle('requested', state==='requested'); b.textContent=label; };
+  document.querySelectorAll(`.btn-follow-sm[data-uid="${CSS.escape(targetUid)}"]`).forEach(apply);
+  const pfb=document.getElementById('btn-follow-profile');
+  if(pfb && profileUid===targetUid) apply(pfb);
+}
 async function toggleFollow(targetUid, btnEl){
   if(!targetUid||targetUid===me.uid)return;
   const already=followingSet.has(targetUid);
-  if(already)followingSet.delete(targetUid);else followingSet.add(targetUid);
-  if(btnEl){ btnEl.classList.toggle('following',!already); btnEl.textContent=!already?'Following':'Follow'; }
-  const pfb=document.getElementById('btn-follow-profile');
-  if(pfb&&profileUid===targetUid){ pfb.classList.toggle('following',!already); pfb.textContent=!already?'Following':'Follow'; }
-  document.querySelectorAll(`.btn-follow-sm[data-uid="${CSS.escape(targetUid)}"]`).forEach(b=>{ b.classList.toggle('following',!already); b.textContent=!already?'Following':'Follow'; });
+  const pending=requestedSet.has(targetUid);
+
+  // Already following -> unfollow
+  if(already){
+    followingSet.delete(targetUid);
+    setFollowBtnState(targetUid,'follow');
+    try{
+      const updates={};
+      updates[`following/${me.uid}/${targetUid}`]=null;
+      updates[`followers/${targetUid}/${me.uid}`]=null;
+      await db.ref().update(updates);
+      await db.ref('users/'+me.uid+'/followingCount').transaction(c=>Math.max(0,(c||0)-1));
+      await db.ref('users/'+targetUid+'/followersCount').transaction(c=>Math.max(0,(c||0)-1));
+      showToast('Unfollowed');
+    } catch(e){ followingSet.add(targetUid); setFollowBtnState(targetUid,'following'); showToast('Could not update follow'); }
+    return;
+  }
+
+  // Pending request -> cancel it
+  if(pending){
+    requestedSet.delete(targetUid);
+    setFollowBtnState(targetUid,'follow');
+    try{
+      const updates={};
+      updates[`followRequests/${targetUid}/${me.uid}`]=null;
+      updates[`sentRequests/${me.uid}/${targetUid}`]=null;
+      await db.ref().update(updates);
+      showToast('Request cancelled');
+    } catch(e){ requestedSet.add(targetUid); setFollowBtnState(targetUid,'requested'); showToast('Could not cancel request'); }
+    return;
+  }
+
+  // Not following, no pending request -> check if target is private
+  let targetIsPrivate=false;
   try{
-    const delta=already?-1:1;
+    const tSnap=await db.ref('users/'+targetUid+'/private').once('value');
+    targetIsPrivate=!!tSnap.val();
+  } catch(e){}
+
+  if(targetIsPrivate){
+    requestedSet.add(targetUid);
+    setFollowBtnState(targetUid,'requested');
+    try{
+      const updates={};
+      updates[`followRequests/${targetUid}/${me.uid}`]={name:myData.name||'User',handle:myData.handle||'user',photoBase64:myData.photoBase64||null,createdAt:firebase.database.ServerValue.TIMESTAMP};
+      updates[`sentRequests/${me.uid}/${targetUid}`]=true;
+      await db.ref().update(updates);
+      await db.ref('notifications/'+targetUid).push({type:'follow_request',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false});
+      showToast('Follow request sent');
+    } catch(e){ requestedSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not send request'); }
+    return;
+  }
+
+  // Public account -> follow directly
+  followingSet.add(targetUid);
+  setFollowBtnState(targetUid,'following');
+  try{
     const updates={};
-    updates[`following/${me.uid}/${targetUid}`]=already?null:true;
-    updates[`followers/${targetUid}/${me.uid}`]=already?null:{name:myData.name||'User'};
+    updates[`following/${me.uid}/${targetUid}`]=true;
+    updates[`followers/${targetUid}/${me.uid}`]={name:myData.name||'User'};
     await db.ref().update(updates);
-    await db.ref('users/'+me.uid+'/followingCount').transaction(c=>Math.max(0,(c||0)+delta));
-    await db.ref('users/'+targetUid+'/followersCount').transaction(c=>Math.max(0,(c||0)+delta));
-    if(!already){ await db.ref('notifications/'+targetUid).push({type:'follow',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}); }
-    showToast(already?'Unfollowed':'Following ✓');
-  } catch(e){ if(already)followingSet.add(targetUid);else followingSet.delete(targetUid); showToast('Could not update follow'); }
+    await db.ref('users/'+me.uid+'/followingCount').transaction(c=>Math.max(0,(c||0)+1));
+    await db.ref('users/'+targetUid+'/followersCount').transaction(c=>Math.max(0,(c||0)+1));
+    await db.ref('notifications/'+targetUid).push({type:'follow',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false});
+    showToast('Following ✓');
+  } catch(e){ followingSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not update follow'); }
 }
 async function toggleFollowProfile(){ await toggleFollow(profileUid,document.getElementById('btn-follow-profile')); }
+
+// ============================================================
+// FOLLOW REQUESTS (accept / decline)
+// ============================================================
+async function acceptFollowRequest(requesterUid, notifId){
+  if(!requesterUid)return;
+  try{
+    const reqSnap=await db.ref('followRequests/'+me.uid+'/'+requesterUid).once('value');
+    const reqData=reqSnap.val()||{};
+    const updates={};
+    updates[`following/${requesterUid}/${me.uid}`]=true;
+    updates[`followers/${me.uid}/${requesterUid}`]={name:reqData.name||'User'};
+    updates[`followRequests/${me.uid}/${requesterUid}`]=null;
+    updates[`sentRequests/${requesterUid}/${me.uid}`]=null;
+    await db.ref().update(updates);
+    await db.ref('users/'+requesterUid+'/followingCount').transaction(c=>Math.max(0,(c||0)+1));
+    await db.ref('users/'+me.uid+'/followersCount').transaction(c=>Math.max(0,(c||0)+1));
+    await db.ref('notifications/'+requesterUid).push({type:'follow_accept',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false});
+    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    showToast('Request accepted');
+  } catch(e){ showToast('Could not accept request'); }
+}
+async function declineFollowRequest(requesterUid, notifId){
+  if(!requesterUid)return;
+  try{
+    const updates={};
+    updates[`followRequests/${me.uid}/${requesterUid}`]=null;
+    updates[`sentRequests/${requesterUid}/${me.uid}`]=null;
+    await db.ref().update(updates);
+    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    showToast('Request declined');
+  } catch(e){ showToast('Could not decline request'); }
+}
 
 // ============================================================
 // BLOCK / MUTE
@@ -2131,6 +2232,7 @@ async function openProfile(uid){
   const u=snap.val()||{};
   const isOwn=uid===me.uid;
   const isFollowing=followingSet.has(uid);
+  const isRequested=requestedSet.has(uid);
   const letter=(u.name||'U').charAt(0).toUpperCase();
 
   // If I blocked this person, hide everything
@@ -2218,14 +2320,15 @@ async function openProfile(uid){
   const editBtn=document.getElementById('btn-edit-profile');
   const followBtn=document.getElementById('btn-follow-profile');
   if(isOwn){ editBtn.classList.remove('hidden'); followBtn.classList.add('hidden'); }
-  else { editBtn.classList.add('hidden'); followBtn.classList.remove('hidden'); followBtn.classList.toggle('following',isFollowing); followBtn.textContent=isFollowing?'Following':'Follow'; }
+  else { editBtn.classList.add('hidden'); followBtn.classList.remove('hidden'); followBtn.classList.toggle('following',isFollowing); followBtn.classList.toggle('requested',!isFollowing&&isRequested); followBtn.textContent=isFollowing?'Following':(isRequested?'Requested':'Follow'); }
 
   // Show/hide more btn and banner edit
   document.getElementById('profile-more-btn').classList.toggle('hidden',isOwn);
 
   // Load pulses
   if(u.private && !isOwn && !isFollowing){
-    el.innerHTML=`<div class="profile-locked"><i class="ph ph-lock-simple"></i><p style="font-size:15px;color:var(--text);font-weight:600;">This account is private</p><p>Follow @${ESC(u.handle||'user')} to see their Pulses.</p></div>`;
+    const lockedMsg=isRequested?`<p>Follow request sent. Once @${ESC(u.handle||'user')} accepts, you'll see their Pulses.</p>`:`<p>Follow @${ESC(u.handle||'user')} to see their Pulses.</p>`;
+    el.innerHTML=`<div class="profile-locked"><i class="ph ph-lock-simple"></i><p style="font-size:15px;color:var(--text);font-weight:600;">This account is private</p>${lockedMsg}</div>`;
     profileViewable=false;
     return;
   }
@@ -2473,7 +2576,7 @@ async function openFollowList(kind){
           <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
           <div class="who-handle">@${ESC(u.handle||'user')}</div>
         </div>
-        ${isOwn?'':`<button class="btn-follow-sm ${isF?'following':''}" data-uid="${ESC(u.id)}" onclick="event.stopPropagation();toggleFollow('${ESC(u.id)}',this)">${isF?'Following':'Follow'}</button>`}
+        ${isOwn?'':followBtnHtml(u.id)}
       </div>`;
     }).join('');
   } catch(e){ document.getElementById('follow-list-content').innerHTML='<div style="text-align:center;padding:24px;color:var(--text3);">Could not load</div>'; }
@@ -2492,17 +2595,31 @@ function loadNotifs(){
     if(badge){badge.textContent=unread;badge.classList.toggle('hidden',unread===0);}
     const el=document.getElementById('notif-list'); if(!el)return;
     if(!items.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-bell"></i><p>No alerts yet</p></div>';return;}
-    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots',mention:'ph ph-at'};
+    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',follow_request:'ph ph-user-plus',follow_accept:'ph ph-user-check',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots',mention:'ph ph-at'};
     const msgs={
       like:`<strong>${'%n'}</strong> liked your Pulse`,
       follow:`<strong>${'%n'}</strong> started following you`,
+      follow_request:`<strong>${'%n'}</strong> requested to follow you`,
+      follow_accept:`<strong>${'%n'}</strong> accepted your follow request`,
       repost:`<strong>${'%n'}</strong> reposted your Pulse`,
       reply:`<strong>${'%n'}</strong> commented on your Pulse`,
       mention:`<strong>${'%n'}</strong> tagged you in a Pulse`
     };
     el.innerHTML=items.map(n=>{
       const msg=(msgs[n.type]||'New notification').replace('%n',ESC(n.fromName));
-      return `<div class="notif-item notif-${n.type} ${n.read?'':'unread'}" onclick="markNotifRead('${ESC(n.id)}');${n.pulseId?`openDetail('${ESC(n.pulseId)}')`:n.type==='follow'?`openProfile('${ESC(n.fromUid)}')`:''}">
+      if(n.type==='follow_request'){
+        return `<div class="notif-item notif-${n.type} ${n.read?'':'unread'}">
+          <div class="notif-icon"><i class="${icons[n.type]||'ph ph-bell'}"></i></div>
+          <div class="notif-body" style="cursor:pointer;" onclick="markNotifRead('${ESC(n.id)}');openProfile('${ESC(n.fromUid)}')">${msg}
+            <div style="display:flex;gap:8px;margin-top:8px;">
+              <button class="btn-follow-sm following" style="padding:6px 14px;" onclick="event.stopPropagation();acceptFollowRequest('${ESC(n.fromUid)}','${ESC(n.id)}')">Accept</button>
+              <button class="btn-follow-sm" style="padding:6px 14px;" onclick="event.stopPropagation();declineFollowRequest('${ESC(n.fromUid)}','${ESC(n.id)}')">Decline</button>
+            </div>
+          </div>
+          <div class="notif-time">${timeAgo(n.createdAt)}</div>
+        </div>`;
+      }
+      return `<div class="notif-item notif-${n.type} ${n.read?'':'unread'}" onclick="markNotifRead('${ESC(n.id)}');${n.pulseId?`openDetail('${ESC(n.pulseId)}')`:(n.type==='follow'||n.type==='follow_accept')?`openProfile('${ESC(n.fromUid)}')`:''}">
         <div class="notif-icon"><i class="${icons[n.type]||'ph ph-bell'}"></i></div>
         <div class="notif-body">${msg}</div>
         <div class="notif-time">${timeAgo(n.createdAt)}</div>
@@ -2731,7 +2848,7 @@ async function loadWhoToFollow(){
         <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')}</div>
       </div>
-      <button class="btn-follow-sm ${followingSet.has(u.id)?'following':''}" data-uid="${ESC(u.id)}" onclick="event.stopPropagation();toggleFollow('${ESC(u.id)}',this)">${followingSet.has(u.id)?'Following':'Follow'}</button>
+      ${followBtnHtml(u.id)}
     </div>`).join('');
   const ep=document.getElementById('explore-people');
   if(ep) ep.innerHTML=users.filter(u=>u.id!==me.uid).slice(0,6).map(u=>`
@@ -2741,7 +2858,7 @@ async function loadWhoToFollow(){
         <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')} · ${fmtN(u.followersCount)} followers</div>
       </div>
-      <button class="btn-follow-sm ${followingSet.has(u.id)?'following':''}" data-uid="${ESC(u.id)}" onclick="event.stopPropagation();toggleFollow('${ESC(u.id)}',this)">${followingSet.has(u.id)?'Following':'Follow'}</button>
+      ${followBtnHtml(u.id)}
     </div>`).join('');
 }
 
@@ -2787,7 +2904,7 @@ async function doExploreSearch(){
         <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')} · ${fmtN(u.followersCount)} followers</div>
       </div>
-      <button class="btn-follow-sm ${followingSet.has(u.id)?'following':''}" data-uid="${ESC(u.id)}" onclick="event.stopPropagation();toggleFollow('${ESC(u.id)}',this)">${followingSet.has(u.id)?'Following':'Follow'}</button>
+      ${followBtnHtml(u.id)}
     </div>`).join('')+'</div>';
   }
   if(results.length){
