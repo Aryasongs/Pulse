@@ -785,6 +785,7 @@ img{display:block;}
     <button class="back-btn" onclick="hideScreen('notif-screen')"><i class="ph ph-arrow-left"></i></button>
     <div class="screen-topbar-title">Alerts</div>
   </div>
+  <div id="notif-debug" style="font-size:11px;color:var(--text3);padding:6px 18px;border-bottom:1px solid var(--border);"></div>
   <div id="notif-list"><div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div></div>
 </div>
 
@@ -3889,10 +3890,14 @@ function startNotifsOnce(){
 }
 function loadNotifs(){
   if(notifUnsub)notifUnsub();
+  if(!window.__notifEventCount) window.__notifEventCount=0;
   const ref=db.ref('notifications/'+me.uid).orderByChild('createdAt').limitToLast(50);
   const handler=ref.on('value', snap=>{
+    window.__notifEventCount++;
     const items=[]; snap.forEach(child=>items.push({id:child.key,...child.val()}));
     items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const dbg=document.getElementById('notif-debug');
+    if(dbg) dbg.textContent=`build NOTIF-DBG-2 · uid ${(me.uid||'').slice(0,6)}… · listener fired ${window.__notifEventCount}x · raw entries: ${items.length}`;
     const unread=items.filter(n=>!n.read).length;
     const badge=document.getElementById('notif-badge');
     if(badge){badge.textContent=unread;badge.classList.toggle('hidden',unread===0);}
