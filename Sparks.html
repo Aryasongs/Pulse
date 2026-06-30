@@ -523,9 +523,13 @@ img{display:block;}
       <div class="auth-tab" id="atab-reg" onclick="authTab('reg')">Sign Up</div>
     </div>
     <div id="af-login">
-      <input class="auth-field" id="l-email" type="email" placeholder="Email address" autocomplete="email">
+      <input class="auth-field" id="l-email" type="text" placeholder="Email or username" autocomplete="username">
       <input class="auth-field" id="l-pass" type="password" placeholder="Password" autocomplete="current-password">
       <button class="btn-primary" id="btn-login" onclick="doLogin()"><i class="ph ph-sign-in"></i> Sign In</button>
+      <div style="display:flex;justify-content:space-between;margin-top:12px;">
+        <a style="font-size:12px;color:var(--cyan);font-weight:600;cursor:pointer;" onclick="openForgotModal('password')">Forgot password?</a>
+        <a style="font-size:12px;color:var(--cyan);font-weight:600;cursor:pointer;" onclick="openForgotModal('username')">Forgot username?</a>
+      </div>
     </div>
     <div id="af-reg" style="display:none">
       <input class="auth-field" id="r-name" type="text" placeholder="Display name">
@@ -537,6 +541,28 @@ img{display:block;}
     <div class="auth-error" id="auth-err"></div>
   </div>
   <div class="auth-footer-note">Part of the <a>Nexor Cloud</a> family ✦</div>
+
+  <!-- Forgot Password / Username modal -->
+  <div id="forgot-modal" style="display:none;position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:24px;">
+    <div class="auth-card" style="max-width:360px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+        <div style="font-size:16px;font-weight:800;" id="forgot-title">Forgot password</div>
+        <button onclick="closeForgotModal()" style="font-size:20px;color:var(--text3);"><i class="ph ph-x"></i></button>
+      </div>
+      <div id="forgot-pass-mode">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Enter your email or username — we'll send a password reset link to your email.</div>
+        <input class="auth-field" id="fg-pass-identifier" type="text" placeholder="Email or username">
+        <button class="btn-primary" id="btn-forgot-pass" onclick="doForgotPassword()"><i class="ph ph-envelope"></i> Send Reset Link</button>
+      </div>
+      <div id="forgot-user-mode" style="display:none;">
+        <div style="font-size:13px;color:var(--text2);margin-bottom:12px;">Enter your account email — we'll show your username here.</div>
+        <input class="auth-field" id="fg-user-email" type="email" placeholder="Email address">
+        <button class="btn-primary" id="btn-forgot-user" onclick="doForgotUsername()"><i class="ph ph-magnifying-glass"></i> Find Username</button>
+        <div id="forgot-user-result" style="margin-top:14px;font-size:14px;text-align:center;color:var(--text);"></div>
+      </div>
+      <div class="auth-error" id="forgot-err"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ====== MAIN APP ====== -->
@@ -1148,12 +1174,27 @@ function setBusy(id, busy, label){
   const b=document.getElementById(id); if(!b)return;
   b.disabled=busy; b.innerHTML=busy?'<i class="ph ph-spinner-gap spin"></i> Please wait…':label;
 }
+async function resolveLoginEmail(identifier){
+  const id=(identifier||'').trim();
+  if(!id) return null;
+  if(id.includes('@')) return id; // looks like an email
+  const handle=id.replace(/^@/,'').toLowerCase();
+  const hSnap=await db.ref('handleIndex/'+handle).once('value');
+  const hVal=hSnap.val();
+  if(!hVal||!hVal.uid) return null;
+  const uSnap=await db.ref('users/'+hVal.uid+'/email').once('value');
+  return uSnap.val()||null;
+}
 async function doLogin(){
-  const e=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;
+  const idf=document.getElementById('l-email').value.trim(),p=document.getElementById('l-pass').value;
   document.getElementById('auth-err').textContent='';
-  if(!e||!p){document.getElementById('auth-err').textContent='Enter email and password';return;}
+  if(!idf||!p){document.getElementById('auth-err').textContent='Enter email/username and password';return;}
   setBusy('btn-login',true);
-  try{ await auth.signInWithEmailAndPassword(e,p); }
+  try{
+    const email=await resolveLoginEmail(idf);
+    if(!email){ document.getElementById('auth-err').textContent='No account found for that email/username.'; setBusy('btn-login',false,'<i class="ph ph-sign-in"></i> Sign In'); return; }
+    await auth.signInWithEmailAndPassword(email,p);
+  }
   catch(err){ document.getElementById('auth-err').textContent=friendlyErr(err); setBusy('btn-login',false,'<i class="ph ph-sign-in"></i> Sign In'); }
 }
 async function doRegister(){
@@ -1201,6 +1242,59 @@ async function doRegister(){
     setBusy('btn-reg',false,'<i class="ph ph-user-plus"></i> Create Account');
   }
 }
+// ============================================================
+// FORGOT PASSWORD / FORGOT USERNAME
+// ============================================================
+function openForgotModal(mode){
+  document.getElementById('forgot-modal').style.display='flex';
+  document.getElementById('forgot-err').textContent='';
+  document.getElementById('forgot-user-result').textContent='';
+  document.getElementById('fg-pass-identifier').value='';
+  document.getElementById('fg-user-email').value='';
+  const isPass = mode!=='username';
+  document.getElementById('forgot-title').textContent = isPass?'Forgot password':'Forgot username';
+  document.getElementById('forgot-pass-mode').style.display = isPass?'':'none';
+  document.getElementById('forgot-user-mode').style.display = isPass?'none':'';
+}
+function closeForgotModal(){ document.getElementById('forgot-modal').style.display='none'; }
+async function doForgotPassword(){
+  const idf=document.getElementById('fg-pass-identifier').value.trim();
+  document.getElementById('forgot-err').textContent='';
+  if(!idf){document.getElementById('forgot-err').textContent='Enter your email or username';return;}
+  setBusy('btn-forgot-pass',true,'<i class="ph ph-envelope"></i> Send Reset Link');
+  try{
+    const email=await resolveLoginEmail(idf);
+    if(!email){ document.getElementById('forgot-err').textContent='No account found for that email/username.'; setBusy('btn-forgot-pass',false,'<i class="ph ph-envelope"></i> Send Reset Link'); return; }
+    await auth.sendPasswordResetEmail(email);
+    showToast('Password reset link sent to '+email);
+    closeForgotModal();
+  } catch(err){
+    document.getElementById('forgot-err').textContent=friendlyErr(err);
+    setBusy('btn-forgot-pass',false,'<i class="ph ph-envelope"></i> Send Reset Link');
+  }
+}
+async function doForgotUsername(){
+  const e=document.getElementById('fg-user-email').value.trim();
+  document.getElementById('forgot-err').textContent='';
+  document.getElementById('forgot-user-result').textContent='';
+  if(!e){document.getElementById('forgot-err').textContent='Enter your email address';return;}
+  setBusy('btn-forgot-user',true,'<i class="ph ph-magnifying-glass"></i> Find Username');
+  try{
+    const ek=btoa(e.trim().toLowerCase()).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+    const snap=await db.ref('emailIndex/'+ek).once('value');
+    const val=snap.val();
+    if(!val||!val.uid){ document.getElementById('forgot-err').textContent='No account found for that email.'; setBusy('btn-forgot-user',false,'<i class="ph ph-magnifying-glass"></i> Find Username'); return; }
+    const uSnap=await db.ref('users/'+val.uid+'/handle').once('value');
+    const handle=uSnap.val();
+    document.getElementById('forgot-user-result').innerHTML = handle?`Your username is <strong style="color:var(--cyan);">@${ESC(handle)}</strong>`:'Username not found for this account.';
+  } catch(err){
+    document.getElementById('forgot-err').textContent=friendlyErr(err);
+  } finally {
+    setBusy('btn-forgot-user',false,'<i class="ph ph-magnifying-glass"></i> Find Username');
+  }
+}
+document.getElementById('forgot-modal').addEventListener('click',e=>{ if(e.target.id==='forgot-modal') closeForgotModal(); });
+
 function friendlyErr(err){
   const m={
     'auth/invalid-email':'Invalid email address.',
