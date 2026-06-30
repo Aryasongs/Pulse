@@ -43,11 +43,36 @@ img{display:block;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:99px;}
 
+/* ====== BOOT / LOADING SPLASH ====== */
+#boot-screen{
+  position:fixed;inset:0;z-index:2000;
+  background:radial-gradient(ellipse at 30% 20%, rgba(0,200,255,0.10) 0%, transparent 60%),
+             radial-gradient(ellipse at 80% 80%, rgba(255,184,48,0.08) 0%, transparent 60%),
+             var(--bg);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+}
+.boot-mark{
+  width:88px;height:88px;border-radius:24px;
+  background:linear-gradient(135deg,var(--cyan) 0%,rgba(0,200,255,0.4) 100%);
+  display:flex;align-items:center;justify-content:center;font-size:44px;color:#fff;
+  box-shadow:0 0 48px rgba(0,200,255,0.45);
+  animation:bootPulse 1.6s ease-in-out infinite;
+}
+@keyframes bootPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.06);}}
+.boot-name{font-size:22px;font-weight:800;letter-spacing:-0.5px;color:var(--text);}
+.boot-spinner{font-size:22px;color:var(--cyan);margin-top:4px;}
+
 /* ====== VERIFIED BADGE ====== */
 .verified-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:3px;}
 .verified-badge img{width:16px;height:16px;object-fit:contain;}
 .verified-badge-lg img{width:20px;height:20px;}
 .verified-badge-xl img{width:24px;height:24px;}
+/* Organization badge — shown ALONGSIDE the verified tick (like X/Twitter),
+   never replaces it. Used by org accounts e.g. @nexor. */
+.org-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:3px;}
+.org-badge img{width:16px;height:16px;object-fit:contain;}
+.org-badge.verified-badge-lg img{width:20px;height:20px;}
+.org-badge.verified-badge-xl img{width:24px;height:24px;}
 
 /* AI Label */
 .ai-label{
@@ -66,9 +91,9 @@ img{display:block;}
 }
 .auth-brand{display:flex;flex-direction:column;align-items:center;margin-bottom:36px;gap:10px;}
 .auth-brand-mark{
-  width:56px;height:56px;border-radius:16px;
+  width:72px;height:72px;border-radius:20px;
   background:linear-gradient(135deg,var(--cyan) 0%,rgba(0,200,255,0.4) 100%);
-  display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:36px;color:#fff;
   box-shadow:0 0 32px rgba(0,200,255,0.35);
 }
 .auth-brand-name{font-size:26px;font-weight:800;letter-spacing:-0.5px;color:var(--text);}
@@ -118,7 +143,7 @@ img{display:block;}
 .right-rail{width:300px;flex-shrink:0;padding:20px 16px;height:100vh;position:sticky;top:0;overflow-y:auto;}
 
 .sb-brand{display:flex;align-items:center;gap:10px;padding:8px 12px;margin-bottom:12px;cursor:pointer;}
-.sb-brand-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--cyan),rgba(0,200,255,0.5));display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;flex-shrink:0;}
+.sb-brand-mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--cyan),rgba(0,200,255,0.5));display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;flex-shrink:0;}
 .sb-brand-text{font-size:18px;font-weight:800;letter-spacing:-.4px;}
 
 .nav-link{
@@ -565,6 +590,13 @@ img{display:block;}
 </style>
 </head>
 <body>
+
+<!-- ====== BOOT / LOADING SPLASH ====== -->
+<div id="boot-screen">
+  <div class="boot-mark"><i class="ph-fill ph-pulse"></i></div>
+  <div class="boot-name">Nexor Pulse</div>
+  <div class="boot-spinner"><i class="ph ph-spinner-gap spin"></i></div>
+</div>
 
 <!-- ====== AUTH ====== -->
 <div id="auth-screen">
@@ -1246,11 +1278,12 @@ const auth = firebase.auth();
 const db   = firebase.database();
 
 const VERIFIED_BADGE_URL = 'https://aryasongs.github.io/Pulse/5673DD39-FBCB-4A20-B9E5-AF205AA75FBC.png';
-// Per-account custom badge (e.g. organization badges) overrides the default
-// verified tick above. Stored in Firebase at users/{uid}/badgeUrl. Nexor's
-// official org account gets this special badge automatically (see
-// ensureNexorAccount()) — any other user's badge can be customized the same
-// way by setting their own badgeUrl field in Firebase.
+// Organization badge — shown ADDITIONALLY next to the verified tick (like
+// X/Twitter's gold check), never replaces it. Stored per-account in
+// Firebase at users/{uid}/badgeUrl (and copied onto each pulse as
+// creatorBadgeUrl). Nexor's official org account gets this one
+// automatically (see ensureNexorAccount()) — any other account can have
+// its own organization badge the same way by setting its badgeUrl field.
 const NEXOR_BADGE_URL = 'https://aryasongs.github.io/Pulse/IMG_7570.png';
 const NEXOR_HANDLE = 'nexor';
 let nexorUidCache = null;
@@ -1317,13 +1350,17 @@ const timeAgo = ts => {
 };
 const joinDate = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '';
 
-// Build verified badge HTML. badgeUrl lets an individual account (e.g. an
-// organization like Nexor) override the default tick — falls back to the
-// standard VERIFIED_BADGE_URL when not set.
-function verifiedBadgeHtml(size='', uid='', badgeUrl=''){
+// Build verified badge HTML. The standard verified tick ALWAYS shows for a
+// verified account. orgBadgeUrl is an ADDITIONAL badge shown right next to
+// it (like X/Twitter's gold org check) — e.g. @nexor's organization mark —
+// it never replaces the verified tick.
+function verifiedBadgeHtml(size='', uid='', orgBadgeUrl=''){
   const clickAttr = uid ? `style="cursor:pointer;" onclick="event.stopPropagation();openAboutAccount('${uid.replace(/'/g,"\\'")}')"` : '';
-  const src = badgeUrl || VERIFIED_BADGE_URL;
-  return `<span class="verified-badge ${size}" ${clickAttr}><img src="${src}" alt="Verified" onerror="this.style.display='none'"></span>`;
+  let html = `<span class="verified-badge ${size}" ${clickAttr}><img src="${VERIFIED_BADGE_URL}" alt="Verified" onerror="this.style.display='none'"></span>`;
+  if(orgBadgeUrl){
+    html += `<span class="org-badge ${size}" ${clickAttr}><img src="${orgBadgeUrl}" alt="Organization" onerror="this.style.display='none'"></span>`;
+  }
+  return html;
 }
 function aiLabelHtml(){ return `<span class="ai-label"><i class="ph ph-robot" style="font-size:10px;"></i> AI</span>`; }
 
@@ -1574,6 +1611,8 @@ function doLogout(){ unsubAll(); feedUnsub&&feedUnsub(); auth.signOut(); }
 
 auth.onAuthStateChanged(user => {
   me = user;
+  const boot=document.getElementById('boot-screen');
+  if(boot) boot.style.display='none';
   if(user){
     document.getElementById('auth-screen').style.display='none';
     document.getElementById('app').classList.add('active');
