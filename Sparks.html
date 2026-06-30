@@ -1344,6 +1344,7 @@ let modalImages  = [];
 let inlineVideoFile = null;
 let modalVideoFile  = null;
 let notifUnsub = null;
+let notifsStarted = false;
 let detailUnsub = null;
 let feedUnsub = null;
 let reportTargetUid = null;
@@ -1680,7 +1681,7 @@ async function onSignedIn(){
   listenFeed();
   loadTrending();
   loadWhoToFollow();
-  loadNotifs();
+  startNotifsOnce();
   ensureNexorAccount().catch(()=>{}); // just keeps @nexor's badge in sync, never posts anything
   // Everything below only refines ranking/state — it never blocks or resets the feed,
   // it just re-renders in place once ready (no spinner, no reload flash).
@@ -3784,6 +3785,11 @@ async function openFollowList(kind){
 // ============================================================
 // NOTIFICATIONS
 // ============================================================
+function startNotifsOnce(){
+  if(notifsStarted) return;
+  notifsStarted = true;
+  loadNotifs();
+}
 function loadNotifs(){
   if(notifUnsub)notifUnsub();
   const ref=db.ref('notifications/'+me.uid);
@@ -4212,7 +4218,7 @@ function showScreen(id){
   document.querySelectorAll('.screen-overlay').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   setNavActive(id);
-  if(id==='notif-screen'){ loadNotifs(); markAllNotifsRead(); }
+  if(id==='notif-screen'){ loadNotifs(); }
   if(id==='bookmarks-screen') loadBookmarksScreen();
   if(id==='lists-screen') loadListsScreen();
   if(id==='settings-screen') loadSettingsScreen();
@@ -4408,6 +4414,7 @@ function unsubAll(){
   unsubscribers.forEach(u=>u());
   unsubscribers=[];
   if(notifUnsub){notifUnsub();notifUnsub=null;}
+  notifsStarted = false;
   if(detailUnsub){detailUnsub();detailUnsub=null;}
 }
 
