@@ -754,9 +754,10 @@ img{display:block;}
     </div>
   </div>
   <div class="profile-tabs">
-    <div class="profile-tab active" onclick="switchProfileTab('pulses',this)">Pulses</div>
+    <div class="profile-tab active" onclick="switchProfileTab('posts',this)">Posts</div>
     <div class="profile-tab" onclick="switchProfileTab('replies',this)">Replies</div>
-    <div class="profile-tab" onclick="switchProfileTab('likes',this)">Likes</div>
+    <div class="profile-tab" onclick="switchProfileTab('videos',this)">Videos</div>
+    <div class="profile-tab" onclick="switchProfileTab('photos',this)">Photos</div>
   </div>
   <div id="profile-pulses-list"></div>
 </div>
@@ -1078,6 +1079,7 @@ let mutedSet     = new Set();
 let unsubscribers = [];
 let profileUid = null;
 let profileLoadToken = 0;
+let profileViewable = true;
 const RESERVED_HANDLES = ['nexor','sparks','nexorsparks','admin','administrator','support','official','moderator','staff','help','root','system'];
 let replyToId  = null;
 let repostTargetId = null;
@@ -2100,6 +2102,7 @@ async function openProfile(uid){
   if(!uid) return;
   const token=++profileLoadToken;
   profileUid=uid;
+  profileViewable=true;
   showScreen('profile-screen');
   // Reset to Pulses tab + clear any stale content from a previously viewed profile immediately
   document.querySelectorAll('.profile-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
@@ -2145,6 +2148,7 @@ async function openProfile(uid){
     document.getElementById('btn-follow-profile').classList.add('hidden');
     document.getElementById('profile-more-btn').classList.remove('hidden');
     el.innerHTML=`<div class="profile-locked"><i class="ph ph-prohibit"></i><p style="font-size:15px;color:var(--text);font-weight:600;">You blocked @${ESC(u.handle||'user')}</p><p>Their Pulses and profile are hidden. Unblock from the menu above to view this profile again.</p></div>`;
+    profileViewable=false;
     return;
   }
   // If they blocked me, hide everything
@@ -2166,6 +2170,7 @@ async function openProfile(uid){
         document.getElementById('btn-follow-profile').classList.add('hidden');
         document.getElementById('profile-more-btn').classList.add('hidden');
         el.innerHTML=`<div class="profile-locked"><i class="ph ph-prohibit"></i><p style="font-size:15px;color:var(--text);font-weight:600;">This account has blocked you</p><p>You can't view this profile.</p></div>`;
+        profileViewable=false;
         return;
       }
     }catch(e){}
@@ -2221,15 +2226,18 @@ async function openProfile(uid){
   // Load pulses
   if(u.private && !isOwn && !isFollowing){
     el.innerHTML=`<div class="profile-locked"><i class="ph ph-lock-simple"></i><p style="font-size:15px;color:var(--text);font-weight:600;">This account is private</p><p>Follow @${ESC(u.handle||'user')} to see their Pulses.</p></div>`;
+    profileViewable=false;
     return;
   }
   const pSnap=await db.ref('userPulses/'+uid).once('value');
   if(token!==profileLoadToken) return;
   const pulseIds=Object.keys(pSnap.val()||{});
   if(!pulseIds.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-lightning"></i><p>No Pulses yet</p></div>';return;}
-  const pulses=await Promise.all(pulseIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+  let pulses=await Promise.all(pulseIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
   if(token!==profileLoadToken) return;
+  pulses=pulses.filter(p=>!p.isReply);
   pulses.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(!pulses.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-lightning"></i><p>No Posts yet</p></div>';return;}
   el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
   }catch(e){
     if(token!==profileLoadToken) return;
@@ -2244,9 +2252,24 @@ function gotoOwnProfile(){openProfile(me.uid);}
 function switchProfileTab(tab,el){
   document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
-  if(tab==='pulses') openProfile(profileUid||me.uid);
-  else if(tab==='likes') loadProfileLikes();
-  else showToast('Replies tab coming soon');
+  if(tab==='posts') openProfile(profileUid||me.uid);
+  else if(tab==='replies') loadProfileFiltered(p=>!!p.isReply,'ph-chat-circle','No replies yet');
+  else if(tab==='videos') loadProfileFiltered(p=>!!p.videoBase64,'ph-video-camera','No videos yet');
+  else if(tab==='photos') loadProfileFiltered(p=>!!p.imageBase64,'ph-image','No photos yet');
+}
+async function loadProfileFiltered(predicate, emptyIcon, emptyText){
+  const el=document.getElementById('profile-pulses-list');
+  const uid=profileUid||me.uid;
+  if(!profileViewable){ el.innerHTML='<div class="empty-feed"><p>This content isn\'t available.</p></div>'; return; }
+  el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  const pSnap=await db.ref('userPulses/'+uid).once('value');
+  const pulseIds=Object.keys(pSnap.val()||{});
+  if(!pulseIds.length){el.innerHTML=`<div class="empty-feed"><i class="ph ${emptyIcon}"></i><p>${emptyText}</p></div>`;return;}
+  let pulses=await Promise.all(pulseIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+  pulses=pulses.filter(predicate);
+  pulses.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  if(!pulses.length){el.innerHTML=`<div class="empty-feed"><i class="ph ${emptyIcon}"></i><p>${emptyText}</p></div>`;return;}
+  el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
 }
 
 async function loadProfileLikes(){
