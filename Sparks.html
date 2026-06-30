@@ -1639,13 +1639,20 @@ auth.onAuthStateChanged(user => {
 async function onSignedIn(){
   await loadMyData();
   backfillAccountMeta();
-  await Promise.all([loadFollowing(),loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts(),loadBlocked(),loadMuted()]);
-  await buildMyInterests().catch(e=>console.error('buildMyInterests failed:',e));
+  // Load just what's needed to show the feed correctly (who I follow/blocked/muted) first —
+  // this is fast, so the feed appears almost instantly instead of waiting on everything.
+  await Promise.all([loadFollowing(),loadBlocked(),loadMuted()]);
   listenFeed();
   loadTrending();
   loadWhoToFollow();
   loadNotifs();
   ensureNexorAccount().catch(()=>{}); // just keeps @nexor's badge in sync, never posts anything
+  // Everything below only refines ranking/state — it never blocks or resets the feed,
+  // it just re-renders in place once ready (no spinner, no reload flash).
+  Promise.all([loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts()])
+    .then(()=>buildMyInterests())
+    .catch(e=>console.error('buildMyInterests failed:',e))
+    .finally(()=>renderFeed());
 }
 
 // ============================================================
@@ -1729,8 +1736,10 @@ function pulseRankScore(p){
   const engagementScore = Math.log10((p.likes||0)+(p.reposts||0)*2+(p.replies||0)+1) * 2;
   return recencyScore + interestScore + followBonus + engagementScore;
 }
+let lastFeedPulses = null; // cached raw pulses from the live listener, used by renderFeed()
 function listenFeed(){
   if(feedUnsub){ feedUnsub(); feedUnsub=null; }
+  lastFeedPulses = null;
   const el = document.getElementById('feed-list');
   el.innerHTML='';
   document.getElementById('feed-loader').classList.remove('hidden');
@@ -1746,32 +1755,43 @@ function listenFeed(){
         pulses.unshift({id:child.key,...child.val()});
       }
     });
-    let visible = pulses.filter(p => !blockedSet.has(p.uid) && !mutedSet.has(p.uid) && isPulseVisible(p));
-    if(feedTab==='following'){
-      visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
-    } else {
-      // For You: ONLY show your own posts, posts from people you follow,
-      // or posts whose hashtags match your on-device interest profile —
-      // never a random stranger's post with no connection to you.
-      visible = visible.filter(p => {
-        if(p.uid===me.uid || followingSet.has(p.uid)) return true;
-        return extractTags(p.text).some(t=>myInterests[t]);
-      });
-      visible = visible.slice().sort((a,b)=>pulseRankScore(b)-pulseRankScore(a));
-    }
-    if(!visible.length){ document.getElementById('feed-empty').classList.remove('hidden'); el.innerHTML=''; return; }
-    document.getElementById('feed-empty').classList.add('hidden');
-    // Only re-render if content actually changed (avoid flicker)
-    const newHtml = visible.map(p=>buildPulseCard(p)).join('');
-    if(el.innerHTML !== newHtml) el.innerHTML = newHtml;
+    lastFeedPulses = pulses;
+    renderFeed();
   });
   feedUnsub = () => ref.off('value', handler);
+}
+// Re-applies filtering/ranking to the already-loaded pulses and re-paints
+// the feed in place — no spinner, no re-subscribe, no flicker. Called both
+// by the live listener and whenever background data (interests, likes,
+// follows…) finishes loading so the feed gets more personalized over time
+// without ever reloading from scratch.
+function renderFeed(){
+  if(!lastFeedPulses) return;
+  const el = document.getElementById('feed-list');
+  let visible = lastFeedPulses.filter(p => !blockedSet.has(p.uid) && !mutedSet.has(p.uid) && isPulseVisible(p));
+  if(feedTab==='following'){
+    visible = visible.filter(p => followingSet.has(p.uid)||p.uid===me.uid);
+  } else {
+    // For You: ONLY show your own posts, posts from people you follow,
+    // or posts whose hashtags match your on-device interest profile —
+    // never a random stranger's post with no connection to you.
+    visible = visible.filter(p => {
+      if(p.uid===me.uid || followingSet.has(p.uid)) return true;
+      return extractTags(p.text).some(t=>myInterests[t]);
+    });
+    visible = visible.slice().sort((a,b)=>pulseRankScore(b)-pulseRankScore(a));
+  }
+  if(!visible.length){ document.getElementById('feed-empty').classList.remove('hidden'); el.innerHTML=''; return; }
+  document.getElementById('feed-empty').classList.add('hidden');
+  // Only re-render if content actually changed (avoid flicker)
+  const newHtml = visible.map(p=>buildPulseCard(p)).join('');
+  if(el.innerHTML !== newHtml) el.innerHTML = newHtml;
 }
 function switchFeedTab(tab){
   feedTab=tab;
   document.getElementById('tab-for-you').classList.toggle('active',tab==='foryou');
   document.getElementById('tab-following').classList.toggle('active',tab==='following');
-  listenFeed();
+  renderFeed();
 }
 
 // ============================================================
@@ -2038,9 +2058,21 @@ function onImagePicked(e, target){
   const picked=files.slice(0,remaining);
   if(files.length>remaining) showToast('Only '+remaining+' more image'+(remaining===1?'':'s')+' added (max '+MAX_IMAGES_PER_PULSE+')');
   let anyAI=false;
+  const total=picked.length;
+  let done=0;
+  const preview=document.getElementById(target+'-img-preview');
+  const updateProgress=()=>{
+    preview.classList.remove('hidden');
+    preview.innerHTML=`<div style="padding:18px 12px;text-align:center;color:var(--text2);font-size:13px;"><i class="ph ph-spinner-gap spin" style="font-size:18px;display:block;margin-bottom:6px;"></i>Uploading image ${done} of ${total}… ${Math.round(done/total*100)}%</div>`;
+  };
+  updateProgress();
   Promise.all(picked.map(file=>
     detectAIImage(file).then(isAI=>new Promise(res=>{
-      compressAndRead(file, r=>{ if(isAI)anyAI=true; res({data:r,type:file.type,isAI}); });
+      compressAndRead(file, r=>{
+        if(isAI)anyAI=true;
+        done++; updateProgress();
+        res({data:r,type:file.type,isAI});
+      });
     }))
   )).then(results=>{
     arr.push(...results);
@@ -2478,7 +2510,15 @@ async function publishPulse(source){
   const vid=source==='inline'?inlineVideoFile:modalVideoFile;
   if(!text&&!imgs.length&&!vid)return;
   const btn=document.getElementById(source+'-post-btn');
-  btn.disabled=true; btn.textContent='Posting…';
+  btn.disabled=true;
+  // Lightweight progress indicator so the user can see something is
+  // actually uploading (ticks up while waiting, completes at 100% on success).
+  let pct=0;
+  btn.textContent='Uploading… 0%';
+  const progressTimer=setInterval(()=>{
+    pct=Math.min(90,pct+Math.ceil((90-pct)/6)+1);
+    btn.textContent='Uploading… '+pct+'%';
+  },180);
   try{
     const imageList=vid?[]:imgs.map(i=>i.data);
     const pulseData={
@@ -2497,6 +2537,8 @@ async function publishPulse(source){
       createdAt:firebase.database.ServerValue.TIMESTAMP
     };
     const ref=await db.ref('pulses').push(pulseData);
+    clearInterval(progressTimer);
+    btn.textContent='Uploading… 100%';
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
     notifyMentions(text, ref.key);
@@ -2504,8 +2546,8 @@ async function publishPulse(source){
     onComposeInput(ta,source+'-counter',source+'-post-btn');
     closeModal('compose-modal');
     showToast('Pulse posted! ⚡');
-  } catch(err){ showToast('Failed: '+err.message); }
-  finally{ btn.disabled=false; btn.textContent='Pulse'; }
+  } catch(err){ clearInterval(progressTimer); showToast('Failed: '+err.message); }
+  finally{ clearInterval(progressTimer); btn.disabled=false; btn.textContent='Pulse'; }
 }
 
 // ============================================================
@@ -2716,14 +2758,14 @@ async function blockUser(targetUid){
     // unfollow if following
     if(followingSet.has(targetUid)) await toggleFollow(targetUid,null);
     showToast('User blocked');
-    listenFeed();
+    renderFeed();
   }
 }
 async function muteUser(targetUid){
   if(!targetUid||targetUid===me.uid){showToast("Can't mute yourself");return;}
   const already=mutedSet.has(targetUid);
   if(already){ mutedSet.delete(targetUid); await db.ref('muted/'+me.uid+'/'+targetUid).remove(); showToast('Unmuted'); }
-  else { mutedSet.add(targetUid); await db.ref('muted/'+me.uid+'/'+targetUid).set(true); showToast('User muted'); listenFeed(); }
+  else { mutedSet.add(targetUid); await db.ref('muted/'+me.uid+'/'+targetUid).set(true); showToast('User muted'); renderFeed(); }
 }
 
 // ============================================================
