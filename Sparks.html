@@ -215,6 +215,15 @@ img{display:block;}
 .pulse-more{margin-left:auto;font-size:18px;color:var(--text3);padding:2px 6px;border-radius:50%;transition:background .15s,color .15s;flex-shrink:0;}
 .pulse-more:hover{background:var(--cyan-dim);color:var(--cyan);}
 .pulse-text{font-size:15px;line-height:1.55;color:var(--text);margin-bottom:10px;word-break:break-word;}
+.pulse-hashtag,.pulse-mention{color:var(--cyan);font-weight:600;cursor:pointer;}
+.pulse-hashtag:hover,.pulse-mention:hover{text-decoration:underline;}
+.mention-suggest-box{position:absolute;z-index:500;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);box-shadow:0 12px 32px rgba(0,0,0,0.5);max-height:220px;overflow-y:auto;min-width:220px;}
+.mention-suggest-item{display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;font-size:13px;}
+.mention-suggest-item:hover{background:var(--cyan-dim);}
+.mention-suggest-av{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:11px;color:#050A14;flex-shrink:0;overflow:hidden;}
+.mention-suggest-av img{width:100%;height:100%;object-fit:cover;}
+.mention-suggest-name{font-weight:700;color:var(--text);}
+.mention-suggest-handle{color:var(--text3);font-size:12px;}
 .pulse-image{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:400px;}
 .pulse-image img{width:100%;object-fit:cover;max-height:400px;}
 .pulse-repost-of{border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:background .12s;}
@@ -876,6 +885,7 @@ img{display:block;}
 
 <!-- Context menu -->
 <div id="ctx-menu" class="ctx-menu hidden"></div>
+<div id="mention-suggest-box" class="mention-suggest-box hidden"></div>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -936,6 +946,14 @@ let epPhotoData = null;
 let epBannerData = null;
 
 const ESC = s => !s ? '' : String(s).replace(/[&<>'"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+// Turn #hashtags and @mentions inside (already-escaped-safe) text into colored, clickable spans
+function linkifyText(raw){
+  const esc = ESC(raw||'');
+  return esc.replace(/(^|[^\w@#])([@#])(\w+)/g, (m,pre,sym,word)=>{
+    if(sym==='#') return `${pre}<span class="pulse-hashtag" onclick="event.stopPropagation();openHashtag('${word.replace(/'/g,"")}')">#${word}</span>`;
+    return `${pre}<span class="pulse-mention" onclick="event.stopPropagation();openMentionProfile('${word.replace(/'/g,"")}')">@${word}</span>`;
+  });
+}
 const fmtN = n => { n=n||0; if(n<1000)return''+n; if(n<1e6)return(n/1000).toFixed(n%1000===0?0:1)+'K'; return(n/1e6).toFixed(1)+'M'; };
 const timeAgo = ts => {
   if(!ts) return '';
@@ -1141,7 +1159,7 @@ function buildPulseCard(p){
   const isOwn        = p.uid===me.uid;
   const letter = (p.creatorName||'U').charAt(0).toUpperCase();
   const handle = p.creatorHandle ? '@'+ESC(p.creatorHandle) : '@user';
-  const txt = ESC(p.text||'');
+  const txt = linkifyText(p.text||'');
   const imgHtml = p.imageBase64 ? `<div class="pulse-image"><img src="${p.imageBase64}" loading="lazy" alt=""></div>` : '';
   const repostHtml = p.repostOf ? `
     <div class="pulse-repost-of" onclick="event.stopPropagation();openDetail('${ESC(p.repostOf)}')">
@@ -1198,7 +1216,58 @@ function onComposeInput(ta, counterId, btnId){
   counter.textContent=rem;
   counter.className='char-counter'+(rem<20?' warn':'')+(rem<0?' over':'');
   if(btn) btn.disabled=len===0||rem<0;
+  handleMentionTrigger(ta);
 }
+
+// ============================================================
+// @MENTION AUTOCOMPLETE WHILE TYPING
+// ============================================================
+let mentionSuggestT;
+function handleMentionTrigger(ta){
+  clearTimeout(mentionSuggestT);
+  mentionSuggestT=setTimeout(async ()=>{
+    const pos=ta.selectionStart, before=ta.value.slice(0,pos);
+    const m=before.match(/(^|[^\w@])@(\w{0,20})$/);
+    const box=document.getElementById('mention-suggest-box');
+    if(!m){ box.classList.add('hidden'); return; }
+    const q=m[2].toLowerCase();
+    let snap;
+    try{
+      snap = q
+        ? await db.ref('users').orderByChild('handle').startAt(q).endAt(q+'\uf8ff').limitToFirst(6).once('value')
+        : await db.ref('users').orderByChild('followersCount').limitToLast(6).once('value');
+    }catch(e){ box.classList.add('hidden'); return; }
+    const users=[]; snap.forEach(c=>users.unshift({id:c.key,...c.val()}));
+    const filtered=users.filter(u=>u.id!==me.uid&&(u.handle||'').toLowerCase().startsWith(q));
+    if(!filtered.length){ box.classList.add('hidden'); return; }
+    box.innerHTML=filtered.map(u=>{
+      const av=u.photoBase64?`<img src="${u.photoBase64}" alt="">`:(u.name||'U').charAt(0).toUpperCase();
+      return `<div class="mention-suggest-item" onmousedown="event.preventDefault();insertMention('${ta.id}','${ESC(u.handle||'user')}')">
+        <div class="mention-suggest-av">${av}</div>
+        <div><div class="mention-suggest-name">${ESC(u.name||'User')}</div><div class="mention-suggest-handle">@${ESC(u.handle||'user')}</div></div>
+      </div>`;
+    }).join('');
+    const r=ta.getBoundingClientRect();
+    box.style.top=(window.scrollY+r.bottom+4)+'px';
+    box.style.left=(window.scrollX+r.left)+'px';
+    box.classList.remove('hidden');
+  },150);
+}
+function insertMention(taId, handle){
+  const ta=document.getElementById(taId);
+  const pos=ta.selectionStart, before=ta.value.slice(0,pos), after=ta.value.slice(pos);
+  const newBefore=before.replace(/(^|[^\w@])@(\w{0,20})$/, `$1@${handle} `);
+  ta.value=newBefore+after;
+  const newPos=newBefore.length;
+  ta.focus(); ta.setSelectionRange(newPos,newPos);
+  document.getElementById('mention-suggest-box').classList.add('hidden');
+  const map={'inline-text':['inline-counter','inline-post-btn'],'modal-text':['modal-counter','modal-post-btn'],'reply-text':['reply-counter','reply-post-btn']};
+  if(map[taId]) onComposeInput(ta,map[taId][0],map[taId][1]);
+}
+document.addEventListener('click',e=>{
+  const box=document.getElementById('mention-suggest-box');
+  if(box&&!box.classList.contains('hidden')&&!box.contains(e.target)&&e.target.tagName!=='TEXTAREA') box.classList.add('hidden');
+});
 function openCompose(){
   document.getElementById('modal-text').value='';
   document.getElementById('modal-counter').textContent='280';
@@ -1246,6 +1315,25 @@ function compressAndRead(file, cb){
   reader.readAsDataURL(file);
 }
 
+// ============================================================
+// MENTION NOTIFICATIONS (tagging someone with @handle)
+// ============================================================
+async function notifyMentions(text, pulseId){
+  const matches=(text||'').match(/(^|[^\w@])@(\w+)/g)||[];
+  const handles=[...new Set(matches.map(m=>m.replace(/^[^@]*@/,'')))].filter(h=>h&&h.toLowerCase()!==(myData.handle||'').toLowerCase());
+  for(const h of handles){
+    try{
+      let uid=null;
+      const s1=await db.ref('users').orderByChild('handle').equalTo(h).limitToFirst(1).once('value');
+      s1.forEach(c=>{uid=c.key;});
+      if(!uid){ const s2=await db.ref('users').orderByChild('handle').equalTo(h.toLowerCase()).limitToFirst(1).once('value'); s2.forEach(c=>{uid=c.key;}); }
+      if(uid&&uid!==me.uid){
+        await db.ref('notifications/'+uid).push({type:'mention',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false});
+      }
+    }catch(e){}
+  }
+}
+
 async function publishPulse(source){
   const ta=document.getElementById(source+'-text');
   const text=ta.value.trim();
@@ -1265,6 +1353,7 @@ async function publishPulse(source){
     const ref=await db.ref('pulses').push(pulseData);
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
+    notifyMentions(text, ref.key);
     ta.value=''; removeImage(source);
     onComposeInput(ta,source+'-counter',source+'-post-btn');
     closeModal('compose-modal');
@@ -1438,6 +1527,7 @@ async function postReply(){
     const pSnap=await db.ref('pulses/'+replyToId+'/uid').once('value');
     const creatorUid=pSnap.val();
     if(creatorUid&&creatorUid!==me.uid){ await db.ref('notifications/'+creatorUid).push({type:'reply',fromUid:me.uid,fromName:myData.name||'User',pulseId:replyToId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}); }
+    notifyMentions(text, ref.key);
     closeModal('reply-modal'); showToast('Reply posted ✓');
     if(document.getElementById('detail-screen').classList.contains('active')) openDetail(replyToId);
   } catch(e){ showToast('Could not post reply'); }
@@ -1492,7 +1582,7 @@ async function openDetail(pulseId){
             <div class="pulse-handle">${ESC(handle)}</div>
           </div>
         </div>
-        ${p.text?`<div class="pulse-detail-text">${ESC(p.text)}</div>`:''}
+        ${p.text?`<div class="pulse-detail-text">${linkifyText(p.text)}</div>`:''}
         ${imgHtml}
         <div class="pulse-detail-meta">${new Date(p.createdAt||Date.now()).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} · <strong>${fmtN(p.views||0)}</strong> views</div>
         <div class="pulse-detail-stats">
@@ -1522,12 +1612,26 @@ async function openDetail(pulseId){
 // PROFILE SCREEN
 // ============================================================
 async function openProfile(uid){
+  if(!uid) return;
   const token=++profileLoadToken;
   profileUid=uid;
   showScreen('profile-screen');
+  // Reset to Pulses tab + clear any stale content from a previously viewed profile immediately
+  document.querySelectorAll('.profile-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  document.getElementById('profile-title-name').textContent='Loading…';
+  document.getElementById('profile-display-name').textContent='—';
+  document.getElementById('profile-handle').textContent='@—';
   const el=document.getElementById('profile-pulses-list');
   el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
-  const snap=await db.ref('users/'+uid).once('value');
+  let snap;
+  try{
+    snap=await db.ref('users/'+uid).once('value');
+  }catch(e){
+    if(token!==profileLoadToken) return;
+    showToast('Could not load profile');
+    el.innerHTML='<div class="empty-feed"><p>Could not load this profile.</p></div>';
+    return;
+  }
   if(token!==profileLoadToken) return; // a newer openProfile() call superseded this one
   const u=snap.val()||{};
   const isOwn=uid===me.uid;
@@ -1817,12 +1921,13 @@ function loadNotifs(){
     if(badge){badge.textContent=unread;badge.classList.toggle('hidden',unread===0);}
     const el=document.getElementById('notif-list'); if(!el)return;
     if(!items.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-bell"></i><p>No alerts yet</p></div>';return;}
-    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots'};
+    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots',mention:'ph ph-at'};
     const msgs={
       like:`<strong>${'%n'}</strong> liked your Pulse`,
       follow:`<strong>${'%n'}</strong> started following you`,
       repost:`<strong>${'%n'}</strong> reposted your Pulse`,
-      reply:`<strong>${'%n'}</strong> replied to your Pulse`
+      reply:`<strong>${'%n'}</strong> commented on your Pulse`,
+      mention:`<strong>${'%n'}</strong> tagged you in a Pulse`
     };
     el.innerHTML=items.map(n=>{
       const msg=(msgs[n.type]||'New notification').replace('%n',ESC(n.fromName));
@@ -2070,8 +2175,10 @@ async function loadWhoToFollow(){
 }
 
 async function doExploreSearch(){
-  const q=document.getElementById('explore-q').value.trim().toLowerCase();
+  const raw=document.getElementById('explore-q').value.trim();
+  const q=raw.toLowerCase();
   if(!q){loadTrending();loadWhoToFollow();return;}
+  if(q.startsWith('#')){ await openHashtag(q.slice(1)); return; }
   const el=document.getElementById('explore-results');
   el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
   const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(100).once('value');
@@ -2090,6 +2197,37 @@ async function doRailSearch(){
   showScreen('explore-screen');
   document.getElementById('explore-q').value=q;
   await doExploreSearch();
+}
+
+// ============================================================
+// HASHTAGS & MENTIONS (tap-through)
+// ============================================================
+async function openHashtag(tag){
+  tag=(tag||'').toLowerCase();
+  showScreen('explore-screen');
+  const qEl=document.getElementById('explore-q'); if(qEl) qEl.value='#'+tag;
+  const el=document.getElementById('explore-results');
+  el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(300).once('value');
+  const re=new RegExp('(^|[^\\w@#])#'+tag.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(\\W|$)','i');
+  const results=[];
+  snap.forEach(c=>{ const d=c.val(); if(re.test(d.text||'')) results.unshift({id:c.key,...d}); });
+  if(!results.length){ el.innerHTML='<div class="empty-feed"><p>No Pulses with #'+ESC(tag)+'</p></div>'; return; }
+  el.innerHTML='<div class="search-section-title">'+results.length+' Pulse'+(results.length===1?'':'s')+' · #'+ESC(tag)+'</div>'+results.map(p=>buildPulseCard(p)).join('');
+}
+async function openMentionProfile(handle){
+  handle=(handle||'').replace(/^@/,'');
+  try{
+    const snap=await db.ref('users').orderByChild('handle').equalTo(handle).limitToFirst(1).once('value');
+    let uid=null;
+    snap.forEach(c=>{uid=c.key;});
+    if(!uid){
+      const snap2=await db.ref('users').orderByChild('handle').equalTo(handle.toLowerCase()).limitToFirst(1).once('value');
+      snap2.forEach(c=>{uid=c.key;});
+    }
+    if(uid) openProfile(uid);
+    else showToast('@'+handle+' not found');
+  } catch(e){ showToast('@'+handle+' not found'); }
 }
 
 // ============================================================
