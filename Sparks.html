@@ -1049,6 +1049,19 @@ img{display:block;}
   </div>
 </div>
 
+<!-- About this account -->
+<div class="modal-overlay" id="about-account-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" style="display:flex;align-items:center;gap:6px;"><img src="https://aryasongs.github.io/Pulse/5673DD39-FBCB-4A20-B9E5-AF205AA75FBC.png" style="width:18px;height:18px;"> About this account</div>
+    <div id="about-account-content" style="padding:4px 0 8px;">
+      <div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>
+    </div>
+    <button class="btn-sheet outline" onclick="closeModal('about-account-modal')">Close</button>
+  </div>
+</div>
+
+
 <!-- Context menu -->
 <div id="ctx-menu" class="ctx-menu hidden"></div>
 <div id="mention-suggest-box" class="mention-suggest-box hidden"></div>
@@ -1155,10 +1168,60 @@ const timeAgo = ts => {
 const joinDate = ts => ts ? new Date(ts).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '';
 
 // Build verified badge HTML
-function verifiedBadgeHtml(size=''){
-  return `<span class="verified-badge ${size}"><img src="${VERIFIED_BADGE_URL}" alt="Verified" onerror="this.style.display='none'"></span>`;
+function verifiedBadgeHtml(size='', uid=''){
+  const clickAttr = uid ? `style="cursor:pointer;" onclick="event.stopPropagation();openAboutAccount('${uid.replace(/'/g,"\\'")}')"` : '';
+  return `<span class="verified-badge ${size}" ${clickAttr}><img src="${VERIFIED_BADGE_URL}" alt="Verified" onerror="this.style.display='none'"></span>`;
 }
 function aiLabelHtml(){ return `<span class="ai-label"><i class="ph ph-robot" style="font-size:10px;"></i> AI</span>`; }
+
+// ============================================================
+// ABOUT THIS ACCOUNT (verified badge tap)
+// ============================================================
+async function openAboutAccount(uid){
+  if(!uid) return;
+  openModal('about-account-modal');
+  const el=document.getElementById('about-account-content');
+  el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  try{
+    const snap=await db.ref('users/'+uid).once('value');
+    const u=snap.val()||{};
+    const row=(label,value)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border2);">
+      <span style="font-size:13px;color:var(--text3);">${ESC(label)}</span>
+      <span style="font-size:14px;font-weight:600;color:var(--text);text-align:right;">${value}</span>
+    </div>`;
+    const verifiedSinceTs = u.verifiedSinceTs || u.createdAt || null;
+    let html = `<div style="text-align:center;margin-bottom:8px;">
+        <div style="font-size:15px;font-weight:700;">${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml():''}</div>
+        <div style="font-size:13px;color:var(--text3);">@${ESC(u.handle||'user')}</div>
+      </div>`;
+    html += row('Profile name', ESC(u.name||'User'));
+    html += row('Username', '@'+ESC(u.handle||'user'));
+    html += row('Date joined', u.createdAt ? joinDate(u.createdAt) : 'Not available');
+    html += row('Account based in', u.signupLocation ? ESC(u.signupLocation)+' <span style="color:var(--text3);font-weight:400;">(guess from IP)</span>' : '<span style="color:var(--text3);font-weight:400;">Not available</span>');
+    if(u.verified){
+      html += row('Verified since', verifiedSinceTs ? joinDate(verifiedSinceTs) : 'Not available');
+    }
+    el.innerHTML = html;
+  } catch(e){
+    el.innerHTML='<div style="text-align:center;padding:16px;color:var(--text3);">Could not load account info</div>';
+  }
+}
+
+// Best-effort IP-based location guess, captured once at signup
+async function guessLocationFromIP(){
+  try{
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), 4000);
+    const res = await fetch('https://ipapi.co/json/', {signal: ctrl.signal});
+    clearTimeout(t);
+    if(!res.ok) return null;
+    const data = await res.json();
+    if(data && (data.city || data.country_name)){
+      return [data.city, data.country_name].filter(Boolean).join(', ');
+    }
+    return null;
+  } catch(e){ return null; }
+}
 
 // ============================================================
 // AUTH
@@ -1237,6 +1300,8 @@ async function doRegister(){
     await handleRef.set({uid:cred.user.uid});
     const ek = btoa(e.trim().toLowerCase()).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
     await db.ref('emailIndex/'+ek).set({uid:cred.user.uid,name}).catch(()=>{});
+    // Best-effort IP location guess for "About this account" — non-blocking, never fails signup
+    guessLocationFromIP().then(loc=>{ if(loc) db.ref('users/'+cred.user.uid+'/signupLocation').set(loc).catch(()=>{}); });
   } catch(err){
     document.getElementById('auth-err').textContent=friendlyErr(err);
     setBusy('btn-reg',false,'<i class="ph ph-user-plus"></i> Create Account');
@@ -1429,7 +1494,7 @@ function buildPulseCard(p){
     </div>` : '';
 
   // Build verified / AI badges inline
-  const vBadge = p.creatorVerified ? verifiedBadgeHtml() : '';
+  const vBadge = p.creatorVerified ? verifiedBadgeHtml('',p.uid) : '';
   const aiBadge = p.creatorIsAI ? aiLabelHtml() : '';
 
   // Avatar
@@ -2139,7 +2204,7 @@ function buildAccountRow(u,actionLabel,actionFn){
   return `<div class="blocked-row">
       <div class="who-av" style="cursor:pointer;" onclick="openProfile('${ESC(u.id)}')">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0).toUpperCase())}</div>
       <div class="who-info" style="cursor:pointer;" onclick="openProfile('${ESC(u.id)}')">
-        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
+        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')}</div>
       </div>
       <button class="btn-unblock" onclick="${actionFn}('${ESC(u.id)}')">${actionLabel}</button>
@@ -2242,7 +2307,7 @@ async function openDetail(pulseId){
     const handle='@'+(p.creatorHandle||'user');
     const imgHtml=p.imageBase64?`<div class="pulse-image">${p.imageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img src="${p.imageBase64}" alt=""></div>`:'';
     const vidHtml=p.videoBase64?`<div class="pulse-video">${videoPlayerHtml(p.videoBase64,p.videoPoster)}</div>`:'';
-    const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg'):'';
+    const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg',p.uid):'';
     const aiBadge=p.creatorIsAI?aiLabelHtml():'';
     const avContent=p.creatorPhoto?`<img src="${p.creatorPhoto}" alt="">`:letter;
     const rSnap=await db.ref('replies/'+pulseId).once('value');
@@ -2387,7 +2452,7 @@ async function openProfile(uid){
 
   // Name + badges
   const nameEl=document.getElementById('profile-display-name');
-  nameEl.innerHTML=`${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('verified-badge-xl'):''}${u.isAI?aiLabelHtml():''}`;
+  nameEl.innerHTML=`${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('verified-badge-xl',uid):''}${u.isAI?aiLabelHtml():''}`;
 
   // Handle + join date
   const handleEl=document.getElementById('profile-handle');
@@ -2667,7 +2732,7 @@ async function openFollowList(kind){
       return `<div class="follow-user-item" onclick="closeModal('follow-list-modal');openProfile('${ESC(u.id)}')">
         <div class="who-av">${avContent}</div>
         <div class="who-info">
-          <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
+          <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div>
           <div class="who-handle">@${ESC(u.handle||'user')}</div>
         </div>
         ${isOwn?'':followBtnHtml(u.id)}
@@ -2822,7 +2887,7 @@ async function openListDetail(listId){
       users.map(u=>`
         <div class="who-item" style="padding:12px 18px;" onclick="openProfile('${ESC(u.id)}')">
           <div class="who-av">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0))}</div>
-          <div class="who-info"><div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div><div class="who-handle">@${ESC(u.handle||'user')}</div></div>
+          <div class="who-info"><div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div><div class="who-handle">@${ESC(u.handle||'user')}</div></div>
           <button class="btn-follow-sm" style="border-color:var(--like);color:var(--like);" onclick="event.stopPropagation();removeMemberFromList('${ESC(listId)}','${ESC(u.id)}')">Remove</button>
         </div>`).join('');
   } catch(e){el.innerHTML='<div class="empty-feed"><p>Could not load list</p></div>';}
@@ -2939,7 +3004,7 @@ async function loadWhoToFollow(){
     <div class="who-item" onclick="openProfile('${ESC(u.id)}')">
       <div class="who-av">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0))}</div>
       <div class="who-info">
-        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
+        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')}</div>
       </div>
       ${followBtnHtml(u.id)}
@@ -2949,7 +3014,7 @@ async function loadWhoToFollow(){
     <div class="who-item" onclick="openProfile('${ESC(u.id)}')">
       <div class="who-av">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0))}</div>
       <div class="who-info">
-        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
+        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')} · ${fmtN(u.followersCount)} followers</div>
       </div>
       ${followBtnHtml(u.id)}
@@ -2995,7 +3060,7 @@ async function doExploreSearch(){
     <div class="who-item" onclick="openProfile('${ESC(u.id)}')">
       <div class="who-av">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0).toUpperCase())}</div>
       <div class="who-info">
-        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml():''}</div>
+        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id):''}</div>
         <div class="who-handle">@${ESC(u.handle||'user')} · ${fmtN(u.followersCount)} followers</div>
       </div>
       ${followBtnHtml(u.id)}
