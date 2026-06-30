@@ -1858,6 +1858,27 @@ function pulseImageHtml(p){
     `<div class="pulse-image-grid-cell nsfw-wrap"><img class="nsfw-scan-target" src="${src}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${pid}',${i})">${nsfwOverlayHtml()}</div>`
   ).join('')+`</div>`;
 }
+// Renders the original Pulse's image(s)/video inside a repost's embedded
+// "pulse-repost-of" card, so reshared media is actually visible — not just
+// the original text. Uses a distinct cache key (id+'-repost') so the
+// lightbox's image-by-id lookup doesn't collide with the repost's own media.
+function repostOfMediaHtml(p){
+  const imgs = p.repostOfImages || [];
+  const vid  = p.repostOfVideoBase64 || null;
+  if(!imgs.length && !vid) return '';
+  const lbId = ESC(p.id)+'-repost';
+  if(vid){
+    return `<div class="pulse-video" onclick="event.stopPropagation();">${videoPlayerHtml(vid,p.repostOfVideoPoster)}</div>`;
+  }
+  window.__pulseImgCache = window.__pulseImgCache || {};
+  window.__pulseImgCache[p.id+'-repost'] = imgs;
+  if(imgs.length===1){
+    return `<div class="pulse-image nsfw-wrap">${p.repostOfImageIsAI?'<div class="ai-content-badge"><i class="ph ph-robot"></i> AI</div>':''}<img class="nsfw-scan-target" src="${imgs[0]}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${lbId}',0)">${nsfwOverlayHtml()}</div>`;
+  }
+  return `<div class="pulse-image-grid pulse-image-grid-${imgs.length}">`+imgs.map((src,i)=>
+    `<div class="pulse-image-grid-cell nsfw-wrap"><img class="nsfw-scan-target" src="${src}" loading="lazy" alt="" onclick="event.stopPropagation();openLightbox('${lbId}',${i})">${nsfwOverlayHtml()}</div>`
+  ).join('')+`</div>`;
+}
 // ============================================================
 // ADULT / NSFW IMAGE DETECTOR
 // Lazily loads TensorFlow.js + nsfwjs (client-side, on-device — no images
@@ -1952,6 +1973,7 @@ function buildPulseCard(p){
     <div class="pulse-repost-of" onclick="event.stopPropagation();openDetail('${ESC(p.repostOf)}')">
       <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;">${ESC(p.repostOfName||'Unknown')}</div>
       <div class="pulse-text" style="margin-bottom:0;font-size:14px;">${ESC(p.repostOfText||'').substring(0,140)}</div>
+      ${repostOfMediaHtml(p)}
     </div>` : '';
 
   // Build verified / AI badges inline
@@ -2920,6 +2942,10 @@ async function doSimpleRepost(){
     const rData={uid:me.uid,creatorName:myData.name||'User',creatorHandle:myData.handle||'user',
       creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,creatorPrivate:myData.private||false,
       text:'',isRepost:true,repostOf:pulseId,repostOfText:orig.text||'',repostOfName:orig.creatorName||'User',
+      repostOfImages:orig.images||(orig.imageBase64?[orig.imageBase64]:null),
+      repostOfImageIsAI:orig.imageIsAI||false,
+      repostOfVideoBase64:orig.videoBase64||null,
+      repostOfVideoPoster:orig.videoPoster||null,
       likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
     const ref=await db.ref('pulses').push(rData);
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
