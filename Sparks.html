@@ -226,10 +226,10 @@ img{display:block;}
 .mention-suggest-handle{color:var(--text3);font-size:12px;}
 .pulse-image{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:400px;}
 .pulse-image img{width:100%;object-fit:cover;max-height:400px;}
-.pulse-video{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:480px;background:#000;}
-.pulse-video video{width:100%;max-height:480px;display:block;background:#000;}
-.compose-video-preview{position:relative;margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border2);background:#000;}
-.compose-video-preview video{width:100%;max-height:280px;display:block;background:#000;}
+.pulse-video{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:480px;background:#000;display:flex;justify-content:center;}
+.pulse-video video{width:100%;max-height:480px;display:block;background:#000;object-fit:contain;border-radius:12px;}
+.compose-video-preview{position:relative;margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border2);background:#000;display:flex;justify-content:center;}
+.compose-video-preview video{width:100%;max-height:280px;display:block;background:#000;object-fit:contain;}
 .pulse-repost-of{border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:background .12s;}
 .pulse-repost-of:hover{background:var(--surface2);}
 .pulse-actions{display:flex;gap:0;margin:0 -8px;}
@@ -1279,7 +1279,7 @@ function buildPulseCard(p){
   const handle = p.creatorHandle ? '@'+ESC(p.creatorHandle) : '@user';
   const txt = linkifyText(p.text||'');
   const imgHtml = p.imageBase64 ? `<div class="pulse-image"><img src="${p.imageBase64}" loading="lazy" alt=""></div>` : '';
-  const vidHtml = p.videoBase64 ? `<div class="pulse-video"><video src="${p.videoBase64}" controls playsinline preload="metadata" onclick="event.stopPropagation();"></video></div>` : '';
+  const vidHtml = p.videoBase64 ? `<div class="pulse-video"><video src="${p.videoBase64}" ${p.videoPoster?`poster="${p.videoPoster}"`:''} controls playsinline preload="metadata" onclick="event.stopPropagation();"></video></div>` : '';
   const repostHtml = p.repostOf ? `
     <div class="pulse-repost-of" onclick="event.stopPropagation();openDetail('${ESC(p.repostOf)}')">
       <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;">${ESC(p.repostOfName||'Unknown')}</div>
@@ -1421,42 +1421,153 @@ function removeImage(target){
 }
 
 // ============================================================
-// VIDEO ATTACHMENT (max 15 seconds)
+// VIDEO ATTACHMENT (max 15 seconds, auto-compressed before upload)
 // ============================================================
 const MAX_VIDEO_SECONDS = 15;
-const MAX_VIDEO_BYTES = 20*1024*1024; // 20MB raw file safety cap
+const MAX_VIDEO_RAW_BYTES = 100*1024*1024; // 100MB raw file safety cap (will be compressed down)
+const MAX_VIDEO_FINAL_BYTES = 7*1024*1024; // ~7MB compressed cap, safe for Realtime Database
 function triggerVideoPick(inputId){
   document.getElementById(inputId).click();
 }
-function onVideoPicked(e, target){
+function dataURLByteSize(dataUrl){
+  const i=dataUrl.indexOf(',');
+  const b64=i>-1?dataUrl.slice(i+1):dataUrl;
+  return Math.ceil(b64.length*0.75);
+}
+function captureVideoPoster(videoEl){
+  try{
+    const c=document.createElement('canvas');
+    c.width=videoEl.videoWidth||320; c.height=videoEl.videoHeight||180;
+    c.getContext('2d').drawImage(videoEl,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',0.7);
+  }catch(e){ return null; }
+}
+// Re-encodes the picked video at a lower resolution/bitrate via canvas + MediaRecorder
+// so it fits comfortably inside the database. Falls back to the original file if the
+// browser doesn't support captureStream/MediaRecorder.
+function compressVideoFile(file, durationSec, onProgress){
+  return new Promise((resolve,reject)=>{
+    const canSupport = !!(HTMLVideoElement.prototype.captureStream && window.MediaRecorder);
+    if(!canSupport){ reject(new Error('UNSUPPORTED')); return; }
+    const url=URL.createObjectURL(file);
+    const v=document.createElement('video');
+    v.src=url; v.muted=false; v.volume=0; v.playsInline=true; v.preload='auto';
+    v.onloadeddata=async ()=>{
+      try{
+        const targetW = Math.min(640, v.videoWidth||640);
+        const scale = targetW / (v.videoWidth||targetW);
+        const targetH = Math.round((v.videoHeight||360)*scale);
+        const canvas=document.createElement('canvas');
+        canvas.width=targetW; canvas.height=targetH;
+        const ctx=canvas.getContext('2d');
+        const poster=captureVideoPoster(v);
+
+        const canvasStream=canvas.captureStream(30);
+        let mixedStream=canvasStream;
+        try{
+          const vidStream=v.captureStream();
+          const audioTracks=vidStream.getAudioTracks();
+          if(audioTracks.length){ canvasStream.addTrack(audioTracks[0]); }
+        }catch(e){}
+
+        let mimeType='video/webm;codecs=vp9,opus';
+        if(!MediaRecorder.isTypeSupported(mimeType)) mimeType='video/webm;codecs=vp8,opus';
+        if(!MediaRecorder.isTypeSupported(mimeType)) mimeType='video/webm';
+        const recorder=new MediaRecorder(canvasStream,{mimeType,videoBitsPerSecond:550000,audioBitsPerSecond:64000});
+        const chunks=[];
+        recorder.ondataavailable=ev=>{ if(ev.data&&ev.data.size) chunks.push(ev.data); };
+        recorder.onstop=()=>{
+          URL.revokeObjectURL(url);
+          const blob=new Blob(chunks,{type:'video/webm'});
+          resolve({blob,poster});
+        };
+        recorder.onerror=err=>{ URL.revokeObjectURL(url); reject(err.error||new Error('Recorder failed')); };
+
+        let drawing=true;
+        function drawFrame(){
+          if(!drawing)return;
+          ctx.drawImage(v,0,0,targetW,targetH);
+          requestAnimationFrame(drawFrame);
+        }
+        v.currentTime=0;
+        await v.play();
+        recorder.start(250);
+        drawFrame();
+        if(onProgress) onProgress(0);
+        const startTs=Date.now();
+        const tick=setInterval(()=>{
+          const pct=Math.min(99,Math.round(((Date.now()-startTs)/1000/durationSec)*100));
+          if(onProgress) onProgress(pct);
+        },200);
+        setTimeout(()=>{
+          drawing=false; clearInterval(tick);
+          try{ v.pause(); }catch(e){}
+          if(recorder.state!=='inactive') recorder.stop();
+        }, Math.ceil(durationSec*1000)+150);
+      }catch(err){ URL.revokeObjectURL(url); reject(err); }
+    };
+    v.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('Could not read this video')); };
+  });
+}
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>resolve(r.result);
+    r.onerror=()=>reject(new Error('Could not read compressed video'));
+    r.readAsDataURL(blob);
+  });
+}
+async function onVideoPicked(e, target){
   const file=e.target.files[0]; if(!file)return;
   const input=e.target;
   if(!file.type.startsWith('video/')){ showToast('Please choose a video file'); input.value=''; return; }
-  if(file.size>MAX_VIDEO_BYTES){ showToast('Video file is too large (max 20MB)'); input.value=''; return; }
+  if(file.size>MAX_VIDEO_RAW_BYTES){ showToast('Video file is too large (max 100MB)'); input.value=''; return; }
   const tempUrl=URL.createObjectURL(file);
   const probe=document.createElement('video');
   probe.preload='metadata';
-  probe.onloadedmetadata=()=>{
+  probe.onloadedmetadata=async ()=>{
     const duration=probe.duration;
+    URL.revokeObjectURL(tempUrl);
     if(duration>MAX_VIDEO_SECONDS+0.5){
       showToast('Video must be '+MAX_VIDEO_SECONDS+' seconds or shorter');
-      URL.revokeObjectURL(tempUrl); input.value='';
-      return;
+      input.value=''; return;
     }
-    URL.revokeObjectURL(tempUrl);
-    // Image and video are mutually exclusive on one Pulse
-    removeImage(target);
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      const data=ev.target.result;
-      const preview=document.getElementById(target+'-vid-preview');
-      preview.classList.remove('hidden');
-      preview.innerHTML=`<video src="${data}" controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
-      const fileData={data,type:file.type,duration:Math.round(duration*10)/10};
+    removeImage(target); // image and video are mutually exclusive on one Pulse
+    const preview=document.getElementById(target+'-vid-preview');
+    preview.classList.remove('hidden');
+    preview.innerHTML=`<div style="padding:24px 12px;text-align:center;color:var(--text2);font-size:13px;"><i class="ph ph-spinner-gap spin" style="font-size:20px;display:block;margin-bottom:8px;"></i><span id="${target}-vid-progress">Compressing video… 0%</span></div>`;
+    try{
+      const {blob,poster}=await compressVideoFile(file, Math.min(duration,MAX_VIDEO_SECONDS), pct=>{
+        const p=document.getElementById(target+'-vid-progress');
+        if(p) p.textContent='Compressing video… '+pct+'%';
+      });
+      const data=await blobToDataURL(blob);
+      if(dataURLByteSize(data)>MAX_VIDEO_FINAL_BYTES){
+        showToast('Video is still too large after compression — try a shorter clip');
+        removeVideo(target); return;
+      }
+      preview.innerHTML=`<video src="${data}" ${poster?`poster="${poster}"`:''} controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
+      const fileData={data,type:'video/webm',duration:Math.round(duration*10)/10,poster};
       if(target==='inline') inlineVideoFile=fileData; else modalVideoFile=fileData;
       showToast('Video attached ('+fileData.duration+'s)');
-    };
-    reader.readAsDataURL(file);
+    }catch(err){
+      // Fallback: browser can't re-encode — use the raw file if small enough
+      if(file.size<=MAX_VIDEO_FINAL_BYTES){
+        const reader=new FileReader();
+        reader.onload=ev=>{
+          const data=ev.target.result;
+          preview.innerHTML=`<video src="${data}" controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
+          const fileData={data,type:file.type,duration:Math.round(duration*10)/10,poster:null};
+          if(target==='inline') inlineVideoFile=fileData; else modalVideoFile=fileData;
+          showToast('Video attached ('+fileData.duration+'s)');
+        };
+        reader.onerror=()=>{ showToast('Could not attach this video'); removeVideo(target); };
+        reader.readAsDataURL(file);
+      } else {
+        showToast('Could not compress this video — try a smaller/shorter clip');
+        removeVideo(target);
+      }
+    }
   };
   probe.onerror=()=>{ showToast('Could not read this video'); URL.revokeObjectURL(tempUrl); input.value=''; };
   probe.src=tempUrl;
@@ -1520,6 +1631,7 @@ async function publishPulse(source){
       text, likes:0, replies:0, reposts:0, views:0,
       imageBase64:vid?null:(img?img.data:null),
       videoBase64:vid?vid.data:null,
+      videoPoster:vid?(vid.poster||null):null,
       videoType:vid?vid.type:null,
       videoDuration:vid?vid.duration:null,
       createdAt:firebase.database.ServerValue.TIMESTAMP
@@ -1783,7 +1895,7 @@ async function openDetail(pulseId){
     const letter=(p.creatorName||'U').charAt(0).toUpperCase();
     const handle='@'+(p.creatorHandle||'user');
     const imgHtml=p.imageBase64?`<div class="pulse-image"><img src="${p.imageBase64}" alt=""></div>`:'';
-    const vidHtml=p.videoBase64?`<div class="pulse-video"><video src="${p.videoBase64}" controls playsinline preload="metadata"></video></div>`:'';
+    const vidHtml=p.videoBase64?`<div class="pulse-video"><video src="${p.videoBase64}" ${p.videoPoster?`poster="${p.videoPoster}"`:''} controls playsinline preload="metadata"></video></div>`:'';
     const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg'):'';
     const aiBadge=p.creatorIsAI?aiLabelHtml():'';
     const avContent=p.creatorPhoto?`<img src="${p.creatorPhoto}" alt="">`:letter;
