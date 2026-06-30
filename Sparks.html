@@ -2368,6 +2368,20 @@ function compressAndRead(file, cb){
 }
 
 // ============================================================
+// ALERTS (notifications) — uses its own top-level node "alerts"
+// so a single helper handles writing + permission-denied fallback.
+// ============================================================
+async function sendAlert(targetUid, payload){
+  if(!targetUid) return;
+  try{
+    await db.ref('alerts/'+targetUid).push({...payload, createdAt:firebase.database.ServerValue.TIMESTAMP, read:false});
+  }catch(err){
+    console.error('Alert send failed:',err);
+    if(err.code==='PERMISSION_DENIED') showToast('Could not send notification — check Firebase rules');
+  }
+}
+
+// ============================================================
 // MENTION NOTIFICATIONS (tagging someone with @handle)
 // ============================================================
 async function notifyMentions(text, pulseId){
@@ -2380,7 +2394,7 @@ async function notifyMentions(text, pulseId){
       s1.forEach(c=>{uid=c.key;});
       if(!uid){ const s2=await db.ref('users').orderByChild('handle').equalTo(h.toLowerCase()).limitToFirst(1).once('value'); s2.forEach(c=>{uid=c.key;}); }
       if(uid&&uid!==me.uid){
-        await db.ref('notifications/'+uid).push({type:'mention',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(mention) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
+        await sendAlert(uid, {type:'mention',fromUid:me.uid,fromName:myData.name||'User',pulseId});
       }
       // If @nexor was tagged (in a pulse OR a comment/reply), have the
       // official Nexor account reply automatically using AI.
@@ -2498,7 +2512,7 @@ async function triggerNexorAIReply(rawText, pulseId, nexorUid){
     const pSnap=await db.ref('pulses/'+pulseId+'/uid').once('value');
     const creatorUid=pSnap.val();
     if(creatorUid&&creatorUid!==nexorUid){
-      await db.ref('notifications/'+creatorUid).push({type:'reply',fromUid:nexorUid,fromName:nu.name||'Nexor',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(()=>{});
+      await sendAlert(creatorUid, {type:'reply',fromUid:nexorUid,fromName:nu.name||'Nexor',pulseId}).catch(()=>{});
     }
   }catch(e){ /* best-effort */ }
 }
@@ -2567,7 +2581,7 @@ async function toggleLike(pulseId){
     const creatorUid=pSnap.val();
     if(creatorUid) await db.ref('users/'+creatorUid+'/totalLikes').transaction(c=>Math.max(0,(c||0)+delta));
     if(!already&&creatorUid&&creatorUid!==me.uid){
-      await db.ref('notifications/'+creatorUid).push({type:'like',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(like) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
+      await sendAlert(creatorUid, {type:'like',fromUid:me.uid,fromName:myData.name||'User',pulseId});
     }
   } catch(e){ if(already)likedSet.add(pulseId);else likedSet.delete(pulseId); paintLike(pulseId,already); showToast('Could not update like'); }
 }
@@ -2618,7 +2632,7 @@ async function doSimpleRepost(){
     await db.ref('userReposts/'+me.uid+'/'+pulseId).set(true);
     await db.ref('pulses/'+pulseId+'/reposts').transaction(c=>(c||0)+1);
     showToast('Reposted ♻️');
-    if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(repost) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');}); }
+    if(orig.uid&&orig.uid!==me.uid){ await sendAlert(orig.uid, {type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId}); }
   } catch(e){ showToast('Could not repost'); repostSet.delete(pulseId); }
 }
 function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast('Type your quote — repost will be linked'); }
@@ -2690,7 +2704,7 @@ async function toggleFollow(targetUid, btnEl){
       updates[`followRequests/${targetUid}/${me.uid}`]={name:myData.name||'User',handle:myData.handle||'user',photoBase64:myData.photoBase64||null,createdAt:firebase.database.ServerValue.TIMESTAMP};
       updates[`sentRequests/${me.uid}/${targetUid}`]=true;
       await db.ref().update(updates);
-      await db.ref('notifications/'+targetUid).push({type:'follow_request',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(follow_request) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
+      await sendAlert(targetUid, {type:'follow_request',fromUid:me.uid,fromName:myData.name||'User'});
       showToast('Follow request sent');
     } catch(e){ requestedSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not send request'); }
     return;
@@ -2706,7 +2720,7 @@ async function toggleFollow(targetUid, btnEl){
     await db.ref().update(updates);
     await db.ref('users/'+me.uid+'/followingCount').transaction(c=>Math.max(0,(c||0)+1));
     await db.ref('users/'+targetUid+'/followersCount').transaction(c=>Math.max(0,(c||0)+1));
-    await db.ref('notifications/'+targetUid).push({type:'follow',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(follow) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
+    await sendAlert(targetUid, {type:'follow',fromUid:me.uid,fromName:myData.name||'User'});
     showToast('Following ✓');
   } catch(e){ followingSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not update follow'); }
 }
@@ -2728,8 +2742,8 @@ async function acceptFollowRequest(requesterUid, notifId){
     await db.ref().update(updates);
     await db.ref('users/'+requesterUid+'/followingCount').transaction(c=>Math.max(0,(c||0)+1));
     await db.ref('users/'+me.uid+'/followersCount').transaction(c=>Math.max(0,(c||0)+1));
-    await db.ref('notifications/'+requesterUid).push({type:'follow_accept',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(follow_accept) failed:',err));
-    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    await sendAlert(requesterUid, {type:'follow_accept',fromUid:me.uid,fromName:myData.name||'User'});
+    if(notifId) await db.ref('alerts/'+me.uid+'/'+notifId).remove().catch(()=>{});
     showToast('Request accepted');
   } catch(e){ showToast('Could not accept request'); }
 }
@@ -2740,7 +2754,7 @@ async function declineFollowRequest(requesterUid, notifId){
     updates[`followRequests/${me.uid}/${requesterUid}`]=null;
     updates[`sentRequests/${requesterUid}/${me.uid}`]=null;
     await db.ref().update(updates);
-    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    if(notifId) await db.ref('alerts/'+me.uid+'/'+notifId).remove().catch(()=>{});
     showToast('Request declined');
   } catch(e){ showToast('Could not decline request'); }
 }
@@ -2907,7 +2921,7 @@ async function postReply(){
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     const pSnap=await db.ref('pulses/'+replyToId+'/uid').once('value');
     const creatorUid=pSnap.val();
-    if(creatorUid&&creatorUid!==me.uid){ await db.ref('notifications/'+creatorUid).push({type:'reply',fromUid:me.uid,fromName:myData.name||'User',pulseId:replyToId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(reply) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');}); }
+    if(creatorUid&&creatorUid!==me.uid){ await sendAlert(creatorUid, {type:'reply',fromUid:me.uid,fromName:myData.name||'User',pulseId:replyToId}); }
     notifyMentions(text, ref.key);
     closeModal('reply-modal'); showToast('Reply posted ✓');
     if(document.getElementById('detail-screen').classList.contains('active')) openDetail(replyToId);
@@ -3381,7 +3395,7 @@ async function openFollowList(kind){
 // ============================================================
 function loadNotifs(){
   if(notifUnsub)notifUnsub();
-  const ref=db.ref('notifications/'+me.uid);
+  const ref=db.ref('alerts/'+me.uid);
   const handler=ref.on('value', snap=>{
     const items=[]; snap.forEach(child=>items.push({id:child.key,...child.val()}));
     items.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
@@ -3424,11 +3438,11 @@ function loadNotifs(){
   }, err=>{ console.error('Notifications listener error (likely a Realtime DB rules issue):', err); });
   notifUnsub=()=>ref.off('value',handler);
 }
-async function markNotifRead(id){ await db.ref('notifications/'+me.uid+'/'+id+'/read').set(true).catch(()=>{}); }
+async function markNotifRead(id){ await db.ref('alerts/'+me.uid+'/'+id+'/read').set(true).catch(()=>{}); }
 async function markAllNotifsRead(){
-  const snap=await db.ref('notifications/'+me.uid).once('value');
+  const snap=await db.ref('alerts/'+me.uid).once('value');
   const updates={};
-  snap.forEach(c=>{ if(c.val()&&c.val().read===false) updates['notifications/'+me.uid+'/'+c.key+'/read']=true; });
+  snap.forEach(c=>{ if(c.val()&&c.val().read===false) updates['alerts/'+me.uid+'/'+c.key+'/read']=true; });
   if(Object.keys(updates).length) await db.ref().update(updates).catch(err=>console.error('markAllNotifsRead failed:',err));
 }
 
