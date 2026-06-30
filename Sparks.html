@@ -2380,7 +2380,7 @@ async function notifyMentions(text, pulseId){
       s1.forEach(c=>{uid=c.key;});
       if(!uid){ const s2=await db.ref('users').orderByChild('handle').equalTo(h.toLowerCase()).limitToFirst(1).once('value'); s2.forEach(c=>{uid=c.key;}); }
       if(uid&&uid!==me.uid){
-        await db.ref('notifications/'+uid).push({type:'mention',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(mention) failed:',err));
+        await db.ref('notifications/'+uid).push({type:'mention',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(mention) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
       }
       // If @nexor was tagged (in a pulse OR a comment/reply), have the
       // official Nexor account reply automatically using AI.
@@ -2567,7 +2567,7 @@ async function toggleLike(pulseId){
     const creatorUid=pSnap.val();
     if(creatorUid) await db.ref('users/'+creatorUid+'/totalLikes').transaction(c=>Math.max(0,(c||0)+delta));
     if(!already&&creatorUid&&creatorUid!==me.uid){
-      await db.ref('notifications/'+creatorUid).push({type:'like',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(like) failed:',err));
+      await db.ref('notifications/'+creatorUid).push({type:'like',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(like) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
     }
   } catch(e){ if(already)likedSet.add(pulseId);else likedSet.delete(pulseId); paintLike(pulseId,already); showToast('Could not update like'); }
 }
@@ -2618,7 +2618,7 @@ async function doSimpleRepost(){
     await db.ref('userReposts/'+me.uid+'/'+pulseId).set(true);
     await db.ref('pulses/'+pulseId+'/reposts').transaction(c=>(c||0)+1);
     showToast('Reposted ♻️');
-    if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(repost) failed:',err)); }
+    if(orig.uid&&orig.uid!==me.uid){ await db.ref('notifications/'+orig.uid).push({type:'repost',fromUid:me.uid,fromName:myData.name||'User',pulseId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(repost) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');}); }
   } catch(e){ showToast('Could not repost'); repostSet.delete(pulseId); }
 }
 function openQuotePulse(){ closeModal('repost-modal'); openCompose(); showToast('Type your quote — repost will be linked'); }
@@ -2690,7 +2690,7 @@ async function toggleFollow(targetUid, btnEl){
       updates[`followRequests/${targetUid}/${me.uid}`]={name:myData.name||'User',handle:myData.handle||'user',photoBase64:myData.photoBase64||null,createdAt:firebase.database.ServerValue.TIMESTAMP};
       updates[`sentRequests/${me.uid}/${targetUid}`]=true;
       await db.ref().update(updates);
-      await db.ref('notifications/'+targetUid).push({type:'follow_request',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(follow_request) failed:',err));
+      await db.ref('notifications/'+targetUid).push({type:'follow_request',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(follow_request) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
       showToast('Follow request sent');
     } catch(e){ requestedSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not send request'); }
     return;
@@ -2706,7 +2706,7 @@ async function toggleFollow(targetUid, btnEl){
     await db.ref().update(updates);
     await db.ref('users/'+me.uid+'/followingCount').transaction(c=>Math.max(0,(c||0)+1));
     await db.ref('users/'+targetUid+'/followersCount').transaction(c=>Math.max(0,(c||0)+1));
-    await db.ref('notifications/'+targetUid).push({type:'follow',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(follow) failed:',err));
+    await db.ref('notifications/'+targetUid).push({type:'follow',fromUid:me.uid,fromName:myData.name||'User',createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(follow) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');});
     showToast('Following ✓');
   } catch(e){ followingSet.delete(targetUid); setFollowBtnState(targetUid,'follow'); showToast('Could not update follow'); }
 }
@@ -2907,7 +2907,7 @@ async function postReply(){
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     const pSnap=await db.ref('pulses/'+replyToId+'/uid').once('value');
     const creatorUid=pSnap.val();
-    if(creatorUid&&creatorUid!==me.uid){ await db.ref('notifications/'+creatorUid).push({type:'reply',fromUid:me.uid,fromName:myData.name||'User',pulseId:replyToId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>console.error('Notif(reply) failed:',err)); }
+    if(creatorUid&&creatorUid!==me.uid){ await db.ref('notifications/'+creatorUid).push({type:'reply',fromUid:me.uid,fromName:myData.name||'User',pulseId:replyToId,createdAt:firebase.database.ServerValue.TIMESTAMP,read:false}).catch(err=>{console.error('Notif(reply) failed:',err);if(err.code==='PERMISSION_DENIED')showToast('Could not send notification — check Firebase rules');}); }
     notifyMentions(text, ref.key);
     closeModal('reply-modal'); showToast('Reply posted ✓');
     if(document.getElementById('detail-screen').classList.contains('active')) openDetail(replyToId);
