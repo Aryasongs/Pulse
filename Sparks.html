@@ -226,6 +226,10 @@ img{display:block;}
 .mention-suggest-handle{color:var(--text3);font-size:12px;}
 .pulse-image{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:400px;}
 .pulse-image img{width:100%;object-fit:cover;max-height:400px;}
+.pulse-video{border-radius:12px;overflow:hidden;margin-bottom:10px;border:1px solid var(--border2);max-height:480px;background:#000;}
+.pulse-video video{width:100%;max-height:480px;display:block;background:#000;}
+.compose-video-preview{position:relative;margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border2);background:#000;}
+.compose-video-preview video{width:100%;max-height:280px;display:block;background:#000;}
 .pulse-repost-of{border:1px solid var(--border2);border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:background .12s;}
 .pulse-repost-of:hover{background:var(--surface2);}
 .pulse-actions{display:flex;gap:0;margin:0 -8px;}
@@ -524,10 +528,13 @@ img{display:block;}
         <div class="compose-right">
           <textarea class="compose-textarea" id="inline-text" placeholder="What's pulsing?" rows="2" oninput="onComposeInput(this,'inline-counter','inline-post-btn')"></textarea>
           <div id="inline-img-preview" class="compose-img-preview hidden"></div>
+          <div id="inline-vid-preview" class="compose-video-preview hidden"></div>
           <div class="compose-footer">
             <div class="compose-actions">
               <button class="compose-action-btn" title="Image" onclick="triggerImagePick('inline-img-input')"><i class="ph ph-image"></i></button>
               <input type="file" id="inline-img-input" accept="image/*" style="display:none" onchange="onImagePicked(event,'inline')">
+              <button class="compose-action-btn" title="Video (max 15s)" onclick="triggerVideoPick('inline-vid-input')"><i class="ph ph-video-camera"></i></button>
+              <input type="file" id="inline-vid-input" accept="video/*" style="display:none" onchange="onVideoPicked(event,'inline')">
               <button class="compose-action-btn" title="Emoji" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
             </div>
             <div class="compose-footer-right">
@@ -723,12 +730,15 @@ img{display:block;}
       <div style="flex:1;">
         <textarea class="compose-textarea" id="modal-text" placeholder="What's pulsing?" rows="4" oninput="onComposeInput(this,'modal-counter','modal-post-btn')" style="font-size:18px;min-height:100px;"></textarea>
         <div id="modal-img-preview" class="compose-img-preview hidden"></div>
+        <div id="modal-vid-preview" class="compose-video-preview hidden"></div>
       </div>
     </div>
     <div class="compose-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;">
       <div class="compose-actions">
         <button class="compose-action-btn" onclick="triggerImagePick('modal-img-input')"><i class="ph ph-image"></i></button>
         <input type="file" id="modal-img-input" accept="image/*" style="display:none" onchange="onImagePicked(event,'modal')">
+        <button class="compose-action-btn" title="Video (max 15s)" onclick="triggerVideoPick('modal-vid-input')"><i class="ph ph-video-camera"></i></button>
+        <input type="file" id="modal-vid-input" accept="video/*" style="display:none" onchange="onVideoPicked(event,'modal')">
         <button class="compose-action-btn" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
       </div>
       <div class="compose-footer-right">
@@ -934,6 +944,8 @@ let repostTargetId = null;
 let imagePickTarget = null;
 let inlineImageFile = null;
 let modalImageFile  = null;
+let inlineVideoFile = null;
+let modalVideoFile  = null;
 let notifUnsub = null;
 let detailUnsub = null;
 let feedUnsub = null;
@@ -1169,6 +1181,7 @@ function buildPulseCard(p){
   const handle = p.creatorHandle ? '@'+ESC(p.creatorHandle) : '@user';
   const txt = linkifyText(p.text||'');
   const imgHtml = p.imageBase64 ? `<div class="pulse-image"><img src="${p.imageBase64}" loading="lazy" alt=""></div>` : '';
+  const vidHtml = p.videoBase64 ? `<div class="pulse-video"><video src="${p.videoBase64}" controls playsinline preload="metadata" onclick="event.stopPropagation();"></video></div>` : '';
   const repostHtml = p.repostOf ? `
     <div class="pulse-repost-of" onclick="event.stopPropagation();openDetail('${ESC(p.repostOf)}')">
       <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;">${ESC(p.repostOfName||'Unknown')}</div>
@@ -1196,7 +1209,7 @@ function buildPulseCard(p){
       </div>
       ${p.isRepost&&!p.repostOf?`<div style="font-size:12px;color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:5px;"><i class="ph ph-repeat"></i> Reposted</div>`:''}
       ${txt?`<div class="pulse-text">${txt}</div>`:''}
-      ${repostHtml}${imgHtml}
+      ${repostHtml}${imgHtml}${vidHtml}
       <div class="pulse-actions">
         <div class="pulse-action reply-act" onclick="event.stopPropagation();openReply('${ESC(p.id)}','${ESC(p.creatorHandle||'user')}')">
           <i class="ph ph-chat-circle-dots"></i><span>${fmtN(p.replies)}</span>
@@ -1282,7 +1295,9 @@ function openCompose(){
   document.getElementById('modal-post-btn').disabled=true;
   document.getElementById('modal-img-preview').classList.add('hidden');
   document.getElementById('modal-img-preview').innerHTML='';
-  modalImageFile=null;
+  document.getElementById('modal-vid-preview').classList.add('hidden');
+  document.getElementById('modal-vid-preview').innerHTML='';
+  modalImageFile=null; modalVideoFile=null;
   openModal('compose-modal');
 }
 function triggerImagePick(inputId){
@@ -1291,6 +1306,7 @@ function triggerImagePick(inputId){
 }
 function onImagePicked(e, target){
   const file=e.target.files[0]; if(!file)return;
+  removeVideo(target); // image and video are mutually exclusive on one Pulse
   compressAndRead(file, r=>{
     const preview=document.getElementById(target+'-img-preview');
     preview.classList.remove('hidden');
@@ -1304,6 +1320,54 @@ function removeImage(target){
   document.getElementById(target+'-img-preview').innerHTML='';
   if(target==='inline'){inlineImageFile=null;document.getElementById('inline-img-input').value='';}
   else{modalImageFile=null;document.getElementById('modal-img-input').value='';}
+}
+
+// ============================================================
+// VIDEO ATTACHMENT (max 15 seconds)
+// ============================================================
+const MAX_VIDEO_SECONDS = 15;
+const MAX_VIDEO_BYTES = 20*1024*1024; // 20MB raw file safety cap
+function triggerVideoPick(inputId){
+  document.getElementById(inputId).click();
+}
+function onVideoPicked(e, target){
+  const file=e.target.files[0]; if(!file)return;
+  const input=e.target;
+  if(!file.type.startsWith('video/')){ showToast('Please choose a video file'); input.value=''; return; }
+  if(file.size>MAX_VIDEO_BYTES){ showToast('Video file is too large (max 20MB)'); input.value=''; return; }
+  const tempUrl=URL.createObjectURL(file);
+  const probe=document.createElement('video');
+  probe.preload='metadata';
+  probe.onloadedmetadata=()=>{
+    const duration=probe.duration;
+    if(duration>MAX_VIDEO_SECONDS+0.5){
+      showToast('Video must be '+MAX_VIDEO_SECONDS+' seconds or shorter');
+      URL.revokeObjectURL(tempUrl); input.value='';
+      return;
+    }
+    URL.revokeObjectURL(tempUrl);
+    // Image and video are mutually exclusive on one Pulse
+    removeImage(target);
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      const data=ev.target.result;
+      const preview=document.getElementById(target+'-vid-preview');
+      preview.classList.remove('hidden');
+      preview.innerHTML=`<video src="${data}" controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
+      const fileData={data,type:file.type,duration:Math.round(duration*10)/10};
+      if(target==='inline') inlineVideoFile=fileData; else modalVideoFile=fileData;
+      showToast('Video attached ('+fileData.duration+'s)');
+    };
+    reader.readAsDataURL(file);
+  };
+  probe.onerror=()=>{ showToast('Could not read this video'); URL.revokeObjectURL(tempUrl); input.value=''; };
+  probe.src=tempUrl;
+}
+function removeVideo(target){
+  document.getElementById(target+'-vid-preview').classList.add('hidden');
+  document.getElementById(target+'-vid-preview').innerHTML='';
+  if(target==='inline'){inlineVideoFile=null;document.getElementById('inline-vid-input').value='';}
+  else{modalVideoFile=null;document.getElementById('modal-vid-input').value='';}
 }
 // Compress image to keep base64 small
 function compressAndRead(file, cb){
@@ -1346,7 +1410,8 @@ async function publishPulse(source){
   const ta=document.getElementById(source+'-text');
   const text=ta.value.trim();
   const img=source==='inline'?inlineImageFile:modalImageFile;
-  if(!text&&!img)return;
+  const vid=source==='inline'?inlineVideoFile:modalVideoFile;
+  if(!text&&!img&&!vid)return;
   const btn=document.getElementById(source+'-post-btn');
   btn.disabled=true; btn.textContent='Posting…';
   try{
@@ -1355,14 +1420,17 @@ async function publishPulse(source){
       creatorVerified:myData.verified||false, creatorIsAI:myData.isAI||false,
       creatorPhoto:myData.photoBase64||null,
       text, likes:0, replies:0, reposts:0, views:0,
-      imageBase64:img?img.data:null,
+      imageBase64:vid?null:(img?img.data:null),
+      videoBase64:vid?vid.data:null,
+      videoType:vid?vid.type:null,
+      videoDuration:vid?vid.duration:null,
       createdAt:firebase.database.ServerValue.TIMESTAMP
     };
     const ref=await db.ref('pulses').push(pulseData);
     await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
     await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
     notifyMentions(text, ref.key);
-    ta.value=''; removeImage(source);
+    ta.value=''; removeImage(source); removeVideo(source);
     onComposeInput(ta,source+'-counter',source+'-post-btn');
     closeModal('compose-modal');
     showToast('Pulse posted! ⚡');
@@ -1568,6 +1636,7 @@ async function openDetail(pulseId){
     const letter=(p.creatorName||'U').charAt(0).toUpperCase();
     const handle='@'+(p.creatorHandle||'user');
     const imgHtml=p.imageBase64?`<div class="pulse-image"><img src="${p.imageBase64}" alt=""></div>`:'';
+    const vidHtml=p.videoBase64?`<div class="pulse-video"><video src="${p.videoBase64}" controls playsinline preload="metadata"></video></div>`:'';
     const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg'):'';
     const aiBadge=p.creatorIsAI?aiLabelHtml():'';
     const avContent=p.creatorPhoto?`<img src="${p.creatorPhoto}" alt="">`:letter;
@@ -1591,7 +1660,7 @@ async function openDetail(pulseId){
           </div>
         </div>
         ${p.text?`<div class="pulse-detail-text">${linkifyText(p.text)}</div>`:''}
-        ${imgHtml}
+        ${imgHtml}${vidHtml}
         <div class="pulse-detail-meta">${new Date(p.createdAt||Date.now()).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} · <strong>${fmtN(p.views||0)}</strong> views</div>
         <div class="pulse-detail-stats">
           <div class="pulse-detail-stat" onclick="openRepostModal('${ESC(pulseId)}')"><span class="pds-num">${fmtN(p.reposts)}</span> <span class="pds-label">Reposts</span></div>
