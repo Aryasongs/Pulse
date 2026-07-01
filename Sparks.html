@@ -7,6 +7,12 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Nexor Sparks</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#050A14">
+<link rel="apple-touch-icon" href="https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sparks">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -1452,6 +1458,23 @@ img{display:block;}
   </div>
 </div>
 
+<!-- Edit Pulse -->
+<div class="modal-overlay" id="edit-pulse-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Edit Pulse</div>
+    <div style="display:flex;gap:12px;">
+      <div style="flex:1;">
+        <textarea class="compose-textarea" id="edit-pulse-text" placeholder="What's pulsing?" rows="4" oninput="onComposeInput(this,'edit-pulse-counter','edit-pulse-save-btn')" style="font-size:16px;min-height:100px;"></textarea>
+      </div>
+    </div>
+    <div class="compose-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;justify-content:flex-end;gap:12px;">
+      <span class="char-counter" id="edit-pulse-counter">200</span>
+      <button class="btn-post" id="edit-pulse-save-btn" onclick="saveEditPulse()">Save</button>
+    </div>
+  </div>
+</div>
+
 <!-- About this account -->
 <div class="modal-overlay" id="about-account-modal">
   <div class="modal-sheet">
@@ -2379,6 +2402,7 @@ function buildPulseCard(p){
         <span class="pulse-handle">${handle}</span>
         <span class="pulse-dot">·</span>
         <span class="pulse-time">${timeAgo(p.createdAt)}</span>
+        ${p.editedAt?'<span class="pulse-dot">·</span><span class="pulse-time" title="This Pulse was edited">edited</span>':''}
         <button class="pulse-more" onclick="event.stopPropagation();openCtxMenu(event,'${ESC(p.id)}',${isOwn},'${ESC(p.uid)}')" title="More"><i class="ph ph-dots-three"></i></button>
       </div>
       ${p.isRepost&&!p.repostOf?`<div style="font-size:12px;color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:5px;"><i class="ph ph-repeat"></i> Reposted</div>`:''}
@@ -4158,7 +4182,7 @@ async function openDetail(pulseId){
         ${aiResponseHeaderDetail}
         ${p.text?`<div class="pulse-detail-text">${linkifyText(p.text)}</div>`:''}
         ${imgHtml}${vidHtml}${pollHtml(p)}
-        <div class="pulse-detail-meta">${new Date(p.createdAt||Date.now()).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} · <strong>${fmtN(p.views||0)}</strong> views</div>
+        <div class="pulse-detail-meta">${new Date(p.createdAt||Date.now()).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} · <strong>${fmtN(p.views||0)}</strong> views${p.editedAt?' · <span title="This Pulse was edited">edited</span>':''}</div>
         <div class="pulse-detail-stats">
           <div class="pulse-detail-stat" onclick="openRepostModal('${ESC(pulseId)}')"><span class="pds-num">${fmtN(p.reposts)}</span> <span class="pds-label">Reposts</span></div>
           <div class="pulse-detail-stat" onclick="toggleLike('${ESC(pulseId)}')"><span class="pds-num" id="detail-like-count">${fmtN(p.likes)}</span> <span class="pds-label">Likes</span></div>
@@ -4966,6 +4990,51 @@ async function openMentionProfile(handle){
 }
 
 // ============================================================
+// EDIT PULSE
+// ============================================================
+let editPulseId=null;
+async function openEditPulse(pulseId){
+  try{
+    const snap=await db.ref('pulses/'+pulseId).once('value');
+    const p=snap.val();
+    if(!p || p.uid!==me.uid){ showToast('Cannot edit this Pulse'); return; }
+    editPulseId=pulseId;
+    const ta=document.getElementById('edit-pulse-text');
+    ta.value=p.text||'';
+    onComposeInput(ta,'edit-pulse-counter','edit-pulse-save-btn');
+    openModal('edit-pulse-modal');
+    setTimeout(()=>ta.focus(),50);
+  } catch(e){ showToast('Could not load Pulse'); }
+}
+async function saveEditPulse(){
+  if(!editPulseId) return;
+  const ta=document.getElementById('edit-pulse-text');
+  const text=ta.value.trim();
+  if(!text){ showToast('Pulse cannot be empty'); return; }
+  const btn=document.getElementById('edit-pulse-save-btn');
+  btn.disabled=true;
+  try{
+    await db.ref('pulses/'+editPulseId).update({text, editedAt: firebase.database.ServerValue.TIMESTAMP});
+    showToast('Pulse updated');
+    closeModal('edit-pulse-modal');
+    const pid=editPulseId; editPulseId=null;
+    // Refresh the card in-place if visible
+    const snap=await db.ref('pulses/'+pid).once('value');
+    const p=snap.val();
+    if(p){
+      p.id=pid;
+      const cardEl=document.getElementById('pc-'+pid);
+      if(cardEl) cardEl.outerHTML=buildPulseCard(p);
+    }
+    if(document.getElementById('detail-screen').classList.contains('active')) openDetail(pid);
+  } catch(e){
+    showToast('Could not update Pulse');
+  } finally {
+    btn.disabled=false;
+  }
+}
+
+// ============================================================
 // DELETE PULSE
 // ============================================================
 async function deletePulse(pulseId){
@@ -4999,7 +5068,7 @@ function openCtxMenu(e, pulseId, isOwn, creatorUid){
     <div class="ctx-item" onclick="closeCtxMenu();shareUrl('${ESC(pulseId)}')"><i class="ph ph-share-network"></i> Share</div>
     <div class="ctx-item" onclick="closeCtxMenu();shareToInstagramStory('${ESC(pulseId)}')"><i class="ph ph-instagram-logo"></i> Instagram Story</div>
     <div class="ctx-item" onclick="closeCtxMenu();toggleBookmark('${ESC(pulseId)}')"><i class="ph ph-bookmark-simple"></i> ${bookmarkSet.has(pulseId)?'Remove Bookmark':'Bookmark'}</div>
-    ${isOwn?`<div class="ctx-divider"></div><div class="ctx-item danger" onclick="closeCtxMenu();deletePulse('${ESC(pulseId)}')"><i class="ph ph-trash"></i> Delete Pulse</div>`:''}
+    ${isOwn?`<div class="ctx-divider"></div><div class="ctx-item" onclick="closeCtxMenu();openEditPulse('${ESC(pulseId)}')"><i class="ph ph-pencil-simple"></i> Edit Pulse</div><div class="ctx-item danger" onclick="closeCtxMenu();deletePulse('${ESC(pulseId)}')"><i class="ph ph-trash"></i> Delete Pulse</div>`:''}
     ${!isOwn?userBtns:''}
   `;
   menu.classList.remove('hidden');
@@ -5879,6 +5948,17 @@ auth.onAuthStateChanged(u=>{
     if(uid){sessionStorage.removeItem('pendingUserId');setTimeout(()=>openProfile(uid),800);}
   }
 });
+
+// ============================================================
+// PWA — SERVICE WORKER REGISTRATION
+// ============================================================
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{ /* offline install not critical */ });
+  });
+}
+window.addEventListener('online', ()=>showToast('Back online'));
+window.addEventListener('offline', ()=>showToast('You are offline — some features may not work'));
 </script>
 </body>
 </html>
