@@ -695,6 +695,22 @@ img{display:block;}
 .chat-thread-av{width:34px;height:34px;border-radius:50%;flex-shrink:0;}
 .chat-thread-name{font-size:15px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .chat-thread-sub{font-size:11px;color:var(--text3);}
+.chat-thread-sub.typing{color:var(--cyan);font-weight:600;display:flex;align-items:center;gap:5px;}
+
+/* ---- seen / read receipt ---- */
+.chat-seen{font-size:11px;color:var(--text3);text-align:right;margin-top:3px;margin-right:2px;display:flex;align-items:center;justify-content:flex-end;gap:3px;}
+.chat-seen i{font-size:12px;color:var(--cyan);}
+
+/* ---- typing animation ---- */
+.typing-row .chat-bubble{padding:12px 16px;display:inline-flex;align-items:center;gap:4px;}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--text2);display:inline-block;animation:typingBounce 1.2s infinite ease-in-out;}
+.typing-dot:nth-child(2){animation-delay:.15s;}
+.typing-dot:nth-child(3){animation-delay:.3s;}
+@keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-4px);opacity:1;}}
+.typing-indicator-dots{display:inline-flex;align-items:center;gap:3px;}
+.typing-indicator-dots span{width:4px;height:4px;border-radius:50%;background:var(--cyan);display:inline-block;animation:typingBounce 1.2s infinite ease-in-out;}
+.typing-indicator-dots span:nth-child(2){animation-delay:.15s;}
+.typing-indicator-dots span:nth-child(3){animation-delay:.3s;}
 #chat-screen{display:none;flex-direction:column;padding-bottom:0;}
 #chat-screen.active{display:flex;}
 .chat-messages-wrap{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:4px;}
@@ -788,7 +804,7 @@ img{display:block;}
     <div class="nav-link active" id="nl-home" onclick="gotoFeed()"><i class="ph-fill ph-house"></i> Home</div>
     <div class="nav-link" id="nl-explore" onclick="showScreen('explore-screen')"><i class="ph ph-compass"></i> Explore</div>
     <div class="nav-link" id="nl-notif" onclick="showScreen('notif-screen')"><i class="ph ph-bell"></i> Alerts <span class="nav-badge hidden" id="notif-badge">0</span></div>
-    <div class="nav-link" id="nl-messages" onclick="showScreen('messages-screen')"><i class="ph ph-envelope-simple"></i> Messages <span class="nav-badge hidden" id="dm-badge">0</span></div>
+    <div class="nav-link" id="nl-messages" onclick="showScreen('messages-screen')"><i class="ph ph-chat-circle-text"></i> Messages <span class="nav-badge hidden" id="dm-badge">0</span></div>
     <div class="nav-link" id="nl-bookmarks" onclick="showScreen('bookmarks-screen')"><i class="ph ph-bookmark-simple"></i> Bookmarks</div>
     <div class="nav-link" id="nl-lists" onclick="showScreen('lists-screen')"><i class="ph ph-list-bullets"></i> Lists</div>
     <div class="nav-link" id="nl-analytics" onclick="showAnalytics()"><i class="ph ph-chart-bar"></i> Analytics</div>
@@ -880,7 +896,7 @@ img{display:block;}
     <div class="modal-handle"></div>
     <div class="modal-title">More</div>
     <div class="nav-link" onclick="closeModal('mobile-more-modal');showScreen('bookmarks-screen')"><i class="ph ph-bookmark-simple"></i> Bookmarks</div>
-    <div class="nav-link" onclick="closeModal('mobile-more-modal');showScreen('messages-screen')"><i class="ph ph-envelope-simple"></i> Messages <span class="nav-badge hidden" id="dm-badge-mobile">0</span></div>
+    <div class="nav-link" onclick="closeModal('mobile-more-modal');showScreen('messages-screen')"><i class="ph ph-chat-circle-text"></i> Messages <span class="nav-badge hidden" id="dm-badge-mobile">0</span></div>
     <div class="nav-link" onclick="closeModal('mobile-more-modal');showScreen('lists-screen')"><i class="ph ph-list-bullets"></i> Lists</div>
     <div class="nav-link" onclick="closeModal('mobile-more-modal');showAnalytics()"><i class="ph ph-chart-bar"></i> Analytics</div>
     <div class="nav-link" onclick="closeModal('mobile-more-modal');gotoOwnProfile()"><i class="ph ph-user-circle"></i> Profile</div>
@@ -955,7 +971,7 @@ img{display:block;}
   </div>
   <div class="chat-messages-wrap" id="chat-messages"></div>
   <div class="chat-input-bar">
-    <textarea class="chat-input" id="chat-input" rows="1" placeholder="Message…" oninput="chatAutoGrow(this);chatUpdateSendBtn();" onkeydown="chatInputKeydown(event)"></textarea>
+    <textarea class="chat-input" id="chat-input" rows="1" placeholder="Message…" oninput="chatAutoGrow(this);chatUpdateSendBtn();chatHandleTyping();" onkeydown="chatInputKeydown(event)"></textarea>
     <button class="chat-send-btn" id="chat-send-btn" disabled onclick="sendChatMessage()"><i class="ph-fill ph-paper-plane-tilt"></i></button>
   </div>
 </div>
@@ -1016,7 +1032,7 @@ img{display:block;}
     </div>
     <div class="profile-action-group" id="profile-action-btns">
       <button class="btn-edit-profile hidden" id="btn-edit-profile" onclick="openEditProfile()">Edit Profile</button>
-      <button class="btn-edit-profile hidden" id="btn-message-profile" onclick="openChat(profileUid)" title="Message"><i class="ph ph-envelope-simple"></i></button>
+      <button class="btn-edit-profile hidden" id="btn-message-profile" onclick="openChat(profileUid)" title="Message"><i class="ph ph-chat-circle-text"></i></button>
       <button class="btn-follow-sm hidden" id="btn-follow-profile" onclick="toggleFollowProfile()">Follow</button>
     </div>
   </div>
@@ -5219,9 +5235,16 @@ function doStoryShareAction(){
 // ============================================================
 let chatListUnsub=null;
 let chatMsgsUnsub=null;
+let chatReadsUnsub=null;
+let chatTypingUnsub=null;
 let activeChatId=null;
 let activeChatOtherUid=null;
 let chatListCache=[];
+let chatMessagesCache=[];
+let otherReadAt=0;
+let otherTyping=false;
+let typingActive=false;
+let typingTimeout=null;
 
 function chatIdFor(uidA,uidB){ return [uidA,uidB].sort().join('_'); }
 
@@ -5245,7 +5268,7 @@ function startChatsOnce(){
 function loadChatList(){ startChatsOnce(); renderChatList(); }
 function renderChatList(){
   const el=document.getElementById('chat-list'); if(!el) return;
-  if(!chatListCache.length){ el.innerHTML='<div class="empty-feed"><i class="ph ph-envelope-simple"></i><p>No messages yet</p><p style="font-size:12px;margin-top:4px;">Tap + to start a conversation</p></div>'; return; }
+  if(!chatListCache.length){ el.innerHTML='<div class="empty-feed"><i class="ph ph-chat-circle-text"></i><p>No messages yet</p><p style="font-size:12px;margin-top:4px;">Tap + to start a conversation</p></div>'; return; }
   el.innerHTML=chatListCache.map(c=>{
     const unread=c.unreadCount||0;
     const av=c.otherPhoto?`<img src="${c.otherPhoto}" alt="">`:`<div class="chat-list-av" style="background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:800;color:#050A14;">${ESC((c.otherName||'U').charAt(0).toUpperCase())}</div>`;
@@ -5292,8 +5315,14 @@ async function openChat(otherUid){
   }catch(e){ console.error('Failed to load chat header', e); }
 
   ensureChatMeta(activeChatId, me.uid, otherUid);
+  otherReadAt=0; otherTyping=false; typingActive=false; clearTimeout(typingTimeout);
+  updateTypingHeader();
   listenChatMessages(activeChatId);
+  listenChatReads(activeChatId, otherUid);
+  listenTyping(activeChatId, otherUid);
   markChatRead(activeChatId);
+  // Clear our typing flag automatically if we disconnect/close mid-type
+  db.ref('chats/'+activeChatId+'/typing/'+me.uid).onDisconnect().set(false);
 }
 let activeChatOtherInfo=null;
 function chatOpenOtherProfile(){ if(activeChatOtherUid) openProfile(activeChatOtherUid); }
@@ -5312,6 +5341,7 @@ function listenChatMessages(chatId){
     if(activeChatId!==chatId) return;
     const items=[]; snap.forEach(c=>items.push({id:c.key,...c.val()}));
     items.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+    chatMessagesCache=items;
     renderChatMessages(items);
     markChatRead(chatId);
   }, err=>{ console.error('Chat messages listener error:', err); });
@@ -5321,8 +5351,11 @@ function renderChatMessages(items){
   const wrap=document.getElementById('chat-messages'); if(!wrap) return;
   if(!items.length){ wrap.innerHTML='<div class="chat-empty-hint"><i class="ph ph-chat-circle-dots"></i>Say hello 👋</div>'; return; }
   const wasNearBottom = wrap.scrollHeight-wrap.scrollTop-wrap.clientHeight<80;
+  // find the last message sent by me, to show a "Seen" receipt under it
+  let lastMineIdx=-1;
+  for(let i=items.length-1;i>=0;i--){ if(items[i].senderUid===me.uid){ lastMineIdx=i; break; } }
   let html='', lastDay='';
-  items.forEach(m=>{
+  items.forEach((m,i)=>{
     const day=m.createdAt?new Date(m.createdAt).toDateString():'';
     if(day && day!==lastDay){
       html+=`<div class="chat-day-sep">${new Date(m.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',year:(new Date().getFullYear()!==new Date(m.createdAt).getFullYear())?'numeric':undefined})}</div>`;
@@ -5330,9 +5363,17 @@ function renderChatMessages(items){
     }
     const mine=m.senderUid===me.uid;
     const time=m.createdAt?new Date(m.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
-    html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div><div class="chat-bubble">${linkifyText(ESC(m.text||''))}</div><div class="chat-bubble-time">${time}</div></div></div>`;
+    let seenHtml='';
+    if(mine && i===lastMineIdx){
+      const seen = otherReadAt && m.createdAt && otherReadAt>=m.createdAt;
+      seenHtml = seen
+        ? `<div class="chat-seen"><i class="ph-fill ph-checks"></i>Seen</div>`
+        : `<div class="chat-seen"><i class="ph ph-check"></i>Sent</div>`;
+    }
+    html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div><div class="chat-bubble">${linkifyText(ESC(m.text||''))}</div><div class="chat-bubble-time">${time}</div>${seenHtml}</div></div>`;
   });
   wrap.innerHTML=html;
+  renderTypingIndicator();
   if(wasNearBottom || wrap.scrollTop===0) wrap.scrollTop=wrap.scrollHeight;
 }
 function chatAutoGrow(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,120)+'px'; }
@@ -5349,6 +5390,7 @@ async function sendChatMessage(){
   if(!text || !activeChatId || !activeChatOtherUid) return;
   if(blockedSet.has(activeChatOtherUid)){ showToast('You have blocked this user'); return; }
   input.value=''; chatAutoGrow(input); chatUpdateSendBtn();
+  stopTyping();
   const chatId=activeChatId, otherUid=activeChatOtherUid;
   const other=activeChatOtherInfo||{};
   try{
@@ -5375,6 +5417,73 @@ async function sendChatMessage(){
 function markChatRead(chatId){
   if(!me || !chatId) return;
   db.ref('userChats/'+me.uid+'/'+chatId+'/unreadCount').set(0).catch(()=>{});
+  db.ref('chats/'+chatId+'/reads/'+me.uid).set(firebase.database.ServerValue.TIMESTAMP).catch(()=>{});
+}
+
+// ---- Read receipts ("Seen") ----
+function listenChatReads(chatId, otherUid){
+  if(chatReadsUnsub) chatReadsUnsub();
+  const ref=db.ref('chats/'+chatId+'/reads/'+otherUid);
+  const handler=ref.on('value', snap=>{
+    if(activeChatId!==chatId) return;
+    otherReadAt=snap.val()||0;
+    renderChatMessages(chatMessagesCache);
+  }, err=>{ console.error('Chat reads listener error:', err); });
+  chatReadsUnsub=()=>ref.off('value',handler);
+}
+
+// ---- Typing indicator ----
+function listenTyping(chatId, otherUid){
+  if(chatTypingUnsub) chatTypingUnsub();
+  const ref=db.ref('chats/'+chatId+'/typing/'+otherUid);
+  const handler=ref.on('value', snap=>{
+    if(activeChatId!==chatId) return;
+    otherTyping=!!snap.val();
+    updateTypingHeader();
+    renderTypingIndicator();
+  }, err=>{ console.error('Typing listener error:', err); });
+  chatTypingUnsub=()=>ref.off('value',handler);
+}
+function updateTypingHeader(){
+  const sub=document.getElementById('chat-thread-sub'); if(!sub) return;
+  if(otherTyping){
+    sub.classList.add('typing');
+    sub.innerHTML='<span class="typing-indicator-dots"><span></span><span></span><span></span></span> typing…';
+  }else{
+    sub.classList.remove('typing');
+    sub.textContent='@'+((activeChatOtherInfo&&activeChatOtherInfo.handle)||'user');
+  }
+}
+function renderTypingIndicator(){
+  const wrap=document.getElementById('chat-messages'); if(!wrap) return;
+  let row=document.getElementById('chat-typing-row');
+  if(otherTyping){
+    if(!row){
+      wrap.insertAdjacentHTML('beforeend','<div class="chat-bubble-row typing-row" id="chat-typing-row"><div><div class="chat-bubble"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div></div></div>');
+    }
+    wrap.scrollTop=wrap.scrollHeight;
+  }else if(row){
+    row.remove();
+  }
+}
+function chatHandleTyping(){
+  if(!activeChatId || !me) return;
+  if(!typingActive){
+    typingActive=true;
+    db.ref('chats/'+activeChatId+'/typing/'+me.uid).set(true).catch(()=>{});
+  }
+  clearTimeout(typingTimeout);
+  typingTimeout=setTimeout(()=>{
+    typingActive=false;
+    if(activeChatId) db.ref('chats/'+activeChatId+'/typing/'+me.uid).set(false).catch(()=>{});
+  }, 2200);
+}
+function stopTyping(){
+  clearTimeout(typingTimeout); typingTimeout=null;
+  if(typingActive && activeChatId){
+    typingActive=false;
+    db.ref('chats/'+activeChatId+'/typing/'+me.uid).set(false).catch(()=>{});
+  }
 }
 
 // ---- New chat / user picker ----
@@ -5438,6 +5547,12 @@ function hideScreen(id){
   document.getElementById(id).classList.remove('active');
   if(detailUnsub&&id==='detail-screen'){detailUnsub();detailUnsub=null;}
   if(chatMsgsUnsub&&id==='chat-screen'){chatMsgsUnsub();chatMsgsUnsub=null;activeChatId=null;}
+  if(id==='chat-screen'){
+    stopTyping();
+    if(chatReadsUnsub){chatReadsUnsub();chatReadsUnsub=null;}
+    if(chatTypingUnsub){chatTypingUnsub();chatTypingUnsub=null;}
+    otherTyping=false; otherReadAt=0;
+  }
   setNavActive('');
 }
 function gotoFeed(){
@@ -5628,6 +5743,9 @@ function unsubAll(){
   if(detailUnsub){detailUnsub();detailUnsub=null;}
   if(chatListUnsub){chatListUnsub();chatListUnsub=null;}
   if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
+  if(chatReadsUnsub){chatReadsUnsub();chatReadsUnsub=null;}
+  if(chatTypingUnsub){chatTypingUnsub();chatTypingUnsub=null;}
+  stopTyping();
   activeChatId=null; activeChatOtherUid=null;
 }
 
