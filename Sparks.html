@@ -703,7 +703,10 @@ img{display:block;}
   background-image:radial-gradient(rgba(0,200,255,0.05) 1px, transparent 1px);background-size:18px 18px;}
 .chat-bubble-row{display:flex;margin-bottom:2px;}
 .chat-bubble-row.mine{justify-content:flex-end;}
-.chat-bubble{position:relative;max-width:72%;padding:9px 14px;border-radius:18px;font-size:14px;line-height:1.4;word-wrap:break-word;white-space:pre-wrap;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+.chat-msg-col{display:flex;flex-direction:column;max-width:72%;min-width:0;}
+.chat-bubble-row:not(.mine) .chat-msg-col{align-items:flex-start;}
+.chat-bubble-row.mine .chat-msg-col{align-items:flex-end;}
+.chat-bubble{position:relative;max-width:100%;padding:9px 14px;border-radius:18px;font-size:14px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;box-shadow:0 1px 2px rgba(0,0,0,.15);}
 .chat-bubble-row.mine .chat-bubble{background:linear-gradient(135deg,var(--cyan),#00A8E0);color:#050A14;border-bottom-right-radius:5px;}
 .chat-bubble-row:not(.mine) .chat-bubble{background:var(--surface2);color:var(--text);border-bottom-left-radius:5px;border:1px solid var(--border2);}
 /* speech-bubble tail — like modern messaging apps */
@@ -5269,8 +5272,10 @@ function startChatsOnce(){
       const badge=document.getElementById(id);
       if(badge){ badge.textContent=unread>99?'99+':unread; badge.classList.toggle('hidden',unread===0); }
     });
-    const listEl=document.getElementById('chat-list');
-    if(listEl && document.getElementById('messages-screen').classList.contains('active')) renderChatList();
+    // Always re-render (not just when the messages screen happens to be marked
+    // active at this exact instant) so a new conversation never silently
+    // fails to appear when the person next opens the messages screen.
+    if(document.getElementById('chat-list')) renderChatList();
   }, err=>{ console.error('Chat list listener error:', err); });
   chatListUnsub=()=>ref.off('value',handler);
 }
@@ -5366,7 +5371,7 @@ function renderChatMessages(items){
     const mine=m.senderUid===me.uid;
     const time=m.createdAt?new Date(m.createdAt).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'';
     if(m.deleted){
-      html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div><div class="chat-bubble deleted"><i class="ph ph-prohibit-inset"></i> ${mine?'You unsent a message':'This message was deleted'}</div><div class="chat-bubble-time">${time}</div></div></div>`;
+      html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-msg-col"><div class="chat-bubble deleted"><i class="ph ph-prohibit-inset"></i> ${mine?'You unsent a message':'This message was deleted'}</div><div class="chat-bubble-time">${time}</div></div></div>`;
       return;
     }
     const counts={}; let myReact=null;
@@ -5374,7 +5379,7 @@ function renderChatMessages(items){
     const chipHtml = Object.keys(counts).length ? `<div class="msg-reactions">${Object.entries(counts).map(([em,ct])=>
       `<span class="msg-reaction-chip ${em===myReact?'mine-reacted':''}" onclick='event.stopPropagation();toggleMsgReaction("${m.id}","${em}")'>${em}${ct>1?' '+ct:''}</span>`
     ).join('')}</div>` : '';
-    html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div>
+    html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-msg-col">
       <div class="chat-bubble" onpointerdown="msgPressStart(event,'${m.id}',${mine})" onpointerup="msgPressCancel()" onpointerleave="msgPressCancel()" onpointercancel="msgPressCancel()" oncontextmenu="event.preventDefault();openMsgCtxMenu(event,'${m.id}',${mine})">${linkifyText(ESC(m.text||''))}</div>
       ${chipHtml}
       <div class="chat-bubble-time">${time}</div>
@@ -5465,14 +5470,12 @@ async function sendChatMessage(){
       otherVerified: other.verified||false, otherBadgeUrl: other.badgeUrl||null,
       lastMessage: text, lastMessageAt: now, unreadCount: 0
     });
-    await db.ref('userChats/'+otherUid+'/'+chatId).transaction(cur=>{
-      cur = cur || {};
-      return {
-        otherUid: me.uid, otherName: myData.name||'User', otherHandle: myData.handle||'user', otherPhoto: myData.photoBase64||null,
-        otherVerified: myData.verified||false, otherBadgeUrl: myData.badgeUrl||null,
-        lastMessage: text, lastMessageAt: Date.now(), unreadCount: (cur.unreadCount||0)+1
-      };
+    await db.ref('userChats/'+otherUid+'/'+chatId).update({
+      otherUid: me.uid, otherName: myData.name||'User', otherHandle: myData.handle||'user', otherPhoto: myData.photoBase64||null,
+      otherVerified: myData.verified||false, otherBadgeUrl: myData.badgeUrl||null,
+      lastMessage: text, lastMessageAt: firebase.database.ServerValue.TIMESTAMP
     });
+    await db.ref('userChats/'+otherUid+'/'+chatId+'/unreadCount').transaction(cur=>(cur||0)+1);
   }catch(err){
     console.error('sendChatMessage failed', err);
     showToast('Could not send message: '+(err.message||'error'));
