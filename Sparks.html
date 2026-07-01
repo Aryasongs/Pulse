@@ -2841,11 +2841,41 @@ function dataUrlToBlob(dataUrl){
   return new Blob([bytes], {type: mime});
 }
 
+// Resizes an image data: URL down so both dimensions are ≤512px
+// (preserving aspect ratio) — required by the flux-2-dev model on
+// Workers AI, which rejects/crashes on larger reference images. Images
+// already within the limit are returned unchanged.
+function resizeDataUrlMax512(dataUrl){
+  return new Promise((resolve, reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try{
+        const maxSide=512;
+        let w=img.naturalWidth, h=img.naturalHeight;
+        if(w<=maxSide && h<=maxSide){ resolve(dataUrl); return; }
+        const scale=Math.min(maxSide/w, maxSide/h);
+        w=Math.max(1, Math.round(w*scale));
+        h=Math.max(1, Math.round(h*scale));
+        const canvas=document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        const ctx=canvas.getContext('2d');
+        ctx.drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',0.9));
+      }catch(e){ reject(e); }
+    };
+    img.onerror=()=>reject(new Error('Could not load source image for resizing'));
+    img.src=dataUrl;
+  });
+}
+
 async function editNexorImage(prompt, sourceImageDataUrl){
+  // flux-2-dev on Workers AI requires reference/input images to be
+  // 512x512 or smaller — resize first so the Worker call doesn't throw.
+  const resizedDataUrl=await resizeDataUrlMax512(sourceImageDataUrl);
   // The edit Worker expects multipart/form-data with an "image" file field
   // and a "prompt" text field — not JSON — so convert the data URL to a
   // Blob first (manually, see dataUrlToBlob() above).
-  const srcBlob=dataUrlToBlob(sourceImageDataUrl);
+  const srcBlob=dataUrlToBlob(resizedDataUrl);
   const form=new FormData();
   form.append('image', srcBlob, 'image.png');
   form.append('prompt', prompt || 'enhance this image');
