@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -525,6 +526,41 @@ img{display:block;}
 .btn-sheet.primary:hover{opacity:.9;}
 .btn-sheet.outline{border:1.5px solid var(--border2);color:var(--text);}
 .btn-sheet.outline:hover{background:var(--surface2);}
+
+/* ====== INSTAGRAM STORY SHARE ====== */
+.story-share-sheet{max-width:380px;}
+.story-modal-body{display:flex;flex-direction:column;align-items:center;gap:16px;padding:4px 0 8px;}
+.story-status{display:flex;flex-direction:column;align-items:center;gap:12px;padding:40px 12px;text-align:center;color:var(--text2);font-size:14px;}
+.story-status i{font-size:26px;color:var(--cyan);}
+.story-status.is-error i{color:var(--like);}
+.story-preview-wrap{width:100%;display:flex;justify-content:center;}
+.story-preview-frame{width:180px;aspect-ratio:9/16;border-radius:18px;overflow:hidden;border:1px solid var(--border2);box-shadow:0 8px 32px rgba(0,0,0,.45);background:var(--surface2);}
+.story-preview-frame img{width:100%;height:100%;object-fit:cover;display:block;}
+.story-actions{width:100%;}
+.story-hint{font-size:12.5px;color:var(--text3);text-align:center;line-height:1.5;}
+
+/* Offscreen render stage for the story card — never shown to the user */
+.story-stage{position:fixed;left:-9999px;top:-9999px;width:270px;height:480px;
+  background:radial-gradient(ellipse at 25% 15%,rgba(0,200,255,.16) 0%,transparent 55%),
+             radial-gradient(ellipse at 80% 90%,rgba(255,184,48,.12) 0%,transparent 55%),
+             linear-gradient(160deg,#050A14 0%,#0D1B2E 55%,#0A1728 100%);
+  font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:22px;}
+.story-card{width:100%;background:rgba(13,27,46,.92);border:1px solid rgba(0,200,255,.16);border-radius:22px;padding:18px;box-shadow:0 0 40px rgba(0,200,255,.10);}
+.story-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.story-card-av{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#00C8FF,#0D1B2E);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#050A14;}
+.story-card-av img{width:100%;height:100%;object-fit:cover;display:block;}
+.story-card-idblock{min-width:0;flex:1;}
+.story-card-name{display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#F0F4FF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.story-card-name img{width:14px;height:14px;object-fit:contain;flex-shrink:0;}
+.story-card-handle{font-size:11.5px;color:rgba(240,244,255,.5);}
+.story-card-text{font-size:13px;line-height:1.5;color:#F0F4FF;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
+.story-card-imgwrap{width:100%;border-radius:14px;overflow:hidden;margin-bottom:6px;background:#0A1728;}
+.story-card-imgwrap img{width:100%;max-height:220px;object-fit:cover;display:block;}
+.story-card-footer{margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08);display:flex;align-items:center;gap:8px;}
+.story-card-footer img{width:20px;height:20px;border-radius:6px;object-fit:contain;flex-shrink:0;}
+.story-card-footer-text{display:flex;flex-direction:column;line-height:1.25;}
+.story-card-brand{font-size:12.5px;font-weight:800;color:#F0F4FF;}
+.story-card-viewon{font-size:10.5px;color:#00C8FF;font-weight:600;}
 .btn-sheet.danger{background:rgba(255,59,92,.12);color:var(--like);border:1px solid rgba(255,59,92,.2);}
 .btn-sheet.danger:hover{background:rgba(255,59,92,.2);}
 
@@ -1211,6 +1247,16 @@ img{display:block;}
     <button class="btn-sheet outline" id="repost-simple-btn" onclick="doSimpleRepost()"><i class="ph ph-repeat"></i> Repost</button>
     <button class="btn-sheet outline" style="margin-top:8px;" id="quote-pulse-btn" onclick="openQuotePulse()"><i class="ph ph-quotes"></i> Quote Pulse</button>
     <button class="btn-sheet outline" style="margin-top:8px;" onclick="closeModal('repost-modal')">Cancel</button>
+  </div>
+</div>
+
+<!-- Instagram Story Share -->
+<div class="modal-overlay" id="story-share-modal">
+  <div class="modal-sheet story-share-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title"><i class="ph ph-instagram-logo"></i> Share to Instagram Story</div>
+    <div class="story-modal-body" id="story-modal-body"></div>
+    <button class="btn-sheet outline" style="margin-top:8px;" onclick="closeModal('story-share-modal')">Cancel</button>
   </div>
 </div>
 
@@ -3727,6 +3773,7 @@ async function openDetail(pulseId){
           <div class="pulse-detail-action ${isLiked?'liked-state':''}" id="detail-like-btn" onclick="toggleLike('${ESC(pulseId)}')" title="Like"><i class="ph${isLiked?'-fill':''} ph-heart"></i></div>
           <div class="pulse-detail-action ${isBM?'bookmarked-state':''}" onclick="toggleBookmark('${ESC(pulseId)}')" title="Bookmark"><i class="ph${isBM?'-fill':''} ph-bookmark-simple"></i></div>
           <div class="pulse-detail-action" onclick="shareUrl('${ESC(pulseId)}')" title="Share"><i class="ph ph-share-network"></i></div>
+          <div class="pulse-detail-action" onclick="shareToInstagramStory('${ESC(pulseId)}')" title="Instagram Story"><i class="ph ph-instagram-logo"></i></div>
         </div>
       </div>
       <div style="padding:10px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;">
@@ -4551,6 +4598,7 @@ function openCtxMenu(e, pulseId, isOwn, creatorUid){
   `:'';
   menu.innerHTML=`
     <div class="ctx-item" onclick="closeCtxMenu();shareUrl('${ESC(pulseId)}')"><i class="ph ph-share-network"></i> Share</div>
+    <div class="ctx-item" onclick="closeCtxMenu();shareToInstagramStory('${ESC(pulseId)}')"><i class="ph ph-instagram-logo"></i> Instagram Story</div>
     <div class="ctx-item" onclick="closeCtxMenu();toggleBookmark('${ESC(pulseId)}')"><i class="ph ph-bookmark-simple"></i> ${bookmarkSet.has(pulseId)?'Remove Bookmark':'Bookmark'}</div>
     ${isOwn?`<div class="ctx-divider"></div><div class="ctx-item danger" onclick="closeCtxMenu();deletePulse('${ESC(pulseId)}')"><i class="ph ph-trash"></i> Delete Pulse</div>`:''}
     ${!isOwn?userBtns:''}
@@ -4569,6 +4617,183 @@ function closeCtxMenu(){document.getElementById('ctx-menu').classList.add('hidde
 function shareUrl(pulseId){
   const url=`${location.origin}${location.pathname}?pulse=${pulseId}`;
   navigator.clipboard.writeText(url).then(()=>showToast('Link copied!')).catch(()=>{});
+}
+
+// ============================================================
+// INSTAGRAM STORY SHARE
+// ============================================================
+// Builds a clean 1080x1920 story card for a Pulse, renders it to a PNG
+// (base64), and either hands it to the Android app's native bridge or
+// falls back to a download + copied link in a normal browser.
+const IG_STORY_LOGO_URL = 'https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png';
+let currentStoryShare = null; // {pulseId, dataUrl, postUrl}
+
+function getPostUrl(pulseId){
+  return `${location.origin}/p/${pulseId}`;
+}
+
+function setStoryModalState(state, payload){
+  const body = document.getElementById('story-modal-body');
+  if(!body) return;
+  if(state==='loading'){
+    body.innerHTML = `<div class="story-status"><i class="ph ph-spinner-gap spin"></i><span>Generating your story card…</span></div>`;
+  } else if(state==='error'){
+    body.innerHTML = `
+      <div class="story-status is-error"><i class="ph ph-warning-circle"></i><span>${ESC(payload||'Something went wrong.')}</span></div>
+      <button class="btn-sheet outline" onclick="retryStoryShare()"><i class="ph ph-arrow-clockwise"></i> Try Again</button>`;
+  } else if(state==='ready'){
+    const hasBridge = !!(window.Android && typeof window.Android.shareToInstagramStory==='function');
+    body.innerHTML = `
+      <div class="story-preview-wrap"><div class="story-preview-frame"><img src="${payload}" alt="Story preview"></div></div>
+      <div class="story-actions">
+        <button class="btn-sheet primary" onclick="doStoryShareAction()"><i class="ph ph-instagram-logo"></i> Share to Instagram Story</button>
+      </div>
+      <div class="story-hint">${hasBridge ? 'Opens directly in Instagram Stories.' : "Open the Nexor Android app for direct Instagram Story sharing. We'll download the card and copy the link here."}</div>`;
+  }
+}
+
+async function shareToInstagramStory(pulseId){
+  closeCtxMenu();
+  if(!pulseId){ showToast('Could not find this post'); return; }
+  currentStoryShare = { pulseId };
+  openModal('story-share-modal');
+  await generateAndShowStoryCard(pulseId);
+}
+function retryStoryShare(){
+  if(currentStoryShare && currentStoryShare.pulseId) generateAndShowStoryCard(currentStoryShare.pulseId);
+}
+
+async function generateAndShowStoryCard(pulseId){
+  setStoryModalState('loading');
+  let p;
+  try{
+    const snap = await db.ref('pulses/'+pulseId).once('value');
+    p = snap.val();
+  } catch(e){
+    console.error('Story share: failed to load post', e);
+    setStoryModalState('error', 'Could not load this post. Check your connection and try again.');
+    return;
+  }
+  if(!p){
+    setStoryModalState('error', 'This post no longer exists.');
+    return;
+  }
+  p.id = pulseId;
+
+  let dataUrl;
+  try{
+    dataUrl = await renderStoryCardImage(p);
+  } catch(e){
+    console.error('Story card generation failed', e);
+    setStoryModalState('error', "Couldn't generate the story card. Try again.");
+    return;
+  }
+  if(!dataUrl){
+    setStoryModalState('error', "Couldn't generate the story card. Try again.");
+    return;
+  }
+
+  currentStoryShare = { pulseId, dataUrl, postUrl: getPostUrl(pulseId) };
+  setStoryModalState('ready', dataUrl);
+}
+
+function buildStoryStage(p){
+  const letter = (p.creatorName||'U').charAt(0).toUpperCase();
+  const avInner = p.creatorPhoto ? `<img src="${p.creatorPhoto}" crossorigin="anonymous">` : `<span>${ESC(letter)}</span>`;
+  const vBadge = p.creatorVerified ? `<img src="${p.creatorBadgeUrl||VERIFIED_BADGE_URL}" crossorigin="anonymous">` : '';
+  const img = (p.images && p.images[0]) || p.imageBase64 || null;
+  const imgHtml = img ? `<div class="story-card-imgwrap"><img src="${img}" crossorigin="anonymous"></div>` : '';
+  const text = (p.text||'').trim();
+  const textHtml = text ? `<div class="story-card-text">${ESC(text)}</div>` : '';
+
+  const stage = document.createElement('div');
+  stage.className = 'story-stage';
+  stage.innerHTML = `
+    <div class="story-card">
+      <div class="story-card-header">
+        <div class="story-card-av">${avInner}</div>
+        <div class="story-card-idblock">
+          <div class="story-card-name">${ESC(p.creatorName||'User')}${vBadge}</div>
+          <div class="story-card-handle">@${ESC(p.creatorHandle||'user')}</div>
+        </div>
+      </div>
+      ${textHtml}
+      ${imgHtml}
+      <div class="story-card-footer">
+        <img src="${IG_STORY_LOGO_URL}" crossorigin="anonymous">
+        <div class="story-card-footer-text">
+          <div class="story-card-brand">Nexor</div>
+          <div class="story-card-viewon">View on Nexor</div>
+        </div>
+      </div>
+    </div>`;
+  return stage;
+}
+
+function waitForStoryImages(stage){
+  const imgs = Array.from(stage.querySelectorAll('img'));
+  if(!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map(img=>new Promise(resolve=>{
+    if(img.complete){ resolve(); return; }
+    const done=()=>resolve();
+    img.addEventListener('load', done, {once:true});
+    img.addEventListener('error', done, {once:true});
+    setTimeout(done, 4000); // never let one broken/slow image block sharing
+  })));
+}
+
+async function renderStoryCardImage(p){
+  if(typeof html2canvas !== 'function'){
+    throw new Error('html2canvas not loaded');
+  }
+  const stage = buildStoryStage(p);
+  document.body.appendChild(stage);
+  try{
+    await waitForStoryImages(stage);
+    const canvas = await html2canvas(stage, {
+      width: 270, height: 480,
+      scale: 4, // 270*4 x 480*4 = 1080x1920 (Instagram Story size)
+      backgroundColor: null,
+      useCORS: true,
+      logging: false
+    });
+    return canvas.toDataURL('image/png');
+  } finally {
+    stage.remove();
+  }
+}
+
+function doStoryShareAction(){
+  if(!currentStoryShare || !currentStoryShare.dataUrl){ showToast('Card not ready yet'); return; }
+  const { pulseId, dataUrl, postUrl } = currentStoryShare;
+
+  const hasBridge = !!(window.Android && typeof window.Android.shareToInstagramStory==='function');
+  if(hasBridge){
+    try{
+      window.Android.shareToInstagramStory(pulseId, dataUrl, postUrl);
+      closeModal('story-share-modal');
+    } catch(e){
+      console.error('Android bridge call failed', e);
+      showToast('Could not open Instagram. Try again.');
+    }
+    return;
+  }
+
+  // Browser fallback: download the card + copy the link
+  try{
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `nexor-story-${pulseId}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch(e){
+    console.error('Story card download failed', e);
+  }
+  navigator.clipboard.writeText(postUrl)
+    .then(()=>showToast('Open Nexor Android app for direct Instagram Story sharing.'))
+    .catch(()=>showToast('Card downloaded — open the Nexor Android app for direct Instagram Story sharing.'));
+  closeModal('story-share-modal');
 }
 
 // ============================================================
@@ -4782,7 +5007,8 @@ function unsubAll(){
 // DEEP LINK
 // ============================================================
 window.addEventListener('load',()=>{
-  const pulseId=new URLSearchParams(location.search).get('pulse');
+  const pathMatch = location.pathname.match(/\/p\/([^\/?#]+)/); // e.g. /p/POST_ID (Instagram Story share links)
+  const pulseId=new URLSearchParams(location.search).get('pulse') || (pathMatch ? decodeURIComponent(pathMatch[1]) : null);
   if(pulseId) sessionStorage.setItem('pendingPulseId',pulseId);
   const userId=new URLSearchParams(location.search).get('user');
   if(userId) sessionStorage.setItem('pendingUserId',userId);
