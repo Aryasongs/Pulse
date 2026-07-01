@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexor Edit Worker Test</title>
+<style>
+body{font-family:-apple-system,sans-serif;max-width:600px;margin:20px auto;padding:0 16px;background:#0a0e14;color:#eee;}
+h1{font-size:18px;}
+button{background:#00C8FF;color:#000;border:none;padding:14px 20px;border-radius:8px;font-weight:700;font-size:16px;width:100%;margin-top:12px;}
+input,textarea{width:100%;padding:10px;margin-top:8px;border-radius:6px;border:1px solid #333;background:#151b26;color:#eee;box-sizing:border-box;}
+#log{white-space:pre-wrap;background:#151b26;padding:12px;border-radius:8px;margin-top:16px;font-size:13px;font-family:monospace;word-break:break-all;min-height:100px;}
+img{max-width:100%;margin-top:12px;border-radius:8px;}
+</style>
+</head>
+<body>
+<h1>🔧 Nexor Edit Worker — Direct Test</h1>
+<p>Ye page sirf worker ko test karta hai, koi Sparks app logic nahi. Image choose karo, prompt likho, aur "Send Test Request" dabao.</p>
+<input type="file" id="fileInput" accept="image/*">
+<textarea id="promptInput" placeholder="edit prompt e.g. make it colorful" rows="2">make it colorful</textarea>
+<button onclick="runTest()">Send Test Request</button>
+<div id="log">Waiting...</div>
+<img id="resultImg" style="display:none;">
+<script>
+const WORKER_URL='https://nexoraip.sgursharn076.workers.dev/';
+function log(msg){
+  document.getElementById('log').textContent += '\n'+ (new Date()).toLocaleTimeString()+' — '+msg;
+}
+async function runTest(){
+  const fileInput=document.getElementById('fileInput');
+  const prompt=document.getElementById('promptInput').value;
+  const logEl=document.getElementById('log');
+  logEl.textContent='Starting...';
+  document.getElementById('resultImg').style.display='none';
+  if(!fileInput.files[0]){ log('ERROR: pick an image first'); return; }
+  const file=fileInput.files[0];
+  log('Image selected: '+file.name+' ('+(file.size/1024).toFixed(1)+' KB, type='+file.type+')');
+  log('Worker URL: '+WORKER_URL);
+  const form=new FormData();
+  form.append('image', file, file.name);
+  form.append('prompt', prompt||'edit this image');
+  log('Sending POST request...');
+  const t0=Date.now();
+  try{
+    const res=await fetch(WORKER_URL, {method:'POST', body:form});
+    const elapsed=((Date.now()-t0)/1000).toFixed(1);
+    log('Response received after '+elapsed+'s — status: '+res.status+' '+res.statusText);
+    log('Content-Type: '+res.headers.get('content-type'));
+    if(!res.ok){
+      const text=await res.text();
+      log('ERROR BODY: '+text.slice(0,500));
+      return;
+    }
+    const blob=await res.blob();
+    log('Blob received — type: '+blob.type+', size: '+(blob.size/1024).toFixed(1)+' KB');
+    if(blob.type.startsWith('image/')){
+      const url=URL.createObjectURL(blob);
+      document.getElementById('resultImg').src=url;
+      document.getElementById('resultImg').style.display='block';
+      log('✓ SUCCESS — image displayed below');
+    }else{
+      const text=await blob.text();
+      log('Response was not an image. Body: '+text.slice(0,500));
+    }
+  }catch(e){
+    const elapsed=((Date.now()-t0)/1000).toFixed(1);
+    log('EXCEPTION after '+elapsed+'s: '+e.name+' — '+e.message);
+    log('Full error: '+JSON.stringify(e, Object.getOwnPropertyNames(e)));
+  }
+}
+</script>
+</body>
+</html>
