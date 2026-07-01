@@ -321,6 +321,34 @@ img{display:block;}
 .cvp-progress{position:relative;}
 .cvp-progress-fill{position:absolute;left:0;top:50%;transform:translateY(-50%);height:4px;border-radius:99px;background:var(--cyan);width:0%;pointer-events:none;}
 .cvp-progress-fill::after{content:'';position:absolute;right:-5px;top:50%;transform:translateY(-50%);width:11px;height:11px;border-radius:50%;background:var(--cyan);box-shadow:0 0 0 3px rgba(0,200,255,0.2);}
+.cvp-controls{flex-wrap:nowrap;}
+.cvp-settings-wrap{position:relative;flex-shrink:0;}
+.cvp-settings-btn,.cvp-pip-btn{color:#fff;font-size:16px;padding:4px;border-radius:6px;flex-shrink:0;}
+.cvp-settings-btn:hover,.cvp-pip-btn:hover{background:rgba(255,255,255,0.12);}
+.cvp-settings-menu{position:absolute;bottom:calc(100% + 8px);right:-6px;min-width:150px;background:rgba(10,16,28,0.96);border:1px solid var(--border2);border-radius:12px;padding:8px;backdrop-filter:blur(8px);box-shadow:0 8px 24px rgba(0,0,0,0.5);z-index:5;}
+.cvp-settings-menu.hidden{display:none;}
+.cvp-settings-label{font-size:10px;font-weight:800;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:4px 6px 6px;}
+.cvp-speed-options{display:grid;grid-template-columns:1fr 1fr;gap:4px;}
+.cvp-speed-options button{color:var(--text2);font-size:12px;font-weight:600;padding:6px 4px;border-radius:7px;text-align:center;}
+.cvp-speed-options button:hover{background:rgba(255,255,255,0.08);}
+.cvp-speed-options button.active{background:var(--cyan-dim);color:var(--cyan);font-weight:800;}
+.cvp-settings-divider{height:1px;background:var(--border2);margin:6px 2px;}
+.cvp-loop-toggle{display:flex;align-items:center;gap:8px;width:100%;padding:7px 6px;border-radius:7px;color:var(--text2);font-size:12px;font-weight:600;}
+.cvp-loop-toggle:hover{background:rgba(255,255,255,0.08);}
+.cvp-loop-toggle span{flex:1;text-align:left;}
+.cvp-loop-toggle .cvp-loop-check{opacity:0;font-size:14px;color:var(--cyan);}
+.cvp-loop-toggle.active .cvp-loop-check{opacity:1;}
+.cvp-loop-toggle.active{color:var(--cyan);}
+.cvp-buffering{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;}
+.cvp-buffering i{font-size:30px;color:#fff;filter:drop-shadow(0 0 6px rgba(0,0,0,0.6));}
+.cvp-buffering.hidden{display:none;}
+.cvp-seek-flash{position:absolute;top:0;bottom:0;width:42%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:radial-gradient(circle,rgba(255,255,255,0.14) 0%,transparent 70%);color:#fff;font-size:11px;font-weight:700;pointer-events:none;animation:cvpSeekFlash .5s ease forwards;}
+.cvp-seek-flash i{font-size:24px;}
+.cvp-seek-flash.left{left:0;border-radius:0 999px 999px 0;}
+.cvp-seek-flash.right{right:0;border-radius:999px 0 0 999px;}
+@keyframes cvpSeekFlash{0%{opacity:0;}15%{opacity:1;}80%{opacity:1;}100%{opacity:0;}}
+.cvp-muted-hint{position:absolute;top:8px;right:8px;display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#fff;background:rgba(0,0,0,0.5);border-radius:99px;padding:5px 10px;backdrop-filter:blur(4px);pointer-events:none;transition:opacity .2s;}
+.cvp-muted-hint.hidden{display:none;}
 /* AI content badge (overlay on image/video) */
 .ai-content-badge{position:absolute;top:8px;left:8px;z-index:3;display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;background:rgba(5,10,20,0.72);color:var(--amber);border:1px solid rgba(255,184,48,0.4);border-radius:99px;padding:3px 9px;backdrop-filter:blur(4px);letter-spacing:.3px;}
 
@@ -2694,12 +2722,31 @@ function videoPlayerHtml(src, poster){
   return `<div class="cvp" onclick="event.stopPropagation();">
     <video class="cvp-video" src="${src}" ${poster?`poster="${poster}"`:''} playsinline preload="metadata"></video>
     <div class="cvp-overlay-play"><i class="ph-fill ph-play"></i></div>
+    <div class="cvp-buffering hidden"><i class="ph ph-spinner-gap spin"></i></div>
+    <div class="cvp-muted-hint hidden"><i class="ph ph-speaker-slash"></i><span>Tap to unmute</span></div>
     <div class="cvp-controls">
       <button class="cvp-play-btn" type="button" aria-label="Play/Pause"><i class="ph-fill ph-play"></i></button>
       <span class="cvp-time">0:00</span>
       <div class="cvp-progress"><div class="cvp-progress-fill"></div></div>
       <span class="cvp-duration">0:00</span>
+      <div class="cvp-settings-wrap">
+        <button class="cvp-settings-btn" type="button" aria-label="Settings"><i class="ph ph-gear-six"></i></button>
+        <div class="cvp-settings-menu hidden">
+          <div class="cvp-settings-label">Speed</div>
+          <div class="cvp-speed-options">
+            <button type="button" data-speed="0.5">0.5x</button>
+            <button type="button" data-speed="0.75">0.75x</button>
+            <button type="button" data-speed="1" class="active">Normal</button>
+            <button type="button" data-speed="1.25">1.25x</button>
+            <button type="button" data-speed="1.5">1.5x</button>
+            <button type="button" data-speed="2">2x</button>
+          </div>
+          <div class="cvp-settings-divider"></div>
+          <button type="button" class="cvp-loop-toggle"><i class="ph ph-repeat"></i><span>Loop</span><i class="ph ph-check cvp-loop-check"></i></button>
+        </div>
+      </div>
       <button class="cvp-mute-btn" type="button" aria-label="Mute"><i class="ph ph-speaker-slash"></i></button>
+      <button class="cvp-pip-btn" type="button" aria-label="Picture in picture"><i class="ph ph-picture-in-picture"></i></button>
       <button class="cvp-fullscreen-btn" type="button" aria-label="Fullscreen"><i class="ph ph-corners-out"></i></button>
     </div>
   </div>`;
@@ -2709,6 +2756,57 @@ function cvpFmtTime(t){
   const m=Math.floor(t/60), s=Math.floor(t%60);
   return m+':'+String(s).padStart(2,'0');
 }
+// ------- global feed-wide state (shared by every player instance) -------
+let cvpActiveVideo=null;        // the single video currently allowed to play
+let cvpGlobalMuted=true;        // muted-by-default like every major feed app
+try{ const saved=localStorage.getItem('cvp_muted'); if(saved!==null) cvpGlobalMuted=(saved==='1'); }catch(e){}
+
+function cvpSetGlobalMuted(m){
+  cvpGlobalMuted=m;
+  try{ localStorage.setItem('cvp_muted', m?'1':'0'); }catch(e){}
+}
+// Plays `video`, pausing whichever other video was previously active —
+// this is what gives the "one video plays at a time" feed behaviour.
+function cvpPlay(video){
+  if(cvpActiveVideo && cvpActiveVideo!==video && !cvpActiveVideo.paused){
+    cvpActiveVideo.pause();
+  }
+  cvpActiveVideo=video;
+  video.muted=cvpGlobalMuted;
+  const p=video.play();
+  if(p&&p.catch) p.catch(()=>{}); // autoplay can be rejected silently by the browser, that's fine
+}
+function cvpPause(video){
+  if(!video.paused) video.pause();
+  if(cvpActiveVideo===video) cvpActiveVideo=null;
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden && cvpActiveVideo) cvpActiveVideo.pause();
+});
+
+// IntersectionObserver: the actual "scroll to autoplay / scroll away to stop" engine.
+// A video starts playing once it's ~60% on-screen, and pauses again once it drops
+// below that — so scrolling onto a Pulse plays its video, scrolling past it (or to
+// the next Pulse) stops it, and if the next Pulse also has a video it takes over.
+const cvpObserver=('IntersectionObserver' in window) ? new IntersectionObserver((entries)=>{
+  entries.forEach(entry=>{
+    const video=entry.target;
+    if(entry.isIntersecting && entry.intersectionRatio>=0.6){
+      if(!video.dataset.cvpUserPaused) cvpPlay(video);
+    } else {
+      cvpPause(video);
+    }
+  });
+},{threshold:[0,0.6,1]}) : null;
+
+function cvpFlash(wrap,dir){
+  const el=document.createElement('div');
+  el.className='cvp-seek-flash '+(dir==='back'?'left':'right');
+  el.innerHTML=`<i class="ph-fill ${dir==='back'?'ph-rewind':'ph-fast-forward'}"></i><span>10s</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(),500);
+}
+
 function initCvp(video){
   if(video.dataset.cvpInit) return;
   video.dataset.cvpInit='1';
@@ -2722,15 +2820,30 @@ function initCvp(video){
   const durEl=wrap.querySelector('.cvp-duration');
   const muteBtn=wrap.querySelector('.cvp-mute-btn');
   const fsBtn=wrap.querySelector('.cvp-fullscreen-btn');
-  video.muted=true; // start muted like most feeds; user can unmute via the custom control
+  const pipBtn=wrap.querySelector('.cvp-pip-btn');
+  const bufferEl=wrap.querySelector('.cvp-buffering');
+  const mutedHint=wrap.querySelector('.cvp-muted-hint');
+  const settingsBtn=wrap.querySelector('.cvp-settings-btn');
+  const settingsMenu=wrap.querySelector('.cvp-settings-menu');
+  const speedBtns=[...wrap.querySelectorAll('.cvp-speed-options button')];
+  const loopBtn=wrap.querySelector('.cvp-loop-toggle');
+  video.muted=cvpGlobalMuted; // start muted/unmuted matching the user's last preference
 
   function updatePlayIcon(){
     playBtn.innerHTML=`<i class="ph-fill ${video.paused?'ph-play':'ph-pause'}"></i>`;
     overlayPlay.classList.toggle('hidden',!video.paused);
   }
-  function togglePlay(e){ if(e) e.stopPropagation(); video.paused?video.play().catch(()=>{}):video.pause(); }
+  function updateMuteIcon(){
+    muteBtn.innerHTML=`<i class="ph ${video.muted?'ph-speaker-slash':'ph-speaker-high'}"></i>`;
+    mutedHint.classList.toggle('hidden', !(video.muted && !video.paused));
+  }
+  function togglePlay(e){
+    if(e) e.stopPropagation();
+    if(video.paused){ delete video.dataset.cvpUserPaused; cvpPlay(video); }
+    else{ video.dataset.cvpUserPaused='1'; cvpPause(video); }
+  }
   playBtn.addEventListener('click',togglePlay);
-  overlayPlay.addEventListener('click',e=>{e.stopPropagation(); video.play().catch(()=>{});});
+  overlayPlay.addEventListener('click',e=>{ e.stopPropagation(); delete video.dataset.cvpUserPaused; cvpPlay(video); });
   video.addEventListener('click',togglePlay);
   video.addEventListener('play',updatePlayIcon);
   video.addEventListener('pause',updatePlayIcon);
@@ -2739,7 +2852,11 @@ function initCvp(video){
     curTimeEl.textContent=cvpFmtTime(video.currentTime);
     if(video.duration) progressFill.style.width=(video.currentTime/video.duration*100)+'%';
   });
-  video.addEventListener('ended',()=>{ progressFill.style.width='0%'; updatePlayIcon(); });
+  video.addEventListener('ended',()=>{ if(!video.loop){ progressFill.style.width='0%'; updatePlayIcon(); } });
+  video.addEventListener('waiting',()=>bufferEl.classList.remove('hidden'));
+  video.addEventListener('playing',()=>{ bufferEl.classList.add('hidden'); updateMuteIcon(); });
+  video.addEventListener('canplay',()=>bufferEl.classList.add('hidden'));
+
   function seekFromEvent(e){
     const rect=progress.getBoundingClientRect();
     const clientX=(e.touches&&e.touches[0])?e.touches[0].clientX:e.clientX;
@@ -2747,17 +2864,71 @@ function initCvp(video){
     if(video.duration) video.currentTime=pct*video.duration;
   }
   progress.addEventListener('click',e=>{e.stopPropagation(); seekFromEvent(e);});
+
+  // double-tap left/right half of the video to rewind/skip 10s
+  video.addEventListener('dblclick',e=>{
+    e.stopPropagation();
+    const rect=video.getBoundingClientRect();
+    const x=(e.clientX!=null?e.clientX:rect.left)-rect.left;
+    if(x<rect.width/2){ video.currentTime=Math.max(0,video.currentTime-10); cvpFlash(wrap,'back'); }
+    else{ video.currentTime=Math.min(video.duration||1e9,video.currentTime+10); cvpFlash(wrap,'fwd'); }
+  });
+
   muteBtn.addEventListener('click',e=>{
     e.stopPropagation();
     video.muted=!video.muted;
-    muteBtn.innerHTML=`<i class="ph ${video.muted?'ph-speaker-slash':'ph-speaker-high'}"></i>`;
+    cvpSetGlobalMuted(video.muted); // remember choice for every other video in the feed
+    updateMuteIcon();
   });
+  mutedHint.addEventListener('click',e=>{
+    e.stopPropagation();
+    video.muted=false;
+    cvpSetGlobalMuted(false);
+    updateMuteIcon();
+  });
+
   fsBtn.addEventListener('click',e=>{
     e.stopPropagation();
     if(wrap.requestFullscreen) wrap.requestFullscreen().catch(()=>{});
     else if(video.webkitEnterFullscreen) video.webkitEnterFullscreen();
   });
+
+  // Picture-in-picture
+  if(document.pictureInPictureEnabled && video.disablePictureInPicture!==true){
+    pipBtn.addEventListener('click',async e=>{
+      e.stopPropagation();
+      try{
+        if(document.pictureInPictureElement===video) await document.exitPictureInPicture();
+        else await video.requestPictureInPicture();
+      }catch(err){}
+    });
+  } else {
+    pipBtn.style.display='none';
+  }
+
+  // Settings menu: playback speed + loop
+  settingsBtn.addEventListener('click',e=>{
+    e.stopPropagation();
+    document.querySelectorAll('.cvp-settings-menu').forEach(m=>{ if(m!==settingsMenu) m.classList.add('hidden'); });
+    settingsMenu.classList.toggle('hidden');
+  });
+  settingsMenu.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',()=>settingsMenu.classList.add('hidden'));
+  speedBtns.forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      video.playbackRate=parseFloat(btn.dataset.speed);
+      speedBtns.forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+  loopBtn.addEventListener('click',()=>{
+    video.loop=!video.loop;
+    loopBtn.classList.toggle('active',video.loop);
+  });
+
+  if(cvpObserver) cvpObserver.observe(video);
   updatePlayIcon();
+  updateMuteIcon();
 }
 function scanForCvp(root){
   (root||document).querySelectorAll('.cvp-video:not([data-cvp-init])').forEach(initCvp);
