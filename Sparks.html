@@ -2826,16 +2826,42 @@ async function generateNexorImage(prompt){
 // ------------------------------------------------------------------
 const NEXOR_IMAGE_EDIT_WORKER_URL = 'https://nexoraip.sgursharn076.workers.dev/';
 
+// Converts a data: URL (e.g. "data:image/png;base64,....") into a Blob
+// WITHOUT using fetch(). iOS Safari can intermittently fail to fetch()
+// large data: URIs (surfaces as a generic "Load failed" network error),
+// so we decode the base64 payload manually instead — this path is
+// reliable across browsers regardless of image size.
+function dataUrlToBlob(dataUrl){
+  const [header, base64] = dataUrl.split(',');
+  const mimeMatch = header.match(/data:([^;]+);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++) bytes[i]=binary.charCodeAt(i);
+  return new Blob([bytes], {type: mime});
+}
+
 async function editNexorImage(prompt, sourceImageDataUrl){
   // The edit Worker expects multipart/form-data with an "image" file field
   // and a "prompt" text field — not JSON — so convert the data URL to a
-  // Blob first.
-  const srcRes=await fetch(sourceImageDataUrl);
-  const srcBlob=await srcRes.blob();
+  // Blob first (manually, see dataUrlToBlob() above).
+  const srcBlob=dataUrlToBlob(sourceImageDataUrl);
   const form=new FormData();
   form.append('image', srcBlob, 'image.png');
   form.append('prompt', prompt || 'enhance this image');
-  const res=await fetch(NEXOR_IMAGE_EDIT_WORKER_URL, { method:'POST', body:form });
+  // AI image editing can take a while — give it up to 90s before giving up,
+  // so a slow model run doesn't get mistaken for an instant network failure.
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(), 90000);
+  let res;
+  try{
+    res=await fetch(NEXOR_IMAGE_EDIT_WORKER_URL, { method:'POST', body:form, signal:controller.signal });
+  }catch(fetchErr){
+    if(fetchErr.name==='AbortError') throw new Error('Edit timed out after 90s — the model may be overloaded, try again shortly');
+    throw new Error('Network error reaching edit worker: '+(fetchErr.message||fetchErr));
+  }finally{
+    clearTimeout(timeoutId);
+  }
   if(!res.ok){
     let bodyText='';
     try{ bodyText=await res.text(); }catch(e){}
