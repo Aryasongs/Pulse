@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Nexor Sparks</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
@@ -2824,13 +2827,26 @@ async function generateNexorImage(prompt){
 const NEXOR_IMAGE_EDIT_WORKER_URL = 'https://nexoraip.sgursharn076.workers.dev/';
 
 async function editNexorImage(prompt, sourceImageDataUrl){
-  const res=await fetch(NEXOR_IMAGE_EDIT_WORKER_URL, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ prompt: prompt || 'enhance this image', image: sourceImageDataUrl })
-  });
-  if(!res.ok) throw new Error('Edit worker responded '+res.status);
+  // The edit Worker expects multipart/form-data with an "image" file field
+  // and a "prompt" text field — not JSON — so convert the data URL to a
+  // Blob first.
+  const srcRes=await fetch(sourceImageDataUrl);
+  const srcBlob=await srcRes.blob();
+  const form=new FormData();
+  form.append('image', srcBlob, 'image.png');
+  form.append('prompt', prompt || 'enhance this image');
+  const res=await fetch(NEXOR_IMAGE_EDIT_WORKER_URL, { method:'POST', body:form });
+  if(!res.ok){
+    let bodyText='';
+    try{ bodyText=await res.text(); }catch(e){}
+    throw new Error('Edit worker responded '+res.status+(bodyText?(': '+bodyText.slice(0,200)):''));
+  }
   const blob=await res.blob();
+  if(!blob.type||!blob.type.startsWith('image/')){
+    let bodyText='';
+    try{ bodyText=await blob.text(); }catch(e){}
+    throw new Error('Edit worker did not return an image (got '+(blob.type||'unknown type')+'): '+bodyText.slice(0,200));
+  }
   const dataUrl=await new Promise((resolve,reject)=>{
     const reader=new FileReader();
     reader.onload=()=>resolve(reader.result);
@@ -2967,7 +2983,7 @@ async function triggerNexorAIReply(rawText, pulseId, nexorUid){
         replyData.imageIsAI=true;
       }catch(editErr){
         console.error('Nexor image edit failed:', editErr);
-        replyData.text="Sorry, I couldn't edit that image right now — please try again in a moment.";
+        replyData.text="Edit failed — debug info: "+String(editErr&&editErr.message||editErr).slice(0,300);
       }
     }
     const ref=await db.ref('pulses').push(replyData);
