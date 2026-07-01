@@ -12,7 +12,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -538,31 +537,6 @@ img{display:block;}
 .story-preview-frame img{width:100%;height:100%;object-fit:cover;display:block;}
 .story-actions{width:100%;}
 .story-hint{font-size:12.5px;color:var(--text3);text-align:center;line-height:1.5;}
-
-/* Offscreen render stage for the story card — never shown to the user */
-.story-stage{position:fixed;left:-9999px;top:-9999px;width:270px;height:480px;
-  background:radial-gradient(ellipse at 25% 15%,rgba(0,200,255,.08) 0%,transparent 55%),
-             radial-gradient(ellipse at 80% 90%,rgba(255,184,48,.06) 0%,transparent 55%),
-             linear-gradient(160deg,#050A14 0%,#0D1B2E 55%,#0A1728 100%);
-  font-family:'Inter',system-ui,sans-serif;display:flex;align-items:center;justify-content:center;padding:22px;}
-.story-card{width:100%;background:rgba(13,27,46,.85);border:1px solid rgba(0,200,255,.09);border-radius:22px;padding:18px;box-shadow:0 0 28px rgba(0,200,255,.05);}
-.story-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
-.story-card-av{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;background:linear-gradient(135deg,#00C8FF,#0D1B2E);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;color:#050A14;}
-.story-card-av img{width:100%;height:100%;object-fit:cover;display:block;}
-.story-card-idblock{min-width:0;flex:1;}
-.story-card-name{display:flex;align-items:center;gap:4px;font-size:13.5px;font-weight:800;color:#F0F4FF;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.story-card-name img{width:14px;height:14px;object-fit:contain;flex-shrink:0;}
-.story-card-handle{font-size:11.5px;color:rgba(240,244,255,.5);}
-.story-card-text{font-size:13px;line-height:1.5;color:#F0F4FF;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word;}
-.story-card-text.has-image{-webkit-line-clamp:5;margin-bottom:10px;}
-.story-card-imgwrap{width:100%;border-radius:14px;overflow:hidden;margin-bottom:6px;background:#0A1728;}
-.story-card-imgwrap img{width:100%;max-height:220px;object-fit:cover;display:block;}
-.story-card-imgwrap.priority img{max-height:260px;}
-.story-card-footer{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:6px;opacity:.82;}
-.story-card-footer img{width:14px;height:14px;border-radius:4px;object-fit:contain;flex-shrink:0;}
-.story-card-footer-text{display:flex;flex-direction:column;line-height:1.2;}
-.story-card-brand{font-size:10px;font-weight:800;color:#F0F4FF;}
-.story-card-viewon{font-size:8.5px;color:#00C8FF;font-weight:600;}
 .btn-sheet.danger{background:rgba(255,59,92,.12);color:var(--like);border:1px solid rgba(255,59,92,.2);}
 .btn-sheet.danger:hover{background:rgba(255,59,92,.2);}
 
@@ -4699,71 +4673,237 @@ async function generateAndShowStoryCard(pulseId){
   setStoryModalState('ready', dataUrl);
 }
 
-function buildStoryStage(p){
-  const letter = (p.creatorName||'U').charAt(0).toUpperCase();
-  const avInner = p.creatorPhoto ? `<img src="${p.creatorPhoto}" crossorigin="anonymous">` : `<span>${ESC(letter)}</span>`;
-  const vBadge = p.creatorVerified ? `<img src="${p.creatorBadgeUrl||VERIFIED_BADGE_URL}" crossorigin="anonymous">` : '';
-  const img = (p.images && p.images[0]) || p.imageBase64 || null;
-  const imgHtml = img ? `<div class="story-card-imgwrap priority"><img src="${img}" crossorigin="anonymous"></div>` : '';
-  const text = (p.text||'').trim();
-  // When the post has an image, give it visual priority and keep the text short (4-5 lines)
-  const textHtml = text ? `<div class="story-card-text${img?' has-image':''}">${ESC(text)}</div>` : '';
-
-  const stage = document.createElement('div');
-  stage.className = 'story-stage';
-  stage.innerHTML = `
-    <div class="story-card">
-      <div class="story-card-header">
-        <div class="story-card-av">${avInner}</div>
-        <div class="story-card-idblock">
-          <div class="story-card-name">${ESC(p.creatorName||'User')}${vBadge}</div>
-          <div class="story-card-handle">@${ESC(p.creatorHandle||'user')}</div>
-        </div>
-      </div>
-      ${textHtml}
-      ${imgHtml}
-      <div class="story-card-footer">
-        <img src="${IG_STORY_LOGO_URL}" crossorigin="anonymous">
-        <div class="story-card-footer-text">
-          <div class="story-card-brand">Nexor</div>
-          <div class="story-card-viewon">View on Nexor</div>
-        </div>
-      </div>
-    </div>`;
-  return stage;
+// ------------------------------------------------------------
+// Canvas drawing helpers
+// ------------------------------------------------------------
+function loadImage(src, timeoutMs){
+  return new Promise(resolve=>{
+    if(!src){ resolve(null); return; }
+    const img = new Image();
+    let done=false;
+    const finish=(result)=>{ if(done) return; done=true; resolve(result); };
+    img.onload=()=>finish(img);
+    img.onerror=()=>finish(null); // missing/broken asset never blocks or corrupts the card — just skipped
+    if(!/^data:/.test(src)) img.crossOrigin='anonymous'; // needed to keep the canvas exportable for remote assets (logo/badge)
+    img.src=src;
+    setTimeout(()=>finish(null), timeoutMs||4000);
+  });
+}
+function roundRectPath(ctx,x,y,w,h,r){
+  const rr = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  if(ctx.roundRect){ ctx.roundRect(x,y,w,h,rr); return; }
+  ctx.moveTo(x+rr,y);
+  ctx.arcTo(x+w,y,x+w,y+h,rr);
+  ctx.arcTo(x+w,y+h,x,y+h,rr);
+  ctx.arcTo(x,y+h,x,y,rr);
+  ctx.arcTo(x,y,x+w,y,rr);
+  ctx.closePath();
+}
+function drawImageCover(ctx,img,x,y,w,h){
+  const ir = img.naturalWidth/img.naturalHeight, tr = w/h;
+  let sx,sy,sw,sh;
+  if(ir>tr){ sh=img.naturalHeight; sw=sh*tr; sx=(img.naturalWidth-sw)/2; sy=0; }
+  else { sw=img.naturalWidth; sh=sw/tr; sx=0; sy=(img.naturalHeight-sh)/2; }
+  ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
+}
+function wrapText(ctx,text,maxWidth){
+  const words=text.split(' ');
+  const lines=[]; let line='';
+  for(const w of words){
+    const test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width>maxWidth && line){ lines.push(line); line=w; }
+    else line=test;
+  }
+  if(line) lines.push(line);
+  return lines;
+}
+function clampLines(ctx,lines,maxWidth,maxLines){
+  if(lines.length<=maxLines) return lines;
+  const kept=lines.slice(0,maxLines);
+  let last=kept[maxLines-1];
+  while(last.length>0 && ctx.measureText(last+'…').width>maxWidth){ last=last.slice(0,-1).trimEnd(); }
+  kept[maxLines-1]=(last||'').trimEnd()+'…';
+  return kept;
+}
+function truncateToWidth(ctx,text,maxWidth){
+  if(ctx.measureText(text).width<=maxWidth) return text;
+  let t=text;
+  while(t.length>1 && ctx.measureText(t+'…').width>maxWidth){ t=t.slice(0,-1); }
+  return t+'…';
 }
 
-function waitForStoryImages(stage){
-  const imgs = Array.from(stage.querySelectorAll('img'));
-  if(!imgs.length) return Promise.resolve();
-  return Promise.all(imgs.map(img=>new Promise(resolve=>{
-    if(img.complete){ resolve(); return; }
-    const done=()=>resolve();
-    img.addEventListener('load', done, {once:true});
-    img.addEventListener('error', done, {once:true});
-    setTimeout(done, 4000); // never let one broken/slow image block sharing
-  })));
-}
-
+// ------------------------------------------------------------
+// Story card renderer — 1080x1920, drawn directly on <canvas>
+// (no DOM screenshotting) so every measurement below is exact.
+// ------------------------------------------------------------
 async function renderStoryCardImage(p){
-  if(typeof html2canvas !== 'function'){
-    throw new Error('html2canvas not loaded');
-  }
-  const stage = buildStoryStage(p);
-  document.body.appendChild(stage);
+  const W=1080, H=1920;
+  const canvas=document.createElement('canvas');
+  canvas.width=W; canvas.height=H;
+  const ctx=canvas.getContext('2d');
+
+  try{ if(document.fonts && document.fonts.ready) await document.fonts.ready; }catch(e){}
+
+  const postImgSrc = (p.images && p.images[0]) || p.imageBase64 || null;
+  const [avatarImg, postImg, logoImg, badgeImg] = await Promise.all([
+    loadImage(p.creatorPhoto),
+    loadImage(postImgSrc),
+    loadImage(IG_STORY_LOGO_URL),
+    p.creatorVerified ? loadImage(p.creatorBadgeUrl||VERIFIED_BADGE_URL) : Promise.resolve(null)
+  ]);
+
+  // ---- Background: dark navy/black gradient with soft blurred glow ----
+  const bgGrad = ctx.createLinearGradient(0,0,W*0.3,H);
+  bgGrad.addColorStop(0,'#050A14'); bgGrad.addColorStop(0.55,'#0D1B2E'); bgGrad.addColorStop(1,'#080F1E');
+  ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
   try{
-    await waitForStoryImages(stage);
-    const canvas = await html2canvas(stage, {
-      width: 270, height: 480,
-      scale: 4, // 270*4 x 480*4 = 1080x1920 (Instagram Story size)
-      backgroundColor: null,
-      useCORS: true,
-      logging: false
-    });
-    return canvas.toDataURL('image/png');
-  } finally {
-    stage.remove();
+    ctx.save();
+    ctx.filter='blur(140px)';
+    ctx.globalAlpha=0.5;
+    ctx.fillStyle='#00C8FF';
+    ctx.beginPath(); ctx.arc(W*0.18,H*0.14,260,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#FFB830';
+    ctx.beginPath(); ctx.arc(W*0.85,H*0.92,240,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  }catch(e){ /* filter unsupported — plain gradient still looks fine */ }
+
+  // ---- Layout constants (exact spec) ----
+  const cardX=90, cardW=900, pad=70, radius=56;
+  const contentW=cardW-pad*2;
+  const avatarSize=110, avatarGap=28;
+  const nameFont='700 44px Inter, system-ui, sans-serif';
+  const handleFont='400 34px Inter, system-ui, sans-serif';
+  const bodyFont='400 48px Inter, system-ui, sans-serif';
+  const bodyLineHeight=68, bodyMaxLines=6;
+  const badgeSize=32;
+  const brandFont='700 44px Inter, system-ui, sans-serif';
+  const viewOnFont='600 36px Inter, system-ui, sans-serif';
+  const logoSize=42;
+
+  // ---- Measure post text ----
+  ctx.font=bodyFont;
+  const rawText=(p.text||'').replace(/\s+/g,' ').trim();
+  const bodyLines = rawText ? clampLines(ctx, wrapText(ctx,rawText,contentW), contentW, bodyMaxLines) : [];
+  const textBlockH = bodyLines.length ? bodyLines.length*bodyLineHeight : 0;
+
+  // ---- Post image block (kept within contentW, capped so the card never overflows the canvas) ----
+  const showImg = !!postImg;
+  let imgH=0;
+  if(showImg){
+    const ratio = postImg.naturalHeight/postImg.naturalWidth;
+    imgH = Math.round(contentW*ratio);
+    imgH = Math.max(320, Math.min(560, imgH));
   }
+
+  const gapAfterHeader=40, gapBeforeImage=32, gapBeforeDivider=44, gapAfterDivider=38;
+  const dividerH=2, bottomRowH=Math.max(logoSize, 44+8+36);
+
+  let cardH = pad + avatarSize + gapAfterHeader + textBlockH
+    + (showImg ? gapBeforeImage+imgH : 0)
+    + gapBeforeDivider + dividerH + gapAfterDivider + bottomRowH + pad;
+
+  const maxCardH = H-160;
+  if(cardH>maxCardH) cardH=maxCardH; // safety net; 6-line clamp + image cap normally prevent this
+
+  let cardY=520;
+  if(cardY+cardH > H-80) cardY = Math.max(80, H-80-cardH);
+
+  // ---- Card background + border ----
+  roundRectPath(ctx,cardX,cardY,cardW,cardH,radius);
+  ctx.fillStyle='rgba(8,16,28,0.86)';
+  ctx.fill();
+  ctx.lineWidth=2;
+  ctx.strokeStyle='rgba(0,180,255,0.25)';
+  ctx.stroke();
+
+  // ---- Clip everything below to the card so content can never overflow it ----
+  ctx.save();
+  roundRectPath(ctx,cardX,cardY,cardW,cardH,radius);
+  ctx.clip();
+
+  let cy=cardY+pad;
+  const contentX=cardX+pad;
+
+  // Avatar
+  const avX=contentX, avY=cy;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(avX+avatarSize/2, avY+avatarSize/2, avatarSize/2, 0, Math.PI*2); ctx.closePath(); ctx.clip();
+  if(avatarImg){ drawImageCover(ctx,avatarImg,avX,avY,avatarSize,avatarSize); }
+  else{
+    const g=ctx.createLinearGradient(avX,avY,avX+avatarSize,avY+avatarSize);
+    g.addColorStop(0,'#00C8FF'); g.addColorStop(1,'#FFB830');
+    ctx.fillStyle=g; ctx.fillRect(avX,avY,avatarSize,avatarSize);
+    ctx.fillStyle='#050A14'; ctx.font='800 46px Inter, system-ui, sans-serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText((p.creatorName||'U').charAt(0).toUpperCase(), avX+avatarSize/2, avY+avatarSize/2+3);
+  }
+  ctx.restore();
+
+  // Name + verified badge + username, vertically centered against the avatar
+  const idX=avX+avatarSize+avatarGap;
+  const idMaxW=contentW-avatarSize-avatarGap;
+  const idBlockH=44+10+34;
+  let nameTopY=avY+(avatarSize-idBlockH)/2;
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.font=nameFont; ctx.fillStyle='#F0F4FF';
+  const badgeReserve = p.creatorVerified ? (badgeSize+12) : 0;
+  const displayName = truncateToWidth(ctx, p.creatorName||'User', idMaxW-badgeReserve);
+  const nameBaselineY = nameTopY+34;
+  ctx.fillText(displayName, idX, nameBaselineY);
+  if(p.creatorVerified && badgeImg){
+    const nameW = ctx.measureText(displayName).width;
+    const bx = idX+nameW+12, by = nameBaselineY-badgeSize+7; // beside the name, not a big detached square
+    ctx.drawImage(badgeImg, bx, by, badgeSize, badgeSize);
+  }
+  ctx.font=handleFont; ctx.fillStyle='rgba(240,244,255,0.55)';
+  const handleBaselineY=nameTopY+44+10+27;
+  ctx.fillText(truncateToWidth(ctx,'@'+(p.creatorHandle||'user'), idMaxW), idX, handleBaselineY);
+
+  cy += avatarSize + gapAfterHeader;
+
+  // Post text
+  if(bodyLines.length){
+    ctx.font=bodyFont; ctx.fillStyle='#F0F4FF'; ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+    bodyLines.forEach((line,i)=>{
+      ctx.fillText(line, contentX, cy + i*bodyLineHeight + (bodyLineHeight*0.72));
+    });
+    cy += textBlockH;
+  }
+
+  // Post image — given visual priority when present
+  if(showImg){
+    cy += gapBeforeImage;
+    roundRectPath(ctx, contentX, cy, contentW, imgH, 28);
+    ctx.save(); ctx.clip();
+    drawImageCover(ctx, postImg, contentX, cy, contentW, imgH);
+    ctx.restore();
+    cy += imgH;
+  }
+
+  // Divider
+  cy += gapBeforeDivider;
+  ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(contentX,cy); ctx.lineTo(contentX+contentW,cy); ctx.stroke();
+  cy += dividerH+gapAfterDivider;
+
+  // Bottom brand row — logo, "Nexor", "View on Nexor"
+  if(logoImg){
+    roundRectPath(ctx, contentX, cy, logoSize, logoSize, 10);
+    ctx.save(); ctx.clip();
+    drawImageCover(ctx, logoImg, contentX, cy, logoSize, logoSize);
+    ctx.restore();
+  }
+  const brandTextX = contentX+logoSize+18;
+  ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+  ctx.font=brandFont; ctx.fillStyle='#F0F4FF';
+  ctx.fillText('Nexor', brandTextX, cy+34);
+  ctx.font=viewOnFont; ctx.fillStyle='#00C8FF';
+  ctx.fillText('View on Nexor', brandTextX, cy+34+40); // visual only — Android attaches the real tappable link via content_url/postUrl
+
+  ctx.restore(); // end card clip
+
+  return canvas.toDataURL('image/png');
 }
 
 function doStoryShareAction(){
