@@ -1300,12 +1300,28 @@ img{display:block;}
       <div class="compose-av" id="reply-av">U</div>
       <div style="flex:1;">
         <textarea class="compose-textarea" id="reply-text" placeholder="Write your reply…" rows="3" oninput="onComposeInput(this,'reply-counter','reply-post-btn')"></textarea>
+        <div id="reply-gif-preview" class="compose-img-preview hidden"></div>
       </div>
     </div>
-    <div class="compose-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;justify-content:flex-end;gap:12px;">
-      <span class="char-counter" id="reply-counter">200</span>
-      <button class="btn-post" id="reply-post-btn" disabled onclick="postReply()">Reply</button>
+    <div class="compose-footer" style="border-top:1px solid var(--border);padding-top:12px;margin-top:10px;">
+      <div class="compose-actions">
+        <button class="compose-action-btn" title="GIF" onclick="openGifPicker('reply')"><span style="font-size:11px;font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:1px 4px;line-height:1.3;">GIF</span></button>
+      </div>
+      <div class="compose-footer-right">
+        <span class="char-counter" id="reply-counter">200</span>
+        <button class="btn-post" id="reply-post-btn" disabled onclick="postReply()">Reply</button>
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- GIF Picker -->
+<div class="modal-overlay" id="gif-picker-modal">
+  <div class="modal-sheet" style="max-height:80vh;">
+    <div class="modal-handle"></div>
+    <input type="text" id="gif-search-input" placeholder="Search GIFs…" oninput="onGifSearchInput()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;">
+    <div id="gif-results-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:200px;"></div>
+    <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;">GIFs powered by GIPHY</div>
   </div>
 </div>
 
@@ -1649,6 +1665,7 @@ let blockedSet   = new Set();
 let mutedSet     = new Set();
 let unsubscribers = [];
 let profileUid = null;
+let profileHandleCache = '';
 let profileLoadToken = 0;
 let profileViewable = true;
 // ---- Screen back-navigation history ----
@@ -1659,6 +1676,13 @@ let navCurrent = null; // {id, fn}
 let navSuppressPush = false;
 const RESERVED_HANDLES = ['nexor','sparks','nexorsparks','admin','administrator','support','official','moderator','staff','help','root','system'];
 let replyToId  = null;
+// ---- GIF picker (GIPHY) ----
+// Public GIPHY beta key — rate-limited to 100 requests/hour, fine for testing.
+// For production, get your own free key at https://developers.giphy.com and swap it in here.
+const GIPHY_API_KEY = 'dc6zaTOxFJmzC';
+let gifPickerTarget = null; // which compose box we're picking a GIF for
+let replyGifUrl = null;
+let gifSearchDebounce = null;
 let repostTargetId = null;
 let quoteTargetId = null;
 let quoteOrigPulse = null;
@@ -2447,7 +2471,7 @@ function onComposeInput(ta, counterId, btnId){
   counter.className='char-counter'+(rem<20?' warn':'')+(rem<0?' over':'');
   const target=btnId.startsWith('inline')?'inline':(btnId.startsWith('modal')?'modal':null);
   const hasValidPoll=target&&!!getValidPollPayload(target);
-  if(btn) btn.disabled=(len===0&&!(btnId==='modal-post-btn'&&quoteTargetId)&&!hasValidPoll)||rem<0;
+  if(btn) btn.disabled=(len===0&&!(btnId==='modal-post-btn'&&quoteTargetId)&&!hasValidPoll&&!(btnId==='reply-post-btn'&&replyGifUrl))||rem<0;
   handleMentionTrigger(ta);
 }
 
@@ -2529,8 +2553,8 @@ function openCompose(prefillText){
 // On your own profile it behaves like a normal, untagged post.
 function openComposeFromProfile(){
   if(profileUid && profileUid!==me.uid && profileViewable){
-    const handle=(document.getElementById('profile-handle').textContent||'').replace(/^@/,'').trim();
-    openCompose(handle&&handle!=='—'?'@'+handle+' ':'');
+    const handle=(profileHandleCache||'').trim();
+    openCompose(handle?'@'+handle+' ':'');
   } else {
     openCompose();
   }
@@ -4120,6 +4144,7 @@ async function submitReport(reason){
 // ============================================================
 function openReply(pulseId, handle){
   replyToId=pulseId;
+  removeReplyGif();
   document.getElementById('reply-to-handle').textContent='@'+handle;
   const prefill='@'+handle+' ';
   const ta=document.getElementById('reply-text');
@@ -4133,12 +4158,13 @@ function openReply(pulseId, handle){
 }
 async function postReply(){
   const text=document.getElementById('reply-text').value.trim();
-  if(!text||!replyToId)return;
+  if((!text&&!replyGifUrl)||!replyToId)return;
   const btn=document.getElementById('reply-post-btn'); btn.disabled=true;
   try{
     const replyData={uid:me.uid,creatorName:myData.name||'User',creatorHandle:myData.handle||'user',
       creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,
       text,parentId:replyToId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
+    if(replyGifUrl){ replyData.images=[replyGifUrl]; replyData.isGif=true; replyData.mediaType='gif'; }
     const ref=await db.ref('pulses').push(replyData);
     await db.ref('replies/'+replyToId+'/'+ref.key).set(true);
     await db.ref('pulses/'+replyToId+'/replies').transaction(c=>(c||0)+1);
@@ -4147,10 +4173,67 @@ async function postReply(){
     const creatorUid=pSnap.val();
     if(creatorUid){ await sendNotification(creatorUid, {type:'reply', pulseId:replyToId}); }
     notifyMentions(text, ref.key);
+    removeReplyGif();
     closeModal('reply-modal'); showToast('Reply posted ✓');
     if(document.getElementById('detail-screen').classList.contains('active')) openDetail(replyToId);
   } catch(e){ showToast('Could not post reply'); }
   finally{ btn.disabled=false; }
+}
+
+// ============================================================
+// GIF PICKER (GIPHY) — used for GIF replies/comments
+// ============================================================
+function openGifPicker(target){
+  gifPickerTarget=target||'reply';
+  const input=document.getElementById('gif-search-input');
+  input.value='';
+  openModal('gif-picker-modal');
+  loadGifs();
+  setTimeout(()=>input.focus(),150);
+}
+function onGifSearchInput(){
+  const q=document.getElementById('gif-search-input').value.trim();
+  clearTimeout(gifSearchDebounce);
+  gifSearchDebounce=setTimeout(()=>loadGifs(q),350);
+}
+async function loadGifs(query){
+  const grid=document.getElementById('gif-results-grid');
+  grid.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  try{
+    const url=query
+      ? `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_API_KEY}&q=${encodeURIComponent(query)}&limit=24&rating=pg-13`
+      : `https://api.giphy.com/v1/gifs/trending?api_key=${GIPHY_API_KEY}&limit=24&rating=pg-13`;
+    const res=await fetch(url);
+    if(!res.ok) throw new Error('GIF request failed');
+    const data=await res.json();
+    const items=data.data||[];
+    if(!items.length){ grid.innerHTML='<div class="empty-feed"><p>No GIFs found</p></div>'; return; }
+    grid.innerHTML=items.map(g=>{
+      const thumb=(g.images.fixed_width_small||g.images.fixed_width||g.images.original||{}).url||'';
+      const full=(g.images.fixed_width||g.images.original||{}).url||thumb;
+      if(!thumb) return '';
+      return `<div style="border-radius:10px;overflow:hidden;cursor:pointer;background:var(--surface2);aspect-ratio:1;" onclick="selectGif('${ESC(full)}')"><img src="${ESC(thumb)}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy" alt=""></div>`;
+    }).join('');
+  }catch(e){
+    grid.innerHTML='<div class="empty-feed"><p>Could not load GIFs. Check your connection and try again.</p></div>';
+  }
+}
+function selectGif(url){
+  if(gifPickerTarget==='reply'){
+    replyGifUrl=url;
+    const preview=document.getElementById('reply-gif-preview');
+    preview.innerHTML=`<img src="${ESC(url)}" alt=""><div class="compose-img-remove" onclick="event.stopPropagation();removeReplyGif()"><i class="ph ph-x"></i></div>`;
+    preview.classList.remove('hidden');
+    onComposeInput(document.getElementById('reply-text'),'reply-counter','reply-post-btn');
+  }
+  closeModal('gif-picker-modal');
+}
+function removeReplyGif(){
+  replyGifUrl=null;
+  const preview=document.getElementById('reply-gif-preview');
+  if(preview){ preview.classList.add('hidden'); preview.innerHTML=''; }
+  const ta=document.getElementById('reply-text');
+  if(ta) onComposeInput(ta,'reply-counter','reply-post-btn');
 }
 
 // ============================================================
@@ -4335,6 +4418,7 @@ async function openProfile(uid){
 
   // Handle + join date
   const handleEl=document.getElementById('profile-handle');
+  profileHandleCache=u.handle||'user';
   handleEl.innerHTML=`@${ESC(u.handle||'user')} <span class="profile-join-date" style="margin-left:4px;">· Joined ${joinDate(u.createdAt)}</span>`;
 
   // Bio
