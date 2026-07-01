@@ -2647,6 +2647,19 @@ function findNexorAnswer(question){
 // If neither prefix is used, Nexor doesn't guess — it replies with the
 // instructions so the user can choose explicitly next time.
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// REQUEST PARSER for @nexor tags.
+// Three intents are recognized, checked in this order:
+//   1. Image EDIT  — "update this image" / "edit this image" / etc. →
+//      edits the image from the Pulse being replied to (or the tagging
+//      Pulse's own attached image) via the image-edit Worker.
+//   2. Image GENERATE — "create image" / "generate image" / "image ..." →
+//      generates a brand new AI image via the image-generate Worker.
+//   3. Otherwise — treated as a normal question/statement and answered
+//      directly with a plain text reply. No prefix is required for this
+//      case; only image generate/edit need an explicit trigger phrase.
+// ------------------------------------------------------------------
+const NEXOR_EDIT_PREFIXES = ['update this image','edit this image','update the image','edit the image','update image','edit image','change this image','modify this image','change image','modify image','edit this pic','update this pic','edit pic','update pic','edit this photo','update this photo','edit photo','update photo','improve this image','fix this image'];
 const NEXOR_IMAGE_PREFIXES = ['image','img','generate image','make image','create image','draw','pic','photo','picture','tasveer','tasveer bana','image bana','pic bana','photo bana'];
 const NEXOR_TEXT_PREFIXES  = ['text','txt','reply','answer','jawab'];
 
@@ -2665,14 +2678,18 @@ function stripNexorPrefix(question, prefixList){
   return null; // prefix not found
 }
 
-// Returns one of: {mode:'image', prompt}, {mode:'text', prompt}, or
-// {mode:'choose'} when the user hasn't picked an option yet.
+// Returns one of: {mode:'edit', prompt}, {mode:'image', prompt}, or
+// {mode:'text', prompt}. Plain questions with no recognized trigger
+// phrase fall straight through to 'text' — answered directly, no need
+// to ask the user to pick an option first.
 function parseNexorRequest(question){
+  const editPrompt=stripNexorPrefix(question, NEXOR_EDIT_PREFIXES);
+  if(editPrompt!==null) return {mode:'edit', prompt:editPrompt};
   const imgPrompt=stripNexorPrefix(question, NEXOR_IMAGE_PREFIXES);
   if(imgPrompt!==null) return {mode:'image', prompt:imgPrompt};
   const txtPrompt=stripNexorPrefix(question, NEXOR_TEXT_PREFIXES);
   if(txtPrompt!==null) return {mode:'text', prompt:txtPrompt};
-  return {mode:'choose'};
+  return {mode:'text', prompt:question}; // no trigger phrase — just answer the question
 }
 
 const NEXOR_OPTIONS_PROMPT = "Hi! Tag me with one of these two options:\n\n🖼️ Reply with: image <description>  (e.g. \"image cat in the sky\")\n💬 Reply with: text <your question>  (e.g. \"text how does follow work\")";
@@ -2797,6 +2814,52 @@ async function generateNexorImage(prompt){
   }
 }
 
+// ------------------------------------------------------------------
+// IMAGE EDIT — separate Cloudflare Worker that takes an existing image
+// plus an instruction ("update this image: make it night time") and
+// returns a modified version. Unlike generation, there's no offline
+// fallback here (there's nothing sensible to fake locally), so a
+// failure is surfaced to the caller instead of silently degrading.
+// ------------------------------------------------------------------
+const NEXOR_IMAGE_EDIT_WORKER_URL = 'https://nexoraip.sgursharn076.workers.dev/';
+
+async function editNexorImage(prompt, sourceImageDataUrl){
+  const res=await fetch(NEXOR_IMAGE_EDIT_WORKER_URL, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ prompt: prompt || 'enhance this image', image: sourceImageDataUrl })
+  });
+  if(!res.ok) throw new Error('Edit worker responded '+res.status);
+  const blob=await res.blob();
+  const dataUrl=await new Promise((resolve,reject)=>{
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);
+    reader.onerror=reject;
+    reader.readAsDataURL(blob);
+  });
+  return await nexorWatermarkDataUrl(dataUrl);
+}
+
+// Finds the image to edit when someone tags @nexor with an edit request.
+// Priority: an image attached to the tagging Pulse itself, otherwise the
+// image on the Pulse being replied to (what "this image" naturally refers
+// to). Returns null if no image can be found either way.
+async function findSourceImageForNexorEdit(pulseId){
+  try{
+    const snap=await db.ref('pulses/'+pulseId).once('value');
+    const p=snap.val();
+    if(!p) return null;
+    const ownImg=(p.images&&p.images[0])||p.imageBase64||null;
+    if(ownImg) return ownImg;
+    if(p.parentId){
+      const pSnap=await db.ref('pulses/'+p.parentId).once('value');
+      const parent=pSnap.val();
+      if(parent) return (parent.images&&parent.images[0])||parent.imageBase64||null;
+    }
+    return null;
+  }catch(e){ console.error('findSourceImageForNexorEdit failed:',e); return null; }
+}
+
 // Offline fallback ONLY used if the Worker call fails (e.g. no network,
 // Worker down, AI binding missing) — a simple abstract graphic on canvas,
 // not real AI art, just so the reply never comes back empty.
@@ -2844,24 +2907,36 @@ function generateNexorImageFallback(prompt){
   return canvas.toDataURL('image/jpeg',0.85);
 }
 
-// Answers a question someone asked by tagging @nexor (in a post OR a
-// comment/reply). Tagging @nexor always presents two explicit options —
-// "image" or "text" — via parseNexorRequest(). If neither is chosen yet,
-// Nexor replies with instructions instead of guessing. Image requests are
-// checked by the safety gate BEFORE any generation happens; unsafe
-// requests get a plain-English refusal citing community guidelines and
-// nothing is generated. Posts the answer back as a reply from the
-// official @nexor account. Never reveals private user data.
+// Answers a request made by tagging @nexor (in a post OR a comment/reply).
+// Three outcomes, based on parseNexorRequest():
+//  - "edit"  → edits an existing image (from the tagging Pulse itself, or
+//    the Pulse being replied to) via the image-edit Worker.
+//  - "image" → generates a brand new AI image via the image-generate Worker.
+//  - "text"  → answers directly as a normal reply — this is also the
+//    default when no trigger phrase is used, so plain questions just work.
+// Image requests (generate AND edit) are checked by the safety gate BEFORE
+// any generation happens; unsafe requests get a plain-English refusal
+// citing community guidelines and nothing is generated. Posts the answer
+// back as a reply from the official @nexor account. Never reveals private
+// user data.
 async function triggerNexorAIReply(rawText, pulseId, nexorUid){
   const question=(rawText||'').replace(/@nexor\b/gi,'').trim();
   if(!question) return;
   const req=parseNexorRequest(question);
-  let answer, imagePromptToGenerate=null;
-  if(req.mode==='choose'){
-    answer=NEXOR_OPTIONS_PROMPT;
-  }else if(req.mode==='text'){
-    answer=req.prompt ? findNexorAnswer(req.prompt) : NEXOR_OPTIONS_PROMPT;
-  }else{ // req.mode==='image'
+  let answer, imagePromptToGenerate=null, editPromptToApply=null, sourceImageForEdit=null;
+  if(req.mode==='edit'){
+    if(req.prompt && nexorImagePromptIsUnsafe(req.prompt)){
+      answer=NEXOR_UNSAFE_IMAGE_REPLY;
+    }else{
+      sourceImageForEdit=await findSourceImageForNexorEdit(pulseId);
+      if(!sourceImageForEdit){
+        answer="I couldn't find an image to edit — reply to a Pulse that has an image (or attach one yourself) and tag me again with your edit instructions.";
+      }else{
+        answer="Here's the updated image:";
+        editPromptToApply=req.prompt||'enhance this image';
+      }
+    }
+  }else if(req.mode==='image'){
     if(!req.prompt){
       answer="What would you like the image to be of? Reply: image <description>";
     }else if(nexorImagePromptIsUnsafe(req.prompt)){
@@ -2870,6 +2945,8 @@ async function triggerNexorAIReply(rawText, pulseId, nexorUid){
       answer="Here's what I generated for you:";
       imagePromptToGenerate=req.prompt;
     }
+  }else{ // req.mode==='text'
+    answer=req.prompt ? findNexorAnswer(req.prompt) : NEXOR_OPTIONS_PROMPT;
   }
   try{
     const uSnap=await db.ref('users/'+nexorUid).once('value');
@@ -2882,6 +2959,16 @@ async function triggerNexorAIReply(rawText, pulseId, nexorUid){
       replyData.images=[img];
       replyData.imageBase64=img;
       replyData.imageIsAI=true;
+    }else if(editPromptToApply && sourceImageForEdit){
+      try{
+        const img=await editNexorImage(editPromptToApply, sourceImageForEdit);
+        replyData.images=[img];
+        replyData.imageBase64=img;
+        replyData.imageIsAI=true;
+      }catch(editErr){
+        console.error('Nexor image edit failed:', editErr);
+        replyData.text="Sorry, I couldn't edit that image right now — please try again in a moment.";
+      }
     }
     const ref=await db.ref('pulses').push(replyData);
     await db.ref('replies/'+pulseId+'/'+ref.key).set(true);
@@ -3963,6 +4050,21 @@ function loadNotifs(){
   }, err=>{ console.error('Notifications listener error (likely a Realtime DB rules issue):', err); });
   notifUnsub=()=>ref.off('value',handler);
 }
+// ------------------------------------------------------------------
+// RELIABILITY FIX: on mobile, backgrounding the app / locking the screen
+// can suspend Firebase's realtime socket. The listener sometimes doesn't
+// cleanly resume by itself, so new notifications silently stop arriving
+// after the first one. Force a clean re-subscribe whenever the app comes
+// back to the foreground or the network reconnects.
+// ------------------------------------------------------------------
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState==='visible' && me && notifsStarted){
+    loadNotifs();
+  }
+});
+window.addEventListener('online', ()=>{
+  if(me && notifsStarted) loadNotifs();
+});
 async function markNotifRead(id){ await db.ref('notifications/'+me.uid+'/'+id+'/read').set(true).catch(()=>{}); }
 async function markAllNotifsRead(){
   const snap=await db.ref('notifications/'+me.uid).once('value');
