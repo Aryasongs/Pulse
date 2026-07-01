@@ -858,8 +858,8 @@ img{display:block;}
             <div class="compose-actions">
               <button class="compose-action-btn" title="Image" onclick="triggerImagePick('inline-img-input')"><i class="ph ph-image"></i></button>
               <input type="file" id="inline-img-input" accept="image/*" multiple style="display:none" onchange="onImagePicked(event,'inline')">
-              <button class="compose-action-btn" title="Video (max 15s)" onclick="triggerVideoPick('inline-vid-input')"><i class="ph ph-video-camera"></i></button>
-              <input type="file" id="inline-vid-input" accept="video/*" style="display:none" onchange="onVideoPicked(event,'inline')">
+              <button class="compose-action-btn" title="Video (max 30 min, mp4/mov/webm)" onclick="triggerVideoPick('inline-vid-input')"><i class="ph ph-video-camera"></i></button>
+              <input type="file" id="inline-vid-input" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" style="display:none" onchange="onVideoPicked(event,'inline')">
               <button class="compose-action-btn" title="Poll" onclick="togglePollBox('inline')"><i class="ph ph-chart-bar-horizontal"></i></button>
               <button class="compose-action-btn" title="Emoji" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
             </div>
@@ -1243,8 +1243,8 @@ img{display:block;}
       <div class="compose-actions">
         <button class="compose-action-btn" onclick="triggerImagePick('modal-img-input')"><i class="ph ph-image"></i></button>
         <input type="file" id="modal-img-input" accept="image/*" multiple style="display:none" onchange="onImagePicked(event,'modal')">
-        <button class="compose-action-btn" title="Video (max 15s)" onclick="triggerVideoPick('modal-vid-input')"><i class="ph ph-video-camera"></i></button>
-        <input type="file" id="modal-vid-input" accept="video/*" style="display:none" onchange="onVideoPicked(event,'modal')">
+        <button class="compose-action-btn" title="Video (max 30 min, mp4/mov/webm)" onclick="triggerVideoPick('modal-vid-input')"><i class="ph ph-video-camera"></i></button>
+        <input type="file" id="modal-vid-input" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" style="display:none" onchange="onVideoPicked(event,'modal')">
         <button class="compose-action-btn" title="Poll" onclick="togglePollBox('modal')"><i class="ph ph-chart-bar-horizontal"></i></button>
         <button class="compose-action-btn" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
       </div>
@@ -1560,6 +1560,16 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.database();
+
+// ============================================================
+// CLOUDINARY (video upload) — unsigned upload preset, no API secret ever
+// exposed client-side. Uploads go straight from the browser to Cloudinary
+// via the unsigned upload endpoint below.
+// ============================================================
+const CLOUDINARY_CLOUD_NAME = "sn9ix9kf";
+const CLOUDINARY_API_KEY = "783841585257323"; // public key, safe to expose — NOT the API secret
+const CLOUDINARY_UPLOAD_PRESET = "sparks_upload";
+const CLOUDINARY_VIDEO_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
 
 const VERIFIED_BADGE_URL = 'https://aryasongs.github.io/Pulse/5673DD39-FBCB-4A20-B9E5-AF205AA75FBC.png';
 // Organization badge — shown ADDITIONALLY next to the verified tick (like
@@ -2152,7 +2162,7 @@ function pulseImageHtml(p){
 // lightbox's image-by-id lookup doesn't collide with the repost's own media.
 function repostOfMediaHtml(p){
   const imgs = p.repostOfImages || [];
-  const vid  = p.repostOfVideoBase64 || null;
+  const vid  = p.repostOfVideoUrl || p.repostOfVideoBase64 || null;
   if(!imgs.length && !vid) return '';
   const lbId = ESC(p.id)+'-repost';
   if(vid){
@@ -2311,7 +2321,7 @@ function buildPulseCard(p){
   const handle = p.creatorHandle ? '@'+ESC(p.creatorHandle) : '@user';
   const txt = linkifyText(p.text||'');
   const imgHtml = pulseImageHtml(p);
-  const vidHtml = p.videoBase64 ? `<div class="pulse-video">${videoPlayerHtml(p.videoBase64,p.videoPoster)}</div>` : '';
+  const vidHtml = (p.videoUrl||p.videoBase64) ? `<div class="pulse-video">${videoPlayerHtml(p.videoUrl||p.videoBase64,p.videoPoster)}</div>` : '';
   const repostHtml = p.repostOf ? `
     <div class="pulse-repost-of" onclick="event.stopPropagation();openDetail('${ESC(p.repostOf)}')">
       <div style="font-size:13px;font-weight:700;color:var(--text2);margin-bottom:4px;">${ESC(p.repostOfName||'Unknown')}</div>
@@ -2510,107 +2520,55 @@ function removeImage(target,index){
 }
 
 // ============================================================
-// VIDEO ATTACHMENT (max 15 seconds, auto-compressed before upload)
+// VIDEO ATTACHMENT — uploaded directly to Cloudinary (unsigned upload),
+// max duration 30 minutes, formats mp4/mov/webm. The secure_url returned
+// by Cloudinary is what gets saved to Firebase (no raw video bytes ever
+// touch the Realtime Database).
 // ============================================================
-const MAX_VIDEO_SECONDS = 15;
-const MAX_VIDEO_RAW_BYTES = 100*1024*1024; // 100MB raw file safety cap (will be compressed down)
-const MAX_VIDEO_FINAL_BYTES = 7*1024*1024; // ~7MB compressed cap, safe for Realtime Database
+const MAX_VIDEO_SECONDS = 30*60; // 30 minutes
+const ALLOWED_VIDEO_TYPES = ['video/mp4','video/quicktime','video/webm'];
+const ALLOWED_VIDEO_EXT = ['mp4','mov','webm'];
 function triggerVideoPick(inputId){
   document.getElementById(inputId).click();
 }
-function dataURLByteSize(dataUrl){
-  const i=dataUrl.indexOf(',');
-  const b64=i>-1?dataUrl.slice(i+1):dataUrl;
-  return Math.ceil(b64.length*0.75);
+function isAllowedVideoFile(file){
+  const ext=(file.name.split('.').pop()||'').toLowerCase();
+  return ALLOWED_VIDEO_TYPES.includes(file.type) || ALLOWED_VIDEO_EXT.includes(ext);
 }
-function captureVideoPoster(videoEl){
-  try{
-    const c=document.createElement('canvas');
-    c.width=videoEl.videoWidth||320; c.height=videoEl.videoHeight||180;
-    c.getContext('2d').drawImage(videoEl,0,0,c.width,c.height);
-    return c.toDataURL('image/jpeg',0.7);
-  }catch(e){ return null; }
-}
-// Re-encodes the picked video at a lower resolution/bitrate via canvas + MediaRecorder
-// so it fits comfortably inside the database. Falls back to the original file if the
-// browser doesn't support captureStream/MediaRecorder.
-function compressVideoFile(file, durationSec, onProgress){
+// Uploads a video file straight to Cloudinary using an unsigned upload
+// preset. Uses XMLHttpRequest (rather than fetch) so we can report real
+// upload progress percentage back to the composer UI.
+function uploadVideoToCloudinary(file, onProgress){
   return new Promise((resolve,reject)=>{
-    const canSupport = !!(HTMLVideoElement.prototype.captureStream && window.MediaRecorder);
-    if(!canSupport){ reject(new Error('UNSUPPORTED')); return; }
-    const url=URL.createObjectURL(file);
-    const v=document.createElement('video');
-    v.src=url; v.muted=false; v.volume=0; v.playsInline=true; v.preload='auto';
-    v.onloadeddata=async ()=>{
-      try{
-        const targetW = Math.min(640, v.videoWidth||640);
-        const scale = targetW / (v.videoWidth||targetW);
-        const targetH = Math.round((v.videoHeight||360)*scale);
-        const canvas=document.createElement('canvas');
-        canvas.width=targetW; canvas.height=targetH;
-        const ctx=canvas.getContext('2d');
-        const poster=captureVideoPoster(v);
-
-        const canvasStream=canvas.captureStream(30);
-        let mixedStream=canvasStream;
-        try{
-          const vidStream=v.captureStream();
-          const audioTracks=vidStream.getAudioTracks();
-          if(audioTracks.length){ canvasStream.addTrack(audioTracks[0]); }
-        }catch(e){}
-
-        let mimeType='video/webm;codecs=vp9,opus';
-        if(!MediaRecorder.isTypeSupported(mimeType)) mimeType='video/webm;codecs=vp8,opus';
-        if(!MediaRecorder.isTypeSupported(mimeType)) mimeType='video/webm';
-        const recorder=new MediaRecorder(canvasStream,{mimeType,videoBitsPerSecond:550000,audioBitsPerSecond:64000});
-        const chunks=[];
-        recorder.ondataavailable=ev=>{ if(ev.data&&ev.data.size) chunks.push(ev.data); };
-        recorder.onstop=()=>{
-          URL.revokeObjectURL(url);
-          const blob=new Blob(chunks,{type:'video/webm'});
-          resolve({blob,poster});
-        };
-        recorder.onerror=err=>{ URL.revokeObjectURL(url); reject(err.error||new Error('Recorder failed')); };
-
-        let drawing=true;
-        function drawFrame(){
-          if(!drawing)return;
-          ctx.drawImage(v,0,0,targetW,targetH);
-          requestAnimationFrame(drawFrame);
-        }
-        v.currentTime=0;
-        await v.play();
-        recorder.start(250);
-        drawFrame();
-        if(onProgress) onProgress(0);
-        const startTs=Date.now();
-        const tick=setInterval(()=>{
-          const pct=Math.min(99,Math.round(((Date.now()-startTs)/1000/durationSec)*100));
-          if(onProgress) onProgress(pct);
-        },200);
-        setTimeout(()=>{
-          drawing=false; clearInterval(tick);
-          try{ v.pause(); }catch(e){}
-          if(recorder.state!=='inactive') recorder.stop();
-        }, Math.ceil(durationSec*1000)+150);
-      }catch(err){ URL.revokeObjectURL(url); reject(err); }
+    const xhr=new XMLHttpRequest();
+    const formData=new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    xhr.open('POST', CLOUDINARY_VIDEO_UPLOAD_URL, true);
+    xhr.upload.onprogress=(ev)=>{
+      if(ev.lengthComputable && onProgress){
+        onProgress(Math.round((ev.loaded/ev.total)*100));
+      }
     };
-    v.onerror=()=>{ URL.revokeObjectURL(url); reject(new Error('Could not read this video')); };
-  });
-}
-function blobToDataURL(blob){
-  return new Promise((resolve,reject)=>{
-    const r=new FileReader();
-    r.onload=()=>resolve(r.result);
-    r.onerror=()=>reject(new Error('Could not read compressed video'));
-    r.readAsDataURL(blob);
+    xhr.onload=()=>{
+      let res=null;
+      try{ res=JSON.parse(xhr.responseText); }catch(err){}
+      if(xhr.status>=200 && xhr.status<300 && res && res.secure_url){
+        resolve(res);
+      } else {
+        const msg=(res && res.error && res.error.message) ? res.error.message : ('Upload failed (status '+xhr.status+')');
+        reject(new Error(msg));
+      }
+    };
+    xhr.onerror=()=>reject(new Error('Network error during upload'));
+    xhr.send(formData);
   });
 }
 async function onVideoPicked(e, target){
   const file=e.target.files[0]; if(!file)return;
   const input=e.target;
   if(!file.type.startsWith('video/')){ showToast('Please choose a video file'); input.value=''; return; }
-  if(file.size>MAX_VIDEO_RAW_BYTES){ showToast('Video file is too large (max 100MB)'); input.value=''; return; }
+  if(!isAllowedVideoFile(file)){ showToast('Only MP4, MOV, or WEBM videos are allowed'); input.value=''; return; }
   if(getPollState(target)) cancelPoll(target); // video and poll are mutually exclusive
   const tempUrl=URL.createObjectURL(file);
   const probe=document.createElement('video');
@@ -2619,45 +2577,34 @@ async function onVideoPicked(e, target){
     const duration=probe.duration;
     URL.revokeObjectURL(tempUrl);
     if(duration>MAX_VIDEO_SECONDS+0.5){
-      showToast('Video must be '+MAX_VIDEO_SECONDS+' seconds or shorter');
+      showToast('Video must be 30 minutes or shorter');
       input.value=''; return;
     }
     removeImage(target); // image and video are mutually exclusive on one Pulse
     const preview=document.getElementById(target+'-vid-preview');
     preview.classList.remove('hidden');
-    preview.innerHTML=`<div style="padding:24px 12px;text-align:center;color:var(--text2);font-size:13px;"><i class="ph ph-spinner-gap spin" style="font-size:20px;display:block;margin-bottom:8px;"></i><span id="${target}-vid-progress">Compressing video… 0%</span></div>`;
+    preview.innerHTML=`<div style="padding:24px 12px;text-align:center;color:var(--text2);font-size:13px;"><i class="ph ph-spinner-gap spin" style="font-size:20px;display:block;margin-bottom:8px;"></i><span id="${target}-vid-progress">Uploading video… 0%</span></div>`;
     try{
-      const {blob,poster}=await compressVideoFile(file, Math.min(duration,MAX_VIDEO_SECONDS), pct=>{
+      const result=await uploadVideoToCloudinary(file, pct=>{
         const p=document.getElementById(target+'-vid-progress');
-        if(p) p.textContent='Compressing video… '+pct+'%';
+        if(p) p.textContent='Uploading video… '+pct+'%';
       });
-      const data=await blobToDataURL(blob);
-      if(dataURLByteSize(data)>MAX_VIDEO_FINAL_BYTES){
-        showToast('Video is still too large after compression — try a shorter clip');
-        removeVideo(target); return;
-      }
-      preview.innerHTML=`<video src="${data}" ${poster?`poster="${poster}"`:''} controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
-      const fileData={data,type:'video/webm',duration:Math.round(duration*10)/10,poster};
+      const posterUrl=`https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/video/upload/${result.public_id}.jpg`;
+      const fileData={
+        videoUrl:result.secure_url,
+        cloudinaryPublicId:result.public_id,
+        poster:posterUrl,
+        type:result.format?('video/'+result.format):file.type,
+        duration:Math.round((result.duration||duration)*10)/10
+      };
+      preview.innerHTML=`<video src="${fileData.videoUrl}" poster="${fileData.poster}" controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
       if(target==='inline') inlineVideoFile=fileData; else modalVideoFile=fileData;
-      showToast('Video attached ('+fileData.duration+'s)');
+      showToast('Video uploaded ✅');
     }catch(err){
-      // Fallback: browser can't re-encode — use the raw file if small enough
-      if(file.size<=MAX_VIDEO_FINAL_BYTES){
-        const reader=new FileReader();
-        reader.onload=ev=>{
-          const data=ev.target.result;
-          preview.innerHTML=`<video src="${data}" controls playsinline muted></video><div class="compose-img-remove" onclick="removeVideo('${target}')"><i class="ph ph-x"></i></div>`;
-          const fileData={data,type:file.type,duration:Math.round(duration*10)/10,poster:null};
-          if(target==='inline') inlineVideoFile=fileData; else modalVideoFile=fileData;
-          showToast('Video attached ('+fileData.duration+'s)');
-        };
-        reader.onerror=()=>{ showToast('Could not attach this video'); removeVideo(target); };
-        reader.readAsDataURL(file);
-      } else {
-        showToast('Could not compress this video — try a smaller/shorter clip');
-        removeVideo(target);
-      }
+      showToast('Video upload failed — '+(err&&err.message?err.message:'file may be too large or an unsupported format'));
+      removeVideo(target);
     }
+    input.value='';
   };
   probe.onerror=()=>{ showToast('Could not read this video'); URL.revokeObjectURL(tempUrl); input.value=''; };
   probe.src=tempUrl;
@@ -3439,6 +3386,7 @@ async function publishPulse(source){
   },180);
   try{
     const imageList=vid?[]:imgs.map(i=>i.data);
+    const mediaType = vid ? 'video' : (imageList.length ? 'image' : (pollPayload ? 'poll' : 'text'));
     const pulseData={
       uid:me.uid, creatorName:myData.name||'User', creatorHandle:myData.handle||'user',
       creatorVerified:myData.verified||false, creatorIsAI:myData.isAI||false,
@@ -3448,7 +3396,9 @@ async function publishPulse(source){
       images:imageList.length?imageList:null,
       imageBase64:imageList.length?imageList[0]:null, // legacy field kept for backward compat
       imageIsAI:vid?false:!!(imgs[0]&&imgs[0].isAI),
-      videoBase64:vid?vid.data:null,
+      mediaType,
+      videoUrl:vid?vid.videoUrl:null,
+      cloudinaryPublicId:vid?vid.cloudinaryPublicId:null,
       videoPoster:vid?(vid.poster||null):null,
       videoType:vid?vid.type:null,
       videoDuration:vid?vid.duration:null,
@@ -3470,7 +3420,7 @@ async function publishPulse(source){
       pulseData.repostOfName=orig.creatorName||'User';
       pulseData.repostOfImages=orig.images||(orig.imageBase64?[orig.imageBase64]:null);
       pulseData.repostOfImageIsAI=orig.imageIsAI||false;
-      pulseData.repostOfVideoBase64=orig.videoBase64||null;
+      pulseData.repostOfVideoUrl=orig.videoUrl||null;
       pulseData.repostOfVideoPoster=orig.videoPoster||null;
     }
     const ref=await db.ref('pulses').push(pulseData);
@@ -3566,7 +3516,7 @@ async function doSimpleRepost(){
       text:'',isRepost:true,repostOf:pulseId,repostOfText:orig.text||'',repostOfName:orig.creatorName||'User',
       repostOfImages:orig.images||(orig.imageBase64?[orig.imageBase64]:null),
       repostOfImageIsAI:orig.imageIsAI||false,
-      repostOfVideoBase64:orig.videoBase64||null,
+      repostOfVideoUrl:orig.videoUrl||null,
       repostOfVideoPoster:orig.videoPoster||null,
       likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
     const ref=await db.ref('pulses').push(rData);
@@ -3582,7 +3532,7 @@ async function doSimpleRepost(){
 // their quote (text/image/video) before posting.
 function quotePreviewHtml(orig){
   const imgs = orig.images || (orig.imageBase64?[orig.imageBase64]:[]);
-  const vid  = orig.videoBase64 || null;
+  const vid  = orig.videoUrl || orig.videoBase64 || null;
   let mediaHtml = '';
   if(vid){
     mediaHtml = `<div class="pulse-video"><video src="${vid}" poster="${orig.videoPoster||''}" muted style="border-radius:10px;max-height:220px;width:100%;object-fit:cover;"></video></div>`;
@@ -4009,7 +3959,7 @@ async function openDetail(pulseId){
     const letter=(p.creatorName||'U').charAt(0).toUpperCase();
     const handle='@'+(p.creatorHandle||'user');
     const imgHtml=pulseImageHtml(p);
-    const vidHtml=p.videoBase64?`<div class="pulse-video">${videoPlayerHtml(p.videoBase64,p.videoPoster)}</div>`:'';
+    const vidHtml=(p.videoUrl||p.videoBase64)?`<div class="pulse-video">${videoPlayerHtml(p.videoUrl||p.videoBase64,p.videoPoster)}</div>`:'';
     const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg',p.uid,p.creatorBadgeUrl):'';
     const aiBadge=p.creatorIsAI?aiLabelHtml():'';
     const avContent=p.creatorPhoto?`<img src="${p.creatorPhoto}" alt="">`:letter;
@@ -4224,7 +4174,7 @@ function switchProfileTab(tab,el){
   if(el) el.classList.add('active');
   if(tab==='posts') openProfile(profileUid||me.uid);
   else if(tab==='replies') loadProfileFiltered(p=>!!p.isReply,'ph-chat-circle','No replies yet');
-  else if(tab==='videos') loadProfileFiltered(p=>!!p.videoBase64,'ph-video-camera','No videos yet');
+  else if(tab==='videos') loadProfileFiltered(p=>!!(p.videoUrl||p.videoBase64),'ph-video-camera','No videos yet');
   else if(tab==='photos') loadProfileFiltered(p=>!!(p.imageBase64||(p.images&&p.images.length)),'ph-image','No photos yet');
 }
 async function loadProfileFiltered(predicate, emptyIcon, emptyText){
