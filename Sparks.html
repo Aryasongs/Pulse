@@ -787,6 +787,15 @@ img{display:block;}
 .chat-list-time{font-size:12px;color:var(--text3);flex-shrink:0;margin-left:auto;}
 .chat-list-preview{font-size:13px;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
 .chat-list-dot{width:10px;height:10px;border-radius:50%;background:var(--cyan);flex-shrink:0;box-shadow:0 0 8px rgba(0,200,255,.6);}
+.chat-list-more{flex-shrink:0;color:var(--text3);font-size:17px;padding:8px;border-radius:50%;transition:background .15s,color .15s;}
+.chat-list-more:hover{background:var(--surface3);color:var(--text);}
+.msg-search-wrap{position:relative;padding:10px 16px;border-bottom:1px solid var(--border2);}
+.msg-search-wrap.hidden{display:none;}
+.msg-search-icon{position:absolute;left:30px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:16px;pointer-events:none;}
+.msg-search-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:999px;padding:10px 14px 10px 38px;color:var(--text);font-size:14px;}
+.msg-search-input::placeholder{color:var(--text3);}
+.msg-search-input:focus{border-color:rgba(0,200,255,0.3);}
+.chat-empty-search{padding:40px 20px;text-align:center;color:var(--text3);font-size:13.5px;}
 .chat-fab{position:fixed;right:24px;bottom:calc(24px + var(--safe-bottom));width:52px;height:52px;border-radius:50%;background:var(--cyan);color:#050A14;display:flex;align-items:center;justify-content:center;font-size:22px;box-shadow:0 8px 24px rgba(0,200,255,.35);z-index:50;}
 @media(max-width:768px){.chat-fab{bottom:calc(84px + var(--safe-bottom));}}
 
@@ -1164,8 +1173,13 @@ img{display:block;}
     <button class="back-btn" onclick="navBack()"><i class="ph ph-arrow-left"></i></button>
     <div class="screen-topbar-title">Messages</div>
     <div class="messages-topbar-actions">
+      <button class="back-btn" onclick="toggleMsgSearch()" title="Search"><i class="ph ph-magnifying-glass"></i></button>
       <button class="back-btn" onclick="openNewChatModal()" title="New message"><i class="ph ph-plus"></i></button>
     </div>
+  </div>
+  <div class="msg-search-wrap hidden" id="msg-search-wrap">
+    <i class="ph ph-magnifying-glass msg-search-icon"></i>
+    <input type="text" id="msg-search-input" class="msg-search-input" placeholder="Search messages" oninput="filterChatList(this.value)">
   </div>
   <div id="chat-list"><div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div></div>
 </div>
@@ -1181,6 +1195,7 @@ img{display:block;}
         <div class="chat-thread-sub" id="chat-thread-sub">@handle</div>
       </div>
     </div>
+    <button class="back-btn" id="chat-thread-more-btn" onclick="openChatThreadMenu()" title="More"><i class="ph ph-dots-three-vertical"></i></button>
   </div>
   <div class="chat-messages-wrap" id="chat-messages"></div>
   <div class="chat-input-bar">
@@ -6210,10 +6225,29 @@ function startChatsOnce(){
   chatListUnsub=()=>ref.off('value',handler);
 }
 function loadChatList(){ startChatsOnce(); renderChatList(); }
+let chatSearchQuery='';
+function toggleMsgSearch(){
+  const wrap=document.getElementById('msg-search-wrap');
+  const willShow=wrap.classList.contains('hidden');
+  wrap.classList.toggle('hidden');
+  if(willShow){
+    document.getElementById('msg-search-input').focus();
+  } else {
+    document.getElementById('msg-search-input').value='';
+    filterChatList('');
+  }
+}
+function filterChatList(q){
+  chatSearchQuery=(q||'').trim().toLowerCase();
+  renderChatList();
+}
 function renderChatList(){
   const el=document.getElementById('chat-list'); if(!el) return;
   if(!chatListCache.length){ el.innerHTML='<div class="empty-feed"><i class="ph ph-chats-circle"></i><p>No messages yet</p><p style="font-size:12px;margin-top:4px;">Tap + to start a conversation</p></div>'; return; }
-  el.innerHTML=chatListCache.map(c=>{
+  const q=chatSearchQuery;
+  const list = q ? chatListCache.filter(c=>(c.otherName||'').toLowerCase().includes(q)||(c.otherHandle||'').toLowerCase().includes(q)||(c.lastMessage||'').toLowerCase().includes(q)) : chatListCache;
+  if(!list.length){ el.innerHTML='<div class="chat-empty-search"><i class="ph ph-magnifying-glass" style="font-size:28px;display:block;margin-bottom:8px;"></i>No conversations match "'+ESC(q)+'"</div>'; return; }
+  el.innerHTML=list.map(c=>{
     const unread=c.unreadCount||0;
     const av=c.otherPhoto?`<img class="chat-list-av" src="${c.otherPhoto}" alt="">`:`<div class="chat-list-av" style="background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:800;color:#050A14;">${ESC((c.otherName||'U').charAt(0).toUpperCase())}</div>`;
     const tick=c.otherVerified?verifiedBadgeHtml('',c.otherUid,c.otherBadgeUrl):'';
@@ -6227,8 +6261,88 @@ function renderChatList(){
         <div class="chat-list-preview">${ESC(c.lastMessage||'')}</div>
       </div>
       ${unread?'<div class="chat-list-dot"></div>':''}
+      <button class="chat-list-more" onclick="event.stopPropagation();openChatItemCtx(event,'${ESC(c.chatId)}','${ESC(c.otherUid)}')"><i class="ph ph-dots-three-vertical"></i></button>
     </div>`;
   }).join('');
+}
+// Per-conversation context menu from the inbox list (long-press-equivalent "..." button)
+function openChatItemCtx(e, chatId, otherUid){
+  closeCtxMenu();
+  const c=chatListCache.find(x=>x.chatId===chatId);
+  const unread=c && (c.unreadCount||0)>0;
+  const menu=document.getElementById('ctx-menu');
+  menu.innerHTML=`
+    <div class="ctx-item" onclick="closeCtxMenu();markChatReadToggle('${ESC(chatId)}')"><i class="ph ph-envelope-simple-open"></i> Mark as ${unread?'read':'unread'}</div>
+    <div class="ctx-item" onclick="closeCtxMenu();openProfile('${ESC(otherUid)}')"><i class="ph ph-user"></i> View profile</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();confirmClearChat('${ESC(chatId)}','${ESC(otherUid)}')"><i class="ph ph-eraser"></i> Remove old messages</div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();confirmDeleteConversation('${ESC(chatId)}')"><i class="ph ph-trash"></i> Delete conversation</div>
+  `;
+  menu.classList.remove('hidden');
+  const target=e.target.closest('.chat-list-more')||e.target;
+  const r=target.getBoundingClientRect();
+  menu.style.top=Math.min(r.bottom+4,window.innerHeight-220)+'px';
+  menu.style.right=(window.innerWidth-r.right)+'px';
+  menu.style.left='auto';
+  setTimeout(()=>document.addEventListener('click',closeCtxMenu,{once:true}),50);
+}
+function markChatReadToggle(chatId){
+  if(!me) return;
+  const c=chatListCache.find(x=>x.chatId===chatId);
+  const goUnread = !(c && (c.unreadCount||0)>0);
+  db.ref('userChats/'+me.uid+'/'+chatId+'/unreadCount').set(goUnread?1:0).catch(()=>{});
+}
+// Removes the conversation from MY inbox only (the other person's inbox is
+// untouched — same behavior as Instagram/Twitter's "Delete chat"). If they
+// message again, a fresh entry reappears.
+async function confirmDeleteConversation(chatId){
+  const ok=await showConfirm({title:'Delete conversation?',message:'This removes the conversation from your inbox. The other person will still see their copy.',okLabel:'Delete',danger:true});
+  if(!ok) return;
+  try{
+    await db.ref('userChats/'+me.uid+'/'+chatId).remove();
+    showToast('Conversation deleted');
+    if(activeChatId===chatId){ activeChatId=null; navBack(); }
+  }catch(e){ console.error('delete conversation failed',e); showToast('Could not delete conversation'); }
+}
+// Permanently erases every message in the conversation for BOTH people (the
+// "remove old messages" cleanup action) while keeping the conversation
+// itself in the inbox so you can keep chatting.
+async function confirmClearChat(chatId, otherUid){
+  const ok=await showConfirm({title:'Remove old messages?',message:'This permanently deletes every message in this conversation for both of you. This can\'t be undone.',okLabel:'Remove',danger:true});
+  if(!ok) return;
+  try{
+    const snap=await db.ref('messages').orderByChild('chatId').equalTo(chatId).once('value');
+    const updates={};
+    snap.forEach(c=>{ updates['messages/'+c.key]=null; });
+    if(Object.keys(updates).length) await db.ref().update(updates);
+    await db.ref('userChats/'+me.uid+'/'+chatId).update({lastMessage:'', lastMessageAt: firebase.database.ServerValue.TIMESTAMP, unreadCount:0}).catch(()=>{});
+    if(otherUid) await db.ref('userChats/'+otherUid+'/'+chatId).update({lastMessage:''}).catch(()=>{});
+    if(activeChatId===chatId){ chatMsgsCache=[]; renderChatMessages([]); }
+    showToast('Old messages removed');
+  }catch(e){ console.error('clear chat failed',e); showToast('Could not remove messages'); }
+}
+// "..." menu inside an open chat thread
+function openChatThreadMenu(){
+  if(!activeChatId||!activeChatOtherUid) return;
+  closeCtxMenu();
+  const otherUid=activeChatOtherUid, chatId=activeChatId;
+  const isBlocked=blockedSet.has(otherUid), isMuted=mutedSet.has(otherUid);
+  const menu=document.getElementById('ctx-menu');
+  menu.innerHTML=`
+    <div class="ctx-item" onclick="closeCtxMenu();openProfile('${ESC(otherUid)}')"><i class="ph ph-user"></i> View profile</div>
+    <div class="ctx-item" onclick="closeCtxMenu();muteUser('${ESC(otherUid)}')"><i class="ph ph-speaker-slash"></i> ${isMuted?'Unmute':'Mute'} user</div>
+    <div class="ctx-divider"></div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();confirmClearChat('${ESC(chatId)}','${ESC(otherUid)}')"><i class="ph ph-eraser"></i> Remove old messages</div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();confirmDeleteConversation('${ESC(chatId)}')"><i class="ph ph-trash"></i> Delete conversation</div>
+    <div class="ctx-item danger" onclick="closeCtxMenu();blockUser('${ESC(otherUid)}')"><i class="ph ph-prohibit"></i> ${isBlocked?'Unblock':'Block'} user</div>
+  `;
+  menu.classList.remove('hidden');
+  const btn=document.getElementById('chat-thread-more-btn');
+  const r=btn.getBoundingClientRect();
+  menu.style.top=Math.min(r.bottom+4,window.innerHeight-260)+'px';
+  menu.style.right=(window.innerWidth-r.right)+'px';
+  menu.style.left='auto';
+  setTimeout(()=>document.addEventListener('click',closeCtxMenu,{once:true}),50);
 }
 
 async function openChat(otherUid){
@@ -6497,11 +6611,24 @@ let reelsObserver=null;
 let reelsMuted=true;
 let reelsLoaded=false;
 let reelsFetching=false;
-let reelsOldestCreatedAt=null; // pagination cursor — createdAt of the oldest video loaded so far
+let reelsPool=[];              // every video pulse fetched so far this session (source for shuffling)
+let reelsPoolOldestCreatedAt=null; // pagination cursor — createdAt of the oldest video pulled into the pool so far
 let reelsExhausted=false;      // true once Firebase has no older video pulses left to fetch
 let reelsRenderSeq=0;          // bumped on every render pass so old loop-copy ids stay unique-ish
 const REELS_PAGE_SIZE=20;
 const REELS_MAX_ITEMS=600; // safety cap so an endless session can't grow the DOM forever
+
+// Fisher-Yates shuffle — used so the Bolts feed is a random mix of old and
+// new videos instead of always showing newest-first (which meant older
+// videos just sank to the bottom and were rarely ever seen again).
+function shuffleArr(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
 
 function getReelPulses(){
   const src = lastFeedPulses || [];
@@ -6509,7 +6636,7 @@ function getReelPulses(){
 }
 
 // Tapping the "Reels" nav icon while already on the Reels screen refreshes
-// the feed with a fresh batch instead of just doing nothing.
+// the feed with a fresh (re-shuffled) batch instead of just doing nothing.
 function reelsNavTap(){
   const el=document.getElementById('reels-screen');
   if(el && el.classList.contains('active')){
@@ -6523,21 +6650,23 @@ async function loadReelsScreen(forceRefresh){
   const wrap=document.getElementById('reels-feed');
   if(!wrap) return;
   reelsExhausted=false;
-  let list=getReelPulses();
+  let pool=getReelPulses();
   let fetchError=null;
-  if(forceRefresh || !list.length){
+  if(forceRefresh || !pool.length){
     wrap.innerHTML='<div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading bolts…</div></div>';
     try{
-      const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(100).once('value');
+      const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(150).once('value');
       const items=[]; snap.forEach(c=>items.unshift({id:c.key,...c.val()}));
-      list=items.filter(p=>!blockedSet.has(p.uid)&&!mutedSet.has(p.uid)&&isPulseVisible(p)&&(p.videoUrl||p.videoBase64));
+      pool = items.filter(p=>!blockedSet.has(p.uid)&&!mutedSet.has(p.uid)&&isPulseVisible(p)&&(p.videoUrl||p.videoBase64));
     }catch(e){
       console.error('Failed to load reels', e);
       fetchError=e;
     }
   }
-  reelsOldestCreatedAt = list.length ? list[list.length-1].createdAt : null;
-  renderReels(list, fetchError);
+  reelsPool = pool;
+  reelsPoolOldestCreatedAt = pool.length ? Math.min(...pool.map(p=>p.createdAt||0)) : null;
+  // Random order every time the feed (re)loads — old and new videos mixed together.
+  renderReels(shuffleArr(pool), fetchError);
   if(forceRefresh && !fetchError) showToast('Bolts refreshed');
   if(fetchError) showToast('Could not load Bolts — '+(fetchError.message||'check your connection'));
 }
@@ -6615,28 +6744,35 @@ function setupReelsObserver(){
   }, {root:wrap, threshold:[0,0.6,1]});
   wrap.querySelectorAll('.reel-item').forEach(el=>reelsObserver.observe(el));
 }
-// Appends the next page of videos. If Firebase has genuinely run out of
-// older video pulses, loops back and re-appends the existing set so the
-// feed always keeps going instead of hitting a dead end.
+// Appends the next chunk of videos. New older videos pulled from Firebase
+// are shuffled into the pool (not just tacked on chronologically), and once
+// Firebase truly has no more history left, we loop back with a FRESH random
+// shuffle of the whole pool each time — so the feed never dead-ends and
+// never repeats the exact same order twice in a row.
 async function ensureMoreReels(){
   if(reelsFetching) return;
   if(reelsCache.length>=REELS_MAX_ITEMS) return; // safety net for very long sessions
   reelsFetching=true;
   try{
     let appended=[];
-    if(!reelsExhausted && reelsOldestCreatedAt!=null){
-      const snap=await db.ref('pulses').orderByChild('createdAt').endAt(reelsOldestCreatedAt-1).limitToLast(REELS_PAGE_SIZE).once('value');
+    if(!reelsExhausted && reelsPoolOldestCreatedAt!=null){
+      const snap=await db.ref('pulses').orderByChild('createdAt').endAt(reelsPoolOldestCreatedAt-1).limitToLast(REELS_PAGE_SIZE).once('value');
       const items=[]; snap.forEach(c=>items.unshift({id:c.key,...c.val()}));
-      const existingIds=new Set(reelsCache.map(p=>p.id));
-      appended=items.filter(p=>!existingIds.has(p.id)&&!blockedSet.has(p.uid)&&!mutedSet.has(p.uid)&&isPulseVisible(p)&&(p.videoUrl||p.videoBase64));
+      const existingIds=new Set(reelsPool.map(p=>p.id));
+      const fresh=items.filter(p=>!existingIds.has(p.id)&&!blockedSet.has(p.uid)&&!mutedSet.has(p.uid)&&isPulseVisible(p)&&(p.videoUrl||p.videoBase64));
       if(items.length < REELS_PAGE_SIZE) reelsExhausted=true; // no more history left on the server
-      if(items.length) reelsOldestCreatedAt = Math.min(reelsOldestCreatedAt, ...items.map(p=>p.createdAt||reelsOldestCreatedAt));
+      if(items.length) reelsPoolOldestCreatedAt = Math.min(reelsPoolOldestCreatedAt, ...items.map(p=>p.createdAt||reelsPoolOldestCreatedAt));
+      if(fresh.length){
+        reelsPool = reelsPool.concat(fresh);
+        appended = shuffleArr(fresh); // randomize just the newly-fetched chunk
+      }
     }
     if(!appended.length){
-      // Nothing new left server-side — loop the reel back to the top of
-      // the same set so scrolling never just stops.
-      if(!reelsCache.length) return;
-      appended = reelsCache.slice(0, Math.min(REELS_PAGE_SIZE, reelsCache.length));
+      // Nothing new left server-side — loop back with a fresh random
+      // shuffle of the whole pool so the feed keeps going, in a different
+      // order than before rather than repeating the same sequence.
+      if(!reelsPool.length) return;
+      appended = shuffleArr(reelsPool).slice(0, Math.min(REELS_PAGE_SIZE, reelsPool.length));
     }
     const wrap=document.getElementById('reels-feed');
     if(!wrap) return;
