@@ -90,11 +90,13 @@ img{display:block;}
 .verified-badge-lg img{width:23px;height:23px;}
 .verified-badge-xl img{width:29px;height:29px;}
 /* Organization badge — shown ALONGSIDE the verified tick (like X/Twitter),
-   never replaces it. Used by org accounts e.g. @nexor. */
-.org-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:0px;}
-.org-badge img{width:15px;height:15px;object-fit:contain;filter:drop-shadow(0 0 2px rgba(0,200,255,0.35));image-rendering:-webkit-optimize-contrast;}
-.org-badge.verified-badge-lg img{width:18px;height:18px;}
-.org-badge.verified-badge-xl img{width:23px;height:23px;}
+   never replaces it. Used by org accounts e.g. @nexor. Always rendered as a
+   fixed-size square chip (crop-to-fill), so it looks consistent no matter
+   what shape/aspect-ratio the org's own profile photo is. */
+.org-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:2px;}
+.org-badge img{width:15px;height:15px;object-fit:cover;object-position:center;border-radius:4px;filter:drop-shadow(0 0 2px rgba(0,200,255,0.35));image-rendering:-webkit-optimize-contrast;}
+.org-badge.verified-badge-lg img{width:18px;height:18px;border-radius:5px;}
+.org-badge.verified-badge-xl img{width:23px;height:23px;border-radius:6px;}
 
 /* AI Label — premium glass/gold badge */
 .ai-label{
@@ -2312,32 +2314,40 @@ async function backfillAccountMeta(){
   } catch(e){ /* best-effort only, never block sign-in */ }
 }
 
-// Keeps the organization badge (shown next to the verified tick) in sync
+// Keeps the organization badge (shown next to the verified tick) LIVE-in-sync
 // with the account's affiliation. If users/{uid}/affiliatedWithHandle is
-// set, that organization's OWN profile photo is pulled in and written to
-// users/{uid}/badgeUrl — the exact same field verifiedBadgeHtml() already
-// reads everywhere (profile, pulses, search, comments, etc.), so no other
-// render path needs to change. Uses the same org lookup as "About this
-// account" (orderByChild('handle')). Runs once per sign-in, best-effort,
-// never blocks the UI. Any account can be affiliated the same way by
-// setting its affiliatedWithHandle field to the org's @handle.
+// set, this attaches a realtime listener on that organization's OWN profile
+// photo — so the moment the org changes its DP, the affiliated account's
+// users/{uid}/badgeUrl (the exact field verifiedBadgeHtml() already reads
+// everywhere — profile, pulses, search, comments) updates automatically,
+// no manual badgeUrl entry and no re-login needed. Uses the same org lookup
+// as "About this account" (orderByChild('handle')). Safe to call repeatedly
+// — re-attaches only if not already listening. Any account can be
+// affiliated the same way by setting its affiliatedWithHandle to the org's
+// @handle; nothing else needs to be typed into Firebase.
+let affiliateBadgeListenerRef=null, affiliateBadgeListenerUid=null;
 async function syncAffiliateBadge(){
   if(!me || !myData || !myData.affiliatedWithHandle) return;
+  if(affiliateBadgeListenerRef && affiliateBadgeListenerUid===me.uid) return; // already listening live
   try{
     let orgUid=null, orgData=null;
     const oS=await db.ref('users').orderByChild('handle').equalTo(myData.affiliatedWithHandle).limitToFirst(1).once('value');
     oS.forEach(c=>{orgUid=c.key; orgData=c.val();});
     if(!orgData || orgUid===me.uid) return; // org handle not found, or self-affiliation — nothing to sync
-    const orgPhoto = orgData.photoBase64 || orgData.badgeUrl || NEXOR_BADGE_URL;
-    if(myData.badgeUrl !== orgPhoto){
-      await db.ref('users/'+me.uid+'/badgeUrl').set(orgPhoto).catch(()=>{});
+    // Detach any previous listener (e.g. affiliation switched to a different org)
+    if(affiliateBadgeListenerRef) affiliateBadgeListenerRef.off();
+    affiliateBadgeListenerRef = db.ref('users/'+orgUid+'/photoBase64');
+    affiliateBadgeListenerUid = me.uid;
+    affiliateBadgeListenerRef.on('value', snap=>{
+      const orgPhoto = snap.val() || NEXOR_BADGE_URL;
+      if(myData.badgeUrl === orgPhoto) return; // already up to date
+      db.ref('users/'+me.uid+'/badgeUrl').set(orgPhoto).catch(()=>{});
       myData.badgeUrl = orgPhoto;
-      // The org's photo changed since last sync — my badge just moved forward,
-      // but my ALREADY-POSTED Pulses still carry the old snapshot baked in at
-      // post time (creatorBadgeUrl/collaboratorBadgeUrl). Refresh those too so
-      // old posts show the new badge, not just new ones going forward.
+      // My ALREADY-POSTED Pulses still carry the old badge baked in at post
+      // time (creatorBadgeUrl/collaboratorBadgeUrl) — refresh those too so
+      // old posts show the org's new DP, not just new posts going forward.
       backfillPulseBadges(orgPhoto).catch(()=>{});
-    }
+    });
   } catch(e){ /* best-effort only, never block sign-in */ }
 }
 
@@ -7347,6 +7357,7 @@ function unsubAll(){
   if(detailUnsub){detailUnsub();detailUnsub=null;}
   if(chatListUnsub){chatListUnsub();chatListUnsub=null;}
   if(chatMsgsUnsub){chatMsgsUnsub();chatMsgsUnsub=null;}
+  if(affiliateBadgeListenerRef){affiliateBadgeListenerRef.off();affiliateBadgeListenerRef=null;affiliateBadgeListenerUid=null;}
   activeChatId=null; activeChatOtherUid=null;
 }
 
