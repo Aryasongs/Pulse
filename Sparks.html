@@ -6440,26 +6440,33 @@ async function loadReelsScreen(forceRefresh){
   if(!wrap) return;
   reelsExhausted=false;
   let list=getReelPulses();
+  let fetchError=null;
   if(forceRefresh || !list.length){
     wrap.innerHTML='<div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading bolts…</div></div>';
     try{
       const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(100).once('value');
       const items=[]; snap.forEach(c=>items.unshift({id:c.key,...c.val()}));
       list=items.filter(p=>!blockedSet.has(p.uid)&&!mutedSet.has(p.uid)&&isPulseVisible(p)&&(p.videoUrl||p.videoBase64));
-    }catch(e){ console.error('Failed to load reels', e); }
+    }catch(e){
+      console.error('Failed to load reels', e);
+      fetchError=e;
+    }
   }
   reelsOldestCreatedAt = list.length ? list[list.length-1].createdAt : null;
-  renderReels(list);
-  if(forceRefresh) showToast('Bolts refreshed');
+  renderReels(list, fetchError);
+  if(forceRefresh && !fetchError) showToast('Bolts refreshed');
+  if(fetchError) showToast('Could not load Bolts — '+(fetchError.message||'check your connection'));
 }
-function renderReels(list){
+function renderReels(list, fetchError){
   const wrap=document.getElementById('reels-feed');
   if(!wrap) return;
   reelsCache=list;
   reelsLoaded=true;
   reelsRenderSeq++;
   if(!list.length){
-    wrap.innerHTML='<div class="reels-empty"><i class="ph ph-video-camera-slash"></i><div>No bolts yet</div><div style="font-size:12px;">Pulses with a video attached will show up here</div></div>';
+    wrap.innerHTML = fetchError
+      ? `<div class="reels-empty"><i class="ph ph-wifi-x"></i><div>Couldn't load Bolts</div><div style="font-size:12px;max-width:260px;">${ESC(fetchError.message||'Something went wrong loading videos.')}</div><button class="btn-follow-sm" style="margin-top:12px;" onclick="loadReelsScreen(true)">Retry</button></div>`
+      : '<div class="reels-empty"><i class="ph ph-video-camera-slash"></i><div>No bolts yet</div><div style="font-size:12px;">Pulses with a video attached will show up here</div></div>';
     return;
   }
   wrap.innerHTML=list.map((p,i)=>buildReelItem(p,i)).join('');
