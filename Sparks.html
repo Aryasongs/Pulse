@@ -1,4 +1,4 @@
-lus:<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -2066,9 +2066,9 @@ async function openAboutAccount(uid){
         const oS=await db.ref('users').orderByChild('handle').equalTo(u.affiliatedWithHandle).limitToFirst(1).once('value');
         oS.forEach(c=>{orgUid=c.key; orgData=c.val();});
         if(orgData){
-          const orgBadge=orgData.badgeUrl||NEXOR_BADGE_URL;
+          const orgBadge=orgData.photoBase64||orgData.badgeUrl||NEXOR_BADGE_URL;
           affiliateHtml = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;cursor:pointer;" onclick="event.stopPropagation();closeModal('about-account-modal');openProfile('${ESC(orgUid)}')">
-            <img src="${ESC(orgBadge)}" alt="" style="width:28px;height:28px;border-radius:8px;object-fit:contain;flex-shrink:0;">
+            <img src="${ESC(orgBadge)}" alt="" style="width:28px;height:28px;border-radius:8px;object-fit:cover;object-position:center;flex-shrink:0;">
             <span style="font-size:13px;color:var(--text2);">An affiliate of <strong style="color:var(--text);">@${ESC(u.affiliatedWithHandle)}</strong></span>
           </div>`;
         }
@@ -2341,12 +2341,15 @@ async function syncAffiliateBadge(){
     affiliateBadgeListenerUid = me.uid;
     affiliateBadgeListenerRef.on('value', snap=>{
       const orgPhoto = snap.val() || NEXOR_BADGE_URL;
-      if(myData.badgeUrl === orgPhoto) return; // already up to date
-      db.ref('users/'+me.uid+'/badgeUrl').set(orgPhoto).catch(()=>{});
-      myData.badgeUrl = orgPhoto;
-      // My ALREADY-POSTED Pulses still carry the old badge baked in at post
-      // time (creatorBadgeUrl/collaboratorBadgeUrl) — refresh those too so
-      // old posts show the org's new DP, not just new posts going forward.
+      if(myData.badgeUrl !== orgPhoto){
+        db.ref('users/'+me.uid+'/badgeUrl').set(orgPhoto).catch(()=>{});
+        myData.badgeUrl = orgPhoto;
+      }
+      // Always reconcile old Pulses too, even if badgeUrl itself didn't just
+      // change — this is what catches posts made BEFORE this backfill logic
+      // existed, or before the org's photo changed for the first time.
+      // backfillPulseBadges() only writes to posts that don't already match,
+      // so this is a cheap no-op once everything's caught up.
       backfillPulseBadges(orgPhoto).catch(()=>{});
     });
   } catch(e){ /* best-effort only, never block sign-in */ }
