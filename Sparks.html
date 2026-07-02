@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+lus:<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -92,11 +92,12 @@ img{display:block;}
 /* Organization badge — shown ALONGSIDE the verified tick (like X/Twitter),
    never replaces it. Used by org accounts e.g. @nexor. Always rendered as a
    fixed-size square chip (crop-to-fill), so it looks consistent no matter
-   what shape/aspect-ratio the org's own profile photo is. */
-.org-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:2px;}
-.org-badge img{width:15px;height:15px;object-fit:cover;object-position:center;border-radius:4px;filter:drop-shadow(0 0 2px rgba(0,200,255,0.35));image-rendering:-webkit-optimize-contrast;}
-.org-badge.verified-badge-lg img{width:18px;height:18px;border-radius:5px;}
-.org-badge.verified-badge-xl img{width:23px;height:23px;border-radius:6px;}
+   what shape/aspect-ratio the org's own profile photo is. Sized close to
+   the verified tick and pulled in tight against it, like X's org badge. */
+.org-badge{display:inline-flex;align-items:center;vertical-align:middle;margin-left:-2px;}
+.org-badge img{width:17px;height:17px;object-fit:cover;object-position:center;border-radius:4px;filter:drop-shadow(0 0 2px rgba(0,200,255,0.35));image-rendering:-webkit-optimize-contrast;}
+.org-badge.verified-badge-lg img{width:21px;height:21px;border-radius:5px;}
+.org-badge.verified-badge-xl img{width:27px;height:27px;border-radius:6px;}
 
 /* AI Label — premium glass/gold badge */
 .ai-label{
@@ -5008,6 +5009,21 @@ async function openProfile(uid){
   // Name + badges
   const nameEl=document.getElementById('profile-display-name');
   nameEl.innerHTML=`${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('verified-badge-xl',uid,u.badgeUrl):''}${u.isAI?aiLabelHtml():''}`;
+  // If this account is affiliated with an org but its own badgeUrl hasn't
+  // synced into Firebase yet (that only happens once the affiliated user
+  // themself signs in / opens their own profile — see syncAffiliateBadge),
+  // fetch the org's live photo directly here too. This way the org badge
+  // shows up for ANYONE viewing this profile right away, without waiting
+  // on the affiliated user's own next login.
+  if(u.verified && u.affiliatedWithHandle && !u.badgeUrl){
+    db.ref('users').orderByChild('handle').equalTo(u.affiliatedWithHandle).limitToFirst(1).once('value').then(oS=>{
+      if(token!==profileLoadToken) return; // this profile view was superseded before the org lookup resolved
+      let orgData=null;
+      oS.forEach(c=>{orgData=c.val();});
+      const orgPhoto = orgData && (orgData.photoBase64||orgData.badgeUrl);
+      if(orgPhoto) nameEl.innerHTML=`${ESC(u.name||'User')} ${verifiedBadgeHtml('verified-badge-xl',uid,orgPhoto)}${u.isAI?aiLabelHtml():''}`;
+    }).catch(()=>{});
+  }
 
   // Handle + join date
   const handleEl=document.getElementById('profile-handle');
