@@ -854,6 +854,20 @@ img{display:block;}
 .reels-empty i,.reels-loading i{font-size:40px;}
 .reel-burst-heart{position:absolute;transform:translate(-50%,-50%) scale(0);font-size:88px;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.45);pointer-events:none;z-index:4;animation:reelHeartBurst .75s cubic-bezier(.17,.89,.32,1.49) forwards;}
 @keyframes reelHeartBurst{0%{transform:translate(-50%,-50%) scale(0);opacity:0;}25%{opacity:1;}45%{transform:translate(-50%,-50%) scale(1.15);}65%{transform:translate(-50%,-50%) scale(.92);}100%{transform:translate(-50%,-50%) scale(1);opacity:0;}}
+.reel-speed-badge{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,.55);color:#fff;font-weight:800;font-size:15px;padding:6px 16px;border-radius:20px;z-index:3;opacity:0;pointer-events:none;transition:opacity .15s;letter-spacing:.5px;}
+.reel-speed-badge.show{opacity:1;}
+
+/* ====== REEL COMMENTS (separate bottom-sheet, not the full Pulse/tweet view) ====== */
+.reel-comment-item{display:flex;gap:10px;padding:10px 2px;border-bottom:1px solid var(--border2);}
+.reel-comment-av{width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:800;color:#050A14;font-size:13px;}
+.reel-comment-body{flex:1;min-width:0;}
+.reel-comment-head{display:flex;align-items:center;gap:4px;font-size:13px;font-weight:700;color:var(--text);cursor:pointer;flex-wrap:wrap;}
+.reel-comment-text{font-size:13.5px;color:var(--text);line-height:1.42;margin-top:2px;word-wrap:break-word;}
+.reel-comment-time{font-size:11px;color:var(--text3);margin-top:3px;}
+.reel-comments-empty{padding:36px 12px;text-align:center;color:var(--text3);font-size:13px;}
+.reel-comment-input-row{display:flex;gap:10px;align-items:center;border-top:1px solid var(--border);padding:12px 0 calc(12px + var(--safe-bottom));position:sticky;bottom:0;background:var(--surface);}
+.reel-comment-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:11px 16px;color:var(--text);font-size:14px;}
+.reel-comment-input::placeholder{color:var(--text3);}
 </style>
 </head>
 <body>
@@ -1016,7 +1030,7 @@ img{display:block;}
   <div class="mobile-nav-inner">
     <div class="mobile-nav-item active" id="mn-home" onclick="gotoFeed()"><i class="ph-fill ph-house"></i><span>Home</span></div>
     <div class="mobile-nav-item" id="mn-explore" onclick="navShow('explore-screen')"><i class="ph ph-compass"></i><span>Explore</span></div>
-    <div class="mobile-nav-item" id="mn-reels" onclick="reelsNavTap()"><i class="ph ph-play-circle"></i><span>Reels</span></div>
+    <div class="mobile-nav-item" id="mn-reels" onclick="reelsNavTap()"><i class="ph ph-play-circle"></i><span>Bolts</span></div>
     <div class="mobile-nav-item" id="mn-profile" onclick="gotoOwnProfile()"><i class="ph ph-user-circle"></i><span>Profile</span></div>
     <div class="mobile-nav-item" id="mn-more" onclick="openMobileMore()"><i class="ph ph-list"></i><span>More</span></div>
   </div>
@@ -1063,7 +1077,7 @@ img{display:block;}
 <!-- REELS -->
 <div class="screen-overlay" id="reels-screen">
   <div class="reels-feed" id="reels-feed">
-    <div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading reels…</div></div>
+    <div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading bolts…</div></div>
   </div>
 </div>
 
@@ -1407,6 +1421,24 @@ img{display:block;}
         <span class="char-counter" id="reply-counter">200</span>
         <button class="btn-post" id="reply-post-btn" disabled onclick="postReply()">Reply</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- REEL / BOLTS COMMENTS — dedicated sheet so commenting on a Bolt stays
+     inside the Bolt instead of jumping into the full Pulse/tweet view -->
+<div class="modal-overlay" id="reel-comments-modal">
+  <div class="modal-sheet" style="max-height:78vh;display:flex;flex-direction:column;">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div style="font-weight:800;font-size:15px;">Comments</div>
+      <button onclick="closeModal('reel-comments-modal')"><i class="ph ph-x" style="font-size:20px;"></i></button>
+    </div>
+    <div id="reel-comments-list" style="flex:1;overflow-y:auto;min-height:120px;"></div>
+    <div class="reel-comment-input-row">
+      <div class="compose-av" id="reel-comment-av" style="width:34px;height:34px;font-size:14px;">U</div>
+      <input type="text" id="reel-comment-input" class="reel-comment-input" placeholder="Add a comment…" oninput="onReelCommentInput()">
+      <button class="btn-post" id="reel-comment-post-btn" disabled onclick="postReelComment()">Post</button>
     </div>
   </div>
 </div>
@@ -6408,8 +6440,8 @@ async function loadReelsScreen(forceRefresh){
   if(!wrap) return;
   reelsExhausted=false;
   let list=getReelPulses();
-  if(forceRefresh || (!list.length && !lastFeedPulses)){
-    wrap.innerHTML='<div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading reels…</div></div>';
+  if(forceRefresh || !list.length){
+    wrap.innerHTML='<div class="reels-loading"><i class="ph ph-spinner-gap spin"></i><div>Loading bolts…</div></div>';
     try{
       const snap=await db.ref('pulses').orderByChild('createdAt').limitToLast(100).once('value');
       const items=[]; snap.forEach(c=>items.unshift({id:c.key,...c.val()}));
@@ -6418,7 +6450,7 @@ async function loadReelsScreen(forceRefresh){
   }
   reelsOldestCreatedAt = list.length ? list[list.length-1].createdAt : null;
   renderReels(list);
-  if(forceRefresh) showToast('Reels refreshed');
+  if(forceRefresh) showToast('Bolts refreshed');
 }
 function renderReels(list){
   const wrap=document.getElementById('reels-feed');
@@ -6427,7 +6459,7 @@ function renderReels(list){
   reelsLoaded=true;
   reelsRenderSeq++;
   if(!list.length){
-    wrap.innerHTML='<div class="reels-empty"><i class="ph ph-video-camera-slash"></i><div>No reels yet</div><div style="font-size:12px;">Pulses with a video attached will show up here</div></div>';
+    wrap.innerHTML='<div class="reels-empty"><i class="ph ph-video-camera-slash"></i><div>No bolts yet</div><div style="font-size:12px;">Pulses with a video attached will show up here</div></div>';
     return;
   }
   wrap.innerHTML=list.map((p,i)=>buildReelItem(p,i)).join('');
@@ -6443,12 +6475,13 @@ function buildReelItem(p, idx){
   return `<div class="reel-item" data-idx="${idx}" data-id="${ESC(p.id)}">
     <div class="reel-topbar">
       <button class="reel-back-btn" onclick="navBack()"><i class="ph ph-arrow-left"></i></button>
-      <div class="reel-topbar-title">Reels</div>
+      <div class="reel-topbar-title">Bolts</div>
       <button class="reel-mute-btn" onclick="reelToggleMute()"><i class="ph ${reelsMuted?'ph-speaker-slash':'ph-speaker-high'}" id="reel-mute-icon"></i></button>
     </div>
     <video class="reel-video" src="${src}" ${p.videoPoster?`poster="${p.videoPoster}"`:''} playsinline loop muted preload="metadata"></video>
-    <div class="reel-tap-layer" onclick="reelTapToggle(this,event)"></div>
-    <i class="ph-fill ph-play reel-center-play"></i>
+    <div class="reel-tap-layer" onpointerdown="reelPointerDown(this,event)" onpointerup="reelPointerUp(this,event)" onpointercancel="reelPointerCancel(this)" onpointerleave="reelPointerCancel(this)"></div>
+    <i class="ph-fill ph-speaker-slash reel-center-play"></i>
+    <div class="reel-speed-badge">2×</div>
     <div class="reel-overlay-bottom" onclick="event.stopPropagation();">
       <div class="reel-info">
         <div class="reel-user-row">
@@ -6460,7 +6493,7 @@ function buildReelItem(p, idx){
       </div>
       <div class="reel-actions">
         <div class="reel-action-btn ${isLiked?'liked-state':''}" id="rla-${CSS.escape(p.id)}" onclick="reelToggleLike('${ESC(p.id)}')"><i class="ph${isLiked?'-fill':''} ph-heart"></i><span>${fmtN(p.likes||0)}</span></div>
-        <div class="reel-action-btn" onclick="openDetail('${ESC(p.id)}')"><i class="ph ph-chat-circle-dots"></i><span>${fmtN(p.replies||0)}</span></div>
+        <div class="reel-action-btn" onclick="openReelComments('${ESC(p.id)}')"><i class="ph ph-chat-circle-dots"></i><span>${fmtN(p.replies||0)}</span></div>
         <div class="reel-action-btn ${isBookmarked?'bookmarked-state':''}" id="rba-${CSS.escape(p.id)}" onclick="reelToggleBookmark('${ESC(p.id)}')"><i class="ph${isBookmarked?'-fill':''} ph-bookmark-simple"></i></div>
         <div class="reel-action-btn" onclick="shareUrl('${ESC(p.id)}')"><i class="ph ph-share-network"></i></div>
       </div>
@@ -6536,11 +6569,54 @@ function reelToggleMute(){
   document.querySelectorAll('.reel-video').forEach(v=>v.muted=reelsMuted);
   document.querySelectorAll('#reel-mute-icon').forEach(i=>i.className=`ph ${reelsMuted?'ph-speaker-slash':'ph-speaker-high'}`);
 }
-// ---- Tap = play/pause, Double-tap = like (with a heart burst), Instagram-style ----
+// ---- Long-press = hold at 2x speed, single tap = mute/unmute, double-tap = like ----
 let reelLastTapAt={};
-function reelTapToggle(tapLayerEl, evt){
+let reelPressState={};
+const REEL_LONG_PRESS_MS=350;
+function reelPointerDown(tapLayerEl, evt){
   const item=tapLayerEl.closest('.reel-item'); if(!item) return;
   const id=item.dataset.id;
+  const vid=item.querySelector('.reel-video');
+  const state={longPress:false, timer:null};
+  reelPressState[id]=state;
+  state.timer=setTimeout(()=>{
+    state.longPress=true;
+    if(vid) vid.playbackRate=2;
+    const badge=item.querySelector('.reel-speed-badge');
+    if(badge) badge.classList.add('show');
+  }, REEL_LONG_PRESS_MS);
+}
+function reelPointerUp(tapLayerEl, evt){
+  const item=tapLayerEl.closest('.reel-item'); if(!item) return;
+  const id=item.dataset.id;
+  const state=reelPressState[id];
+  if(state){
+    clearTimeout(state.timer);
+    delete reelPressState[id];
+    if(state.longPress){
+      reelEndLongPress(item);
+      return; // releasing a long-press shouldn't also register as a tap
+    }
+  }
+  reelTapToggle(item, id, evt);
+}
+function reelPointerCancel(tapLayerEl){
+  const item=tapLayerEl.closest('.reel-item'); if(!item) return;
+  const id=item.dataset.id;
+  const state=reelPressState[id];
+  if(state){
+    clearTimeout(state.timer);
+    delete reelPressState[id];
+    if(state.longPress) reelEndLongPress(item);
+  }
+}
+function reelEndLongPress(item){
+  const vid=item.querySelector('.reel-video');
+  if(vid) vid.playbackRate=1;
+  const badge=item.querySelector('.reel-speed-badge');
+  if(badge) badge.classList.remove('show');
+}
+function reelTapToggle(item, id, evt){
   const now=Date.now();
   const last=reelLastTapAt[id]||0;
   clearTimeout(item._reelTapTimer);
@@ -6549,15 +6625,14 @@ function reelTapToggle(tapLayerEl, evt){
     reelDoubleTapLike(item, id, evt);
   } else {
     reelLastTapAt[id]=now;
-    item._reelTapTimer=setTimeout(()=>reelSingleTapPlayPause(item), 300);
+    item._reelTapTimer=setTimeout(()=>reelSingleTapMute(item), 300);
   }
 }
-function reelSingleTapPlayPause(item){
-  const vid=item.querySelector('.reel-video'); if(!vid) return;
+function reelSingleTapMute(item){
+  reelToggleMute();
   const icon=item.querySelector('.reel-center-play');
-  if(vid.paused){ vid.play().catch(()=>{}); } else { vid.pause(); }
   if(icon){
-    icon.className=`ph-fill ${vid.paused?'ph-play':'ph-pause'} reel-center-play show`;
+    icon.className=`ph-fill ${reelsMuted?'ph-speaker-slash':'ph-speaker-high'} reel-center-play show`;
     setTimeout(()=>icon.classList.remove('show'),450);
   }
 }
@@ -6591,6 +6666,97 @@ async function reelToggleBookmark(pulseId){
     el.classList.toggle('bookmarked-state', saved);
     el.querySelector('i').className=`ph${saved?'-fill':''} ph-bookmark-simple`;
   });
+}
+
+// ============================================================
+// REEL / BOLTS COMMENTS — its own lightweight sheet, reusing the same
+// replies/{pulseId} data the Pulse detail screen uses, but rendered
+// inline so tapping the comment icon on a Bolt never opens the full
+// Pulse/tweet view.
+// ============================================================
+let reelCommentsPulseId=null;
+async function openReelComments(pulseId){
+  reelCommentsPulseId=pulseId;
+  const list=document.getElementById('reel-comments-list');
+  list.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  const input=document.getElementById('reel-comment-input');
+  input.value='';
+  document.getElementById('reel-comment-post-btn').disabled=true;
+  const av=document.getElementById('reel-comment-av');
+  av.innerHTML = myData.photoBase64 ? `<img src="${myData.photoBase64}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : ESC((myData.name||'U').charAt(0).toUpperCase());
+  openModal('reel-comments-modal');
+  await renderReelComments(pulseId);
+}
+async function renderReelComments(pulseId){
+  const list=document.getElementById('reel-comments-list');
+  try{
+    const rSnap=await db.ref('replies/'+pulseId).once('value');
+    const replyIds=Object.keys(rSnap.val()||{});
+    if(!replyIds.length){
+      list.innerHTML='<div class="reel-comments-empty"><i class="ph ph-chat-circle-dots" style="font-size:28px;"></i><div style="margin-top:8px;">No comments yet. Be the first!</div></div>';
+      return;
+    }
+    const replies=await Promise.all(replyIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+    replies.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    const visible=replies.filter(r=>!blockedSet.has(r.uid)&&!mutedSet.has(r.uid));
+    if(!visible.length){
+      list.innerHTML='<div class="reel-comments-empty"><i class="ph ph-chat-circle-dots" style="font-size:28px;"></i><div style="margin-top:8px;">No comments yet. Be the first!</div></div>';
+      return;
+    }
+    list.innerHTML=visible.map(r=>{
+      const rav=r.creatorPhoto?`<img class="reel-comment-av" src="${r.creatorPhoto}" alt="">`:`<div class="reel-comment-av">${ESC((r.creatorName||'U').charAt(0).toUpperCase())}</div>`;
+      const tick=r.creatorVerified?verifiedBadgeHtml('',r.uid,r.creatorBadgeUrl):'';
+      return `<div class="reel-comment-item">
+        ${rav}
+        <div class="reel-comment-body">
+          <div class="reel-comment-head" onclick="closeModal('reel-comments-modal');openProfile('${ESC(r.uid)}')">
+            <span>${ESC(r.creatorName||'User')}</span>${tick}
+            <span style="color:var(--text3);font-weight:500;">@${ESC(r.creatorHandle||'user')}</span>
+          </div>
+          <div class="reel-comment-text">${linkifyText(ESC(r.text||''))}</div>
+          <div class="reel-comment-time">${timeAgo(r.createdAt)}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    console.error('Failed to load reel comments', e);
+    list.innerHTML='<div class="reel-comments-empty">Could not load comments.</div>';
+  }
+}
+function onReelCommentInput(){
+  document.getElementById('reel-comment-post-btn').disabled=!document.getElementById('reel-comment-input').value.trim();
+}
+async function postReelComment(){
+  const input=document.getElementById('reel-comment-input');
+  const text=input.value.trim();
+  const pulseId=reelCommentsPulseId;
+  if(!text||!pulseId) return;
+  const btn=document.getElementById('reel-comment-post-btn'); btn.disabled=true;
+  try{
+    const replyData={uid:me.uid,creatorName:myData.name||'User',creatorHandle:myData.handle||'user',
+      creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,
+      text,parentId:pulseId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
+    const ref=await db.ref('pulses').push(replyData);
+    await db.ref('replies/'+pulseId+'/'+ref.key).set(true);
+    await db.ref('pulses/'+pulseId+'/replies').transaction(c=>(c||0)+1);
+    await db.ref('userPulses/'+me.uid+'/'+ref.key).set(true);
+    const pSnap=await db.ref('pulses/'+pulseId+'/uid').once('value');
+    const creatorUid=pSnap.val();
+    if(creatorUid){ await sendNotification(creatorUid, {type:'reply', pulseId}); }
+    notifyMentions(text, ref.key);
+    input.value='';
+    onReelCommentInput();
+    const cachedP=reelsCache.find(p=>p.id===pulseId);
+    const newCount=(cachedP?cachedP.replies||0:0)+1;
+    if(cachedP) cachedP.replies=newCount;
+    document.querySelectorAll(`.reel-item[data-id="${CSS.escape(pulseId)}"] .reel-action-btn i.ph-chat-circle-dots`).forEach(i=>{
+      const span=i.nextElementSibling;
+      if(span) span.textContent=fmtN(newCount);
+    });
+    await renderReelComments(pulseId);
+    showToast('Comment posted ✓');
+  }catch(e){ console.error(e); showToast('Could not post comment'); }
+  finally{ btn.disabled=false; }
 }
 
 // ============================================================
