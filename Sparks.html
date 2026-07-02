@@ -267,6 +267,9 @@ img{display:block;}
 @keyframes fadeInUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .pulse-av{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#050A14;flex-shrink:0;overflow:hidden;cursor:pointer;}
 .pulse-av img{width:100%;height:100%;object-fit:cover;}
+.pulse-av-wrap{position:relative;flex-shrink:0;}
+.pulse-av-collab-mini{position:absolute;bottom:-3px;right:-3px;width:22px;height:22px;border-radius:50%;border:3px solid var(--bg);overflow:hidden;background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#050A14;cursor:pointer;}
+.pulse-av-collab-mini img{width:100%;height:100%;object-fit:cover;}
 .pulse-body{flex:1;min-width:0;}
 .pulse-header{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:4px;}
 .pulse-name{font-size:15px;font-weight:800;color:var(--text);cursor:pointer;white-space:nowrap;}
@@ -2504,6 +2507,14 @@ function buildPulseCard(p){
 
   // Avatar
   const avContent = p.creatorPhoto ? `<img src="${p.creatorPhoto}" alt="">` : letter;
+  const collabLetter = (p.collaboratorName||'U').charAt(0).toUpperCase();
+  const collabAvContent = p.collaboratorPhoto ? `<img src="${p.collaboratorPhoto}" alt="">` : collabLetter;
+  const avHtml = isAcceptedCollab
+    ? `<div class="pulse-av-wrap">
+         <div class="pulse-av" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${avContent}</div>
+         <div class="pulse-av-collab-mini" onclick="event.stopPropagation();openProfile('${ESC(p.collaboratorUid)}')">${collabAvContent}</div>
+       </div>`
+    : `<div class="pulse-av" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${avContent}</div>`;
 
   // AI Response card: @nexor's AI-generated image replies get a distinct,
   // instantly-recognizable card treatment (not just a normal text reply).
@@ -2523,7 +2534,7 @@ function buildPulseCard(p){
 
   return `<div class="pulse-card${isAIResponseCard?' ai-response-card':''}" id="pc-${ESC(p.id)}" onclick="openDetail('${ESC(p.id)}')">
     <div>
-      <div class="pulse-av" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${avContent}</div>
+      ${avHtml}
     </div>
     <div class="pulse-body">
       <div class="pulse-header">
@@ -4535,6 +4546,14 @@ async function openDetail(pulseId){
     // Collaboration — co-authored Pulses. Verified tick shows once (author priority).
     const isAcceptedCollab = !!(p.collab && p.collaboratorStatus==='accepted' && p.collaboratorUid);
     const isPendingCollab  = !!(p.collab && p.collaboratorStatus==='pending' && p.collaboratorUid);
+    const collabLetterDetail = (p.collaboratorName||'U').charAt(0).toUpperCase();
+    const collabAvContentDetail = p.collaboratorPhoto ? `<img src="${p.collaboratorPhoto}" alt="">` : collabLetterDetail;
+    const avHtmlDetail = isAcceptedCollab
+      ? `<div class="pulse-av-wrap">
+           <div class="pulse-av" onclick="openProfile('${ESC(p.uid)}')" style="width:48px;height:48px;font-size:20px;">${avContent}</div>
+           <div class="pulse-av-collab-mini" onclick="event.stopPropagation();openProfile('${ESC(p.collaboratorUid)}')" style="width:24px;height:24px;font-size:10px;">${collabAvContentDetail}</div>
+         </div>`
+      : `<div class="pulse-av" onclick="openProfile('${ESC(p.uid)}')" style="width:48px;height:48px;font-size:20px;">${avContent}</div>`;
     const anyVerifiedDetail = isAcceptedCollab ? (p.creatorVerified||p.collaboratorVerified) : p.creatorVerified;
     const vBadge = anyVerifiedDetail ? (p.creatorVerified?verifiedBadgeHtml('verified-badge-lg',p.uid,p.creatorBadgeUrl):verifiedBadgeHtml('verified-badge-lg',p.collaboratorUid,p.collaboratorBadgeUrl)) : '';
     const nameDisplayDetail = isAcceptedCollab
@@ -4571,7 +4590,7 @@ async function openDetail(pulseId){
     el.innerHTML=`
       <div style="padding:16px 18px 0;">
         <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:14px;">
-          <div class="pulse-av" onclick="openProfile('${ESC(p.uid)}')" style="width:48px;height:48px;font-size:20px;">${avContent}</div>
+          ${avHtmlDetail}
           <div>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
               ${nameDisplayDetail}${vBadge}${aiBadge}
