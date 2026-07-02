@@ -2041,6 +2041,34 @@ function verifiedBadgeHtml(size='', uid='', orgBadgeUrl=''){
 function aiLabelHtml(){ return `<span class="ai-label"><i class="ph ph-robot" style="font-size:10px;"></i> AI</span>`; }
 
 // ============================================================
+// ORGANIZATION AFFILIATION — badge resolver
+// ============================================================
+// An admin marks a user as affiliated with an organization account by
+// writing users/{uid}/affiliatedWithHandle = "<org's handle>" directly in
+// Firebase (there's no in-app UI for this on purpose — it's an
+// admin-controlled trust signal, same as the verified flag itself).
+//
+// Given a user record, this resolves which org-badge image (if any) should
+// show right next to that user's verified tick: their own badgeUrl if
+// they've been given one directly (e.g. @nexor), otherwise — if they're
+// affiliated with an org — that org's own badgeUrl, falling back to the
+// org's profile photo if the org hasn't set a custom badge icon. Read-only,
+// so it always reflects the current Firebase state immediately, even if
+// the affiliated user hasn't opened the app since being marked.
+async function resolveAffiliateBadgeUrl(u){
+  if(!u) return '';
+  if(u.badgeUrl) return u.badgeUrl;
+  const orgHandle=(u.affiliatedWithHandle||'').trim();
+  if(!orgHandle) return '';
+  try{
+    const oS=await db.ref('users').orderByChild('handle').equalTo(orgHandle).limitToFirst(1).once('value');
+    let orgData=null;
+    oS.forEach(c=>{orgData=c.val();});
+    return orgData ? (orgData.badgeUrl||orgData.photoBase64||'') : '';
+  }catch(e){ return ''; }
+}
+
+// ============================================================
 // ABOUT THIS ACCOUNT (verified badge tap)
 // ============================================================
 async function openAboutAccount(uid){
@@ -2057,13 +2085,16 @@ async function openAboutAccount(uid){
     </div>`;
     const verifiedSinceTs = u.verifiedSinceTs || u.createdAt || null;
     let affiliateHtml = '';
+    let orgBadge = '';
     if(u.affiliatedWithHandle){
       try{
         let orgUid=null, orgData=null;
         const oS=await db.ref('users').orderByChild('handle').equalTo(u.affiliatedWithHandle).limitToFirst(1).once('value');
         oS.forEach(c=>{orgUid=c.key; orgData=c.val();});
         if(orgData){
-          const orgBadge=orgData.badgeUrl||NEXOR_BADGE_URL;
+          // Prefer the org's own custom badge icon; fall back to the org's
+          // profile photo so an org doesn't need a separate badge asset.
+          orgBadge=orgData.badgeUrl||orgData.photoBase64||NEXOR_BADGE_URL;
           affiliateHtml = `<div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;cursor:pointer;" onclick="event.stopPropagation();closeModal('about-account-modal');openProfile('${ESC(orgUid)}')">
             <img src="${ESC(orgBadge)}" alt="" style="width:28px;height:28px;border-radius:8px;object-fit:contain;flex-shrink:0;">
             <span style="font-size:13px;color:var(--text2);">An affiliate of <strong style="color:var(--text);">@${ESC(u.affiliatedWithHandle)}</strong></span>
@@ -2071,8 +2102,12 @@ async function openAboutAccount(uid){
         }
       }catch(e){}
     }
+    // The badge shown next to the name here should be the same one this
+    // account displays everywhere else: its own badgeUrl if it has one,
+    // otherwise its affiliated org's badge/photo (already resolved above).
+    const headerBadgeUrl = u.badgeUrl || orgBadge || '';
     let html = `<div style="text-align:center;margin-bottom:8px;">
-        <div style="font-size:15px;font-weight:700;">${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('','',u.badgeUrl):''}</div>
+        <div style="font-size:15px;font-weight:700;">${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('','',headerBadgeUrl):''}</div>
         <div style="font-size:13px;color:var(--text3);">@${ESC(u.handle||'user')}</div>
       </div>`;
     html += affiliateHtml;
@@ -2355,6 +2390,7 @@ async function onSignedIn(){
   startNotifsOnce();
   startChatsOnce();
   ensureNexorAccount().catch(()=>{}); // just keeps @nexor's badge in sync, never posts anything
+  syncAffiliateBadge().catch(()=>{}); // if I'm marked affiliatedWithHandle in Firebase, copy that org's badge onto my own badgeUrl
   // Everything below only refines ranking/state — it never blocks or resets the feed,
   // it just re-renders in place once ready (no spinner, no reload flash).
   Promise.all([loadSentRequests(),loadLikes(),loadBookmarks(),loadReposts()])
@@ -3436,6 +3472,48 @@ async function ensureNexorAccount(){
     if(!u.verified) updates.verified=true;
     if(u.badgeUrl!==NEXOR_BADGE_URL) updates.badgeUrl=NEXOR_BADGE_URL;
     if(Object.keys(updates).length) await db.ref('users/'+uid).update(updates).catch(()=>{});
+  }catch(e){ /* best-effort */ }
+}
+
+// ============================================================
+// ORGANIZATION AFFILIATION — auto-sync my own badge
+// ============================================================
+// resolveAffiliateBadgeUrl() (above) computes the right badge for DISPLAY
+// on demand, wherever a profile is opened. But most of the app (Pulses,
+// comments, chats, DMs, collab cards, etc.) just reads a user's own
+// badgeUrl field directly off their Firebase record for speed, the same
+// way it already does for @nexor. So for the currently signed-in account,
+// if an admin has set affiliatedWithHandle, copy that org's badge/photo
+// straight onto MY OWN badgeUrl field once — after that every existing
+// badgeUrl reference across the app picks it up automatically, with no
+// further changes needed anywhere else.
+//
+// Only ever touches a badge THIS function set previously (tracked via
+// affiliateBadgeAuto), so it never overwrites a badge an admin assigned
+// directly (like @nexor's). If the affiliation is later removed, the
+// auto-assigned badge is cleared the same way.
+async function syncAffiliateBadge(){
+  try{
+    if(!me || !myData) return;
+    const orgHandle=(myData.affiliatedWithHandle||'').trim();
+    const updates={};
+    if(orgHandle){
+      const oS=await db.ref('users').orderByChild('handle').equalTo(orgHandle).limitToFirst(1).once('value');
+      let orgData=null;
+      oS.forEach(c=>{orgData=c.val();});
+      const orgBadge = orgData ? (orgData.badgeUrl||orgData.photoBase64||'') : '';
+      if(orgBadge && myData.badgeUrl!==orgBadge){
+        updates.badgeUrl=orgBadge;
+        updates.affiliateBadgeAuto=true;
+      }
+    } else if(myData.affiliateBadgeAuto && myData.badgeUrl){
+      updates.badgeUrl=null;
+      updates.affiliateBadgeAuto=false;
+    }
+    if(Object.keys(updates).length){
+      await db.ref('users/'+me.uid).update(updates).catch(()=>{});
+      Object.assign(myData, updates);
+    }
   }catch(e){ /* best-effort */ }
 }
 
@@ -4946,9 +5024,12 @@ async function openProfile(uid){
   bannerEl.innerHTML=`${u.bannerBase64?`<img src="${u.bannerBase64}" alt="">`:''}
     <div class="profile-banner-edit ${isOwn?'':'hidden'}" id="banner-edit-btn" onclick="triggerBannerPick()"><i class="ph ph-camera"></i></div>`;
 
-  // Name + badges
+  // Name + badges — resolve the org badge (own badgeUrl, or an affiliated
+  // org's badge/profile photo) so it shows right next to the verified tick.
   const nameEl=document.getElementById('profile-display-name');
-  nameEl.innerHTML=`${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('verified-badge-xl',uid,u.badgeUrl):''}${u.isAI?aiLabelHtml():''}`;
+  const profileBadgeUrl = u.verified ? await resolveAffiliateBadgeUrl(u) : '';
+  if(token!==profileLoadToken) return; // a newer openProfile() call superseded this one
+  nameEl.innerHTML=`${ESC(u.name||'User')} ${u.verified?verifiedBadgeHtml('verified-badge-xl',uid,profileBadgeUrl):''}${u.isAI?aiLabelHtml():''}`;
 
   // Handle + join date
   const handleEl=document.getElementById('profile-handle');
