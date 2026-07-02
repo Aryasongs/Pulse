@@ -777,6 +777,7 @@ img{display:block;}
 .chat-bubble-row:not(.mine) .chat-msg-col{align-items:flex-start;}
 .chat-bubble-row.mine .chat-msg-col{align-items:flex-end;}
 .chat-bubble{position:relative;max-width:100%;padding:9px 14px;border-radius:18px;font-size:14px;line-height:1.4;word-wrap:break-word;overflow-wrap:break-word;white-space:pre-wrap;box-shadow:0 1px 2px rgba(0,0,0,.15);}
+.chat-bubble.pending{opacity:.55;}
 .chat-bubble-row.mine .chat-bubble{background:linear-gradient(135deg,var(--cyan),#00A8E0);color:#050A14;border-bottom-right-radius:5px;}
 .chat-bubble-row:not(.mine) .chat-bubble{background:var(--surface2);color:var(--text);border-bottom-left-radius:5px;border:1px solid var(--border2);}
 /* speech-bubble tail — like modern messaging apps */
@@ -1435,9 +1436,11 @@ img{display:block;}
       <button onclick="closeModal('reel-comments-modal')"><i class="ph ph-x" style="font-size:20px;"></i></button>
     </div>
     <div id="reel-comments-list" style="flex:1;overflow-y:auto;min-height:120px;"></div>
+    <div id="reelcomment-gif-preview" class="compose-img-preview hidden"></div>
     <div class="reel-comment-input-row">
       <div class="compose-av" id="reel-comment-av" style="width:34px;height:34px;font-size:14px;">U</div>
       <input type="text" id="reel-comment-input" class="reel-comment-input" placeholder="Add a comment…" oninput="onReelCommentInput()">
+      <button class="compose-action-btn" title="GIF" onclick="openGifPicker('reelcomment')"><span style="font-size:11px;font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:1px 4px;line-height:1.3;">GIF</span></button>
       <button class="btn-post" id="reel-comment-post-btn" disabled onclick="postReelComment()">Post</button>
     </div>
   </div>
@@ -1841,6 +1844,7 @@ let gifPickerTarget = null; // which compose box we're picking a GIF for
 let replyGifUrl = null;
 let inlineGifUrl = null;
 let modalGifUrl = null;
+let reelCommentGifUrl = null;
 let gifSearchDebounce = null;
 let collabPickerTarget = null; // which compose box we're picking a collaborator for
 let inlinePendingCollab = null; // {uid,name,handle,photoBase64} chosen but not yet posted
@@ -2213,12 +2217,15 @@ auth.onAuthStateChanged(user => {
 });
 
 async function onSignedIn(){
-  await loadMyData();
-  backfillAccountMeta();
-  // Load just what's needed to show the feed correctly (who I follow/blocked/muted) first —
-  // this is fast, so the feed appears almost instantly instead of waiting on everything.
-  await Promise.all([loadFollowing(),loadBlocked(),loadMuted()]);
+  // Start the feed listener immediately — it doesn't need to wait on anything
+  // else. It paints an instant snapshot from local cache (if any) the moment
+  // it's called, then the real-time data streams in on top. Everything that
+  // filters/ranks the feed (follows, blocks, mutes…) loads in parallel below
+  // and simply re-renders the already-visible feed in place once ready.
   listenFeed();
+  loadMyData();
+  backfillAccountMeta();
+  Promise.all([loadFollowing(),loadBlocked(),loadMuted()]).then(()=>renderFeed());
   loadTrending();
   loadWhoToFollow();
   startNotifsOnce();
@@ -2316,14 +2323,51 @@ function pulseRankScore(p){
   return recencyScore + interestScore + followBonus + engagementScore;
 }
 let lastFeedPulses = null; // cached raw pulses from the live listener, used by renderFeed()
+// ---- Instant-open feed cache ----------------------------------------------
+// Firebase always has to make a round trip before the feed can paint, and
+// every Pulse can carry big base64 image/video data, so that first round
+// trip is the slowest part of opening the site. To make the feed FEEL
+// instant on open, we keep a small local snapshot (text + metadata only —
+// no images/video, so it stays tiny and safe for localStorage) and paint it
+// straight away, before the network even responds. The live listener then
+// replaces it with the real, fully-loaded data the moment it arrives —
+// same code path as before, just no longer blocking the first paint.
+const FEED_CACHE_KEY='sparks_feed_cache_v1';
+function cacheFeedSnapshot(pulses){
+  try{
+    const lite=pulses.slice(-60).map(p=>({
+      id:p.id, uid:p.uid, text:p.text, createdAt:p.createdAt, likes:p.likes, reposts:p.reposts, replies:p.replies,
+      creatorName:p.creatorName, creatorHandle:p.creatorHandle, creatorVerified:p.creatorVerified, creatorIsAI:p.creatorIsAI,
+      creatorBadgeUrl:p.creatorBadgeUrl, repostOf:p.repostOf, repostOfName:p.repostOfName, repostOfText:p.repostOfText,
+      collab:p.collab, collaboratorStatus:p.collaboratorStatus, collaboratorUid:p.collaboratorUid,
+      collaboratorName:p.collaboratorName, collaboratorHandle:p.collaboratorHandle, collaboratorVerified:p.collaboratorVerified,
+      isPrivate:p.isPrivate, hasPoll:!!p.poll
+    }));
+    localStorage.setItem(FEED_CACHE_KEY, JSON.stringify(lite));
+  }catch(e){ /* quota or unavailable — non-critical, just skip caching */ }
+}
+function loadCachedFeedSnapshot(){
+  try{
+    const raw=localStorage.getItem(FEED_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
 function listenFeed(){
   if(feedUnsub){ feedUnsub(); feedUnsub=null; }
-  lastFeedPulses = null;
   const el = document.getElementById('feed-list');
-  el.innerHTML='';
-  document.getElementById('feed-loader').classList.remove('hidden');
   document.getElementById('feed-empty').classList.add('hidden');
-  const ref = db.ref('pulses').orderByChild('createdAt').limitToLast(100);
+  const cached=loadCachedFeedSnapshot();
+  if(cached && cached.length){
+    // Instant paint from last-seen data while the live listener catches up.
+    lastFeedPulses = cached;
+    document.getElementById('feed-loader').classList.add('hidden');
+    renderFeed();
+  } else {
+    lastFeedPulses = null;
+    el.innerHTML='';
+    document.getElementById('feed-loader').classList.remove('hidden');
+  }
+  const ref = db.ref('pulses').orderByChild('createdAt').limitToLast(50);
   const handler = ref.on('value', snap => {
     document.getElementById('feed-loader').classList.add('hidden');
     const pulses = [];
@@ -2336,6 +2380,7 @@ function listenFeed(){
     });
     lastFeedPulses = pulses;
     renderFeed();
+    cacheFeedSnapshot(pulses);
   });
   feedUnsub = () => ref.off('value', handler);
 }
@@ -2641,7 +2686,7 @@ function buildPulseCard(p){
           <i class="ph ph-repeat"></i><span id="rc-${ESC(p.id)}">${fmtN(p.reposts)}</span>
         </div>
         <div class="pulse-action like-act ${isLiked?'liked-state':''}" id="la-${CSS.escape(p.id)}" onclick="event.stopPropagation();toggleLike('${ESC(p.id)}')">
-          <i class="ph${isLiked?'-fill':''} ph-heart"></i><span id="lc-${ESC(p.id)}">${fmtN(p.likes)}</span>
+          <i class="ph${isLiked?'-fill':''} ph-heart"></i><span id="lc-${ESC(p.id)}" data-likes="${p.likes||0}">${fmtN(p.likes)}</span>
         </div>
         <div class="pulse-action bookmark-act ${isBookmarked?'bookmarked-state':''}" id="ba-${CSS.escape(p.id)}" onclick="event.stopPropagation();toggleBookmark('${ESC(p.id)}')">
           <i class="ph${isBookmarked?'-fill':''} ph-bookmark-simple"></i>
@@ -3922,9 +3967,12 @@ async function publishPulse(source){
 async function toggleLike(pulseId){
   const already=likedSet.has(pulseId);
   if(already)likedSet.delete(pulseId);else likedSet.add(pulseId);
-  paintLike(pulseId,!already);
+  const delta=already?-1:1;
+  // Paint instantly — icon + count flip immediately everywhere this pulse is
+  // shown (feed card, detail view, Bolt reel) before we ever touch the
+  // network, so likes always feel instant regardless of connection speed.
+  paintLike(pulseId,!already,delta);
   try{
-    const delta=already?-1:1;
     const updates={};
     updates[`pulses/${pulseId}/likes`]=firebase.database.ServerValue.increment(delta);
     updates[`userLikes/${me.uid}/${pulseId}`]=already?null:true;
@@ -3935,15 +3983,40 @@ async function toggleLike(pulseId){
     if(!already&&creatorUid&&creatorUid!==me.uid){
       await sendNotification(creatorUid, {type:'like', pulseId});
     }
-  } catch(e){ if(already)likedSet.add(pulseId);else likedSet.delete(pulseId); paintLike(pulseId,already); showToast('Could not update like'); }
+  } catch(e){
+    if(already)likedSet.add(pulseId);else likedSet.delete(pulseId);
+    paintLike(pulseId,already,-delta);
+    showToast('Could not update like');
+  }
 }
-function paintLike(pulseId,liked){
+// Updates every on-screen copy of a pulse's like state at once — the feed
+// card (la-/lc-), the detail view (detail-like-btn/-count), and the Bolt
+// reel action (rla-/rlc-) — so a like made anywhere shows up everywhere
+// instantly, with no wait for a fresh network read.
+function paintLike(pulseId,liked,delta){
   document.querySelectorAll(`[id="la-${CSS.escape(pulseId)}"]`).forEach(el=>{
-    el.className=`pulse-action like-act ${liked?'liked-state':''}`;
-    el.querySelector('i').className=`ph${liked?'-fill':''} ph-heart`;
+    el.classList.toggle('liked-state',liked);
+    const icon=el.querySelector('i'); if(icon) icon.className=`ph${liked?'-fill':''} ph-heart`;
   });
+  document.querySelectorAll(`[id="rla-${CSS.escape(pulseId)}"]`).forEach(el=>{
+    el.classList.toggle('liked-state',liked);
+    const icon=el.querySelector('i'); if(icon) icon.className=`ph${liked?'-fill':''} ph-heart`;
+  });
+  const bumpCount=el=>{
+    const cur=parseInt(el.dataset.likes,10);
+    const next=Math.max(0,(isNaN(cur)?0:cur)+delta);
+    el.dataset.likes=String(next);
+    el.textContent=fmtN(next);
+  };
+  if(typeof delta==='number'){
+    document.querySelectorAll(`[id="lc-${CSS.escape(pulseId)}"], [id="rlc-${CSS.escape(pulseId)}"]`).forEach(bumpCount);
+  }
   const da=document.getElementById('detail-like-btn');
-  if(da){ da.className=`pulse-detail-action ${liked?'liked-state':''}`; da.querySelector('i').className=`ph${liked?'-fill':''} ph-heart`; }
+  if(da){ da.classList.toggle('liked-state',liked); const icon=da.querySelector('i'); if(icon) icon.className=`ph${liked?'-fill':''} ph-heart`; }
+  if(typeof delta==='number'){
+    const dc=document.getElementById('detail-like-count');
+    if(dc) bumpCount(dc);
+  }
 }
 
 // ============================================================
@@ -4485,12 +4558,14 @@ function getGifUrl(target){
   if(target==='inline') return inlineGifUrl;
   if(target==='modal') return modalGifUrl;
   if(target==='reply') return replyGifUrl;
+  if(target==='reelcomment') return reelCommentGifUrl;
   return null;
 }
 function setGifUrl(target,url){
   if(target==='inline') inlineGifUrl=url;
   else if(target==='modal') modalGifUrl=url;
   else if(target==='reply') replyGifUrl=url;
+  else if(target==='reelcomment') reelCommentGifUrl=url;
 }
 function selectGif(url){
   const target=gifPickerTarget||'reply';
@@ -4503,13 +4578,15 @@ function selectGif(url){
   const preview=document.getElementById(target+'-gif-preview');
   preview.innerHTML=`<img src="${ESC(url)}" alt=""><div class="compose-img-remove" onclick="event.stopPropagation();removeGif('${target}')"><i class="ph ph-x"></i></div>`;
   preview.classList.remove('hidden');
-  onComposeInput(document.getElementById(target+'-text'),target+'-counter',target+'-post-btn');
+  if(target==='reelcomment'){ onReelCommentInput(); }
+  else { onComposeInput(document.getElementById(target+'-text'),target+'-counter',target+'-post-btn'); }
   closeModal('gif-picker-modal');
 }
 function removeGif(target){
   setGifUrl(target,null);
   const preview=document.getElementById(target+'-gif-preview');
   if(preview){ preview.classList.add('hidden'); preview.innerHTML=''; }
+  if(target==='reelcomment'){ onReelCommentInput(); return; }
   const ta=document.getElementById(target+'-text');
   if(ta) onComposeInput(ta,target+'-counter',target+'-post-btn');
 }
@@ -4687,7 +4764,7 @@ async function openDetail(pulseId){
         <div class="pulse-detail-meta">${new Date(p.createdAt||Date.now()).toLocaleString('en-US',{month:'long',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'})} · <strong>${fmtN(p.views||0)}</strong> views${p.editedAt?' · <span title="This Pulse was edited">edited</span>':''}</div>
         <div class="pulse-detail-stats">
           <div class="pulse-detail-stat" onclick="openRepostModal('${ESC(pulseId)}')"><span class="pds-num">${fmtN(p.reposts)}</span> <span class="pds-label">Reposts</span></div>
-          <div class="pulse-detail-stat" onclick="toggleLike('${ESC(pulseId)}')"><span class="pds-num" id="detail-like-count">${fmtN(p.likes)}</span> <span class="pds-label">Likes</span></div>
+          <div class="pulse-detail-stat" onclick="toggleLike('${ESC(pulseId)}')"><span class="pds-num" id="detail-like-count" data-likes="${p.likes||0}">${fmtN(p.likes)}</span> <span class="pds-label">Likes</span></div>
           <div class="pulse-detail-stat"><span class="pds-num">${fmtN(p.replies)}</span> <span class="pds-label">Replies</span></div>
           <div class="pulse-detail-stat"><span class="pds-num">${fmtN(p.views||0)}</span> <span class="pds-label">Views</span></div>
         </div>
@@ -6082,20 +6159,25 @@ function doStoryShareAction(){
 
 // ============================================================
 // MESSAGES / CHAT (1:1 direct messages)
-// Data model:
-//   chats/{chatId}/meta        -> {members:{uidA:true,uidB:true}, createdAt}
-//   messages/{msgId}           -> {chatId, senderUid, text, createdAt}
-//                                  (TOP-LEVEL node — msgId is a globally unique
-//                                  Firebase push id, NOT nested under chatId)
-//   userChats/{uid}/{chatId}   -> {otherUid, otherName, otherHandle, otherPhoto,
-//                                   lastMessage, lastMessageAt, unreadCount}
+// Data model (NEW — replaces the old flat top-level "messages" node):
+//   chats/{chatId}/meta            -> {members:{uidA:true,uidB:true}, createdAt}
+//   chatMessages/{chatId}/{msgId}  -> {senderUid, text, createdAt, reactions?, deleted?}
+//                                     (nested UNDER its chatId, so reading a
+//                                     conversation is a direct path lookup —
+//                                     no orderByChild('chatId').equalTo(...)
+//                                     scan across every message in the app)
+//   userChats/{uid}/{chatId}       -> {otherUid, otherName, otherHandle, otherPhoto,
+//                                       lastMessage, lastMessageAt, unreadCount}
 // chatId is the two member uids sorted and joined with '_' so both sides
 // always agree on the same conversation node.
-// NOTE: the old nested "chats/{chatId}/messages/{id}" node has been retired.
-// migrateOldMessagesForChat() below one-time-copies any legacy messages into
-// the new top-level "messages" node and deletes the old nested node.
+// RETIRED structures (both are one-time-migrated into chatMessages/{chatId}
+// by migrateLegacyMessagesForChat() below, then deleted):
+//   - chats/{chatId}/messages/{id}   (original nested legacy)
+//   - messages/{msgId}: {chatId,...} (flat top-level — this app's old schema)
 // Firebase console -> Realtime Database -> Rules should have:
-//   "messages": { ".indexOn": "chatId" }
+//   "chatMessages": { "$chatId": { ".indexOn": "createdAt" } }
+// The old top-level "messages" node and its "chatId" index are no longer
+// needed once migration has run and can be removed from the rules.
 // ============================================================
 let chatListUnsub=null;
 let chatMsgsUnsub=null;
@@ -6103,16 +6185,39 @@ let activeChatId=null;
 let activeChatOtherUid=null;
 let chatListCache=[];
 let chatMsgsCache=[];
+let pendingChatMsgs=[]; // optimistic messages shown instantly while their write is still in flight
 
 function chatIdFor(uidA,uidB){ return [uidA,uidB].sort().join('_'); }
 
+// ---- Instant-open inbox cache (same idea as the Pulse feed cache above):
+// paint the last-seen conversation list straight from localStorage the
+// moment the inbox is opened, before Firebase even responds, then let the
+// live listener replace it with the real data as it streams in.
+function chatCacheKey(){ return 'sparks_chats_cache_v1_'+(me&&me.uid||''); }
+function cacheChatListSnapshot(items){
+  try{
+    // Skip otherPhoto (can be a big base64 blob) to keep this cache tiny —
+    // avatars just show the initial letter until the live update lands.
+    const lite=items.slice(0,40).map(({otherPhoto,...rest})=>rest);
+    localStorage.setItem(chatCacheKey(), JSON.stringify(lite));
+  }catch(e){ /* quota or unavailable — non-critical, just skip caching */ }
+}
+function loadCachedChatListSnapshot(){
+  try{
+    const raw=localStorage.getItem(chatCacheKey());
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
 function startChatsOnce(){
   if(chatListUnsub) return;
+  const cached=loadCachedChatListSnapshot();
+  if(cached && cached.length && !chatListCache.length) chatListCache=cached;
   const ref=db.ref('userChats/'+me.uid);
   const handler=ref.on('value', snap=>{
     const items=[]; snap.forEach(c=>items.push({chatId:c.key,...c.val()}));
     items.sort((a,b)=>(b.lastMessageAt||0)-(a.lastMessageAt||0));
     chatListCache=items;
+    cacheChatListSnapshot(items);
     const unread=items.reduce((sum,c)=>sum+(c.unreadCount||0),0);
     ['dm-badge','dm-badge-mobile'].forEach(id=>{
       const badge=document.getElementById(id);
@@ -6154,6 +6259,7 @@ async function openChat(otherUid){
   navPush('chat-screen', ()=>openChat(otherUid));
   activeChatId=chatIdFor(me.uid,otherUid);
   activeChatOtherUid=otherUid;
+  pendingChatMsgs=[];
   document.querySelectorAll('.screen-overlay').forEach(s=>s.classList.remove('active'));
   document.getElementById('chat-screen').classList.add('active');
   setNavActive('chat-screen');
@@ -6178,7 +6284,7 @@ async function openChat(otherUid){
   }catch(e){ console.error('Failed to load chat header', e); }
 
   ensureChatMeta(activeChatId, me.uid, otherUid);
-  await migrateOldMessagesForChat(activeChatId);
+  await migrateLegacyMessagesForChat(activeChatId);
   listenChatMessages(activeChatId);
   markChatRead(activeChatId);
 }
@@ -6192,37 +6298,54 @@ function ensureChatMeta(chatId, uidA, uidB){
   });
 }
 
-// ---- One-time migration: old nested "chats/{chatId}/messages/{id}" -> new
-// top-level "messages/{msgId}" node (msgId = fresh unique push id per message).
-// Runs whenever a chat is opened; safe to call repeatedly (no-op once the
-// legacy node for that chat is gone).
+// ---- One-time migration: consolidates BOTH legacy message locations —
+// the original nested "chats/{chatId}/messages/{id}" AND this app's old
+// flat top-level "messages/{msgId}: {chatId,...}" — into the new
+// "chatMessages/{chatId}/{msgId}" node, then deletes the old copies.
+// Runs whenever a chat is opened; safe to call repeatedly (no-ops once
+// both legacy sources for that chat are empty).
 const migratedChats=new Set();
-async function migrateOldMessagesForChat(chatId){
+async function migrateLegacyMessagesForChat(chatId){
   if(migratedChats.has(chatId)) return;
   migratedChats.add(chatId);
   try{
-    const oldRef=db.ref('chats/'+chatId+'/messages');
-    const snap=await oldRef.once('value');
-    if(!snap.exists()) return;
-    const updates={};
-    snap.forEach(c=>{
-      const val=c.val()||{};
-      const newKey=db.ref('messages').push().key; // fresh unique id per message
-      updates[newKey]={...val, chatId};
-    });
-    if(Object.keys(updates).length) await db.ref('messages').update(updates);
-    await oldRef.remove(); // purana message node hatao
+    const newRef=db.ref('chatMessages/'+chatId);
+    // 1) Original nested legacy node
+    const oldNestedRef=db.ref('chats/'+chatId+'/messages');
+    const nestedSnap=await oldNestedRef.once('value');
+    if(nestedSnap.exists()){
+      const updates={};
+      nestedSnap.forEach(c=>{ updates[c.key]=c.val()||{}; });
+      if(Object.keys(updates).length) await newRef.update(updates);
+      await oldNestedRef.remove();
+    }
+    // 2) This app's old flat top-level node
+    const oldFlatSnap=await db.ref('messages').orderByChild('chatId').equalTo(chatId).once('value');
+    if(oldFlatSnap.exists()){
+      const updates={}; const removals={};
+      oldFlatSnap.forEach(c=>{
+        const val=c.val()||{};
+        const {chatId:_omit, ...rest}=val; // chatId is now implied by the path, don't duplicate it
+        updates[c.key]=rest;
+        removals[c.key]=null;
+      });
+      if(Object.keys(updates).length) await newRef.update(updates);
+      if(Object.keys(removals).length) await db.ref('messages').update(removals);
+    }
   }catch(e){ console.error('Message migration failed for chat', chatId, e); }
 }
 
 function listenChatMessages(chatId){
   if(chatMsgsUnsub) chatMsgsUnsub();
-  const ref=db.ref('messages').orderByChild('chatId').equalTo(chatId).limitToLast(200);
+  const ref=db.ref('chatMessages/'+chatId).orderByChild('createdAt').limitToLast(200);
   const handler=ref.on('value', snap=>{
     if(activeChatId!==chatId) return;
     const items=[]; snap.forEach(c=>items.push({id:c.key,...c.val()}));
     items.sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
-    renderChatMessages(items);
+    // Drop any still-pending optimistic bubble once the real message with
+    // matching content has arrived from the server, so it isn't shown twice.
+    pendingChatMsgs = pendingChatMsgs.filter(pm=>!items.some(m=>m.senderUid===pm.senderUid && m.text===pm.text && Math.abs((m.createdAt||0)-pm.createdAt)<15000));
+    renderChatMessages(items.concat(pendingChatMsgs));
     markChatRead(chatId);
   }, err=>{ console.error('Chat messages listener error:', err); });
   chatMsgsUnsub=()=>ref.off('value',handler);
@@ -6251,9 +6374,9 @@ function renderChatMessages(items){
       `<span class="msg-reaction-chip ${em===myReact?'mine-reacted':''}" onclick='event.stopPropagation();toggleMsgReaction("${m.id}","${em}")'>${em}${ct>1?' '+ct:''}</span>`
     ).join('')}</div>` : '';
     html+=`<div class="chat-bubble-row ${mine?'mine':''}"><div class="chat-msg-col">
-      <div class="chat-bubble" onpointerdown="msgPressStart(event,'${m.id}',${mine})" onpointerup="msgPressCancel()" onpointerleave="msgPressCancel()" onpointercancel="msgPressCancel()" oncontextmenu="event.preventDefault();openMsgCtxMenu(event,'${m.id}',${mine})">${linkifyText(ESC(m.text||''))}</div>
+      <div class="chat-bubble${m.pending?' pending':''}" onpointerdown="msgPressStart(event,'${m.id}',${mine})" onpointerup="msgPressCancel()" onpointerleave="msgPressCancel()" onpointercancel="msgPressCancel()" oncontextmenu="event.preventDefault();openMsgCtxMenu(event,'${m.id}',${mine})">${linkifyText(ESC(m.text||''))}</div>
       ${chipHtml}
-      <div class="chat-bubble-time">${time}</div>
+      <div class="chat-bubble-time">${m.pending?'Sending…':time}</div>
     </div></div>`;
   });
   wrap.innerHTML=html;
@@ -6290,7 +6413,7 @@ function openMsgCtxMenu(e, msgId, mine){
 }
 async function toggleMsgReaction(msgId, emoji){
   if(!activeChatId) return;
-  const ref=db.ref('messages/'+msgId+'/reactions/'+me.uid);
+  const ref=db.ref('chatMessages/'+activeChatId+'/'+msgId+'/reactions/'+me.uid);
   try{
     const snap=await ref.once('value');
     if(snap.val()===emoji) await ref.remove();
@@ -6306,7 +6429,7 @@ async function unsendMessage(msgId){
   const ok=await showConfirm({title:'Unsend message?',message:'This will delete the message for everyone in this chat.',okLabel:'Unsend'});
   if(!ok) return;
   try{
-    await db.ref('messages/'+msgId).update({deleted:true, text:'', reactions:null});
+    await db.ref('chatMessages/'+activeChatId+'/'+msgId).update({deleted:true, text:'', reactions:null});
     const isLatest = chatMsgsCache.length && chatMsgsCache[chatMsgsCache.length-1].id===msgId;
     if(isLatest && activeChatOtherUid){
       db.ref('userChats/'+me.uid+'/'+activeChatId+'/lastMessage').set('Message deleted').catch(()=>{});
@@ -6331,9 +6454,18 @@ async function sendChatMessage(){
   input.value=''; chatAutoGrow(input); chatUpdateSendBtn();
   const chatId=activeChatId, otherUid=activeChatOtherUid;
   const other=activeChatOtherInfo||{};
+  // Paint the bubble immediately — don't wait on the network round trip.
+  // The live listener will fold in the real message (and drop this stand-in)
+  // the instant Firebase's local write lands, which is effectively instant
+  // on a normal connection but this way it never *feels* like a wait even
+  // on a slow one.
+  const tempId='pending-'+Date.now()+'-'+Math.random().toString(36).slice(2);
+  const optimisticMsg={id:tempId, senderUid:me.uid, text, createdAt:Date.now(), pending:true};
+  pendingChatMsgs.push(optimisticMsg);
+  renderChatMessages(chatMsgsCache.concat(pendingChatMsgs));
   try{
-    await db.ref('messages').push({
-      chatId, senderUid: me.uid, text, createdAt: firebase.database.ServerValue.TIMESTAMP
+    await db.ref('chatMessages/'+chatId).push({
+      senderUid: me.uid, text, createdAt: firebase.database.ServerValue.TIMESTAMP
     });
     const now=firebase.database.ServerValue.TIMESTAMP;
     await db.ref('userChats/'+me.uid+'/'+chatId).update({
@@ -6349,6 +6481,8 @@ async function sendChatMessage(){
     await db.ref('userChats/'+otherUid+'/'+chatId+'/unreadCount').transaction(cur=>(cur||0)+1);
   }catch(err){
     console.error('sendChatMessage failed', err);
+    pendingChatMsgs=pendingChatMsgs.filter(m=>m.id!==tempId);
+    renderChatMessages(chatMsgsCache.concat(pendingChatMsgs));
     showToast('Could not send message: '+(err.message||'error'));
   }
 }
@@ -6423,6 +6557,17 @@ function getReelPulses(){
   const src = lastFeedPulses || [];
   return src.filter(p => !blockedSet.has(p.uid) && !mutedSet.has(p.uid) && isPulseVisible(p) && (p.videoUrl||p.videoBase64));
 }
+// Fisher–Yates shuffle — used so Bolts aren't strictly newest-first, which
+// buried older videos further and further down as more got posted. This
+// mixes eras together each time the feed loads/pages, so an old Bolt has
+// the same shot at showing up as a brand new one.
+function shuffleArray(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
 
 // Tapping the "Reels" nav icon while already on the Reels screen refreshes
 // the feed with a fresh batch instead of just doing nothing.
@@ -6452,8 +6597,11 @@ async function loadReelsScreen(forceRefresh){
       fetchError=e;
     }
   }
-  reelsOldestCreatedAt = list.length ? list[list.length-1].createdAt : null;
-  renderReels(list, fetchError);
+  // Cursor for "load more" pagination must be based on chronological order —
+  // compute it BEFORE shuffling the list for display.
+  reelsOldestCreatedAt = list.length ? list.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0))[0].createdAt : null;
+  const displayList = shuffleArray(list.slice());
+  renderReels(displayList, fetchError);
   if(forceRefresh && !fetchError) showToast('Bolts refreshed');
   if(fetchError) showToast('Could not load Bolts — '+(fetchError.message||'check your connection'));
 }
@@ -6499,7 +6647,7 @@ function buildReelItem(p, idx){
         <div class="reel-caption">${linkifyText(ESC(p.text||''))}</div>
       </div>
       <div class="reel-actions">
-        <div class="reel-action-btn ${isLiked?'liked-state':''}" id="rla-${CSS.escape(p.id)}" onclick="reelToggleLike('${ESC(p.id)}')"><i class="ph${isLiked?'-fill':''} ph-heart"></i><span>${fmtN(p.likes||0)}</span></div>
+        <div class="reel-action-btn ${isLiked?'liked-state':''}" id="rla-${CSS.escape(p.id)}" onclick="reelToggleLike('${ESC(p.id)}')"><i class="ph${isLiked?'-fill':''} ph-heart"></i><span id="rlc-${CSS.escape(p.id)}" data-likes="${p.likes||0}">${fmtN(p.likes||0)}</span></div>
         <div class="reel-action-btn" onclick="openReelComments('${ESC(p.id)}')"><i class="ph ph-chat-circle-dots"></i><span>${fmtN(p.replies||0)}</span></div>
         <div class="reel-action-btn ${isBookmarked?'bookmarked-state':''}" id="rba-${CSS.escape(p.id)}" onclick="reelToggleBookmark('${ESC(p.id)}')"><i class="ph${isBookmarked?'-fill':''} ph-bookmark-simple"></i></div>
         <div class="reel-action-btn" onclick="shareUrl('${ESC(p.id)}')"><i class="ph ph-share-network"></i></div>
@@ -6554,6 +6702,7 @@ async function ensureMoreReels(){
       if(!reelsCache.length) return;
       appended = reelsCache.slice(0, Math.min(REELS_PAGE_SIZE, reelsCache.length));
     }
+    appended = shuffleArray(appended.slice());
     const wrap=document.getElementById('reels-feed');
     if(!wrap) return;
     const startIdx=reelsCache.length;
@@ -6659,12 +6808,10 @@ function showReelHeartBurst(item, evt){
   setTimeout(()=>heart.remove(),800);
 }
 async function reelToggleLike(pulseId){
+  // toggleLike() already paints the rla-/rlc- reel elements instantly
+  // (before its network call), so this just delegates straight to it —
+  // no more waiting on the round trip before the heart lights up.
   await toggleLike(pulseId);
-  const liked=likedSet.has(pulseId);
-  document.querySelectorAll(`[id="rla-${CSS.escape(pulseId)}"]`).forEach(el=>{
-    el.classList.toggle('liked-state', liked);
-    el.querySelector('i').className=`ph${liked?'-fill':''} ph-heart`;
-  });
 }
 async function reelToggleBookmark(pulseId){
   await toggleBookmark(pulseId);
@@ -6688,6 +6835,7 @@ async function openReelComments(pulseId){
   list.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
   const input=document.getElementById('reel-comment-input');
   input.value='';
+  removeGif('reelcomment');
   document.getElementById('reel-comment-post-btn').disabled=true;
   const av=document.getElementById('reel-comment-av');
   av.innerHTML = myData.photoBase64 ? `<img src="${myData.photoBase64}" alt="" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">` : ESC((myData.name||'U').charAt(0).toUpperCase());
@@ -6713,6 +6861,7 @@ async function renderReelComments(pulseId){
     list.innerHTML=visible.map(r=>{
       const rav=r.creatorPhoto?`<img class="reel-comment-av" src="${r.creatorPhoto}" alt="">`:`<div class="reel-comment-av">${ESC((r.creatorName||'U').charAt(0).toUpperCase())}</div>`;
       const tick=r.creatorVerified?verifiedBadgeHtml('',r.uid,r.creatorBadgeUrl):'';
+      const gifImg = (r.isGif && r.images && r.images[0]) ? `<img src="${ESC(r.images[0])}" alt="" style="max-width:160px;border-radius:10px;display:block;margin-top:6px;">` : '';
       return `<div class="reel-comment-item">
         ${rav}
         <div class="reel-comment-body">
@@ -6720,7 +6869,8 @@ async function renderReelComments(pulseId){
             <span>${ESC(r.creatorName||'User')}</span>${tick}
             <span style="color:var(--text3);font-weight:500;">@${ESC(r.creatorHandle||'user')}</span>
           </div>
-          <div class="reel-comment-text">${linkifyText(ESC(r.text||''))}</div>
+          ${r.text?`<div class="reel-comment-text">${linkifyText(ESC(r.text))}</div>`:''}
+          ${gifImg}
           <div class="reel-comment-time">${timeAgo(r.createdAt)}</div>
         </div>
       </div>`;
@@ -6731,18 +6881,20 @@ async function renderReelComments(pulseId){
   }
 }
 function onReelCommentInput(){
-  document.getElementById('reel-comment-post-btn').disabled=!document.getElementById('reel-comment-input').value.trim();
+  const hasText=!!document.getElementById('reel-comment-input').value.trim();
+  document.getElementById('reel-comment-post-btn').disabled=!hasText && !reelCommentGifUrl;
 }
 async function postReelComment(){
   const input=document.getElementById('reel-comment-input');
   const text=input.value.trim();
   const pulseId=reelCommentsPulseId;
-  if(!text||!pulseId) return;
+  if((!text&&!reelCommentGifUrl)||!pulseId) return;
   const btn=document.getElementById('reel-comment-post-btn'); btn.disabled=true;
   try{
     const replyData={uid:me.uid,creatorName:myData.name||'User',creatorHandle:myData.handle||'user',
       creatorVerified:myData.verified||false,creatorIsAI:myData.isAI||false,creatorBadgeUrl:myData.badgeUrl||null,creatorPhoto:myData.photoBase64||null,
       text,parentId:pulseId,isReply:true,likes:0,replies:0,reposts:0,views:0,createdAt:firebase.database.ServerValue.TIMESTAMP};
+    if(reelCommentGifUrl){ replyData.images=[reelCommentGifUrl]; replyData.isGif=true; replyData.mediaType='gif'; }
     const ref=await db.ref('pulses').push(replyData);
     await db.ref('replies/'+pulseId+'/'+ref.key).set(true);
     await db.ref('pulses/'+pulseId+'/replies').transaction(c=>(c||0)+1);
@@ -6752,6 +6904,7 @@ async function postReelComment(){
     if(creatorUid){ await sendNotification(creatorUid, {type:'reply', pulseId}); }
     notifyMentions(text, ref.key);
     input.value='';
+    removeGif('reelcomment');
     onReelCommentInput();
     const cachedP=reelsCache.find(p=>p.id===pulseId);
     const newCount=(cachedP?cachedP.replies||0:0)+1;
