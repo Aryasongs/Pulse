@@ -533,7 +533,16 @@ img{display:block;}
 .profile-banner{height:140px;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(0,200,255,.15),rgba(255,184,48,.1));}
 .profile-banner img{width:100%;height:100%;object-fit:cover;}
 .profile-banner-edit{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;cursor:pointer;backdrop-filter:blur(4px);}
-.profile-av-wrap{padding:0 16px;margin-top:-36px;display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;}
+.profile-av-wrap{padding:0 16px;margin-top:-36px;display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:12px;position:relative;}
+/* ====== BIRTHDAY ANIMATION (plays once/day on a user's profile, like X) ====== */
+.bday-burst{position:absolute;left:0;top:-14px;width:100%;height:150px;pointer-events:none;overflow:visible;z-index:6;}
+.bday-balloon{position:absolute;bottom:6px;font-size:26px;opacity:0;animation:bdayFloat 2.8s ease-in forwards;}
+@keyframes bdayFloat{0%{transform:translateY(0) translateX(0) rotate(0deg);opacity:0;}10%{opacity:1;}100%{transform:translateY(-170px) translateX(var(--bdx,0px)) rotate(var(--bdr,10deg));opacity:0;}}
+.bday-confetti{position:absolute;top:-6px;width:7px;height:13px;border-radius:2px;opacity:0;animation:bdayConfetti 1.9s ease-out forwards;}
+@keyframes bdayConfetti{0%{transform:translateY(0) rotate(0deg);opacity:1;}100%{transform:translateY(150px) rotate(360deg);opacity:0;}}
+.bday-badge{position:absolute;left:50%;top:-30px;transform:translateX(-50%);display:flex;align-items:center;gap:5px;background:linear-gradient(135deg,var(--cyan),var(--amber));color:#050A14;font-weight:800;font-size:12px;padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.45);opacity:0;animation:bdayBadgeIn .4s ease .25s forwards, bdayBadgeOut .4s ease 3.8s forwards;}
+@keyframes bdayBadgeIn{from{opacity:0;transform:translateX(-50%) translateY(6px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+@keyframes bdayBadgeOut{from{opacity:1;}to{opacity:0;}}
 .profile-av{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--amber));display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800;color:#050A14;border:4px solid var(--bg);overflow:hidden;flex-shrink:0;position:relative;cursor:pointer;}
 .profile-av img{width:100%;height:100%;object-fit:cover;}
 .profile-av-edit-overlay{position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;border-radius:50%;}
@@ -977,8 +986,9 @@ img{display:block;}
       </div>
       <div class="auth-field-group">
         <i class="ph ph-at auth-field-icon"></i>
-        <input class="auth-field" id="r-handle" type="text" placeholder="Username (letters, numbers, _)">
+        <input class="auth-field" id="r-handle" type="text" placeholder="Username (letters, numbers, _)" oninput="checkHandleAvailabilityReg(this.value)">
       </div>
+      <div class="reg-handle-status" id="r-handle-status" style="font-size:12px;font-weight:600;margin:-6px 0 12px 4px;min-height:14px;"></div>
       <div class="auth-field-group">
         <i class="ph ph-envelope-simple auth-field-icon"></i>
         <input class="auth-field" id="r-email" type="email" placeholder="Email address" autocomplete="email">
@@ -2120,6 +2130,7 @@ function authTab(t){
   document.getElementById('af-login').style.display = t==='login'?'':'none';
   document.getElementById('af-reg').style.display   = t==='reg'?'':'none';
   document.getElementById('auth-err').textContent='';
+  const rhs=document.getElementById('r-handle-status'); if(rhs) rhs.textContent='';
 }
 function toggleAuthPass(inputId, iconEl){
   const input=document.getElementById(inputId); if(!input)return;
@@ -2154,6 +2165,35 @@ async function doLogin(){
   }
   catch(err){ document.getElementById('auth-err').textContent=friendlyErr(err); setBusy('btn-login',false,'<i class="ph ph-sign-in"></i> Sign In'); }
 }
+// Real-time username availability check on the Create Account page.
+// Mirrors checkHandleAvailability() used in Edit Profile, but this one runs
+// BEFORE the user is signed in. If your Firebase rules don't yet allow a
+// public (unauthenticated) read of handleIndex/{handle}, this will fail
+// silently (status just stays blank) instead of throwing — availability
+// still gets fully verified at submit time right after sign-in.
+let regHandleCheckTimer=null;
+function checkHandleAvailabilityReg(raw){
+  const statusEl=document.getElementById('r-handle-status');
+  if(!statusEl) return;
+  const val=(raw||'').trim().replace(/^@/,'').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase();
+  clearTimeout(regHandleCheckTimer);
+  if(!val||val.length<3){ statusEl.textContent=''; return; }
+  if(RESERVED_HANDLES.includes(val)){ statusEl.style.color='var(--like)'; statusEl.textContent='✗ @'+val+' is reserved'; return; }
+  statusEl.style.color='var(--text3)'; statusEl.textContent='Checking…';
+  regHandleCheckTimer=setTimeout(async ()=>{
+    try{
+      const snap=await db.ref('handleIndex/'+val).once('value');
+      const stillCurrent=(document.getElementById('r-handle').value.trim().replace(/^@/,'').replace(/[^a-zA-Z0-9_]/g,'').toLowerCase()===val);
+      if(!stillCurrent) return; // user kept typing, this result is stale
+      if(snap.exists()){ statusEl.style.color='var(--like)'; statusEl.textContent='✗ @'+val+' is already taken'; }
+      else { statusEl.style.color='var(--green)'; statusEl.textContent='✓ @'+val+' is available'; }
+    }catch(e){
+      // Likely a permission-denied because handleIndex isn't publicly
+      // readable pre-auth yet — fail quiet, we still check safely on submit.
+      statusEl.textContent='';
+    }
+  },450);
+}
 function calcAge(dobStr){
   if(!dobStr) return null;
   const dob=new Date(dobStr+'T00:00:00');
@@ -2185,8 +2225,14 @@ async function doRegister(){
     // Quick pre-check so we don't burn an account creation on an obviously
     // taken handle. Not atomic by itself — the transaction below (after
     // sign-in) is the real guard against a race between two signups.
-    const preSnap = await handleRef.once('value');
-    if(preSnap.exists()){
+    // This read happens before sign-in, so if your Firebase rules don't
+    // allow a public read of handleIndex, it'll throw permission_denied —
+    // we swallow that here rather than blocking registration, since the
+    // atomic transaction right after sign-in still fully protects against
+    // duplicate handles either way.
+    let preSnap=null;
+    try{ preSnap = await handleRef.once('value'); }catch(precheckErr){ preSnap=null; }
+    if(preSnap && preSnap.exists()){
       document.getElementById('auth-err').textContent='Username @'+handle+' is already taken. Please choose another.';
       setBusy('btn-reg',false,'<i class="ph ph-user-plus"></i> Create Account');
       return;
@@ -4908,6 +4954,47 @@ async function openDetail(pulseId){
 // ============================================================
 // PROFILE SCREEN
 // ============================================================
+// ============================================================
+// BIRTHDAY ANIMATION — like X/Twitter's cake-day confetti on a profile
+// ============================================================
+function isBirthdayToday(dobStr){
+  if(!dobStr) return false;
+  const dob=new Date(dobStr+'T00:00:00');
+  if(isNaN(dob.getTime())) return false;
+  const now=new Date();
+  return dob.getMonth()===now.getMonth() && dob.getDate()===now.getDate();
+}
+function maybeShowBirthdayAnimation(uid, dobStr, displayName){
+  if(!isBirthdayToday(dobStr)) return;
+  const dayKey='bdaySeen_'+uid+'_'+new Date().toISOString().slice(0,10);
+  if(localStorage.getItem(dayKey)) return; // already played today
+  localStorage.setItem(dayKey,'1');
+  const wrap=document.querySelector('.profile-av-wrap');
+  if(!wrap) return;
+  const old=wrap.querySelector('.bday-burst'); if(old) old.remove();
+  const burst=document.createElement('div');
+  burst.className='bday-burst';
+  const balloonEmojis=['🎈','🎈','🎉','🎂','🎈','🎉'];
+  const confettiColors=['#00C8FF','#FFB830','#FF3B5C','#00D68F','#FFD98A'];
+  let html='';
+  for(let i=0;i<10;i++){
+    const left=(Math.random()*94).toFixed(1);
+    const delay=(Math.random()*0.5).toFixed(2);
+    const dx=(Math.random()*80-40).toFixed(0);
+    const rot=(Math.random()*40-20).toFixed(0);
+    html+=`<span class="bday-balloon" style="left:${left}%;animation-delay:${delay}s;--bdx:${dx}px;--bdr:${rot}deg;">${balloonEmojis[i%balloonEmojis.length]}</span>`;
+  }
+  for(let i=0;i<20;i++){
+    const left=(Math.random()*98).toFixed(1);
+    const delay=(Math.random()*0.7).toFixed(2);
+    html+=`<span class="bday-confetti" style="left:${left}%;background:${confettiColors[i%confettiColors.length]};animation-delay:${delay}s;"></span>`;
+  }
+  const first=(displayName||'').trim().split(' ')[0];
+  html+=`<span class="bday-badge">🎂 Happy Birthday${first?', '+ESC(first):''}!</span>`;
+  burst.innerHTML=html;
+  wrap.appendChild(burst);
+  setTimeout(()=>{ burst.remove(); },4300);
+}
 async function openProfile(uid){
   if(!uid) return;
   navPush('profile-screen', ()=>openProfile(uid));
@@ -5032,6 +5119,9 @@ async function openProfile(uid){
   const handleEl=document.getElementById('profile-handle');
   profileHandleCache=u.handle||'user';
   handleEl.innerHTML=`@${ESC(u.handle||'user')} <span class="profile-join-date" style="margin-left:4px;">· Joined ${joinDate(u.createdAt)}</span>`;
+
+  // 🎉 Birthday animation — plays once per day on this profile, like X/Twitter
+  maybeShowBirthdayAnimation(uid, u.dob, u.name);
 
   // Share metadata (tab title / OG / Twitter tags) — reflects this profile
   updateShareMeta({
