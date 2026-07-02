@@ -7,12 +7,25 @@
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Nexor Sparks</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23050A14'/%3E%3Cpath d='M7 2v11h3v9l7-12h-4l4-8z' fill='%2300C8FF'/%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#050A14">
 <link rel="apple-touch-icon" href="https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Sparks">
+<!-- Default share metadata — overwritten dynamically per profile/Pulse by updateShareMeta() in the app script -->
+<meta name="description" id="meta-description" content="Nexor Sparks — share your pulse with the world.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Nexor Sparks">
+<meta property="og:title" id="meta-og-title" content="Nexor Sparks">
+<meta property="og:description" id="meta-og-description" content="Nexor Sparks — share your pulse with the world.">
+<meta property="og:image" id="meta-og-image" content="https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png">
+<meta property="og:url" id="meta-og-url" content="">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" id="meta-twitter-title" content="Nexor Sparks">
+<meta name="twitter:description" id="meta-twitter-description" content="Nexor Sparks — share your pulse with the world.">
+<meta name="twitter:image" id="meta-twitter-image" content="https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png">
 <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400&display=swap" rel="stylesheet">
 <script src="https://unpkg.com/@phosphor-icons/web"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -505,6 +518,17 @@ img{display:block;}
 .contact-info-row-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;}
 .contact-info-row-value{font-size:15px;color:var(--text);font-weight:600;word-break:break-all;}
 .contact-info-row-arrow{margin-left:auto;font-size:16px;color:var(--text3);}
+.collab-chip{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border2);border-radius:99px;padding:6px 10px 6px 6px;margin-top:8px;font-size:13px;width:max-content;max-width:100%;}
+.collab-chip-av{width:22px;height:22px;border-radius:50%;overflow:hidden;background:var(--surface3);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;}
+.collab-chip-av img{width:100%;height:100%;object-fit:cover;}
+.collab-chip span{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.collab-chip i{cursor:pointer;color:var(--text3);font-size:14px;margin-left:2px;}
+.pulse-collab-with{font-size:13px;color:var(--text2);}
+.pulse-collab-with a{color:var(--cyan);cursor:pointer;}
+.collab-pending-tag{font-size:11px;font-weight:700;color:var(--amber);display:inline-flex;align-items:center;gap:3px;margin-left:6px;background:rgba(255,184,48,0.10);border:1px solid rgba(255,184,48,0.3);border-radius:6px;padding:1.5px 6px;}
+.collab-invite-bar{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:10px 12px;margin:10px 0;display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text2);flex-wrap:wrap;}
+.collab-invite-bar .collab-invite-actions{display:flex;gap:8px;margin-left:auto;}
+.collab-invite-bar .btn-follow-sm{padding:6px 14px;}
 .profile-meta{display:flex;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--text3);margin-bottom:12px;align-items:center;}
 .profile-meta-item{display:flex;align-items:center;gap:4px;}
 .profile-meta i{font-size:14px;}
@@ -897,6 +921,7 @@ img{display:block;}
           <div id="inline-img-preview" class="compose-img-preview hidden"></div>
           <div id="inline-vid-preview" class="compose-video-preview hidden"></div>
           <div id="inline-gif-preview" class="compose-img-preview hidden"></div>
+          <div id="inline-collab-chip" class="hidden"></div>
           <div id="inline-poll-box" class="compose-poll-box hidden"></div>
           <div class="compose-footer">
             <div class="compose-actions">
@@ -905,6 +930,7 @@ img{display:block;}
               <button class="compose-action-btn" title="Video (max 30 min, mp4/mov/webm)" onclick="triggerVideoPick('inline-vid-input')"><i class="ph ph-video-camera"></i></button>
               <input type="file" id="inline-vid-input" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" style="display:none" onchange="onVideoPicked(event,'inline')">
               <button class="compose-action-btn" title="GIF" onclick="openGifPicker('inline')"><span style="font-size:11px;font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:1px 4px;line-height:1.3;">GIF</span></button>
+              <button class="compose-action-btn" title="Collaborate" onclick="openCollabPicker('inline')"><i class="ph ph-users-three"></i></button>
               <button class="compose-action-btn" title="Poll" onclick="togglePollBox('inline')"><i class="ph ph-chart-bar-horizontal"></i></button>
               <button class="compose-action-btn" title="Emoji" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
             </div>
@@ -1112,10 +1138,11 @@ img{display:block;}
     </div>
   </div>
   <div class="profile-tabs">
-    <div class="profile-tab active" onclick="switchProfileTab('posts',this)">Posts</div>
-    <div class="profile-tab" onclick="switchProfileTab('replies',this)">Replies</div>
-    <div class="profile-tab" onclick="switchProfileTab('videos',this)">Videos</div>
-    <div class="profile-tab" onclick="switchProfileTab('photos',this)">Photos</div>
+    <div class="profile-tab active" data-tab="posts" onclick="switchProfileTab('posts',this)">Posts</div>
+    <div class="profile-tab" data-tab="replies" onclick="switchProfileTab('replies',this)">Replies</div>
+    <div class="profile-tab" data-tab="videos" onclick="switchProfileTab('videos',this)">Videos</div>
+    <div class="profile-tab" data-tab="photos" onclick="switchProfileTab('photos',this)">Photos</div>
+    <div class="profile-tab" data-tab="collabs" onclick="switchProfileTab('collabs',this)">Collabs<span id="profile-collab-badge" class="hidden" style="display:inline-block;margin-left:4px;background:var(--amber);color:#000;font-size:10px;font-weight:800;border-radius:99px;min-width:16px;padding:1px 5px;line-height:1.4;"></span></div>
   </div>
   <div id="profile-pulses-list"></div>
   <button class="mobile-fab" id="profile-compose-fab" style="display:flex;" onclick="openComposeFromProfile()" title="Post"><i class="ph-bold ph-pencil-simple-line"></i></button>
@@ -1283,6 +1310,7 @@ img{display:block;}
         <div id="modal-img-preview" class="compose-img-preview hidden"></div>
         <div id="modal-vid-preview" class="compose-video-preview hidden"></div>
         <div id="modal-gif-preview" class="compose-img-preview hidden"></div>
+        <div id="modal-collab-chip" class="hidden"></div>
         <div id="modal-poll-box" class="compose-poll-box hidden"></div>
         <div id="modal-quote-preview" class="hidden"></div>
       </div>
@@ -1294,6 +1322,7 @@ img{display:block;}
         <button class="compose-action-btn" title="Video (max 30 min, mp4/mov/webm)" onclick="triggerVideoPick('modal-vid-input')"><i class="ph ph-video-camera"></i></button>
         <input type="file" id="modal-vid-input" accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" style="display:none" onchange="onVideoPicked(event,'modal')">
         <button class="compose-action-btn" title="GIF" onclick="openGifPicker('modal')"><span style="font-size:11px;font-weight:800;border:1.5px solid currentColor;border-radius:4px;padding:1px 4px;line-height:1.3;">GIF</span></button>
+        <button class="compose-action-btn" title="Collaborate" onclick="openCollabPicker('modal')"><i class="ph ph-users-three"></i></button>
         <button class="compose-action-btn" title="Poll" onclick="togglePollBox('modal')"><i class="ph ph-chart-bar-horizontal"></i></button>
         <button class="compose-action-btn" onclick="showToast('Emoji picker coming soon 😄')"><i class="ph ph-smiley"></i></button>
       </div>
@@ -1336,6 +1365,21 @@ img{display:block;}
     <input type="text" id="gif-search-input" placeholder="Search GIFs…" oninput="onGifSearchInput()" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 14px;color:var(--text);font-size:15px;font-family:inherit;margin-bottom:12px;">
     <div id="gif-results-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-height:200px;"></div>
     <div style="text-align:center;font-size:11px;color:var(--text3);margin-top:10px;">GIFs powered by GIPHY</div>
+  </div>
+</div>
+
+<!-- Collab Picker -->
+<div class="modal-overlay" id="collab-picker-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Collaborate with</div>
+    <div style="font-size:13px;color:var(--text3);margin:-4px 0 12px;">They'll be asked to accept before the Pulse shows on their profile too.</div>
+    <div class="rail-search" style="margin-bottom:12px;">
+      <i class="ph ph-magnifying-glass"></i>
+      <input type="text" placeholder="Search people…" id="collab-picker-q" oninput="doCollabPickerSearch()">
+    </div>
+    <div id="collab-picker-results" style="max-height:50vh;overflow-y:auto;"></div>
+    <button class="btn-sheet outline" style="margin-top:12px;" onclick="closeModal('collab-picker-modal')">Cancel</button>
   </div>
 </div>
 
@@ -1713,6 +1757,9 @@ let replyGifUrl = null;
 let inlineGifUrl = null;
 let modalGifUrl = null;
 let gifSearchDebounce = null;
+let collabPickerTarget = null; // which compose box we're picking a collaborator for
+let inlinePendingCollab = null; // {uid,name,handle,photoBase64} chosen but not yet posted
+let modalPendingCollab = null;
 let repostTargetId = null;
 let quoteTargetId = null;
 let quoteOrigPulse = null;
@@ -2441,9 +2488,19 @@ function buildPulseCard(p){
       ${repostOfMediaHtml(p)}
     </div>` : '';
 
-  // Build verified / AI badges inline
-  const vBadge = p.creatorVerified ? verifiedBadgeHtml('',p.uid,p.creatorBadgeUrl) : '';
+  // Collaboration — co-authored Pulses. A verified tick shows only once,
+  // whichever of the two accounts is verified (author takes priority).
+  const isAcceptedCollab = !!(p.collab && p.collaboratorStatus==='accepted' && p.collaboratorUid);
+  const isPendingCollab  = !!(p.collab && p.collaboratorStatus==='pending' && p.collaboratorUid);
+  const anyVerified = isAcceptedCollab ? (p.creatorVerified||p.collaboratorVerified) : p.creatorVerified;
+  const vBadge = anyVerified ? (p.creatorVerified?verifiedBadgeHtml('',p.uid,p.creatorBadgeUrl):verifiedBadgeHtml('',p.collaboratorUid,p.collaboratorBadgeUrl)) : '';
   const aiBadge = p.creatorIsAI ? aiLabelHtml() : '';
+
+  // Header name/handle — "Name1 + Name2 ✅" and "@user1 · @user2" once accepted
+  const nameDisplay = isAcceptedCollab
+    ? `<span class="pulse-name" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${ESC(p.creatorName||'User')}</span> + <span class="pulse-name" onclick="event.stopPropagation();openProfile('${ESC(p.collaboratorUid)}')">${ESC(p.collaboratorName||'User')}</span>`
+    : `<span class="pulse-name" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${ESC(p.creatorName||'User')}</span>`;
+  const handleDisplay = isAcceptedCollab ? `@${ESC(p.creatorHandle||'user')} · @${ESC(p.collaboratorHandle||'user')}` : handle;
 
   // Avatar
   const avContent = p.creatorPhoto ? `<img src="${p.creatorPhoto}" alt="">` : letter;
@@ -2453,19 +2510,32 @@ function buildPulseCard(p){
   const isAIResponseCard = !!(p.creatorIsAI && p.imageIsAI);
   const aiResponseHeader = isAIResponseCard ? `<div class="ai-response-header"><i class="ph-fill ph-sparkle"></i><span>AI Generated Response</span></div>` : '';
 
+  const collabPendingTag = (isPendingCollab && isOwn) ? `<span class="collab-pending-tag"><i class="ph ph-clock"></i> Collab pending</span>` : '';
+  const isInvitedCollaborator = isPendingCollab && p.collaboratorUid===me.uid;
+  const collabInviteBar = isInvitedCollaborator ? `<div class="collab-invite-bar" onclick="event.stopPropagation();">
+      <i class="ph ph-users-three" style="font-size:18px;color:var(--cyan);"></i>
+      <span>${ESC(p.creatorName||'User')} invited you to collaborate on this Pulse</span>
+      <div class="collab-invite-actions">
+        <button class="btn-follow-sm following" onclick="acceptCollabRequest('${ESC(p.id)}')">Accept</button>
+        <button class="btn-follow-sm" onclick="declineCollabRequest('${ESC(p.id)}')">Decline</button>
+      </div>
+    </div>` : '';
+
   return `<div class="pulse-card${isAIResponseCard?' ai-response-card':''}" id="pc-${ESC(p.id)}" onclick="openDetail('${ESC(p.id)}')">
     <div>
       <div class="pulse-av" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${avContent}</div>
     </div>
     <div class="pulse-body">
       <div class="pulse-header">
-        <span class="pulse-name" onclick="event.stopPropagation();openProfile('${ESC(p.uid)}')">${ESC(p.creatorName||'User')}</span>${vBadge}${aiBadge}
-        <span class="pulse-handle">${handle}</span>
+        ${nameDisplay}${vBadge}${aiBadge}
+        <span class="pulse-handle">${handleDisplay}</span>
         <span class="pulse-dot">·</span>
         <span class="pulse-time">${timeAgo(p.createdAt)}</span>
         ${p.editedAt?'<span class="pulse-dot">·</span><span class="pulse-time" title="This Pulse was edited">edited</span>':''}
+        ${collabPendingTag}
         <button class="pulse-more" onclick="event.stopPropagation();openCtxMenu(event,'${ESC(p.id)}',${isOwn},'${ESC(p.uid)}')" title="More"><i class="ph ph-dots-three"></i></button>
       </div>
+      ${collabInviteBar}
       ${p.isRepost&&!p.repostOf?`<div style="font-size:12px;color:var(--green);margin-bottom:6px;display:flex;align-items:center;gap:5px;"><i class="ph ph-repeat"></i> Reposted</div>`:''}
       ${aiResponseHeader}
       ${txt?`<div class="pulse-text">${txt}</div>`:''}
@@ -2566,6 +2636,9 @@ function openCompose(prefillText){
   document.getElementById('modal-gif-preview').classList.add('hidden');
   document.getElementById('modal-gif-preview').innerHTML='';
   modalImages=[]; modalVideoFile=null; modalGifUrl=null;
+  modalPendingCollab=null;
+  const modalCollabChip=document.getElementById('modal-collab-chip');
+  modalCollabChip.classList.add('hidden'); modalCollabChip.innerHTML='';
   modalPoll=null;
   const pollBox=document.getElementById('modal-poll-box');
   pollBox.classList.add('hidden'); pollBox.innerHTML='';
@@ -3651,6 +3724,7 @@ async function publishPulse(source){
   const imgs=source==='inline'?inlineImages:modalImages;
   const vid=source==='inline'?inlineVideoFile:modalVideoFile;
   const gifUrl=source==='inline'?inlineGifUrl:(source==='modal'?modalGifUrl:null);
+  const collab=(source==='inline'||source==='modal')?getPendingCollab(source):null;
   const isQuote=source==='modal'&&!!quoteTargetId&&!!quoteOrigPulse;
   const pollPayload=getValidPollPayload(source);
   if(!text&&!imgs.length&&!vid&&!gifUrl&&!isQuote&&!pollPayload)return;
@@ -3683,6 +3757,14 @@ async function publishPulse(source){
       videoPoster:vid?(vid.poster||null):null,
       videoType:vid?vid.type:null,
       videoDuration:vid?vid.duration:null,
+      collab:collab?true:null,
+      collaboratorUid:collab?collab.uid:null,
+      collaboratorName:collab?collab.name:null,
+      collaboratorHandle:collab?collab.handle:null,
+      collaboratorPhoto:collab?(collab.photoBase64||null):null,
+      collaboratorVerified:collab?(collab.verified||false):null,
+      collaboratorBadgeUrl:collab?(collab.badgeUrl||null):null,
+      collaboratorStatus:collab?'pending':null,
       createdAt:firebase.database.ServerValue.TIMESTAMP
     };
     if(pollPayload){
@@ -3722,7 +3804,15 @@ async function publishPulse(source){
       if(qp){qp.classList.add('hidden');qp.innerHTML='';}
     }
     notifyMentions(text, ref.key);
+    if(collab&&collab.uid){
+      await db.ref('collabRequests/'+collab.uid+'/'+ref.key).set({
+        authorUid:me.uid, authorName:myData.name||'User', authorHandle:myData.handle||'user',
+        createdAt:firebase.database.ServerValue.TIMESTAMP
+      }).catch(()=>{});
+      await sendNotification(collab.uid, {type:'collab_request', pulseId:ref.key});
+    }
     ta.value=''; removeImage(source); removeVideo(source); removeGif(source);
+    if(source==='inline'||source==='modal') removeCollab(source);
     setPollState(source,null);
     const pollBox=document.getElementById(source+'-poll-box');
     pollBox.classList.add('hidden'); pollBox.innerHTML='';
@@ -3974,6 +4064,49 @@ async function declineFollowRequest(requesterUid, notifId){
 }
 
 // ============================================================
+// COLLAB REQUESTS (accept / decline) — invited collaborator's response
+// to a Pulse's co-author invitation.
+// ============================================================
+async function acceptCollabRequest(pulseId, notifId){
+  if(!pulseId)return;
+  try{
+    const pSnap=await db.ref('pulses/'+pulseId).once('value');
+    const p=pSnap.val();
+    if(!p||p.collaboratorUid!==me.uid){ showToast('This collab request is no longer available'); return; }
+    if(p.collaboratorStatus!=='pending'){ showToast('This request has already been handled'); return; }
+    const updates={};
+    updates[`pulses/${pulseId}/collaboratorStatus`]='accepted';
+    updates[`userPulses/${me.uid}/${pulseId}`]=true;
+    updates[`collabRequests/${me.uid}/${pulseId}`]=null;
+    await db.ref().update(updates);
+    await db.ref('users/'+me.uid+'/pulsesCount').transaction(c=>(c||0)+1);
+    if(p.uid&&p.uid!==me.uid) await sendNotification(p.uid, {type:'collab_accept', pulseId});
+    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    showToast('Collab accepted ✓');
+    if(document.getElementById('detail-screen').classList.contains('active')) openDetail(pulseId);
+    if(document.getElementById('profile-screen').classList.contains('active') && profileUid===me.uid) switchProfileTab('collabs',document.querySelector('.profile-tab[data-tab="collabs"]'));
+  } catch(e){ showToast('Could not accept collab request'); }
+}
+async function declineCollabRequest(pulseId, notifId){
+  if(!pulseId)return;
+  try{
+    const pSnap=await db.ref('pulses/'+pulseId).once('value');
+    const p=pSnap.val();
+    if(p&&p.collaboratorUid===me.uid&&p.collaboratorStatus==='pending'){
+      const updates={};
+      updates[`pulses/${pulseId}/collaboratorStatus`]='declined';
+      updates[`collabRequests/${me.uid}/${pulseId}`]=null;
+      await db.ref().update(updates);
+    }
+    if(notifId) await db.ref('notifications/'+me.uid+'/'+notifId).remove().catch(()=>{});
+    showToast('Collab declined');
+    if(document.getElementById('detail-screen').classList.contains('active')) openDetail(pulseId);
+    if(document.getElementById('profile-screen').classList.contains('active') && profileUid===me.uid) switchProfileTab('collabs',document.querySelector('.profile-tab[data-tab="collabs"]'));
+  } catch(e){ showToast('Could not decline collab request'); }
+}
+
+// ============================================================
+
 // BLOCK / MUTE
 // ============================================================
 async function blockUser(targetUid){
@@ -4290,6 +4423,84 @@ function removeGif(target){
 function removeReplyGif(){ removeGif('reply'); }
 
 // ============================================================
+// COLLABORATE — invite another user as a co-author on a Pulse.
+// The Pulse posts immediately under the author, and a request is sent
+// to the invited collaborator; once they accept, the Pulse also shows
+// on their profile and displays "with @handle" to everyone.
+// ============================================================
+function getPendingCollab(target){ return target==='inline'?inlinePendingCollab:modalPendingCollab; }
+function setPendingCollab(target,val){ if(target==='inline') inlinePendingCollab=val; else modalPendingCollab=val; }
+function openCollabPicker(target){
+  collabPickerTarget=target||'modal';
+  document.getElementById('collab-picker-q').value='';
+  openModal('collab-picker-modal');
+  renderCollabPickerResults(Array.from(followingSet).slice(0,20));
+}
+let collabPickerUserCache = {}; // id -> user record, so we don't have to inline long photo/badge URLs in onclick attrs
+async function renderCollabPickerResults(uids){
+  const el=document.getElementById('collab-picker-results');
+  if(!uids.length){ el.innerHTML='<div class="empty-feed" style="padding:20px;"><p>No people to show yet.</p></div>'; return; }
+  el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  const users=await Promise.all(uids.map(id=>db.ref('users/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+  const filtered=users.filter(u=>u.id!==me.uid && !blockedSet.has(u.id));
+  if(!filtered.length){ el.innerHTML='<div class="empty-feed" style="padding:20px;"><p>No results.</p></div>'; return; }
+  filtered.forEach(u=>{collabPickerUserCache[u.id]=u;});
+  el.innerHTML=filtered.map(u=>`
+    <div class="who-item" onclick="selectCollabUser('${ESC(u.id)}')">
+      <div class="who-av">${u.photoBase64?`<img src="${u.photoBase64}" alt="">`:((u.name||'U').charAt(0).toUpperCase())}</div>
+      <div class="who-info">
+        <div class="who-name">${ESC(u.name||'User')}${u.verified?verifiedBadgeHtml('',u.id,u.badgeUrl):''}</div>
+        <div class="who-handle">@${ESC(u.handle||'user')}</div>
+      </div>
+      <i class="ph ph-caret-right" style="color:var(--text3);"></i>
+    </div>`).join('');
+}
+let collabSearchT=null;
+function doCollabPickerSearch(){
+  clearTimeout(collabSearchT);
+  collabSearchT=setTimeout(async ()=>{
+    const raw=document.getElementById('collab-picker-q').value.trim().toLowerCase().replace(/^@/,'');
+    if(!raw){ renderCollabPickerResults(Array.from(followingSet).slice(0,20)); return; }
+    const el=document.getElementById('collab-picker-results');
+    el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+    const usersSnap=await db.ref('users').limitToLast(300).once('value');
+    const matches=[];
+    usersSnap.forEach(c=>{
+      if(c.key===me.uid || blockedSet.has(c.key)) return;
+      const d=c.val()||{};
+      if((d.name||'').toLowerCase().includes(raw)||(d.handle||'').toLowerCase().includes(raw)) matches.push(c.key);
+    });
+    renderCollabPickerResults(matches.slice(0,25));
+  },250);
+}
+function selectCollabUser(uid){
+  const target=collabPickerTarget||'modal';
+  const u=collabPickerUserCache[uid];
+  if(!u){ showToast('Could not select this user'); return; }
+  if(uid===me.uid){ showToast("You can't collaborate with yourself"); return; }
+  if(blockedSet.has(uid)){ showToast("You can't collaborate with a blocked account"); return; }
+  setPendingCollab(target,{uid,name:u.name||'User',handle:u.handle||'user',photoBase64:u.photoBase64||null,verified:u.verified||false,badgeUrl:u.badgeUrl||null});
+  renderCollabChip(target);
+  closeModal('collab-picker-modal');
+  onComposeInput(document.getElementById(target+'-text'),target+'-counter',target+'-post-btn');
+}
+function renderCollabChip(target){
+  const chip=document.getElementById(target+'-collab-chip');
+  const c=getPendingCollab(target);
+  if(!c){ chip.classList.add('hidden'); chip.innerHTML=''; return; }
+  chip.classList.remove('hidden');
+  chip.innerHTML=`<div class="collab-chip">
+    <div class="collab-chip-av">${c.photoBase64?`<img src="${c.photoBase64}" alt="">`:ESC((c.name||'U').charAt(0).toUpperCase())}</div>
+    <span>Collaborating with @${ESC(c.handle||'user')}</span>
+    <i class="ph ph-x" onclick="removeCollab('${target}')"></i>
+  </div>`;
+}
+function removeCollab(target){
+  setPendingCollab(target,null);
+  renderCollabChip(target);
+}
+
+// ============================================================
 // PULSE DETAIL
 // ============================================================
 const viewedPulses = new Set(); // track which pulses we've counted this session
@@ -4314,14 +4525,41 @@ async function openDetail(pulseId){
     p.id=pulseId;
     const isLiked=likedSet.has(pulseId), isBM=bookmarkSet.has(pulseId);
     const letter=(p.creatorName||'U').charAt(0).toUpperCase();
-    const handle='@'+(p.creatorHandle||'user');
     const imgHtml=pulseImageHtml(p);
     const vidHtml=(p.videoUrl||p.videoBase64)?`<div class="pulse-video">${videoPlayerHtml(p.videoUrl||p.videoBase64,p.videoPoster)}</div>`:'';
-    const vBadge=p.creatorVerified?verifiedBadgeHtml('verified-badge-lg',p.uid,p.creatorBadgeUrl):'';
     const aiBadge=p.creatorIsAI?aiLabelHtml():'';
     const avContent=p.creatorPhoto?`<img src="${p.creatorPhoto}" alt="">`:letter;
     const isAIResponseDetail=!!(p.creatorIsAI && p.imageIsAI);
     const aiResponseHeaderDetail=isAIResponseDetail?`<div class="ai-response-header"><i class="ph-fill ph-sparkle"></i><span>AI Generated Response</span></div>`:'';
+
+    // Collaboration — co-authored Pulses. Verified tick shows once (author priority).
+    const isAcceptedCollab = !!(p.collab && p.collaboratorStatus==='accepted' && p.collaboratorUid);
+    const isPendingCollab  = !!(p.collab && p.collaboratorStatus==='pending' && p.collaboratorUid);
+    const anyVerifiedDetail = isAcceptedCollab ? (p.creatorVerified||p.collaboratorVerified) : p.creatorVerified;
+    const vBadge = anyVerifiedDetail ? (p.creatorVerified?verifiedBadgeHtml('verified-badge-lg',p.uid,p.creatorBadgeUrl):verifiedBadgeHtml('verified-badge-lg',p.collaboratorUid,p.collaboratorBadgeUrl)) : '';
+    const nameDisplayDetail = isAcceptedCollab
+      ? `<span class="pulse-name" onclick="openProfile('${ESC(p.uid)}')" style="font-size:16px;">${ESC(p.creatorName||'User')}</span> + <span class="pulse-name" onclick="openProfile('${ESC(p.collaboratorUid)}')" style="font-size:16px;">${ESC(p.collaboratorName||'User')}</span>`
+      : `<span class="pulse-name" onclick="openProfile('${ESC(p.uid)}')" style="font-size:16px;">${ESC(p.creatorName||'User')}</span>`;
+    const handleDisplayDetail = isAcceptedCollab ? `@${ESC(p.creatorHandle||'user')} · @${ESC(p.collaboratorHandle||'user')}` : `@${ESC(p.creatorHandle||'user')}`;
+    const isInvitedCollaboratorDetail = isPendingCollab && p.collaboratorUid===me.uid;
+    const collabInviteBarDetail = isInvitedCollaboratorDetail ? `<div class="collab-invite-bar">
+        <i class="ph ph-users-three" style="font-size:18px;color:var(--cyan);"></i>
+        <span>${ESC(p.creatorName||'User')} invited you to collaborate on this Pulse</span>
+        <div class="collab-invite-actions">
+          <button class="btn-follow-sm following" onclick="acceptCollabRequest('${ESC(pulseId)}')">Accept</button>
+          <button class="btn-follow-sm" onclick="declineCollabRequest('${ESC(pulseId)}')">Decline</button>
+        </div>
+      </div>` : (isPendingCollab && p.uid===me.uid ? `<span class="collab-pending-tag" style="margin-left:60px;"><i class="ph ph-clock"></i> Collab pending @${ESC(p.collaboratorHandle||'user')}</span>` : '');
+
+    // Share metadata (tab title / OG / Twitter tags) — reflects this Pulse
+    const detailShareImage = (p.images&&p.images[0]) || p.imageBase64 || null;
+    updateShareMeta({
+      title: `${p.creatorName||'User'} on Nexor Sparks`,
+      description: p.text ? p.text : `Check out this Pulse by @${p.creatorHandle||'user'} on Nexor Sparks.`,
+      image: detailShareImage || DEFAULT_SHARE_IMAGE,
+      url: `${location.origin}${location.pathname}?pulse=${pulseId}`
+    });
+
     const rSnap=await db.ref('replies/'+pulseId).once('value');
     const replyIds=Object.keys(rSnap.val()||{});
     let repliesHtml='';
@@ -4336,11 +4574,12 @@ async function openDetail(pulseId){
           <div class="pulse-av" onclick="openProfile('${ESC(p.uid)}')" style="width:48px;height:48px;font-size:20px;">${avContent}</div>
           <div>
             <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
-              <span class="pulse-name" onclick="openProfile('${ESC(p.uid)}')" style="font-size:16px;">${ESC(p.creatorName||'User')}</span>${vBadge}${aiBadge}
+              ${nameDisplayDetail}${vBadge}${aiBadge}
             </div>
-            <div class="pulse-handle">${ESC(handle)}</div>
+            <div class="pulse-handle">${handleDisplayDetail}</div>
           </div>
         </div>
+        ${collabInviteBarDetail}
         ${aiResponseHeaderDetail}
         ${p.text?`<div class="pulse-detail-text">${linkifyText(p.text)}</div>`:''}
         ${imgHtml}${vidHtml}${pollHtml(p)}
@@ -4381,6 +4620,8 @@ async function openProfile(uid){
   showScreen('profile-screen');
   // Reset to Pulses tab + clear any stale content from a previously viewed profile immediately
   document.querySelectorAll('.profile-tab').forEach((t,i)=>t.classList.toggle('active',i===0));
+  const collabBadgeReset=document.getElementById('profile-collab-badge');
+  if(collabBadgeReset) collabBadgeReset.classList.add('hidden');
   document.getElementById('profile-title-name').textContent='Loading…';
   document.getElementById('profile-display-name').textContent='—';
   document.getElementById('profile-handle').textContent='@—';
@@ -4476,6 +4717,14 @@ async function openProfile(uid){
   profileHandleCache=u.handle||'user';
   handleEl.innerHTML=`@${ESC(u.handle||'user')} <span class="profile-join-date" style="margin-left:4px;">· Joined ${joinDate(u.createdAt)}</span>`;
 
+  // Share metadata (tab title / OG / Twitter tags) — reflects this profile
+  updateShareMeta({
+    title: `${u.name||'User'} (@${u.handle||'user'}) on Nexor Sparks`,
+    description: u.bio ? u.bio : `Check out @${u.handle||'user'}'s profile on Nexor Sparks.`,
+    image: u.photoBase64 || DEFAULT_SHARE_IMAGE,
+    url: `${location.origin}${location.pathname}?user=${uid}`
+  });
+
   // Bio
   const bioEl=document.getElementById('profile-bio');
   if(u.bio){bioEl.textContent=u.bio;bioEl.classList.remove('hidden');}else bioEl.classList.add('hidden');
@@ -4507,6 +4756,19 @@ async function openProfile(uid){
   // Show/hide more btn and banner edit
   document.getElementById('profile-more-btn').classList.toggle('hidden',isOwn);
 
+  // Collab tab pending-request badge (own profile only)
+  if(isOwn){
+    db.ref('collabRequests/'+me.uid).once('value').then(s=>{
+      const n=Object.keys(s.val()||{}).length;
+      const badge=document.getElementById('profile-collab-badge');
+      if(badge){ badge.textContent=n; badge.classList.toggle('hidden',n===0); }
+    }).catch(()=>{});
+  } else {
+    const badge=document.getElementById('profile-collab-badge');
+    if(badge) badge.classList.add('hidden');
+  }
+
+
   // Load pulses
   if(u.private && !isOwn && !isFollowing){
     const lockedMsg=isRequested?`<p>Follow request sent. Once @${ESC(u.handle||'user')} accepts, you'll see their Pulses.</p>`:`<p>Follow @${ESC(u.handle||'user')} to see their Pulses.</p>`;
@@ -4537,10 +4799,12 @@ function gotoOwnProfile(){openProfile(me.uid);}
 function switchProfileTab(tab,el){
   document.querySelectorAll('.profile-tab').forEach(t=>t.classList.remove('active'));
   if(el) el.classList.add('active');
+  else { const t=document.querySelector(`.profile-tab[data-tab="${tab}"]`); if(t) t.classList.add('active'); }
   if(tab==='posts') openProfile(profileUid||me.uid);
   else if(tab==='replies') loadProfileFiltered(p=>!!p.isReply,'ph-chat-circle','No replies yet');
   else if(tab==='videos') loadProfileFiltered(p=>!!(p.videoUrl||p.videoBase64),'ph-video-camera','No videos yet');
   else if(tab==='photos') loadProfileFiltered(p=>!!(p.imageBase64||(p.images&&p.images.length)),'ph-image','No photos yet');
+  else if(tab==='collabs') loadProfileCollabs();
 }
 async function loadProfileFiltered(predicate, emptyIcon, emptyText){
   const el=document.getElementById('profile-pulses-list');
@@ -4555,6 +4819,37 @@ async function loadProfileFiltered(predicate, emptyIcon, emptyText){
   pulses.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   if(!pulses.length){el.innerHTML=`<div class="empty-feed"><i class="ph ${emptyIcon}"></i><p>${emptyText}</p></div>`;return;}
   el.innerHTML=pulses.map(p=>buildPulseCard(p)).join('');
+}
+// Collaboration tab — shows accepted collab Pulses this profile is part of
+// (as either author or invited collaborator) and, only on your own profile,
+// incoming pending requests with Accept/Decline actions.
+async function loadProfileCollabs(){
+  const el=document.getElementById('profile-pulses-list');
+  const uid=profileUid||me.uid;
+  const isOwnProfile=uid===me.uid;
+  if(!profileViewable){ el.innerHTML='<div class="empty-feed"><p>This content isn\'t available.</p></div>'; return; }
+  el.innerHTML='<div class="feed-loader"><i class="ph ph-spinner-gap spin"></i></div>';
+  let pending=[];
+  if(isOwnProfile){
+    const reqSnap=await db.ref('collabRequests/'+me.uid).once('value');
+    const pendingIds=Object.keys(reqSnap.val()||{});
+    if(pendingIds.length){
+      pending=await Promise.all(pendingIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+      pending=pending.filter(p=>p.collaboratorStatus==='pending');
+      pending.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+    }
+  }
+  const pSnap=await db.ref('userPulses/'+uid).once('value');
+  const pulseIds=Object.keys(pSnap.val()||{});
+  let accepted=[];
+  if(pulseIds.length){
+    accepted=await Promise.all(pulseIds.map(id=>db.ref('pulses/'+id).once('value').then(s=>({id,...(s.val()||{})}))));
+    accepted=accepted.filter(p=>p.collab && p.collaboratorStatus==='accepted');
+    accepted.sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  }
+  const combined=[...pending, ...accepted];
+  if(!combined.length){ el.innerHTML='<div class="empty-feed"><i class="ph ph-users-three"></i><p>No collaborations yet</p></div>'; return; }
+  el.innerHTML=combined.map(p=>buildPulseCard(p)).join('');
 }
 
 async function loadProfileLikes(){
@@ -4576,9 +4871,16 @@ async function loadProfileLikes(){
 }
 
 function shareProfile(){
-  const handle=profileUid===me.uid?myData.handle:'user';
   const url=`${location.origin}${location.pathname}?user=${profileUid}`;
-  navigator.clipboard.writeText(url).then(()=>showToast('Profile link copied!')).catch(()=>{});
+  const titleEl=document.getElementById('meta-og-title');
+  const descEl=document.getElementById('meta-og-description');
+  const title=(titleEl&&titleEl.getAttribute('content'))||DEFAULT_SHARE_TITLE;
+  const text=(descEl&&descEl.getAttribute('content'))||DEFAULT_SHARE_DESC;
+  if(navigator.share){
+    navigator.share({title, text, url}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>showToast('Profile link copied!')).catch(()=>{});
+  }
 }
 
 // Profile context menu (for other users)
@@ -4796,7 +5098,7 @@ function loadNotifs(){
     if(badge){badge.textContent=unread;badge.classList.toggle('hidden',unread===0);}
     const el=document.getElementById('notif-list'); if(!el)return;
     if(!items.length){el.innerHTML='<div class="empty-feed"><i class="ph ph-bell"></i><p>No alerts yet</p></div>';return;}
-    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',follow_request:'ph ph-user-plus',follow_accept:'ph ph-user-check',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots',mention:'ph ph-at'};
+    const icons={like:'ph-fill ph-heart',follow:'ph ph-user-plus',follow_request:'ph ph-user-plus',follow_accept:'ph ph-user-check',repost:'ph ph-repeat',reply:'ph ph-chat-circle-dots',mention:'ph ph-at',collab_request:'ph ph-users-three',collab_accept:'ph ph-users-three'};
     const msgs={
       like:`<strong>${'%n'}</strong> liked your Pulse`,
       follow:`<strong>${'%n'}</strong> started following you`,
@@ -4804,7 +5106,9 @@ function loadNotifs(){
       follow_accept:`<strong>${'%n'}</strong> accepted your follow request`,
       repost:`<strong>${'%n'}</strong> reposted your Pulse`,
       reply:`<strong>${'%n'}</strong> commented on your Pulse`,
-      mention:`<strong>${'%n'}</strong> tagged you in a Pulse`
+      mention:`<strong>${'%n'}</strong> tagged you in a Pulse`,
+      collab_request:`<strong>${'%n'}</strong> invited you to collaborate on a Pulse`,
+      collab_accept:`<strong>${'%n'}</strong> accepted your collab invite`
     };
     try{
       el.innerHTML=items.map(n=>{
@@ -4816,6 +5120,18 @@ function loadNotifs(){
               <div style="display:flex;gap:8px;margin-top:8px;">
                 <button class="btn-follow-sm following" style="padding:6px 14px;" onclick="event.stopPropagation();acceptFollowRequest('${ESC(n.fromUid)}','${ESC(n.id)}')">Accept</button>
                 <button class="btn-follow-sm" style="padding:6px 14px;" onclick="event.stopPropagation();declineFollowRequest('${ESC(n.fromUid)}','${ESC(n.id)}')">Decline</button>
+              </div>
+            </div>
+            <div class="notif-time">${timeAgo(n.createdAt)}</div>
+          </div>`;
+        }
+        if(n.type==='collab_request'){
+          return `<div class="notif-item notif-${n.type} ${n.read?'':'unread'}">
+            <div class="notif-icon"><i class="${icons[n.type]||'ph ph-bell'}"></i></div>
+            <div class="notif-body" style="cursor:pointer;" onclick="markNotifRead('${ESC(n.id)}');openDetail('${ESC(n.pulseId)}')">${msg}
+              <div style="display:flex;gap:8px;margin-top:8px;">
+                <button class="btn-follow-sm following" style="padding:6px 14px;" onclick="event.stopPropagation();acceptCollabRequest('${ESC(n.pulseId)}','${ESC(n.id)}')">Accept</button>
+                <button class="btn-follow-sm" style="padding:6px 14px;" onclick="event.stopPropagation();declineCollabRequest('${ESC(n.pulseId)}','${ESC(n.id)}')">Decline</button>
               </div>
             </div>
             <div class="notif-time">${timeAgo(n.createdAt)}</div>
@@ -5266,11 +5582,55 @@ function openCtxMenu(e, pulseId, isOwn, creatorUid){
 function closeCtxMenu(){document.getElementById('ctx-menu').classList.add('hidden');}
 
 // ============================================================
+// SHARE METADATA — keeps <title>/OG/Twitter tags in sync with whatever
+// profile or Pulse is currently open, so:
+//  1) the browser tab + any JS-aware share sheet (e.g. the Web Share API
+//     below) shows that person's/Pulse's own name, bio and photo — not
+//     the generic app name — when a link is shared.
+//  2) Note: link-preview CARDS on WhatsApp/Twitter/etc. are generated by
+//     bots that fetch the URL WITHOUT running JS, so they'll only ever see
+//     whatever is in the static <head> unless this app is served by a
+//     backend/edge function that injects per-user tags server-side. This
+//     client-side update covers everything else (tab title, native share
+//     sheet text, and the tags if the link is opened normally in-app).
+// ============================================================
+const DEFAULT_SHARE_IMAGE = 'https://aryasongs.github.io/Pulse/621954EC-539B-4CA6-8CBB-9172C2BBC445.png';
+const DEFAULT_SHARE_TITLE = 'Nexor Sparks';
+const DEFAULT_SHARE_DESC = 'Nexor Sparks — share your pulse with the world.';
+function setMetaContent(id, content){
+  const el=document.getElementById(id);
+  if(el && content) el.setAttribute('content', content);
+}
+function updateShareMeta({title, description, image, url}){
+  document.title = title || DEFAULT_SHARE_TITLE;
+  const desc = (description||DEFAULT_SHARE_DESC).slice(0,160);
+  setMetaContent('meta-description', desc);
+  setMetaContent('meta-og-title', title||DEFAULT_SHARE_TITLE);
+  setMetaContent('meta-og-description', desc);
+  setMetaContent('meta-og-image', image||DEFAULT_SHARE_IMAGE);
+  setMetaContent('meta-og-url', url||(location.origin+location.pathname));
+  setMetaContent('meta-twitter-title', title||DEFAULT_SHARE_TITLE);
+  setMetaContent('meta-twitter-description', desc);
+  setMetaContent('meta-twitter-image', image||DEFAULT_SHARE_IMAGE);
+}
+function resetShareMeta(){
+  updateShareMeta({title:DEFAULT_SHARE_TITLE, description:DEFAULT_SHARE_DESC, image:DEFAULT_SHARE_IMAGE, url:location.origin+location.pathname});
+}
+
+// ============================================================
 // SHARE
 // ============================================================
 function shareUrl(pulseId){
   const url=`${location.origin}${location.pathname}?pulse=${pulseId}`;
-  navigator.clipboard.writeText(url).then(()=>showToast('Link copied!')).catch(()=>{});
+  const titleEl=document.getElementById('meta-og-title');
+  const descEl=document.getElementById('meta-og-description');
+  const title=(titleEl&&titleEl.getAttribute('content'))||DEFAULT_SHARE_TITLE;
+  const text=(descEl&&descEl.getAttribute('content'))||DEFAULT_SHARE_DESC;
+  if(navigator.share){
+    navigator.share({title, text, url}).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>showToast('Link copied!')).catch(()=>{});
+  }
 }
 
 // ============================================================
@@ -5912,6 +6272,7 @@ function showScreen(id){
   document.querySelectorAll('.screen-overlay').forEach(s=>s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   setNavActive(id);
+  if(id!=='profile-screen' && id!=='detail-screen') resetShareMeta();
   if(id==='notif-screen'){ loadNotifs(); }
   if(id==='bookmarks-screen') loadBookmarksScreen();
   if(id==='lists-screen') loadListsScreen();
